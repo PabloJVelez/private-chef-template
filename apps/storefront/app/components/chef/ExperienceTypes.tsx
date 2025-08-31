@@ -1,6 +1,8 @@
 import { Container } from '@app/components/common/container/Container';
 import { ActionList } from '@app/components/common/actions-list/ActionList';
 import { Image } from '@app/components/common/images/Image';
+import { Accordion } from 'radix-ui';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import type { FC } from 'react';
 
@@ -75,11 +77,17 @@ interface ExperienceCardProps {
   featured?: boolean;
 }
 
+interface ExperienceAccordionItemProps {
+  experience: ExperienceType;
+  className?: string;
+  featured?: boolean;
+}
+
 const ExperienceCard: FC<ExperienceCardProps> = ({ experience, className, featured = false }) => {
   return (
     <div className={clsx(
-      "relative bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-300 h-full flex flex-col",
-      featured ? "ring-2 ring-accent-500 transform scale-[1.02]" : "hover:scale-[1.02]",
+      "relative bg-white rounded-lg shadow-md p-6 transition-all duration-300 h-full flex flex-col border-2 border-transparent",
+      "hover:shadow-lg hover:scale-[1.02] hover:border-accent-500 focus-within:border-accent-500 focus-within:shadow-lg focus-within:scale-[1.02]",
       className
     )}>
       {featured && (
@@ -153,6 +161,132 @@ const ExperienceCard: FC<ExperienceCardProps> = ({ experience, className, featur
   );
 };
 
+const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({ 
+  experience, 
+  className, 
+  featured = false
+}) => {
+  // Define background colors for each experience type
+  const getBackgroundColor = () => {
+    if (experience.id === 'buffet_style') return 'bg-blue-50'
+    if (experience.id === 'cooking_class') return 'bg-green-50'
+    if (experience.id === 'plated_dinner') return 'bg-yellow-50'
+    return 'bg-gray-50'
+  }
+
+  const getIconBackground = () => {
+    if (experience.id === 'buffet_style') return 'bg-blue-100'
+    if (experience.id === 'cooking_class') return 'bg-green-100'
+    if (experience.id === 'plated_dinner') return 'bg-yellow-100'
+    return 'bg-gray-100'
+  }
+
+  return (
+    <Accordion.Item 
+      value={experience.id}
+      className={clsx(
+        "relative rounded-xl transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden transform-gpu data-[state=open]:scale-[1.02] data-[state=open]:shadow-lg data-[state=closed]:scale-100 hover:scale-[1.01]",
+        getBackgroundColor(),
+        className
+      )}
+    >
+      {featured && (
+        <div className="absolute top-2 right-4 z-10">
+          <span className="bg-accent-500 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-md">
+            Most Popular
+          </span>
+        </div>
+      )}
+      
+      <Accordion.Header>
+        <Accordion.Trigger
+          className={clsx(
+            "w-full px-6 text-left focus:outline-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-white/20 group",
+            featured ? "pt-10 pb-5" : "py-5"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 flex-1">
+              <div className={clsx(
+                "w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0",
+                getIconBackground()
+              )}>
+                <Image
+                  src={experience.icon}
+                  alt={`${experience.name} icon`}
+                  width={28}
+                  height={28}
+                  className="w-7 h-7"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl font-bold text-primary-900 mb-1">
+                  {experience.name}
+                </h3>
+                <div className="text-primary-600 text-sm">
+                  {experience.duration} • per person
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-2xl font-bold text-accent-600">
+                {experience.price}
+              </span>
+              <ChevronDownIcon
+                className="h-6 w-6 text-primary-400 transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] flex-shrink-0 transform-gpu group-data-[state=open]:rotate-180 group-data-[state=open]:text-accent-600 group-data-[state=open]:scale-110"
+              />
+            </div>
+          </div>
+        </Accordion.Trigger>
+      </Accordion.Header>
+      
+      <Accordion.Content
+        className="px-6 pb-6 bg-white/60 backdrop-blur-sm border-t border-white/40 data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown overflow-hidden transition-all duration-300 ease-out"
+      >
+        <div className="space-y-4 pt-4">
+          <p className="text-primary-700 leading-relaxed text-sm">
+            {experience.description}
+          </p>
+          
+          <div className="space-y-3">
+            <h4 className="font-semibold text-primary-900 text-sm">What's Included:</h4>
+            <ul className="space-y-1.5">
+              {experience.highlights.map((highlight, index) => (
+                <li key={index} className="flex items-center text-sm text-primary-700">
+                  <span className="w-1.5 h-1.5 bg-accent-500 rounded-full mr-3 flex-shrink-0" />
+                  {highlight}
+                </li>
+              ))}
+            </ul>
+          </div>
+          
+          <div className="space-y-2 pt-3 border-t border-white/40">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-primary-600 font-medium">Duration:</span>
+              <span className="font-semibold text-primary-800">{experience.duration}</span>
+            </div>
+            <div className="text-sm text-primary-600">
+              <span className="font-medium">Ideal for:</span> {experience.idealFor}
+            </div>
+          </div>
+          
+          <div className="pt-4">
+            <ActionList
+              actions={[
+                {
+                  label: 'Request This Experience',
+                  url: `/request?type=${experience.id}`,
+                }
+              ]}
+              className=""
+            />
+          </div>
+        </div>
+      </Accordion.Content>
+    </Accordion.Item>
+  );
+};
+
 export const ExperienceTypes: FC<ExperienceTypesProps> = ({ 
   className,
   title = "Choose Your Culinary Experience",
@@ -169,7 +303,8 @@ export const ExperienceTypes: FC<ExperienceTypesProps> = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+      {/* Desktop Grid Layout */}
+      <div className="hidden lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
         {experienceTypes.map((experience, index) => (
           <ExperienceCard 
             key={experience.id} 
@@ -177,6 +312,23 @@ export const ExperienceTypes: FC<ExperienceTypesProps> = ({
             featured={index === 1} // Make cooking class featured (middle option)
           />
         ))}
+      </div>
+
+      {/* Mobile Accordion Layout */}
+      <div className="lg:hidden pt-2">
+        <Accordion.Root
+          type="single"
+          collapsible
+          className="space-y-6"
+        >
+          {experienceTypes.map((experience, index) => (
+            <ExperienceAccordionItem
+              key={experience.id}
+              experience={experience}
+              featured={index === 1} // Make cooking class featured (middle option)
+            />
+          ))}
+        </Accordion.Root>
       </div>
 
       <div className="text-center mt-12">
