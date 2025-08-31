@@ -152,9 +152,9 @@ export default function IndexRoute() {
 
       <ChefHero className="h-[800px] !max-w-full -mt-[calc(var(--mkt-header-height)+3rem)] md:-mt-[calc(var(--mkt-header-height-desktop)+2rem)] pt-[var(--mkt-header-height)] md:pt-[var(--mkt-header-height-desktop)]" />
 
-      <ExperienceTypes />
-
       <FeaturedMenusSection menus={menus} />
+
+      <ExperienceTypes />
 
       <Container className="py-16 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
