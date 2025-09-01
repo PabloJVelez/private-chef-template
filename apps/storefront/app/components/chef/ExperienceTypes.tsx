@@ -185,14 +185,16 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
     <Accordion.Item 
       value={experience.id}
       className={clsx(
-        "relative rounded-xl transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden transform-gpu data-[state=open]:scale-[1.02] data-[state=open]:shadow-lg data-[state=closed]:scale-100 hover:scale-[1.01]",
+        // Mobile-first styling for pill-like cards
+        // Avoid transform-based scaling to prevent layout jank during height animations
+        "relative rounded-3xl shadow-md ring-1 ring-black/5 transition-colors duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] overflow-hidden",
         getBackgroundColor(),
         className
       )}
     >
       {featured && (
         <div className="absolute top-2 right-4 z-10">
-          <span className="bg-accent-500 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-md">
+          <span className="bg-accent-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-md">
             Most Popular
           </span>
         </div>
@@ -201,39 +203,41 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
       <Accordion.Header>
         <Accordion.Trigger
           className={clsx(
-            "w-full px-6 text-left focus:outline-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-white/20 group",
-            featured ? "pt-10 pb-5" : "py-5"
+            // Larger padding, tighter visual to match mock
+            "w-full px-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 rounded-3xl transition-colors duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] hover:bg-white/20 motion-reduce:transition-none group",
+            featured ? "pt-10 pb-6" : "py-6"
           )}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 flex-1">
               <div className={clsx(
-                "w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0",
+                // Slightly larger icon chip
+                "w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0",
                 getIconBackground()
               )}>
                 <Image
                   src={experience.icon}
                   alt={`${experience.name} icon`}
-                  width={28}
-                  height={28}
-                  className="w-7 h-7"
+                  width={32}
+                  height={32}
+                  className="w-8 h-8"
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-xl font-bold text-primary-900 mb-1">
+                <h3 className="text-2xl font-extrabold text-primary-900 mb-1">
                   {experience.name}
                 </h3>
-                <div className="text-primary-600 text-sm">
+                <div className="text-primary-600 text-base">
                   {experience.duration} • per person
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-2xl font-bold text-accent-600">
+              <span className="text-[24px] font-extrabold text-accent-600">
                 {experience.price}
               </span>
               <ChevronDownIcon
-                className="h-6 w-6 text-primary-400 transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] flex-shrink-0 transform-gpu group-data-[state=open]:rotate-180 group-data-[state=open]:text-accent-600 group-data-[state=open]:scale-110"
+                className="h-7 w-7 text-primary-400 transition-transform duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] flex-shrink-0 transform-gpu group-data-[state=open]:rotate-180 group-data-[state=open]:text-accent-600"
               />
             </div>
           </div>
@@ -241,18 +245,18 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
       </Accordion.Header>
       
       <Accordion.Content
-        className="px-6 pb-6 bg-white/60 backdrop-blur-sm border-t border-white/40 data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown overflow-hidden transition-all duration-300 ease-out"
+        className="px-6 pb-6 bg-white/60 border-t border-white/40 data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] motion-reduce:transition-none data-[state=open]:opacity-100 data-[state=closed]:opacity-0 will-change-[height,opacity]"
       >
-        <div className="space-y-4 pt-4">
-          <p className="text-primary-700 leading-relaxed text-sm">
+        <div className="space-y-5 pt-4">
+          <p className="text-primary-700 leading-relaxed text-base">
             {experience.description}
           </p>
           
           <div className="space-y-3">
-            <h4 className="font-semibold text-primary-900 text-sm">What's Included:</h4>
+            <h4 className="font-semibold text-primary-900 text-base">What's Included:</h4>
             <ul className="space-y-1.5">
               {experience.highlights.map((highlight, index) => (
-                <li key={index} className="flex items-center text-sm text-primary-700">
+                <li key={index} className="flex items-center text-[15px] text-primary-700">
                   <span className="w-1.5 h-1.5 bg-accent-500 rounded-full mr-3 flex-shrink-0" />
                   {highlight}
                 </li>
@@ -261,11 +265,11 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
           </div>
           
           <div className="space-y-2 pt-3 border-t border-white/40">
-            <div className="flex justify-between items-center text-sm">
+            <div className="flex justify-between items-center text-base">
               <span className="text-primary-600 font-medium">Duration:</span>
               <span className="font-semibold text-primary-800">{experience.duration}</span>
             </div>
-            <div className="text-sm text-primary-600">
+            <div className="text-base text-primary-600">
               <span className="font-medium">Ideal for:</span> {experience.idealFor}
             </div>
           </div>
@@ -294,12 +298,17 @@ export const ExperienceTypes: FC<ExperienceTypesProps> = ({
 }) => {
   return (
     <Container className={clsx('py-12 lg:py-16', className)}>
-      <div className="text-center mb-12">
-        <h2 className="text-3xl md:text-4xl font-italiana text-primary-900 mb-3">
+      <div className="text-center mb-8 lg:mb-12">
+        <h2 className="text-3xl md:text-4xl font-italiana text-primary-900 mb-2 md:mb-3">
           {title}
         </h2>
-        <p className="text-base text-primary-600 max-w-2xl mx-auto leading-relaxed">
+        {/* Desktop copy stays the same */}
+        <p className="hidden lg:block text-base text-primary-600 max-w-2xl mx-auto leading-relaxed">
           {description}
+        </p>
+        {/* Mobile-friendly helper line to match design intent */}
+        <p className="lg:hidden text-primary-600 text-base">
+          Tap to explore • All prices per person
         </p>
       </div>
 
@@ -331,21 +340,26 @@ export const ExperienceTypes: FC<ExperienceTypesProps> = ({
         </Accordion.Root>
       </div>
 
-      <div className="text-center mt-12">
+      {/* Helper CTA — copy tweaked for mobile only */}
+      <div className="text-center mt-10 lg:mt-12">
         <div className="max-w-xl mx-auto">
-          <h3 className="text-lg font-semibold text-primary-900 mb-3">
+          {/* Desktop message unchanged */}
+          <h3 className="hidden lg:block text-lg font-semibold text-primary-900 mb-3">
             Not sure which experience is right for you?
           </h3>
-          <p className="text-primary-600 mb-6 text-sm">
+          <p className="hidden lg:block text-primary-600 mb-6 text-sm">
             Let us help you choose the perfect culinary experience for your occasion. 
             Let's start with selecting a menu...
           </p>
+
+          {/* Mobile streamlined copy to mirror mock */}
+          <p className="lg:hidden text-primary-600 mb-6 text-base">
+            Need help choosing? Start by browsing our menus.
+          </p>
+
           <ActionList
             actions={[
-              {
-                label: 'Browse Our Menus',
-                url: '/menus',
-              }
+              { label: 'Browse Our Menus', url: '/menus' }
             ]}
             className="flex-col gap-3 sm:flex-row sm:justify-center"
           />
