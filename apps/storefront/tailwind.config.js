@@ -103,8 +103,8 @@ module.exports = {
         },
       },
       animation: {
-        slideDown: 'slideDown 400ms cubic-bezier(0.16, 1, 0.3, 1)',
-        slideUp: 'slideUp 300ms cubic-bezier(0.16, 1, 0.3, 1)',
+        slideDown: 'slideDown 300ms cubic-bezier(0.87, 0, 0.13, 1)',
+        slideUp: 'slideUp 300ms cubic-bezier(0.87, 0, 0.13, 1)',
       },
     },
   },
