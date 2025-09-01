@@ -224,16 +224,16 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-2xl font-extrabold text-primary-900 mb-1">
+                <h3 className="text-[28px] leading-8 font-semibold text-primary-900 mb-1">
                   {experience.name}
                 </h3>
-                <div className="text-primary-600 text-base">
+                <div className="text-primary-600 text-xl">
                   {experience.duration} • per person
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-[24px] font-extrabold text-accent-600">
+              <span className="text-[30px] font-extrabold text-accent-600">
                 {experience.price}
               </span>
               <ChevronDownIcon
@@ -247,16 +247,16 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
       <Accordion.Content
         className="px-6 pb-6 bg-white/60 border-t border-white/40 data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] motion-reduce:transition-none data-[state=open]:opacity-100 data-[state=closed]:opacity-0 will-change-[height,opacity]"
       >
-        <div className="space-y-5 pt-4">
-          <p className="text-primary-700 leading-relaxed text-base">
+          <div className="space-y-5 pt-4">
+          <p className="text-primary-700 leading-relaxed text-lg">
             {experience.description}
           </p>
           
           <div className="space-y-3">
-            <h4 className="font-semibold text-primary-900 text-base">What's Included:</h4>
+            <h4 className="font-semibold text-primary-900 text-lg">What's Included:</h4>
             <ul className="space-y-1.5">
               {experience.highlights.map((highlight, index) => (
-                <li key={index} className="flex items-center text-[15px] text-primary-700">
+                <li key={index} className="flex items-center text-base text-primary-700">
                   <span className="w-1.5 h-1.5 bg-accent-500 rounded-full mr-3 flex-shrink-0" />
                   {highlight}
                 </li>
@@ -265,11 +265,11 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
           </div>
           
           <div className="space-y-2 pt-3 border-t border-white/40">
-            <div className="flex justify-between items-center text-base">
+            <div className="flex justify-between items-center text-lg">
               <span className="text-primary-600 font-medium">Duration:</span>
               <span className="font-semibold text-primary-800">{experience.duration}</span>
             </div>
-            <div className="text-base text-primary-600">
+            <div className="text-lg text-primary-600">
               <span className="font-medium">Ideal for:</span> {experience.idealFor}
             </div>
           </div>
@@ -307,7 +307,7 @@ export const ExperienceTypes: FC<ExperienceTypesProps> = ({
           {description}
         </p>
         {/* Mobile-friendly helper line to match design intent */}
-        <p className="lg:hidden text-primary-600 text-base">
+        <p className="lg:hidden text-primary-600 text-xl">
           Tap to explore • All prices per person
         </p>
       </div>
