@@ -12,9 +12,11 @@ export interface MenuCarouselProps {
   menus?: StoreMenuDTO[];
   className?: string;
   renderItem?: FC<MenuListItemProps>;
+  singleItem?: boolean; // Show one card per view (mobile hero style)
+  autoAdvanceMs?: number; // Auto-scroll interval (ms)
 }
 
-export const MenuRow: FC<{ menus: StoreMenuDTO[] }> = memo(({ menus }) => {
+export const MenuRow: FC<{ menus: StoreMenuDTO[]; singleItem?: boolean }> = memo(({ menus, singleItem }) => {
   return (
     <>
       {menus.map((menu) => (
@@ -22,7 +24,12 @@ export const MenuRow: FC<{ menus: StoreMenuDTO[] }> = memo(({ menus }) => {
           key={menu.id}
           data-card
           // Widths tuned to match grid steps while enabling snap scrolling
-          className="xs:w-[85%] xs:snap-center mr-4 inline-block w-[90%] snap-center last:mr-0 sm:w-[70%] sm:mr-6 md:w-[48%] xl:w-[31%] xl:mr-8"
+          className={clsx(
+            'inline-block snap-center last:mr-0',
+            singleItem
+              ? 'w-full mr-4 xs:w-full sm:w-full'
+              : 'w-[90%] mr-4 xs:w-[85%] sm:w-[70%] sm:mr-6 md:w-[48%] xl:w-[31%] xl:mr-8'
+          )}
         >
           <NavLink prefetch="viewport" to={`/menus/${menu.id}`} viewTransition>
             {({ isTransitioning }) => <MenuListItem isTransitioning={isTransitioning} menu={menu} />}
@@ -48,7 +55,7 @@ export const MenuRow: FC<{ menus: StoreMenuDTO[] }> = memo(({ menus }) => {
   );
 });
 
-export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className }) => {
+export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleItem, autoAdvanceMs }) => {
   const { scrollableDivRef, ...scrollArrowProps } = useScrollArrows({
     buffer: 100,
     resetOnDepChange: [menus],
@@ -99,13 +106,50 @@ export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className }) => {
     };
   }, [menus, scrollableDivRef]);
 
+  // Auto-advance between cards when requested
+  useEffect(() => {
+    if (!autoAdvanceMs || autoAdvanceMs <= 0) return;
+    const container = scrollableDivRef.current;
+    if (!container) return;
+
+    const getCards = () => Array.from(container.querySelectorAll<HTMLElement>('[data-card]'));
+    const getOffsets = () => getCards().map((c) => c.offsetLeft - (container.offsetLeft || 0));
+
+    let timer: number | null = null;
+    const tick = () => {
+      const offsets = getOffsets();
+      if (offsets.length === 0) return;
+      // Find nearest index to current scroll
+      const currentLeft = container.scrollLeft;
+      let nearest = 0;
+      let best = Number.POSITIVE_INFINITY;
+      offsets.forEach((left, i) => {
+        const d = Math.abs(left - currentLeft);
+        if (d < best) {
+          best = d;
+          nearest = i;
+        }
+      });
+      const next = (nearest + 1) % offsets.length;
+      container.scrollTo({ left: offsets[next], behavior: 'smooth' });
+    };
+
+    timer = window.setInterval(tick, autoAdvanceMs);
+    return () => {
+      if (timer) window.clearInterval(timer);
+    };
+  }, [autoAdvanceMs, menus, scrollableDivRef]);
+
   return (
     <div className={clsx('menu-carousel relative', className)}>
       <div
         ref={scrollableDivRef}
-        className="w-full snap-x snap-mandatory overflow-x-auto whitespace-nowrap pb-2 sm:snap-proximity text-center no-scrollbar"
+        className={clsx(
+          'w-full snap-x snap-mandatory overflow-x-auto whitespace-nowrap pb-2 sm:snap-proximity text-center no-scrollbar',
+          singleItem && 'px-4'
+        )}
       >
-        <MenuRow menus={menus} />
+        <MenuRow menus={menus} singleItem={singleItem} />
       </div>
       <ScrollArrowButtons className="-mt-12" {...scrollArrowProps} />
     </div>

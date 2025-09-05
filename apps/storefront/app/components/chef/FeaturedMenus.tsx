@@ -1,4 +1,5 @@
 import { Container } from '@app/components/common/container';
+import { MenuCarousel } from '@app/components/menu/MenuCarousel';
 import { MenuListItem } from '@app/components/menu/MenuListItem';
 import { FC } from 'react';
 
@@ -50,7 +51,13 @@ export const FeaturedMenus: FC<FeaturedMenusProps> = ({ menus, maxDisplay = 3 })
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Mobile: horizontal carousel for better ergonomics */}
+      <div className="md:hidden">
+        <MenuCarousel menus={displayMenus as any} singleItem autoAdvanceMs={4000} />
+      </div>
+
+      {/* Desktop/Tablets: keep existing grid layout */}
+      <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         {displayMenus.map((menu) => (
           <MenuListItem key={menu.id} menu={menu} />
         ))}
