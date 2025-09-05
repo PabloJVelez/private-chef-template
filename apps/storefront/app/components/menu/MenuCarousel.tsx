@@ -14,6 +14,7 @@ export interface MenuCarouselProps {
   renderItem?: FC<MenuListItemProps>;
   singleItem?: boolean; // Show one card per view (mobile hero style)
   autoAdvanceMs?: number; // Auto-scroll interval (ms)
+  showArrows?: boolean; // Show prev/next arrow buttons
 }
 
 export const MenuRow: FC<{ menus: StoreMenuDTO[]; singleItem?: boolean }> = memo(({ menus, singleItem }) => {
@@ -55,7 +56,7 @@ export const MenuRow: FC<{ menus: StoreMenuDTO[]; singleItem?: boolean }> = memo
   );
 });
 
-export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleItem, autoAdvanceMs }) => {
+export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleItem, autoAdvanceMs, showArrows = true }) => {
   const { scrollableDivRef, ...scrollArrowProps } = useScrollArrows({
     buffer: 100,
     resetOnDepChange: [menus],
@@ -113,7 +114,14 @@ export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleIt
     if (!container) return;
 
     const getCards = () => Array.from(container.querySelectorAll<HTMLElement>('[data-card]'));
-    const getOffsets = () => getCards().map((c) => c.offsetLeft - (container.offsetLeft || 0));
+    const getOffsets = () => {
+      const cRect = container.getBoundingClientRect();
+      return getCards().map((card) => {
+        const rect = card.getBoundingClientRect();
+        // Convert viewport position to scrollLeft target
+        return rect.left - cRect.left + container.scrollLeft;
+      });
+    };
 
     let timer: number | null = null;
     const tick = () => {
@@ -134,9 +142,29 @@ export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleIt
       container.scrollTo({ left: offsets[next], behavior: 'smooth' });
     };
 
-    timer = window.setInterval(tick, autoAdvanceMs);
+    const start = () => {
+      if (!timer) timer = window.setInterval(tick, autoAdvanceMs);
+    };
+    const stop = () => {
+      if (timer) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    };
+
+    // Pause on user interaction per UX best practices
+    container.addEventListener('pointerdown', stop, { passive: true });
+    container.addEventListener('pointerenter', stop, { passive: true });
+    container.addEventListener('touchstart', stop, { passive: true });
+    container.addEventListener('pointerleave', start, { passive: true });
+
+    start();
     return () => {
-      if (timer) window.clearInterval(timer);
+      stop();
+      container.removeEventListener('pointerdown', stop);
+      container.removeEventListener('pointerenter', stop);
+      container.removeEventListener('touchstart', stop);
+      container.removeEventListener('pointerleave', start);
     };
   }, [autoAdvanceMs, menus, scrollableDivRef]);
 
@@ -151,7 +179,7 @@ export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleIt
       >
         <MenuRow menus={menus} singleItem={singleItem} />
       </div>
-      <ScrollArrowButtons className="-mt-12" {...scrollArrowProps} />
+      {showArrows && <ScrollArrowButtons className="-mt-12" {...scrollArrowProps} />}
     </div>
   );
 };

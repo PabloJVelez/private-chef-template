@@ -10,7 +10,7 @@ import { ChefHero } from '@app/components/chef/ChefHero';
 import { FeaturedMenus } from '@app/components/chef/FeaturedMenus';
 import { ExperienceTypes } from '@app/components/chef/ExperienceTypes';
 import { ActionList } from '@app/components/common/actions-list/ActionList';
-import { fetchMenus } from '@libs/util/server/data/menus.server';
+import { fetchMenus, type StoreMenuDTO } from '@libs/util/server/data/menus.server';
 import { getMergedPageMeta } from '@libs/util/page';
 
 export const loader = async (_args: LoaderFunctionArgs) => {
@@ -135,7 +135,7 @@ export const meta: MetaFunction<typeof loader> = () => {
   ];
 };
 
-function FeaturedMenusSection({ menus }: { menus: any[] }) {
+function FeaturedMenusSection({ menus }: { menus: StoreMenuDTO[] }) {
   return <FeaturedMenus menus={menus} maxDisplay={3} />;
 }
 
