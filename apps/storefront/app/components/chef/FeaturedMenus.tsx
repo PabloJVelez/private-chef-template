@@ -59,12 +59,7 @@ export const FeaturedMenus: FC<FeaturedMenusProps> = ({ menus, maxDisplay = 3 })
 
       {/* Mobile/Tablet: horizontal carousel for better ergonomics */}
       <div className="lg:hidden">
-        <MenuCarousel 
-          menus={displayMenus} 
-          singleItem 
-          autoAdvanceMs={4000}
-          showArrows={false}
-        />
+        <MenuCarousel menus={displayMenus} singleItem autoAdvanceMs={1500} showArrows={false} />
       </div>
 
       {/* Desktop: keep existing grid layout */}

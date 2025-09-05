@@ -33,23 +33,27 @@ export const MenuRow: FC<{ menus: StoreMenuDTO[]; singleItem?: boolean }> = memo
           )}
         >
           <NavLink prefetch="viewport" to={`/menus/${menu.id}`} viewTransition>
-            {({ isTransitioning }) => <MenuListItem isTransitioning={isTransitioning} menu={menu} />}
+            {({ isTransitioning }) => (
+              <MenuListItem isTransitioning={isTransitioning} menu={menu} />
+            )}
           </NavLink>
-          {/* Quick actions under each card for mobile ergonomics */}
-          <div className="mt-2 flex gap-2 md:hidden">
-            <NavLink
-              to={`/menus/${menu.id}`}
-              className="flex-1 rounded-lg bg-gray-900 text-white text-sm py-2 text-center active:opacity-90"
-            >
-              View details
-            </NavLink>
-            <NavLink
-              to={`/request?menuId=${menu.id}`}
-              className="flex-1 rounded-lg bg-blue-600 text-white text-sm py-2 text-center active:opacity-90"
-            >
-              Request this
-            </NavLink>
-          </div>
+          {/* Quick actions shown only for multi-card view; compact variant embeds its own */}
+          {!singleItem && (
+            <div className="mt-2 flex gap-2 lg:hidden">
+              <NavLink
+                to={`/menus/${menu.id}`}
+                className="flex-1 rounded-lg bg-gray-900 text-white text-sm py-2 text-center active:opacity-90"
+              >
+                View details
+              </NavLink>
+              <NavLink
+                to={`/request?menuId=${menu.id}`}
+                className="flex-1 rounded-lg bg-blue-600 text-white text-sm py-2 text-center active:opacity-90"
+              >
+                Request this
+              </NavLink>
+            </div>
+          )}
         </div>
       ))}
     </>
