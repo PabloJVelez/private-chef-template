@@ -64,7 +64,8 @@ export const FeaturedMenus: FC<FeaturedMenusProps> = ({ menus, maxDisplay = 3 })
           singleItem
           autoAdvanceMs={1500}
           showArrows={false}
-          renderItem={({ menu }) => <MenuListItem menu={menu} tightMobile />}
+          // Use the standard card layout with a concise preview on mobile
+          renderItem={({ menu }) => <MenuListItem menu={menu} previewOnly />}
         />
       </div>
 

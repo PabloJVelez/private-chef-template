@@ -203,41 +203,39 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
       <Accordion.Header>
         <Accordion.Trigger
           className={clsx(
-            // Larger padding, tighter visual to match mock
-            "w-full px-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 rounded-3xl transition-colors duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] hover:bg-white/20 motion-reduce:transition-none group",
+            // Two-row header layout. Row 1: title + duration. Row 2: price + caret.
+            "w-full px-5 md:px-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 rounded-3xl transition-colors duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] hover:bg-white/20 motion-reduce:transition-none group",
             featured ? "pt-10 pb-6" : "py-6"
           )}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 flex-1">
-              <div className={clsx(
-                // Slightly larger icon chip
-                "w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0",
-                getIconBackground()
-              )}>
-                <Image
-                  src={experience.icon}
-                  alt={`${experience.name} icon`}
-                  width={32}
-                  height={32}
-                  className="w-8 h-8"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-[28px] leading-8 font-semibold text-primary-900 mb-1">
-                  {experience.name}
-                </h3>
-                <div className="text-primary-600 text-xl">
-                  {experience.duration} • per person
-                </div>
-              </div>
+          {/* Grid: 30% image (left), 70% details (right). Image spans both rows. */}
+          <div className="grid grid-cols-[30%_1fr] gap-4 items-center">
+            <div className="row-span-2 rounded-2xl overflow-hidden h-24 md:h-28 bg-white/40">
+              <Image
+                src={experience.icon}
+                alt={`${experience.name} image`}
+                width={160}
+                height={200}
+                className="w-full h-full object-cover"
+              />
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-[30px] font-extrabold text-accent-600">
-                {experience.price}
+
+            {/* Row 1: Title only (more room for duration+price below) */}
+            <div className="flex items-center">
+              <h3 className="truncate text-[22px] md:text-[28px] leading-7 md:leading-8 font-semibold text-primary-900">
+                {experience.name}
+              </h3>
+            </div>
+
+            {/* Row 2: Duration • Price (left), caret on right */}
+            <div className="flex items-center justify-between">
+              <span className="flex items-baseline gap-2 text-primary-700 whitespace-nowrap">
+                <span className="text-base md:text-xl">{experience.duration}</span>
+                <span aria-hidden className="text-primary-400">•</span>
+                <span className="text-xl md:text-[30px] font-extrabold text-accent-600">{experience.price}</span>
               </span>
               <ChevronDownIcon
-                className="h-7 w-7 text-primary-400 transition-transform duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] flex-shrink-0 transform-gpu group-data-[state=open]:rotate-180 group-data-[state=open]:text-accent-600"
+                className="h-5 w-5 md:h-6 md:w-6 text-primary-400 transition-transform duration-300 ease-[cubic-bezier(0.87,0,0.13,1)] flex-shrink-0 transform-gpu group-data-[state=open]:rotate-180 group-data-[state=open]:text-accent-600"
               />
             </div>
           </div>

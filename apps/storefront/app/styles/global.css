@@ -87,12 +87,21 @@
   }
 }
 
-/* Mobile-only global font-size bump for improved readability */
-@layer base {
+/* Mobile-only typography tuning: increase text sizes without changing spacing scale */
+@layer utilities {
+  /* Cross-browser multi-line text clamping with ellipsis */
+  .ellipsis-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .ellipsis-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ellipsis-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
   @media (max-width: 639px) {
-    html {
-      font-size: 18px; /* was 16px; +12.5% scale site-wide on mobile */
-    }
+    /* Bump common text utilities, keep rem-based spacing unchanged */
+    .text-sm { font-size: 0.9375rem; line-height: 1.5rem; }     /* ~15px */
+    .text-base { font-size: 1.0625rem; line-height: 1.75rem; }  /* ~17px */
+    .text-lg { font-size: 1.125rem; line-height: 1.75rem; }     /* ~18px */
+
+    /* CTA readability */
+    .button { font-size: 1.0625rem; } /* match ~17px for labels */
   }
 }
 
@@ -161,6 +170,23 @@
   .no-scrollbar {
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
+  }
+
+  /* Hide page scrollbars on mobile while preserving scroll */
+  @media (max-width: 639px) {
+    html, body {
+      -ms-overflow-style: none; /* IE and Edge */
+      scrollbar-width: none; /* Firefox */
+      overflow-x: hidden; /* prevent horizontal jiggle/white gutter */
+      max-width: 100%;
+    }
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      display: none; /* Safari/Chrome */
+      width: 0;
+      height: 0;
+      background: transparent;
+    }
   }
 }
 

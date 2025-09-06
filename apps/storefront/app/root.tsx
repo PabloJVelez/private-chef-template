@@ -69,6 +69,7 @@ function App() {
       <html lang="en" className="min-h-screen scroll-smooth">
         <head ref={headRef}>
           <meta charSet="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
           <Meta />
 
           <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -112,6 +113,7 @@ export function ErrorBoundary() {
     <html>
       <head>
         <title>Oh no!</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <Meta />
         <Links />
       </head>

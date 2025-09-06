@@ -9,6 +9,7 @@ export interface MenuListItemProps {
   isTransitioning?: boolean;
   className?: string;
   tightMobile?: boolean; // Featured-only: tighter image + larger text on mobile
+  previewOnly?: boolean; // When true, show a single-line/short preview with ellipsis on mobile
 }
 
 export const MenuListItem: FC<MenuListItemProps> = ({
@@ -16,6 +17,7 @@ export const MenuListItem: FC<MenuListItemProps> = ({
   isTransitioning = false,
   className,
   tightMobile = false,
+  previewOnly = false,
 }) => {
   const courseCount = menu.courses?.length || 0;
   const estimatedTime = "3-4 hours"; // Default estimate since not in data model yet
@@ -33,6 +35,18 @@ export const MenuListItem: FC<MenuListItemProps> = ({
     .flatMap((c) => (c.dishes || []).map((d) => d.name))
     .filter(Boolean)
     .slice(0, 4);
+
+  const fullDescription = description;
+  // Preview: show the first dish from the first two courses (fallback to course name), then ellipsis if more
+  const previewDescription = (() => {
+    const courses = (menu.courses || []).slice(0, 2);
+    const names = courses
+      .map((c) => (c.dishes && c.dishes[0]?.name) || c.name)
+      .filter(Boolean);
+    const base = names.join(', ');
+    const hasMore = (menu.courses || []).length > 2 || (menu.courses || []).some((c) => (c.dishes || []).length > 1);
+    return hasMore ? `${base}...` : base;
+  })();
 
   return (
     <Link 
@@ -90,10 +104,18 @@ export const MenuListItem: FC<MenuListItemProps> = ({
           </p>
         </div>
         
-        {/* Description */}
-        <p className={clsx('text-gray-700 flex-1', tightMobile ? 'text-[17px] md:text-sm line-clamp-2 leading-snug' : 'text-sm line-clamp-3 leading-relaxed')}>
-          {description}
-        </p>
+        {/* Description (dish previews) */}
+        {previewOnly ? (
+          // Always show a single preview string with an explicit ellipsis when trimmed
+          <p className={clsx('text-gray-700 flex-1', tightMobile ? 'text-[17px] leading-snug' : 'text-sm leading-relaxed')}>
+            {previewDescription}
+          </p>
+        ) : (
+          // Default: graceful multi-line clamp (no duplication)
+          <p className={clsx('text-gray-700 flex-1', tightMobile ? 'text-sm ellipsis-3 leading-snug' : 'text-sm ellipsis-3 leading-relaxed')}>
+            {fullDescription}
+          </p>
+        )}
         
         {/* Footer */}
         <div className={clsx('flex items-center justify-between border-t border-gray-100 mt-auto', tightMobile ? 'pt-2' : 'pt-2')}>
