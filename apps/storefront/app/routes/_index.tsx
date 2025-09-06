@@ -150,15 +150,23 @@ export default function IndexRoute() {
         as="image"
       />
 
-      <ChefHero className="h-[800px] !max-w-full -mt-[calc(var(--mkt-header-height)+3rem)] md:-mt-[calc(var(--mkt-header-height-desktop)+2rem)] pt-[var(--mkt-header-height)] md:pt-[var(--mkt-header-height-desktop)]" />
+      <ChefHero
+        className="h-[800px] !max-w-full -mt-[calc(var(--mkt-header-height)+3rem)] md:-mt-[calc(var(--mkt-header-height-desktop)+2rem)] pt-[var(--mkt-header-height)] md:pt-[var(--mkt-header-height-desktop)]"
+        description="From exclusive dinners to special events, I craft unique culinary experiences that will wow your guests."
+      />
 
       <FeaturedMenusSection menus={menus} />
 
       <ExperienceTypes />
 
       <Container className="py-12 lg:py-24">
+        {/* Mobile: show section title above the image with subtle underline */}
+        <div className="lg:hidden text-center mb-6 pt-4">
+          <h2 className="text-5xl font-italiana text-primary-900">Meet Chef Luis</h2>
+          <div className="w-16 mx-auto mt-3 border-t-2 border-blue-500" />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="relative order-2 lg:order-1">
+          <div className="relative order-1 lg:order-1">
             <Image
               src="/assets/images/chef_experience.PNG"
               loading="lazy"
@@ -170,28 +178,34 @@ export default function IndexRoute() {
             <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-accent-500 rounded-full opacity-20"></div>
           </div>
 
-          <div className="order-1 lg:order-2 text-center lg:text-left space-y-6">
+          <div className="order-2 lg:order-2 text-center lg:text-left space-y-6">
             <div className="space-y-4">
-              <h2 className="text-5xl md:text-6xl lg:text-7xl font-italiana text-primary-900">
-                Meet Chef Luis
-              </h2>
+              <h2 className="hidden lg:block text-5xl md:text-6xl lg:text-7xl font-italiana text-primary-900">Meet Chef Luis</h2>
               <p className="text-2xl md:text-3xl lg:text-4xl font-italiana text-accent-600">Culinary Artistry</p>
             </div>
 
+            {/* Unified first-person copy across breakpoints */}
             <div className="space-y-4 text-primary-700">
               <p className="text-lg leading-relaxed">
-                With over 15 years of culinary excellence, Chef Luis Velez brings world-class expertise from
-                Michelin-starred restaurants directly to your home.
+                With over 20 years of culinary experience, I’ve honed my craft under Michelin‑starred chefs. For the
+                past decade, I’ve excelled as a private chef, creating exquisite dining experiences for some of the most
+                renowned and respected figures in the industry.
               </p>
               <p className="text-base leading-relaxed">
-                Trained in classical French techniques with a modern innovative approach, he creates unforgettable
-                dining experiences tailored to your special occasions.
+                My dedication to the culinary arts is evident in my mastery of various cooking techniques and my deep
+                understanding of culinary concepts, including food microbiology. I bring a passion for food that
+                transcends the ordinary, always seeking to educate and inspire those around me.
+              </p>
+              <p className="text-base leading-relaxed">
+                I’m ready to showcase my culinary expertise—not just a chef, but a leader in the kitchen, eager to
+                share my love and knowledge of all things food. Plan your next culinary experience with me and indulge
+                in a journey of flavors that will delight your palate.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
               <div className="bg-accent-100 px-4 py-2 rounded-full">
-                <span className="text-sm font-medium text-accent-700">15+ Years Experience</span>
+                <span className="text-sm font-medium text-accent-700">20+ Years Experience</span>
               </div>
               <div className="bg-accent-100 px-4 py-2 rounded-full">
                 <span className="text-sm font-medium text-accent-700">Michelin Trained</span>
@@ -245,17 +259,18 @@ export default function IndexRoute() {
 
       <Container className="p-6 md:pt-28 lg:pt-24 lg:px-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          <div className="order-2 lg:order-1">
+          <div className="relative order-1 lg:order-1">
             <Image
               src="/assets/images/chef_book_experience.PNG"
               alt="Guests enjoying a Chef Velez experience"
-              className="rounded-3xl shadow-lg"
+              className="rounded-2xl shadow-lg w-full h-[500px] object-cover lg:rounded-3xl lg:w-auto lg:h-auto"
               width={600}
               height={400}
             />
+            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-accent-500 rounded-full opacity-20 lg:hidden"></div>
           </div>
 
-          <div className="order-1 lg:order-2 space-y-8 flex flex-col justify-center items-center lg:items-start text-center lg:text-left">
+          <div className="order-2 lg:order-2 space-y-8 flex flex-col justify-center items-center lg:items-start text-center lg:text-left">
             <h4 className="text-xl font-italiana tracking-wider">READY TO CREATE MEMORIES?</h4>
             <h3 className="text-6xl lg:text-7xl font-aboreto">Book Your Experience</h3>
             <p className="text-xl leading-relaxed">

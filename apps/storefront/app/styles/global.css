@@ -87,6 +87,15 @@
   }
 }
 
+/* Mobile-only global font-size bump for improved readability */
+@layer base {
+  @media (max-width: 639px) {
+    html {
+      font-size: 18px; /* was 16px; +12.5% scale site-wide on mobile */
+    }
+  }
+}
+
 @layer components {
   .prose h1,
   .prose h2 {
