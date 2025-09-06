@@ -17,7 +17,7 @@ export interface MenuCarouselProps {
   showArrows?: boolean; // Show prev/next arrow buttons
 }
 
-export const MenuRow: FC<{ menus: StoreMenuDTO[]; singleItem?: boolean }> = memo(({ menus, singleItem }) => {
+export const MenuRow: FC<{ menus: StoreMenuDTO[]; singleItem?: boolean; renderItem?: FC<MenuListItemProps> }> = memo(({ menus, singleItem, renderItem }) => {
   return (
     <>
       {menus.map((menu) => (
@@ -32,11 +32,15 @@ export const MenuRow: FC<{ menus: StoreMenuDTO[]; singleItem?: boolean }> = memo
               : 'w-[90%] mr-4 xs:w-[85%] sm:w-[70%] sm:mr-6 md:w-[48%] xl:w-[31%] xl:mr-8'
           )}
         >
-          <NavLink prefetch="viewport" to={`/menus/${menu.id}`} viewTransition>
-            {({ isTransitioning }) => (
-              <MenuListItem isTransitioning={isTransitioning} menu={menu} />
-            )}
-          </NavLink>
+          {renderItem ? (
+            renderItem({ menu })
+          ) : (
+            <NavLink prefetch="viewport" to={`/menus/${menu.id}`} viewTransition>
+              {({ isTransitioning }) => (
+                <MenuListItem isTransitioning={isTransitioning} menu={menu} />
+              )}
+            </NavLink>
+          )}
           {/* Quick actions shown only for multi-card view; compact variant embeds its own */}
           {!singleItem && (
             <div className="mt-2 flex gap-2 lg:hidden">
@@ -60,7 +64,7 @@ export const MenuRow: FC<{ menus: StoreMenuDTO[]; singleItem?: boolean }> = memo
   );
 });
 
-export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleItem, autoAdvanceMs, showArrows = true }) => {
+export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleItem, autoAdvanceMs, showArrows = true, renderItem }) => {
   const { scrollableDivRef, ...scrollArrowProps } = useScrollArrows({
     buffer: 100,
     resetOnDepChange: [menus],
@@ -181,7 +185,7 @@ export const MenuCarousel: FC<MenuCarouselProps> = ({ menus, className, singleIt
           singleItem && 'px-4'
         )}
       >
-        <MenuRow menus={menus} singleItem={singleItem} />
+        <MenuRow menus={menus} singleItem={singleItem} renderItem={renderItem} />
       </div>
       {showArrows && <ScrollArrowButtons className="-mt-12" {...scrollArrowProps} />}
     </div>
