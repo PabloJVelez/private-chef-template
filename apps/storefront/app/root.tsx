@@ -66,7 +66,7 @@ function App() {
 
   return (
     <RootProviders>
-      <html lang="en" className="min-h-screen">
+      <html lang="en" className="min-h-screen scroll-smooth">
         <head ref={headRef}>
           <meta charSet="UTF-8" />
           <Meta />

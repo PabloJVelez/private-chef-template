@@ -293,7 +293,7 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
 
 export const ExperienceTypes: FC<ExperienceTypesProps> = ({ 
   className,
-  title = "Choose Your Culinary Experience",
+  title = "Culinary Experiences",
   description = "Each experience is carefully crafted to match the occasion. All prices are per person with no hidden fees or deposits required."
 }) => {
   return (

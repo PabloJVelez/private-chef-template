@@ -156,7 +156,7 @@ export default function IndexRoute() {
 
       <ExperienceTypes />
 
-      <Container className="py-16 lg:py-24">
+      <Container className="py-12 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="relative order-2 lg:order-1">
             <Image
@@ -204,7 +204,7 @@ export default function IndexRoute() {
         </div>
       </Container>
 
-      <Container className="p-14 pt-0">
+      <Container className="p-6 pt-0 sm:p-10">
         <div className="text-center mb-12">
           <h3 className="text-4xl font-italiana text-gray-900 mb-4">What Our Guests Say</h3>
           <div className="w-20 mx-auto border-t-2 border-blue-500"></div>
@@ -243,7 +243,7 @@ export default function IndexRoute() {
         </div>
       </Container>
 
-      <Container className="p-14 md:pt-28 lg:pt-24 lg:px-24">
+      <Container className="p-6 md:pt-28 lg:pt-24 lg:px-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           <div className="order-2 lg:order-1">
             <Image
