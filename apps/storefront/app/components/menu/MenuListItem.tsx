@@ -39,7 +39,10 @@ export const MenuListItem: FC<MenuListItemProps> = ({
       to={`/menus/${menu.id}`}
       className={clsx(
         // Make card a flex column so heights align and footer sticks to bottom
-        "group relative bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col block",
+        'group relative rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 h-full block',
+        tightMobile
+          ? 'bg-transparent grid grid-rows-[2fr_3fr] min-h-[520px] md:min-h-0 md:bg-white md:flex md:flex-col'
+          : 'bg-white flex flex-col',
         {
           'scale-105': isTransitioning,
         },
@@ -47,10 +50,12 @@ export const MenuListItem: FC<MenuListItemProps> = ({
       )}
     >
       {/* Menu Image — default 4/3; optionally tighter on mobile when used by Featured section */}
-      <div className={clsx(
-        'overflow-hidden bg-gray-100',
-        tightMobile ? 'aspect-[20/9] md:aspect-[4/3]' : 'aspect-[4/3]'
-      )}>
+      <div
+        className={clsx(
+          'overflow-hidden bg-gray-100',
+          tightMobile ? 'h-full rounded-t-2xl md:aspect-[4/3]' : 'aspect-[4/3]'
+        )}
+      >
         <Image
           src={menu.thumbnail || menu.images?.[0]?.url || "/assets/images/chef_beef_menu.JPG"}
           alt={menu.name}
@@ -62,32 +67,42 @@ export const MenuListItem: FC<MenuListItemProps> = ({
       </div>
       
       {/* Menu Content */}
-      <div className="p-6 space-y-4 flex-1 flex flex-col" style={{ transform: 'scale(var(--scale,1))' }}>
+      <div
+        className={clsx(
+          'flex-1 flex flex-col',
+          tightMobile
+            ? 'bg-white -mt-4 mx-3 rounded-2xl p-4 shadow-sm ring-1 ring-black/5 space-y-3'
+            : 'p-6 space-y-4',
+        )}
+        style={{ transform: 'scale(var(--scale,1))' }}
+      >
         <div>
-          <h3 className={clsx(
-            'font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2',
-            tightMobile ? 'text-3xl md:text-2xl' : 'text-xl'
-          )}>
+          <h3
+            className={clsx(
+              'font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2',
+              tightMobile ? 'text-[32px] md:text-2xl leading-tight' : 'text-xl'
+            )}
+          >
             {menu.name}
           </h3>
-          <p className={clsx('text-gray-600 mt-1', tightMobile ? 'text-base md:text-sm' : 'text-sm')}>
+          <p className={clsx('text-gray-600', tightMobile ? 'text-[17px] md:text-sm mt-0.5' : 'text-sm mt-1')}>
             {courseCount} course{courseCount !== 1 ? 's' : ''} • {estimatedTime}
           </p>
         </div>
         
         {/* Description */}
-        <p className={clsx('text-gray-700 leading-relaxed flex-1', tightMobile ? 'text-base md:text-sm line-clamp-2' : 'text-sm line-clamp-3')}>
+        <p className={clsx('text-gray-700 flex-1', tightMobile ? 'text-[17px] md:text-sm line-clamp-2 leading-snug' : 'text-sm line-clamp-3 leading-relaxed')}>
           {description}
         </p>
         
         {/* Footer */}
-        <div className={clsx('flex items-center justify-between border-t border-gray-100 mt-auto', tightMobile ? 'pt-3' : 'pt-2')}>
-          <div className={clsx('text-gray-600', tightMobile ? 'text-lg md:text-sm' : 'text-sm')}>
+        <div className={clsx('flex items-center justify-between border-t border-gray-100 mt-auto', tightMobile ? 'pt-2' : 'pt-2')}>
+          <div className={clsx('text-gray-600', tightMobile ? 'text-xl md:text-sm' : 'text-sm')}>
             <span className="font-medium">From $99.99</span> per person
           </div>
-          <div className={clsx('font-medium text-blue-600 flex items-center', tightMobile ? 'text-lg md:text-sm' : 'text-sm')}>
+          <div className={clsx('font-medium text-blue-600 flex items-center', tightMobile ? 'text-xl md:text-sm' : 'text-sm')}>
             View Menu
-            <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={clsx('ml-1 group-hover:translate-x-1 transition-transform', tightMobile ? 'w-5 h-5' : 'w-4 h-4')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
