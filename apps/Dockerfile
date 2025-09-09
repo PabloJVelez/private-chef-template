@@ -1,37 +1,42 @@
-# --- base
+# --- base for installs/builds
 FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat bash && corepack enable
 WORKDIR /app
 
-# --- prune the monorepo to just medusa
-FROM base AS prune
+# Copy Yarn Berry core files first (so installs can cache)
+COPY .yarn .yarn
+COPY .yarnrc.yml package.json yarn.lock ./
+
+# Copy workspace manifests needed to resolve the Medusa workspace
+COPY apps/medusa/package.json apps/medusa/package.json
+# If you have other internal packages used by medusa, also copy their package.json files here, e.g.:
+# COPY packages/common/package.json packages/common/package.json
+
+# Install deps for just the medusa workspace (including dev deps, to allow build)
+RUN yarn workspaces focus medusa --all
+
+# Bring in the rest of the source
 COPY . .
-# scope name must match your package name for the medusa app/package
-RUN npx --yes turbo@2.1.2 prune --scope=medusa --docker
 
-# --- install deps for the pruned output
-FROM base AS install
-# Copy only what always exists after prune
-COPY --from=prune /app/out/yarn.lock ./yarn.lock
-COPY --from=prune /app/out/json/ .
-# If using Yarn v1: install with frozen lockfile
-RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-    else npm ci; fi
+# Optional: build if your medusa workspace has a build script
+# (won't fail if it doesn't exist)
+RUN yarn workspace medusa build || true
+# Optional: prisma generate (if your scripts expect it)
+RUN yarn workspace medusa prisma:generate || true
 
-# --- build
-FROM install AS build
-RUN yarn --version || true
-RUN if [ -f package.json ]; then \
-      if cat package.json | grep -q "\"build\":" ; then yarn build || npm run build; fi; \
-    fi
-
-# --- runtime
+# --- production image
 FROM node:22-alpine AS runtime
+RUN apk add --no-cache libc6-compat bash && corepack enable
 WORKDIR /app
 ENV NODE_ENV=production
-# copy pruned app and built artifacts
-COPY --from=install /app ./
-# expose Medusa on 9000
+
+# Copy everything from the build stage
+COPY --from=base /app ./
+
+# Install only production deps for medusa workspace
+RUN yarn workspaces focus medusa --production
+
 EXPOSE 9000
-# run migrations + start (adjust to your scripts)
-CMD [ "sh", "-lc", "yarn predeploy || true && yarn start:standalone || yarn start || node ./dist/index.js" ]
+
+# Run DB migrations then start the server
+CMD ["sh","-lc","yarn workspace medusa predeploy || true; yarn workspace medusa start"]
