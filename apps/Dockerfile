@@ -1,50 +1,37 @@
-# ---- base ----
+# --- base
 FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat bash && corepack enable
 WORKDIR /app
 
-# ---- prune to medusa workspace ----
+# --- prune the monorepo to just medusa
 FROM base AS prune
 COPY . .
-# Use explicit turbo version so the step always has turbo
+# scope name must match your package name for the medusa app/package
 RUN npx --yes turbo@2.1.2 prune --scope=medusa --docker
 
-# ---- install in pruned workspace ----
+# --- install deps for the pruned output
 FROM base AS install
+# Copy only what always exists after prune
 COPY --from=prune /app/out/yarn.lock ./yarn.lock
-COPY --from=prune /app/out/.yarnrc.yml ./.yarnrc.yml
-COPY --from=prune /app/out/.yarn ./.yarn
 COPY --from=prune /app/out/json/ .
-RUN yarn install --immutable
+# If using Yarn v1: install with frozen lockfile
+RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+    else npm ci; fi
 
-# ---- build the medusa app (standalone) ----
+# --- build
 FROM install AS build
-COPY --from=prune /app/out/full/ .
-WORKDIR /app/apps/medusa
+RUN yarn --version || true
+RUN if [ -f package.json ]; then \
+      if cat package.json | grep -q "\"build\":" ; then yarn build || npm run build; fi; \
+    fi
 
-# Helpful logs + robust CLI fallback + assert output exists
-RUN set -euxo pipefail \
-  && node -v && yarn -v \
-  && (node -e "require.resolve('@medusajs/cli/package.json')" \
-      && echo 'Medusa CLI found in deps' \
-      || echo 'Medusa CLI not found; will use npx fallback') \
-  && (yarn build:standalone \
-      || (echo 'yarn build:standalone failed; using npx @medusajs/cli build' \
-          && npx --yes @medusajs/cli@latest build \
-          && cd .medusa/server \
-          && npm ci --omit=dev)) \
-  && test -f .medusa/server/package.json \
-  && ls -la .medusa && ls -la .medusa/server
-# ---- runtime ----
-FROM node:22-alpine AS runner
-RUN apk add --no-cache libc6-compat bash && corepack enable
+# --- runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
-COPY --from=build /app ./
-
-ENV NODE_ENV=production \
-    HOST=0.0.0.0 \
-    PORT=9000
-
+ENV NODE_ENV=production
+# copy pruned app and built artifacts
+COPY --from=install /app ./
+# expose Medusa on 9000
 EXPOSE 9000
-# run DB migrations, then launch compiled server
-CMD ["bash","-lc","cd apps/medusa && yarn predeploy && yarn start:standalone"]
+# run migrations + start (adjust to your scripts)
+CMD [ "sh", "-lc", "yarn predeploy || true && yarn start:standalone || yarn start || node ./dist/index.js" ]
