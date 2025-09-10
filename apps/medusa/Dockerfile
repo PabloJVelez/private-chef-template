@@ -31,12 +31,20 @@ ENV NODE_ENV=production
 # Copy the compiled server output
 COPY --chown=node:node --from=installer /app/apps/medusa/.medusa/server /app/server
 
+# Also copy client assets so Admin can be served if present
+COPY --chown=node:node --from=installer /app/apps/medusa/.medusa/client /app/server/.medusa/client
+
 WORKDIR /app/server
 EXPOSE 9000
 
+# Normalize admin output: mirror client to admin if admin is absent
+RUN if [ -f /app/server/.medusa/client/index.html ] && [ ! -f /app/server/.medusa/admin/index.html ]; then \
+      mkdir -p /app/server/.medusa/admin && cp -a /app/server/.medusa/client/. /app/server/.medusa/admin/; \
+    fi
+
 # Install server runtime dependencies (from .medusa/server/package.json)
-# Use legacy peer deps to avoid strict npm peer conflicts from transitive deps
-RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
+# Avoid running lifecycle scripts (prepare/postinstall) during build, and relax peers
+RUN npm install --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
 # Non-root
 USER node
