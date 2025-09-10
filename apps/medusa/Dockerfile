@@ -34,20 +34,26 @@ COPY --chown=node:node --from=installer /app/apps/medusa/.medusa/server /app/ser
 # Also copy client assets so Admin can be served if present
 COPY --chown=node:node --from=installer /app/apps/medusa/.medusa/client /app/server/.medusa/client
 
+# Yarn config for installing server runtime deps
+COPY --chown=node:node --from=installer /app/yarn.lock /app/server/yarn.lock
+COPY --chown=node:node --from=installer /app/.yarnrc.yml /app/server/.yarnrc.yml
+COPY --chown=node:node --from=installer /app/.yarn /app/server/.yarn
+
 WORKDIR /app/server
 EXPOSE 9000
 
-# Normalize admin output: mirror client to admin if admin is absent
-RUN if [ -f /app/server/.medusa/client/index.html ] && [ ! -f /app/server/.medusa/admin/index.html ]; then \
-      mkdir -p /app/server/.medusa/admin && cp -a /app/server/.medusa/client/. /app/server/.medusa/admin/; \
-    fi
+# Install server runtime dependencies via Yarn without running scripts
+WORKDIR /app/server
+ENV YARN_ENABLE_SCRIPTS=0
+RUN yarn install --immutable --mode=skip-build --production
 
-# Install server runtime dependencies (from .medusa/server/package.json)
-# Avoid running lifecycle scripts (prepare/postinstall) during build, and relax peers
-RUN npm install --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+# Normalize admin output: mirror client to admin if admin is absent
+RUN if [ -f .medusa/client/index.html ] && [ ! -f .medusa/admin/index.html ]; then \
+      mkdir -p .medusa/admin && cp -a .medusa/client/. .medusa/admin/; \
+    fi
 
 # Non-root
 USER node
 
-# Start compiled server
-CMD ["npm", "start"]
+# Start compiled server (apply migrations, then start)
+CMD ["npm", "run", "start:prod"]
