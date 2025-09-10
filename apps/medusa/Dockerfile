@@ -47,6 +47,11 @@ RUN if [ -f apps/medusa/.medusa/client/index.html ] && [ ! -f apps/medusa/.medus
       mkdir -p apps/medusa/.medusa/admin && cp -a apps/medusa/.medusa/client/. apps/medusa/.medusa/admin/; \
     fi
 
+# Ensure Medusa CLI can load a JS config (production install may not include ts-node)
+RUN if [ -f apps/medusa/.medusa/server/medusa-config.js ]; then \
+      cp apps/medusa/.medusa/server/medusa-config.js apps/medusa/medusa-config.js; \
+    fi
+
 WORKDIR /app/apps/medusa
 EXPOSE 9000
 
