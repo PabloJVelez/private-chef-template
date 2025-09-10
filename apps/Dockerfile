@@ -37,3 +37,4 @@ EXPOSE 9000
 
 # Run DB migrations then start the server
 CMD ["sh","-lc","yarn workspace medusa predeploy || true; yarn workspace medusa start"]
+
