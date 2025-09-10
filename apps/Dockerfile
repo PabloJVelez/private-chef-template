@@ -18,7 +18,7 @@ RUN yarn workspaces focus medusa --all
 COPY . .
 
 # Optional: won’t fail if scripts don’t exist
-RUN yarn workspace medusa build || true
+RUN yarn workspace medusa build
 RUN yarn workspace medusa prisma:generate || true
 
 # ---------- runtime ----------
