@@ -43,7 +43,10 @@ EXPOSE 9000
 # Admin build location differs by Medusa versions/configs: some output to .medusa/admin, others to .medusa/client
 # Accept either to avoid false negatives while still guarding against missing artifacts.
 RUN [ -f .medusa/admin/index.html ] || [ -f .medusa/client/index.html ]
-RUN test -f .medusa/server/index.cjs
+# Server build entry can be ESM (.js) or CJS (.cjs),
+# and Medusa emits a server package with package.json.
+# Accept any of these to validate the server build exists.
+RUN [ -f .medusa/server/index.cjs ] || [ -f .medusa/server/index.js ] || [ -f .medusa/server/package.json ]
 
 # use the CLI exactly as you want
 CMD ["sh","-lc","yarn predeploy || true; yarn start"]
