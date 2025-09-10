@@ -35,11 +35,11 @@ WORKDIR /app/server
 EXPOSE 9000
 
 # Install server runtime dependencies (from .medusa/server/package.json)
-RUN npm install --omit=dev
+# Use legacy peer deps to avoid strict npm peer conflicts from transitive deps
+RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
 
 # Non-root
 USER node
 
 # Start compiled server
 CMD ["npm", "start"]
-
