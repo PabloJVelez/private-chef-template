@@ -24,17 +24,19 @@ RUN yarn workspace medusa prisma:generate || true
 # ---------- runtime ----------
 FROM node:22-alpine AS runtime
 RUN apk add --no-cache libc6-compat bash ca-certificates && update-ca-certificates && corepack enable
-WORKDIR /app
-ENV NODE_ENV=production
 
-# Pull everything from the builder
+WORKDIR /app
+
+# bring built app
 COPY --from=builder /app ./
 
-# Keep ALL deps because runtime uses ts-node / devDeps
+# install only what the medusa workspace needs to run
 RUN yarn workspaces focus medusa --all
+
+# ⬇️ ensure medusa starts with cwd=/app/apps/medusa
+WORKDIR /app/apps/medusa
 
 EXPOSE 9000
 
-# Run DB migrations then start the server
-CMD ["sh","-lc","yarn workspace medusa predeploy || true; yarn workspace medusa start"]
-
+# run migrations then start
+CMD ["sh","-lc","yarn predeploy || true; yarn start"]
