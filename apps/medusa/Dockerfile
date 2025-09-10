@@ -30,7 +30,8 @@ ENV NODE_ENV=production
 
 # Bring pruned workspace and yarn config
 WORKDIR /app
-COPY --from=installer /app/out/full/ ./
+# Copy pruned workspace files
+COPY --from=builder /app/out/full/ ./
 COPY --from=installer /app/.yarnrc.yml ./.yarnrc.yml
 COPY --from=installer /app/.yarn ./.yarn
 COPY --from=installer /app/yarn.lock ./yarn.lock
