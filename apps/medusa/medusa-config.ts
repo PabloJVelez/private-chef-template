@@ -64,26 +64,44 @@ const notificationModule = {
       },
     };
 
-const fileModule = {
-      resolve: "@medusajs/medusa/file",
-      options: {
-        providers: [
-          {
-            resolve: "@medusajs/medusa/file-s3",
-            id: "s3",
-            options: {
-              file_url: process.env.S3_FILE_URL,
-              access_key_id: process.env.S3_ACCESS_KEY_ID,
-              secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
-              region: process.env.S3_REGION,
-              bucket: process.env.S3_BUCKET,
-              endpoint: process.env.S3_ENDPOINT,
-              // other options...
+// Allow switching file storage between local and S3 via env
+// FILE_PROVIDER=local | s3 (default: s3)
+const FILE_PROVIDER = (process.env.FILE_PROVIDER || 's3').toLowerCase();
+const fileModule =
+  FILE_PROVIDER === 'local'
+    ? {
+        resolve: "@medusajs/medusa/file",
+        options: {
+          providers: [
+            {
+              resolve: "@medusajs/medusa/file-local",
+              id: "local",
+              options: {
+                // uses default temp dir inside container; mount a volume if you need persistence
+              },
             },
-          },
-        ],
-      },
-    };
+          ],
+        },
+      }
+    : {
+        resolve: "@medusajs/medusa/file",
+        options: {
+          providers: [
+            {
+              resolve: "@medusajs/medusa/file-s3",
+              id: "s3",
+              options: {
+                file_url: process.env.S3_FILE_URL,
+                access_key_id: process.env.S3_ACCESS_KEY_ID,
+                secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
+                region: process.env.S3_REGION,
+                bucket: process.env.S3_BUCKET,
+                endpoint: process.env.S3_ENDPOINT,
+              },
+            },
+          ],
+        },
+      };
 
 module.exports = defineConfig({
   projectConfig: {
@@ -133,12 +151,11 @@ module.exports = defineConfig({
     notificationModule,
     fileModule,
   ],
-  // admin: {
-  //   // ADD ADMIN DISABLE CONFIGURATION
-  //   disable: false,
-  //   backendUrl: process.env.ADMIN_BACKEND_URL,
-  // },
+  admin: {
+    // ADD ADMIN DISABLE CONFIGURATION
+    disable: false,
+    backendUrl: process.env.ADMIN_BACKEND_URL,
+  },
 });
-
 
 
