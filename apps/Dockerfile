@@ -39,8 +39,10 @@ WORKDIR /app/apps/medusa
 
 EXPOSE 9000
 
-# sanity checks (fail image build if admin/server artifacts are missing)
-RUN test -f .medusa/admin/index.html
+# sanity checks
+# Admin build location differs by Medusa versions/configs: some output to .medusa/admin, others to .medusa/client
+# Accept either to avoid false negatives while still guarding against missing artifacts.
+RUN [ -f .medusa/admin/index.html ] || [ -f .medusa/client/index.html ]
 RUN test -f .medusa/server/index.cjs
 
 # use the CLI exactly as you want
