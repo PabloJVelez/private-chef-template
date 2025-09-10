@@ -6,18 +6,13 @@ const REDIS_URL = process.env.REDIS_URL;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
 const IS_TEST = process.env.NODE_ENV === 'test';
 
-// In production, point to compiled modules inside .medusa/server
-const MODULES_BASE = (process.env.NODE_ENV === 'production')
-  ? './.medusa/server/src/modules'
-  : './src/modules'
-
 const customModules = [
   {
-    resolve: `${MODULES_BASE}/menu`,
+    resolve: './src/modules/menu',
     options: {},
   },
   {
-    resolve: `${MODULES_BASE}/chef-event`,
+    resolve: './src/modules/chef-event',
     options: {},
   },
 ]
@@ -157,9 +152,10 @@ module.exports = defineConfig({
     fileModule,
   ],
   admin: {
-    // Allow disabling admin via env to avoid hard failures when admin build isn't bundled
-    // Set MEDUSA_ADMIN_DISABLE=true to disable serving admin
-    disable: (process.env.MEDUSA_ADMIN_DISABLE || 'false').toLowerCase() === 'true',
+    // ADD ADMIN DISABLE CONFIGURATION
+    disable: false,
     backendUrl: process.env.ADMIN_BACKEND_URL,
   },
 });
+
+
