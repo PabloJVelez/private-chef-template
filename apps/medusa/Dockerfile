@@ -42,10 +42,10 @@ COPY --chown=node:node --from=installer /app/.yarn /app/server/.yarn
 WORKDIR /app/server
 EXPOSE 9000
 
-# Install server runtime dependencies via Yarn without running scripts
+# Install server runtime dependencies via npm without running scripts
 WORKDIR /app/server
-ENV YARN_ENABLE_SCRIPTS=0
-RUN yarn install --immutable --mode=skip-build --production
+ENV npm_config_ignore_scripts=true
+RUN npm install --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
 # Normalize admin output: mirror client to admin if admin is absent
 RUN if [ -f .medusa/client/index.html ] && [ ! -f .medusa/admin/index.html ]; then \
