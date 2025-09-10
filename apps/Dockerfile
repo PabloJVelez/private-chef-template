@@ -25,8 +25,8 @@ RUN yarn workspace medusa build || true
 RUN yarn workspace medusa prisma:generate || true
 
 # --- production image
-FROM node:22-alpine AS runtime
-RUN apk add --no-cache libc6-compat bash && corepack enable
+FROM node:22-alpine AS base
+RUN apk add --no-cache libc6-compat bash ca-certificates && update-ca-certificates && corepack enable
 WORKDIR /app
 ENV NODE_ENV=production
 
