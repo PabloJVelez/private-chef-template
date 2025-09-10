@@ -34,7 +34,7 @@ ENV NODE_ENV=production
 COPY --from=base /app ./
 
 # Install only production deps for medusa workspace
-RUN yarn workspaces focus medusa --production
+RUN yarn workspaces focus medusa --all
 
 EXPOSE 9000
 
