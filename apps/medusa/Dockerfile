@@ -28,32 +28,29 @@ FROM node:22-alpine AS runner
 RUN apk add --no-cache libc6-compat && corepack enable
 ENV NODE_ENV=production
 
-# Copy the compiled server output
-COPY --chown=node:node --from=installer /app/apps/medusa/.medusa/server /app/server
+# Bring pruned workspace and yarn config
+WORKDIR /app
+COPY --from=installer /app/out/full/ ./
+COPY --from=installer /app/.yarnrc.yml ./.yarnrc.yml
+COPY --from=installer /app/.yarn ./.yarn
+COPY --from=installer /app/yarn.lock ./yarn.lock
 
-# Also copy client assets so Admin can be served if present
-COPY --chown=node:node --from=installer /app/apps/medusa/.medusa/client /app/server/.medusa/client
+# Copy built artifacts (.medusa) from installer
+COPY --from=installer /app/apps/medusa/.medusa /app/apps/medusa/.medusa
 
-# Yarn config for installing server runtime deps
-COPY --chown=node:node --from=installer /app/yarn.lock /app/server/yarn.lock
-COPY --chown=node:node --from=installer /app/.yarnrc.yml /app/server/.yarnrc.yml
-COPY --chown=node:node --from=installer /app/.yarn /app/server/.yarn
+# Install only medusa workspace runtime deps
+RUN yarn workspaces focus medusa --production
 
-WORKDIR /app/server
-EXPOSE 9000
-
-# Install server runtime dependencies via npm without running scripts
-WORKDIR /app/server
-ENV npm_config_ignore_scripts=true
-RUN npm install --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund
-
-# Normalize admin output: mirror client to admin if admin is absent
-RUN if [ -f .medusa/client/index.html ] && [ ! -f .medusa/admin/index.html ]; then \
-      mkdir -p .medusa/admin && cp -a .medusa/client/. .medusa/admin/; \
+# Normalize admin output in workspace artifacts
+RUN if [ -f apps/medusa/.medusa/client/index.html ] && [ ! -f apps/medusa/.medusa/admin/index.html ]; then \
+      mkdir -p apps/medusa/.medusa/admin && cp -a apps/medusa/.medusa/client/. apps/medusa/.medusa/admin/; \
     fi
+
+WORKDIR /app/apps/medusa
+EXPOSE 9000
 
 # Non-root
 USER node
 
-# Start compiled server (apply migrations, then start)
-CMD ["npm", "run", "start:prod"]
+# Start from workspace (apply migrations, then start)
+CMD ["yarn", "start:prod"]
