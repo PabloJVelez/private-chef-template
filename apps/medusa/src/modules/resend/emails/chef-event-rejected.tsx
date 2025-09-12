@@ -143,7 +143,7 @@ function ChefEventRejectedEmailComponent({
               {rejection.chefNotes && (
                 <>
                   <Text className="font-semibold text-gray-700 mb-2">
-                    Additional Notes from Chef Elena:
+                    Additional Notes from Chef Luis Velez:
                   </Text>
                   <Text className="text-gray-600 italic">
                     "{rejection.chefNotes}"
@@ -219,7 +219,7 @@ function ChefEventRejectedEmailComponent({
               
               <Row>
                 <Text className="text-gray-600">
-                  <strong>Website:</strong> www.chefelenar.com
+                  <strong>Website:</strong> www.chefvelez.com
                 </Text>
               </Row>
             </Section>
@@ -231,10 +231,10 @@ function ChefEventRejectedEmailComponent({
               <Row>
                 <Column>
                   <Text className="text-center text-gray-500 text-sm mb-4">
-                    Thank you for considering Chef Elena Rodriguez for your event
+                    Thank you for considering Chef Luis Velez for your event
                   </Text>
                   <Text className="text-center text-gray-400 text-xs">
-                    © {new Date().getFullYear()} Chef Elena Rodriguez. All rights reserved.
+                    © {new Date().getFullYear()} Chef Luis Velez. All rights reserved.
                   </Text>
                 </Column>
               </Row>

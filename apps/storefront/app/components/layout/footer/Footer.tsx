@@ -1,16 +1,16 @@
 import { LogoStoreName } from '@app/components/LogoStoreName/LogoStoreName';
 import { Container } from '@app/components/common/container/Container';
-import { Select } from '@app/components/common/forms/inputs/Select';
+// import { Select } from '@app/components/common/forms/inputs/Select';
 import { URLAwareNavLink } from '@app/components/common/link/URLAwareNavLink';
-import { NewsletterSubscription } from '@app/components/newsletter/Newsletter';
-import { useRegion } from '@app/hooks/useRegion';
-import { useRegions } from '@app/hooks/useRegions';
+// import { NewsletterSubscription } from '@app/components/newsletter/Newsletter';
+// import { useRegion } from '@app/hooks/useRegion';
+// import { useRegions } from '@app/hooks/useRegions';
 import { useRootLoaderData } from '@app/hooks/useRootLoaderData';
 import { useSiteDetails } from '@app/hooks/useSiteDetails';
-import { convertToFormData } from '@libs/util/forms/objectToFormData';
+// import { convertToFormData } from '@libs/util/forms/objectToFormData';
 import clsx from 'clsx';
-import { useMemo } from 'react';
-import { useFetcher } from 'react-router';
+// import { useMemo } from 'react';
+// import { useFetcher } from 'react-router';
 import { StripeSecurityImage } from '../../images/StripeSecurityImage';
 import { SocialIcons } from './SocialIcons';
 
@@ -18,25 +18,25 @@ export const Footer = () => {
   const { footerNavigationItems, settings } = useSiteDetails();
   const rootData = useRootLoaderData();
   const hasProducts = rootData?.hasPublishedProducts;
-  const fetcher = useFetcher();
-  const { regions } = useRegions();
-  const { region } = useRegion();
+  // const fetcher = useFetcher();
+  // const { regions } = useRegions();
+  // const { region } = useRegion();
 
-  const regionOptions = useMemo(() => {
-    return regions.map((region) => ({
-      label: `${region.name} (${region.currency_code})`,
-      value: region.id,
-    }));
-  }, [regions]);
+  // const regionOptions = useMemo(() => {
+  //   return regions.map((region) => ({
+  //     label: `${region.name} (${region.currency_code})`,
+  //     value: region.id,
+  //   }));
+  // }, [regions]);
 
-  const onRegionChange = (regionId: string) => {
-    fetcher.submit(
-      convertToFormData({
-        regionId,
-      }),
-      { method: 'post', action: '/api/region' },
-    );
-  };
+  // const onRegionChange = (regionId: string) => {
+  //   fetcher.submit(
+  //     convertToFormData({
+  //       regionId,
+  //     }),
+  //     { method: 'post', action: '/api/region' },
+  //   );
+  // };
 
   return (
     <footer className="bg-accent-50 min-h-[140px] py-8 text-white">
@@ -73,10 +73,11 @@ export const Footer = () => {
             ))}
           </nav>
           <div className="flex flex-col gap-5 lg:col-span-2">
-            <NewsletterSubscription className="mb-4" />
+            {/* <NewsletterSubscription className="mb-4" /> */}
 
             <SocialIcons siteSettings={settings} />
 
+            {/*
             <div className="flex flex-col gap-4 mt-4">
               <h5>Location</h5>
               <p className="text-sm">
@@ -85,10 +86,12 @@ export const Footer = () => {
                 Open 7AM - 4PM Daily
               </p>
             </div>
+            */}
           </div>
         </div>
         <div className="flex flex-col max-md:items-center gap-8 mt-8 md:flex-row md:justify-between">
           <div className="flex flex-col gap-8">
+            {/*
             <div className="flex items-center gap-2 ">
               <Select
                 className="!text-base border-1 border-white text-white bg-transparent !shadow-none"
@@ -108,6 +111,7 @@ export const Footer = () => {
             >
               © {new Date().getFullYear()} Made with ❤️ by LambdaCurry
             </a>
+            */}
           </div>
           <div className="mt-1 flex flex-col justify-end text-xs sm:mt-0">
             {hasProducts && <StripeSecurityImage className="mt-2" />}
