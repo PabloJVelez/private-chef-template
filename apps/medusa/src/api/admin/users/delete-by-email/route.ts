@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
-import { MedusaError } from "@medusajs/framework/utils"
+import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { deleteUsersWorkflow } from "@medusajs/medusa/core-flows"
 
 const deleteUserByEmailSchema = z.object({
@@ -21,8 +21,8 @@ export async function DELETE(
       email: validatedBody.email,
     })
     
-    // Get the user service from Medusa's built-in auth module
-    const userService = req.scope.resolve("userService") as any
+    // Get the user service from Medusa's built-in user module
+    const userService = req.scope.resolve(Modules.USER)
     
     // Find user by email first
     const users = await userService.listUsers({
