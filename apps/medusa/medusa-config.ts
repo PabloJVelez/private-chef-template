@@ -76,9 +76,7 @@ const fileModule =
             {
               resolve: "@medusajs/medusa/file-local",
               id: "local",
-              options: {
-                // uses default temp dir inside container; mount a volume if you need persistence
-              },
+              options: {},
             },
           ],
         },
@@ -87,16 +85,19 @@ const fileModule =
         resolve: "@medusajs/medusa/file",
         options: {
           providers: [
-             {
-              resolve: `@medusajs/medusa/file-s3`,
+            {
+              resolve: "@medusajs/medusa/file-s3",
               id: "s3",
               options: {
                 file_url: process.env.S3_FILE_URL,
-                s3_url: process.env.S3_ENDPOINT,
+                endpoint: process.env.S3_ENDPOINT,
                 bucket: process.env.S3_BUCKET,
                 access_key_id: process.env.S3_ACCESS_KEY_ID,
                 secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
                 region: process.env.S3_REGION,
+                additional_client_config: {
+                  forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+                },
               },
             },
           ],
@@ -157,5 +158,3 @@ module.exports = defineConfig({
     backendUrl: process.env.ADMIN_BACKEND_URL,
   },
 });
-
-
