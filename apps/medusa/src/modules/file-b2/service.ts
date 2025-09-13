@@ -178,39 +178,10 @@ class B2S3FileService extends AbstractFileProviderService {
       Bucket: this.config_.bucket,
       Key: `${fileData.fileKey}`,
     })
-    return await getSignedUrl(this.client_, command, {
+    // Cast to any to avoid SDK type incompatibilities across nested versions
+    return await (getSignedUrl as any)(this.client_ as any, command as any, {
       expiresIn: this.config_.downloadFileDuration!,
     })
-  }
-
-  async getPresignedUploadUrl(
-    fileData: FileTypes.ProviderGetPresignedUploadUrlDTO
-  ): Promise<FileTypes.ProviderFileResultDTO> {
-    if (!fileData?.filename) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        `No filename provided`
-      )
-    }
-
-    const fileKey = `${this.config_.prefix}${fileData.filename}`
-
-    // Do NOT include ACL for Backblaze B2
-    const command = new PutObjectCommand({
-      Bucket: this.config_.bucket,
-      ContentType: fileData.mimeType,
-      Key: fileKey,
-    })
-
-    const signedUrl = await getSignedUrl(this.client_, command, {
-      expiresIn:
-        fileData.expiresIn ?? DEFAULT_UPLOAD_EXPIRATION_DURATION_SECONDS,
-    })
-
-    return {
-      url: signedUrl,
-      key: fileKey,
-    }
   }
 
   async getDownloadStream(
@@ -254,4 +225,3 @@ class B2S3FileService extends AbstractFileProviderService {
 }
 
 export default B2S3FileService
-
