@@ -51,6 +51,7 @@
     "@lambdacurry/medusa-product-reviews": "1.2.0",
     "@medusajs/admin-sdk": "2.7.0",
     "@medusajs/cli": "2.7.0",
+    "@medusajs/file-s3": "^2.10.2",
     "@medusajs/framework": "2.7.0",
     "@medusajs/icons": "2.8.0",
     "@medusajs/js-sdk": "2.7.0",
