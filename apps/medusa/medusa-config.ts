@@ -86,8 +86,8 @@ const fileModule =
         options: {
           providers: [
             {
-              resolve: "@medusajs/medusa/file-s3",
-              id: "s3",
+              resolve: "./src/modules/file-b2",
+              id: "b2-s3",
               options: {
                 file_url: process.env.S3_FILE_URL,
                 endpoint: process.env.S3_ENDPOINT,
@@ -95,9 +95,6 @@ const fileModule =
                 access_key_id: process.env.S3_ACCESS_KEY_ID,
                 secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
                 region: process.env.S3_REGION,
-                // Avoid provider defaulting to public ACLs on S3-compatible backends
-                // Set S3_ACL=private for Backblaze B2 to prevent x-amz-acl: public-read
-                acl: process.env.S3_ACL || 'private',
                 additional_client_config: {
                   forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
                 },
