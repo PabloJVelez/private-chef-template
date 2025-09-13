@@ -91,6 +91,7 @@ const fileModule =
               resolve: `@medusajs/medusa/file-s3`,
               id: "s3",
               options: {
+                file_url: process.env.S3_FILE_URL,
                 s3_url: process.env.S3_ENDPOINT,
                 bucket: process.env.S3_BUCKET,
                 access_key_id: process.env.S3_ACCESS_KEY_ID,
