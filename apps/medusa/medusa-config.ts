@@ -95,6 +95,9 @@ const fileModule =
                 access_key_id: process.env.S3_ACCESS_KEY_ID,
                 secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
                 region: process.env.S3_REGION,
+                // Avoid provider defaulting to public ACLs on S3-compatible backends
+                // Set S3_ACL=private for Backblaze B2 to prevent x-amz-acl: public-read
+                acl: process.env.S3_ACL || 'private',
                 additional_client_config: {
                   forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
                 },
