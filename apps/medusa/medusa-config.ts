@@ -88,7 +88,7 @@ const fileModule =
         options: {
           providers: [
              {
-              resolve: `@medusajs/medusa-file-s3`,
+              resolve: `@medusajs/medusa/file-s3`,
               id: "s3",
               options: {
                 s3_url: process.env.S3_ENDPOINT,
