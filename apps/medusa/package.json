@@ -67,6 +67,7 @@
     "awilix": "^8.0.1",
     "date-fns": "^4.1.0",
     "medusa-file-s3": "^1.4.2",
+    "medusa-plugin-sentry": "^1.5.0",
     "pg": "^8.13.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

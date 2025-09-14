@@ -1,9 +1,15 @@
 import { defineConfig, loadEnv } from '@medusajs/framework/utils';
+import type { Integration } from '@sentry/types';
+import type * as SentryNode from '@sentry/node';
+import type * as TracingTypes from '@sentry/tracing';
+import type { Router } from 'express';
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd());
 
 const REDIS_URL = process.env.REDIS_URL;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
+const SENTRY_DSN = process.env.SENTRY_DSN || "";
+// const SENTRY_API_TOKEN = process.env.SENTRY_API_TOKEN || ""; // Only needed for webhooks
 const IS_TEST = process.env.NODE_ENV === 'test';
 
 const customModules = [
@@ -122,14 +128,30 @@ module.exports = defineConfig({
       cookieSecret: process.env.COOKIE_SECRET || 'supersecret',
     },
   },
-  // plugins: [
-  //   {
-  //     resolve: '@lambdacurry/medusa-product-reviews',
-  //     options: {
-
-  //     },
-  //   },
-  // ],
+  plugins: [
+    // Example: other plugins can go here
+    {
+      resolve: 'medusa-plugin-sentry',
+      options: {
+        dsn: SENTRY_DSN,
+        integrations: (
+          router: Router,
+          Sentry: typeof SentryNode,
+          Tracing: typeof TracingTypes
+        ): Integration[] => {
+          return [
+            new Sentry.Integrations.Http({ tracing: true }),
+            new Tracing.Integrations.Express({ router }),
+          ];
+        },
+        tracesSampleRate: 1.0,
+        // webHookOptions: {
+        //   path: '/sentry/webhook',
+        //   secret: '__YOUR_SECRET__',
+        // },
+      },
+    },
+  ],
   modules: [
     ...customModules,
     {
