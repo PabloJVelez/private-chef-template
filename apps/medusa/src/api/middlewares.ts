@@ -10,6 +10,8 @@ function ensureSentry() {
       dsn: process.env.SENTRY_DSN || "",
       tracesSampleRate: 1.0,
       environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+      enableLogs: true,
+      integrations: [Sentry.consoleLoggingIntegration()],
     })
   }
   sentryInited = true

@@ -8,6 +8,9 @@ export async function register() {
       dsn: process.env.SENTRY_DSN || "",
       tracesSampleRate: 1.0,
       environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+      // Enable Sentry Logs product and capture console.* as logs
+      enableLogs: true,
+      integrations: [Sentry.consoleLoggingIntegration()],
       // By default, Sentry v8 configures OpenTelemetry automatically.
       // If you prefer to manage OTEL yourself, set `skipOpenTelemetrySetup: true`.
     })
