@@ -128,30 +128,9 @@ module.exports = defineConfig({
       cookieSecret: process.env.COOKIE_SECRET || 'supersecret',
     },
   },
-  plugins: [
-    // Example: other plugins can go here
-    {
-      resolve: 'medusa-plugin-sentry',
-      options: {
-        dsn: SENTRY_DSN,
-        integrations: (
-          router: Router,
-          Sentry: typeof SentryNode,
-          Tracing: typeof TracingTypes
-        ): Integration[] => {
-          return [
-            new Sentry.Integrations.Http({ tracing: true }),
-            new Tracing.Integrations.Express({ router }),
-          ];
-        },
-        tracesSampleRate: 1.0,
-        // webHookOptions: {
-        //   path: '/sentry/webhook',
-        //   secret: '__YOUR_SECRET__',
-        // },
-      },
-    },
-  ],
+  // Using Sentry via OpenTelemetry instrumentation and custom error handler.
+  // Keep plugins empty to avoid double-instrumentation with medusa-plugin-sentry.
+  plugins: [],
   modules: [
     ...customModules,
     {
