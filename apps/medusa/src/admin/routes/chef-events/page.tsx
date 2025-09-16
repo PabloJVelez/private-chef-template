@@ -1,5 +1,5 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { Container, Heading, FocusModal, toast } from "@medusajs/ui"
+import { Container, Heading, FocusModal, toast, Button } from "@medusajs/ui"
 import { ChefEventCalendar } from "./components/chef-event-calendar"
 import { ChefEventForm } from "./components/chef-event-form"
 import { useAdminCreateChefEventMutation } from "../../hooks/chef-events"
@@ -32,11 +32,10 @@ const ChefEventsPage = () => {
       <Container className="divide-y p-0">
         <div className="flex items-center justify-between px-6 py-4">
           <Heading level="h1">Chef Events</Heading>
+          <Button onClick={() => setShowCreateModal(true)}>Create</Button>
         </div>
 
-        <ChefEventCalendar
-          onCreateEvent={() => setShowCreateModal(true)}
-        />
+        <ChefEventCalendar onCreateEvent={() => setShowCreateModal(true)} />
       </Container>
 
       {showCreateModal && (
