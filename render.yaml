@@ -1,125 +1,125 @@
-services:
-  # --- Medusa API ---
-  - type: web
-    name: medusa-api
-    runtime: node
-    plan: free
-    branch: main
-    rootDir: apps/medusa
+# services:
+#   # --- Medusa API ---
+#   - type: web
+#     name: medusa-api
+#     runtime: node
+#     plan: free
+#     branch: main
+#     rootDir: apps/medusa
 
-    buildCommand: |
-      # Install once at the workspace root and build the Medusa app
-      yarn install --immutable
-      yarn build
-      # ⛔️ Do NOT install inside .medusa/server
+#     buildCommand: |
+#       # Install once at the workspace root and build the Medusa app
+#       yarn install --immutable
+#       yarn build
+#       # ⛔️ Do NOT install inside .medusa/server
 
-    startCommand: |
-      echo "Starting Medusa in $(pwd) (PORT=$PORT)"
-      # Align env & force HTTP server mode
-      export NODE_ENV=production
-      export MEDUSA_WORKER_MODE=server
-      export HOST=0.0.0.0
-      export PORT="${PORT:-10000}"
-      export SERVER_PORT="$PORT"
-      export HTTP_PORT="$PORT"
-      export MEDUSA_SERVER_PORT="$PORT"
-      # Run generated scripts from .medusa/server using npm --prefix
-      npm run --prefix .medusa/server nukedb
-      npm run --prefix .medusa/server prepare
-      npm run --prefix .medusa/server add-user
-      npm run --prefix .medusa/server seed
-      npm run --prefix .medusa/server start
+#     startCommand: |
+#       echo "Starting Medusa in $(pwd) (PORT=$PORT)"
+#       # Align env & force HTTP server mode
+#       export NODE_ENV=production
+#       export MEDUSA_WORKER_MODE=server
+#       export HOST=0.0.0.0
+#       export PORT="${PORT:-10000}"
+#       export SERVER_PORT="$PORT"
+#       export HTTP_PORT="$PORT"
+#       export MEDUSA_SERVER_PORT="$PORT"
+#       # Run generated scripts from .medusa/server using npm --prefix
+#       npm run --prefix .medusa/server nukedb
+#       npm run --prefix .medusa/server prepare
+#       npm run --prefix .medusa/server add-user
+#       npm run --prefix .medusa/server seed
+#       npm run --prefix .medusa/server start
 
-    healthCheckPath: /health
+#     healthCheckPath: /health
 
-    envVars:
-      - key: HOST
-        value: 0.0.0.0
+#     envVars:
+#       - key: HOST
+#         value: 0.0.0.0
 
-      # CORS + URLs (replace placeholders)
-      - key: STORE_CORS
-        value: https://storefront-q5un.onrender.com
-      - key: ADMIN_CORS
-        value: https://medusa-api-q5un.onrender.com
-      - key: AUTH_CORS
-        value: https://storefront-q5un.onrender.com,https://medusa-api-q5un.onrender.com
-      - key: MEDUSA_BACKEND_URL
-        value: https://medusa-api-q5un.onrender.com
-      - key: ADMIN_BACKEND_URL
-        value: https://medusa-api-q5un.onrender.com
+#       # CORS + URLs (replace placeholders)
+#       - key: STORE_CORS
+#         value: https://storefront-q5un.onrender.com
+#       - key: ADMIN_CORS
+#         value: https://medusa-api-q5un.onrender.com
+#       - key: AUTH_CORS
+#         value: https://storefront-q5un.onrender.com,https://medusa-api-q5un.onrender.com
+#       - key: MEDUSA_BACKEND_URL
+#         value: https://medusa-api-q5un.onrender.com
+#       - key: ADMIN_BACKEND_URL
+#         value: https://medusa-api-q5un.onrender.com
 
-      # Secrets
-      - key: JWT_SECRET
-        generateValue: true
-      - key: COOKIE_SECRET
-        generateValue: true
+#       # Secrets
+#       - key: JWT_SECRET
+#         generateValue: true
+#       - key: COOKIE_SECRET
+#         generateValue: true
 
-      # Datastores
-      - key: DATABASE_URL
-        fromDatabase:
-          name: medusa-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: medusa-redis
-          property: connectionString
+#       # Datastores
+#       - key: DATABASE_URL
+#         fromDatabase:
+#           name: medusa-db
+#           property: connectionString
+#       - key: REDIS_URL
+#         fromService:
+#           type: redis
+#           name: medusa-redis
+#           property: connectionString
 
-      # Integrations (fill as needed)
-      - key: STRIPE_API_KEY
-        sync: false
-      - key: RESEND_API_KEY
-        sync: false
-      - key: RESEND_FROM_EMAIL
-        sync: false
+#       # Integrations (fill as needed)
+#       - key: STRIPE_API_KEY
+#         sync: false
+#       - key: RESEND_API_KEY
+#         sync: false
+#       - key: RESEND_FROM_EMAIL
+#         sync: false
 
-    buildFilter:
-      paths:
-        - apps/medusa/**
+#     buildFilter:
+#       paths:
+#         - apps/medusa/**
 
-  # --- Storefront (Remix) ---
-  - type: web
-    name: storefront
-    runtime: node
-    plan: free
-    branch: main
-    rootDir: apps/storefront
+#   # --- Storefront (Remix) ---
+#   - type: web
+#     name: storefront
+#     runtime: node
+#     plan: free
+#     branch: main
+#     rootDir: apps/storefront
 
-    buildCommand: |
-      yarn install --immutable
-      yarn build
+#     buildCommand: |
+#       yarn install --immutable
+#       yarn build
 
-    startCommand: |
-      echo "Starting Storefront (PORT=$PORT)"
-      HOST=0.0.0.0 yarn start
+#     startCommand: |
+#       echo "Starting Storefront (PORT=$PORT)"
+#       HOST=0.0.0.0 yarn start
 
-    healthCheckPath: /
+#     healthCheckPath: /
 
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: MEDUSA_BACKEND_URL
-        value: https://medusa-api-q5un.onrender.com
-      - key: PUBLIC_MEDUSA_API_URL
-        value: https://medusa-api-q5un.onrender.com
-      - key: MEDUSA_PUBLISHABLE_KEY
-        sync: false
-      - key: STRIPE_PUBLIC_KEY
-        sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
+#     envVars:
+#       - key: NODE_ENV
+#         value: production
+#       - key: MEDUSA_BACKEND_URL
+#         value: https://medusa-api-q5un.onrender.com
+#       - key: PUBLIC_MEDUSA_API_URL
+#         value: https://medusa-api-q5un.onrender.com
+#       - key: MEDUSA_PUBLISHABLE_KEY
+#         sync: false
+#       - key: STRIPE_PUBLIC_KEY
+#         sync: false
+#       - key: STRIPE_SECRET_KEY
+#         sync: false
 
-    buildFilter:
-      paths:
-        - apps/storefront/**
+#     buildFilter:
+#       paths:
+#         - apps/storefront/**
 
-  # --- Redis for Medusa ---
-  - type: redis
-    name: medusa-redis
-    plan: free
-    ipAllowList: []   # internal-only
+#   # --- Redis for Medusa ---
+#   - type: redis
+#     name: medusa-redis
+#     plan: free
+#     ipAllowList: []   # internal-only
 
-# --- Database ---
-databases:
-  - name: medusa-db
-    plan: free
+# # --- Database ---
+# databases:
+#   - name: medusa-db
+#     plan: free
