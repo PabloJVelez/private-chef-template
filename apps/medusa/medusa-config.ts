@@ -5,6 +5,7 @@ loadEnv(process.env.NODE_ENV || 'development', process.cwd());
 const REDIS_URL = process.env.REDIS_URL;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
 const IS_TEST = process.env.NODE_ENV === 'test';
+const IS_DEV = process.env.NODE_ENV === 'development';
 
 const customModules = [
   {
@@ -64,7 +65,21 @@ const notificationModule = {
       },
     };
 
-const fileModule = {
+const fileModule = IS_DEV ? {
+      resolve: "@medusajs/medusa/file",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/medusa/file-local",
+            id: "local",
+            options: {
+              upload_dir: "static",
+              backend_url: process.env.BACKEND_URL || "http://localhost:9000"
+            },
+          },
+        ],
+      },
+    } : {
       resolve: "@medusajs/medusa/file",
       options: {
         providers: [
@@ -84,6 +99,8 @@ const fileModule = {
         ],
       },
     };
+
+
 
 module.exports = defineConfig({
   projectConfig: {
