@@ -28,7 +28,7 @@ export const HeaderSideNav: FC<HeaderSideNavProps> = ({ open, setOpen, activeSec
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-300 bg-opacity-50 backdrop-blur-sm transition-opacity" />
+          <div className="fixed inset-0 bg-[#3F432C]/50 backdrop-blur-sm transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-hidden">
@@ -44,15 +44,15 @@ export const HeaderSideNav: FC<HeaderSideNavProps> = ({ open, setOpen, activeSec
                 leaveTo="translate-x-full"
               >
                 <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
-                  <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
+                  <div className="flex h-full flex-col overflow-y-scroll bg-[#3F432C] text-white shadow-2xl ring-1 ring-black/10">
                     <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
-                        <Dialog.Title className="text-lg font-bold text-gray-900">Navigation</Dialog.Title>
+                        <Dialog.Title className="text-lg font-bold text-white">Menu</Dialog.Title>
                         <div className="ml-3 flex h-7 items-center">
                           <IconButton
                             icon={XMarkIcon}
                             onClick={() => setOpen(false)}
-                            className="-m-2"
+                            className="-m-2 text-white hover:!bg-white/10 focus:!bg-white/10"
                             aria-label="Close panel"
                           />
                         </div>
@@ -70,12 +70,12 @@ export const HeaderSideNav: FC<HeaderSideNavProps> = ({ open, setOpen, activeSec
                                   onClick={() => setOpen(false)}
                                   className={({ isActive }) =>
                                     clsx(
-                                      'group flex items-center rounded-md px-4 py-3 text-sm font-normal',
+                                      'group flex items-center rounded-lg px-4 py-3 text-base font-medium transition-colors',
                                       isActive &&
                                         (!navItemProps.url.includes('#') ||
                                           activeSection === navItemProps.url.split('#')[1].split('?')[0])
-                                        ? 'bg-gray-100 text-gray-900'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                                        ? 'bg-accent-600/20 text-white border border-accent-600/40'
+                                        : 'text-white/80 hover:bg-white/10 hover:text-white',
                                     )
                                   }
                                   prefetch="viewport"

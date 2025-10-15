@@ -72,9 +72,9 @@ export default async function chefEventRejectedHandler({
         chefNotes: chefEvent.chefNotes || "We apologize for any inconvenience this may cause."
       },
       chef: {
-        name: "Chef Elena Rodriguez",
-        email: "hello@chefelenar.com",
-        phone: "(555) 123-4567"
+        name: "Chef Luis Velez",
+        email: "support@chefvelez.com",
+        phone: "(347) 695-4445"
       }
     }
 

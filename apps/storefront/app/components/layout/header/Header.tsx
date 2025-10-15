@@ -68,7 +68,7 @@ export const Header: FC<HeaderProps> = () => {
                 <LogoStoreName className="xs:h-14 h-8" primary />
                 <div className="flex flex-wrap-reverse items-center gap-x-6 sm:justify-end">
                   {headerNavigationItems && (
-                    <div className="hidden h-full gap-6 md:flex">
+                    <div className="hidden h-full gap-6 lg:flex">
                       {headerNavigationItems.slice(0, 6).map(({ id, new_tab, ...navItemProps }, index) => (
                         <URLAwareNavLink
                           key={id}
@@ -120,7 +120,7 @@ export const Header: FC<HeaderProps> = () => {
                         <IconButton
                           aria-label="open navigation menu"
                           onClick={() => setSideNavOpen(true)}
-                          className="hover:!bg-primary-50 focus:!bg-primary-50 sm:inline-flex text-white md:hidden"
+                          className="inline-flex !text-white bg-white/10 hover:!bg-white/20 focus:!bg-white/20 ring-1 ring-white/20 lg:hidden"
                           icon={Bars3Icon}
                         />
                       )}

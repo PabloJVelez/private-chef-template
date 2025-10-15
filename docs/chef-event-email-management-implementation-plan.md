@@ -682,7 +682,7 @@ function EventDetailsResendEmailComponent({
             {customNotes && (
               <Section className="bg-blue-50 rounded-lg p-6 mb-6">
                 <Heading className="text-lg font-semibold text-gray-800 mb-4">
-                  Message from Chef Elena
+                  Message from Chef Luis
                 </Heading>
                 <Text className="text-gray-600 italic">
                   "{customNotes}"
@@ -837,10 +837,10 @@ export default async function chefEventEmailResendHandler({
         purchase_url: `${process.env.STOREFRONT_URL}/products/${product.handle}`
       } : null,
       chef: {
-        name: "Chef Elena Rodriguez",
-        email: "hello@chefelenar.com",
-        phone: "(555) 123-4567"
-      },
+        name: "Chef Luis Velez",
+        email: "support@chefvelez.com",
+        phone: "(347) 695-4445"
+      }
       requestReference: chefEvent.id.slice(0, 8).toUpperCase(),
       customNotes: data.notes,
       emailType: data.emailType

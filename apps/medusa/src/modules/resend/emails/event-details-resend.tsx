@@ -95,7 +95,7 @@ function EventDetailsResendEmailComponent({
             {customNotes && (
               <Section className="bg-blue-50 rounded-lg p-6 mb-6">
                 <Heading className="text-lg font-semibold text-gray-800 mb-4">
-                  Message from Chef Elena
+                  Message from Chef Luis Velez
                 </Heading>
                 <Text className="text-gray-600 italic">
                   "{customNotes}"
@@ -206,7 +206,7 @@ function EventDetailsResendEmailComponent({
                 Important Reminders
               </Heading>
               <Text className="text-gray-600 mb-3">
-                • Chef Elena will contact you 24 hours before the event
+                • Chef Luis Velez will contact you 24 hours before the event
               </Text>
               <Text className="text-gray-600 mb-3">
                 • Please ensure your kitchen is clean and ready for the chef
@@ -233,10 +233,10 @@ function EventDetailsResendEmailComponent({
               <Row>
                 <Column>
                   <Text className="text-center text-gray-500 text-sm mb-4">
-                    Questions? Contact Chef Elena at {chef.email} or {chef.phone}
+                    Questions? Contact Chef Luis Velez at {chef.email} or {chef.phone}
                   </Text>
                   <Text className="text-center text-gray-400 text-xs">
-                    © {new Date().getFullYear()} Chef Elena Rodriguez. All rights reserved.
+                    © {new Date().getFullYear()} Chef Luis Velez. All rights reserved.
                   </Text>
                 </Column>
               </Row>

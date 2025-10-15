@@ -243,7 +243,7 @@ function ChefEventAcceptedEmailComponent({
                     If you have any questions, please don't hesitate to contact us at {chef.email}
                   </Text>
                   <Text className="text-center text-gray-400 text-xs">
-                    © {new Date().getFullYear()} Chef Elena Rodriguez. All rights reserved.
+                    © {new Date().getFullYear()} Chef Luis Velez. All rights reserved.
                   </Text>
                 </Column>
               </Row>

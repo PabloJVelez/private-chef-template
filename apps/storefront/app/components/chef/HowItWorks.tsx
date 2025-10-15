@@ -200,7 +200,7 @@ export const HowItWorks: FC<HowItWorksProps> = ({
           
           <div className="bg-white rounded-lg p-6 shadow">
             <h4 className="font-semibold text-gray-900 mb-2">Can menus be customized?</h4>
-            <p className="text-sm text-gray-600">Absolutely! Chef Elena works with you to customize any menu based on dietary restrictions, preferences, and seasonal availability.</p>
+            <p className="text-sm text-gray-600">Absolutely! Chef Luis works with you to customize any menu based on dietary restrictions, preferences, and seasonal availability.</p>
           </div>
         </div>
       </div>

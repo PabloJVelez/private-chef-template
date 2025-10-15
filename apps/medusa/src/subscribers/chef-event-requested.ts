@@ -86,8 +86,8 @@ export default async function chefEventRequestedHandler({
         total_price: totalPrice.toFixed(2),
         conflict: false
       },
-      acceptUrl: `${process.env.ADMIN_BACKEND_URL}/admin/events/${chefEvent.id}/accept`,
-      rejectUrl: `${process.env.ADMIN_BACKEND_URL}/admin/events/${chefEvent.id}/reject`
+      acceptUrl: `${process.env.ADMIN_BACKEND_URL}/app/chef-events/${chefEvent.id}`,
+      rejectUrl: `${process.env.ADMIN_BACKEND_URL}/app/chef-events/${chefEvent.id}`
     }
 
     // Send confirmation email to customer
@@ -100,8 +100,8 @@ export default async function chefEventRequestedHandler({
           emailType: "customer_confirmation",
         requestReference: chefEvent.id.slice(0, 8).toUpperCase(),
         chefContact: {
-          email: "hello@chefelenar.com",
-          phone: "(555) 123-4567"
+          email: "support@chefvelez.com",
+          phone: "(347) 695-4445"
         }
       }
     } as CreateNotificationDTO)
@@ -116,8 +116,8 @@ export default async function chefEventRequestedHandler({
         emailType: "chef_notification",
         requestReference: chefEvent.id.slice(0, 8).toUpperCase(),
         chefContact: {
-          email: "hello@chefelenar.com",
-          phone: "(555) 123-4567"
+          email: "support@chefvelez.com",
+          phone: "(347) 695-4445"
         }
       }
     } as CreateNotificationDTO)

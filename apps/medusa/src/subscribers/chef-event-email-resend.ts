@@ -85,12 +85,12 @@ export default async function chefEventEmailResendHandler({
         id: product.id,
         handle: product.handle,
         title: product.title,
-        purchase_url: `${process.env.STORE_FRONT || 'http://localhost:3000'}/products/${product.handle}`
+        purchase_url: `${process.env.STOREFRONT_URL || 'http://localhost:3000'}/products/${product.handle}`
       } : null,
       chef: {
-        name: "Chef Elena Rodriguez",
-        email: "hello@chefelenar.com",
-        phone: "(555) 123-4567"
+        name: "Chef Luis Velez",
+        email: "support@chefvelez.com",
+        phone: "(347) 695-4445"
       },
       requestReference: chefEvent.id.slice(0, 8).toUpperCase(),
       customNotes: data.notes,

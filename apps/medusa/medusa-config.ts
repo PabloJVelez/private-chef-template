@@ -1,9 +1,15 @@
 import { defineConfig, loadEnv } from '@medusajs/framework/utils';
+import type { Integration } from '@sentry/types';
+import type * as SentryNode from '@sentry/node';
+import type * as TracingTypes from '@sentry/tracing';
+import type { Router } from 'express';
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd());
 
 const REDIS_URL = process.env.REDIS_URL;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
+const SENTRY_DSN = process.env.SENTRY_DSN || "";
+// const SENTRY_API_TOKEN = process.env.SENTRY_API_TOKEN || ""; // Only needed for webhooks
 const IS_TEST = process.env.NODE_ENV === 'test';
 const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -65,40 +71,45 @@ const notificationModule = {
       },
     };
 
-const fileModule = IS_DEV ? {
-      resolve: "@medusajs/medusa/file",
-      options: {
-        providers: [
-          {
-            resolve: "@medusajs/medusa/file-local",
-            id: "local",
-            options: {
-              upload_dir: "static",
-              backend_url: process.env.BACKEND_URL || "http://localhost:9000"
+// Allow switching file storage between local and S3 via env
+// FILE_PROVIDER=local | s3 (default: s3)
+const FILE_PROVIDER = (process.env.FILE_PROVIDER || 's3').toLowerCase();
+const fileModule =
+  FILE_PROVIDER === 'local'
+    ? {
+        resolve: "@medusajs/medusa/file",
+        options: {
+          providers: [
+            {
+              resolve: "@medusajs/medusa/file-local",
+              id: "local",
+              options: {},
             },
-          },
-        ],
-      },
-    } : {
-      resolve: "@medusajs/medusa/file",
-      options: {
-        providers: [
-          {
-            resolve: "@medusajs/medusa/file-s3",
-            id: "s3",
-            options: {
-              file_url: process.env.S3_FILE_URL,
-              access_key_id: process.env.S3_ACCESS_KEY_ID,
-              secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
-              region: process.env.S3_REGION,
-              bucket: process.env.S3_BUCKET,
-              endpoint: process.env.S3_ENDPOINT,
-              // other options...
+          ],
+        },
+      }
+    : {
+        resolve: "@medusajs/medusa/file",
+        options: {
+          providers: [
+            {
+              resolve: "./src/modules/file-b2",
+              id: "b2-s3",
+              options: {
+                file_url: process.env.S3_FILE_URL,
+                endpoint: process.env.S3_ENDPOINT,
+                bucket: process.env.S3_BUCKET,
+                access_key_id: process.env.S3_ACCESS_KEY_ID,
+                secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
+                region: process.env.S3_REGION,
+                additional_client_config: {
+                  forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+                },
+              },
             },
-          },
-        ],
-      },
-    };
+          ],
+        },
+      };
 
 
 
@@ -120,14 +131,9 @@ module.exports = defineConfig({
       cookieSecret: process.env.COOKIE_SECRET || 'supersecret',
     },
   },
-  // plugins: [
-  //   {
-  //     resolve: '@lambdacurry/medusa-product-reviews',
-  //     options: {
-
-  //     },
-  //   },
-  // ],
+  // Using Sentry via OpenTelemetry instrumentation and custom error handler.
+  // Keep plugins empty to avoid double-instrumentation with medusa-plugin-sentry.
+  plugins: [],
   modules: [
     ...customModules,
     {
@@ -150,12 +156,9 @@ module.exports = defineConfig({
     notificationModule,
     fileModule,
   ],
-  // admin: {
-  //   // ADD ADMIN DISABLE CONFIGURATION
-  //   disable: false,
-  //   backendUrl: process.env.ADMIN_BACKEND_URL,
-  // },
+  admin: {
+    // ADD ADMIN DISABLE CONFIGURATION
+    disable: false,
+    backendUrl: process.env.ADMIN_BACKEND_URL,
+  },
 });
-
-
-
