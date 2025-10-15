@@ -10,6 +10,8 @@ import { withPaginationParams } from '@libs/util/withPaginationParams';
 import { type LoaderFunctionArgs, type MetaFunction, redirect } from 'react-router';
 import { useLoaderData } from 'react-router';
 
+//The commented code is for the product reviews, which are not used in the new product detail page for now but can/wil be used in the future
+
 export const loader = async (args: LoaderFunctionArgs) => {
   const { limit: reviewsLimit, offset: reviewsOffset } = withPaginationParams({
     request: args.request,
@@ -25,23 +27,23 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
   const product = products[0];
 
-  const [productReviews, productReviewStats] = await Promise.all([
-    fetchProductReviews({
-      product_id: product.id,
-      fields:
-        'id,rating,content,name,images.url,created_at,updated_at,response.content,response.created_at,response.id',
-      order: 'created_at',
-      status: ['approved'],
-      // can use status: (pending, approved, flagged)[] to get reviews by status // default is approved
-      offset: reviewsOffset,
-      limit: reviewsLimit,
-    }),
-    fetchProductReviewStats({
-      product_id: product.id,
-      offset: 0,
-      limit: 1,
-    }),
-  ]);
+  // const [productReviews, productReviewStats] = await Promise.all([
+  //   fetchProductReviews({
+  //     product_id: product.id,
+  //     fields:
+  //       'id,rating,content,name,images.url,created_at,updated_at,response.content,response.created_at,response.id',
+  //     order: 'created_at',
+  //     status: ['approved'],
+  //     // can use status: (pending, approved, flagged)[] to get reviews by status // default is approved
+  //     offset: reviewsOffset,
+  //     limit: reviewsLimit,
+  //   }),
+  //   fetchProductReviewStats({
+  //     product_id: product.id,
+  //     offset: 0,
+  //     limit: 1,
+  //   }),
+  // ]);
 
   // Check if this is an event product and fetch additional data
   let chefEvent = null;
@@ -56,7 +58,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
     ]);
   }
 
-  return { product, productReviews, productReviewStats, chefEvent, menu };
+  // return { product, productReviews, productReviewStats, chefEvent, menu };
+  return { product, chefEvent, menu };
 };
 
 export type ProductPageLoaderData = typeof loader;
@@ -64,7 +67,8 @@ export type ProductPageLoaderData = typeof loader;
 export const meta: MetaFunction<ProductPageLoaderData> = getMergedProductMeta;
 
 export default function ProductDetailRoute() {
-  const { product, productReviews, productReviewStats, chefEvent, menu } = useLoaderData<ProductPageLoaderData>();
+  //const { product, productReviews, productReviewStats, chefEvent, menu } = useLoaderData<ProductPageLoaderData>();
+  const { product, chefEvent, menu } = useLoaderData<ProductPageLoaderData>();
 
   console.log('ProductDetailRoute Debug:', {
     productId: product.id,
@@ -89,7 +93,7 @@ export default function ProductDetailRoute() {
           menu={menu}
         />
         <ProductList className="!pb-[100px] xl:px-9" heading="You may also like" />
-        <ProductReviewSection />
+        {/* <ProductReviewSection /> */}
       </>
     );
   }
@@ -98,13 +102,18 @@ export default function ProductDetailRoute() {
   // Regular product template
   return (
     <>
-      <ProductTemplate
+      {/* <ProductTemplate
         product={product}
         reviewsCount={productReviews.count}
         reviewStats={productReviewStats.product_review_stats[0]}
+      /> */}
+      <ProductTemplate
+        product={product}
+        reviewsCount={0}
+        reviewStats={undefined}
       />
       <ProductList className="!pb-[100px] xl:px-9" heading="You may also like" />
-      <ProductReviewSection />
+      {/* <ProductReviewSection /> */}
     </>
   );
 }

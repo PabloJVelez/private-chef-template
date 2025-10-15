@@ -11,6 +11,7 @@ const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
 const SENTRY_DSN = process.env.SENTRY_DSN || "";
 // const SENTRY_API_TOKEN = process.env.SENTRY_API_TOKEN || ""; // Only needed for webhooks
 const IS_TEST = process.env.NODE_ENV === 'test';
+const IS_DEV = process.env.NODE_ENV === 'development';
 
 const customModules = [
   {
@@ -109,6 +110,8 @@ const fileModule =
           ],
         },
       };
+
+
 
 module.exports = defineConfig({
   projectConfig: {
