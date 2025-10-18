@@ -32,16 +32,24 @@ export default function CheckoutSuccessRoute() {
     shipping_methods: shippingMethods,
   } = order as StoreOrder;
 
+  // Check if this is a digital-only order (shipping is $0 and shipping method is "Digital Delivery")
+  const isDigitalOnly = (order.shipping_total || 0) === 0 && 
+    shippingMethods?.every(sm => sm.name === 'Digital Delivery');
+
   return (
     <section className="py-8">
       <Container className="!max-w-3xl">
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
           <div className="p-8 sm:p-12 lg:p-16">
-            <h1 className="text-primary-600 text-sm font-bold">Payment successful</h1>
-            <p className="mt-2 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">Thanks for ordering</p>
+            <h1 className="text-primary-600 text-sm font-bold">{isDigitalOnly ? 'Tickets confirmed!' : 'Payment successful'}</h1>
+            <p className="mt-2 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
+              {isDigitalOnly ? "You're all set!" : 'Thanks for ordering'}
+            </p>
             <p className="mt-2 text-base text-gray-500">
-              We appreciate your order, we're currently processing it. Hang tight and we'll send you confirmation very
-              soon!
+              {isDigitalOnly 
+                ? "Your event tickets have been confirmed! We've sent a confirmation email with all the details you need for the event."
+                : "We appreciate your order, we're currently processing it. Hang tight and we'll send you confirmation very soon!"
+              }
             </p>
 
             <ul
@@ -65,7 +73,9 @@ export default function CheckoutSuccessRoute() {
                       <p className="text-sm font-normal text-gray-500">{item.variant_title}</p>
                     </div>
                     <div className="flex flex-1 items-end">
-                      <span className="font-normal backdrop:text-gray-500">Qty {item.quantity}</span>
+                      <span className="font-normal backdrop:text-gray-500">
+                        {isDigitalOnly ? `${item.quantity} ${item.quantity === 1 ? 'Ticket' : 'Tickets'}` : `Qty ${item.quantity}`}
+                      </span>
                     </div>
                   </div>
                   <p className="flex-none font-bold text-gray-900">
@@ -98,23 +108,17 @@ export default function CheckoutSuccessRoute() {
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <dt>Shipping</dt>
-                <dd className="text-gray-900">
-                  {formatPrice((order.shipping_total || 0), {
-                    currency: order.currency_code,
-                  })}
-                </dd>
-              </div>
-
-              <div className="flex justify-between">
-                <dt>Taxes</dt>
-                <dd className="text-gray-900">
-                  {formatPrice((order.tax_total || 0), {
-                    currency: order.currency_code,
-                  })}
-                </dd>
-              </div>
+              {/* Only show shipping for physical products */}
+              {!isDigitalOnly && (
+                <div className="flex justify-between">
+                  <dt>Shipping</dt>
+                  <dd className="text-gray-900">
+                    {formatPrice((order.shipping_total || 0), {
+                      currency: order.currency_code,
+                    })}
+                  </dd>
+                </div>
+              )}
 
               <div className="flex items-center justify-between border-t border-gray-200 pt-6 text-gray-900">
                 <dt className="text-base">Total</dt>
@@ -126,8 +130,9 @@ export default function CheckoutSuccessRoute() {
               </div>
             </dl>
 
-            <dl className="mt-12 grid grid-cols-2 gap-x-4 border-t border-gray-200 pt-12 text-sm text-gray-600">
-              {!!shippingAddress && (
+            {/* Only show shipping address section for physical products */}
+            {!isDigitalOnly && !!shippingAddress && (
+              <dl className="mt-12 gap-x-4 border-t border-gray-200 pt-12 text-sm text-gray-600 grid grid-cols-1">
                 <div>
                   <dt className="font-bold text-gray-900">Shipping Address</dt>
                   <dd className="mt-2">
@@ -147,47 +152,24 @@ export default function CheckoutSuccessRoute() {
                     </address>
                   </dd>
                 </div>
-              )}
-              {!!billingAddress && (
-                <div>
-                  <dt className="font-bold text-gray-900">Billing address</dt>
-                  <dd className="mt-2">
-                    <address className="not-italic">
-                      <span className="block">
-                        {billingAddress.first_name} {billingAddress.last_name}
-                      </span>
-                      <span className="block">{billingAddress.address_1}</span>
-                      {billingAddress.address_2 && <span className="block">{billingAddress.address_2}</span>}
-                      <span className="block">
-                        {billingAddress.city}, {billingAddress.province} {billingAddress.postal_code}
-                      </span>
-                      <span className="block uppercase">{billingAddress.country_code}</span>
-                      {billingAddress.phone && <span className="block">{formatPhoneNumber(billingAddress.phone)}</span>}
-                    </address>
-                  </dd>
-                </div>
-              )}
-            </dl>
+              </dl>
+            )}
 
-            <dl className="mt-12 grid grid-cols-2 gap-x-4 border-t border-gray-200 pt-12 text-sm text-gray-600">
-              <div>
-                <dt className="font-bold text-gray-900">
-                  Shipping method{(shippingMethods?.length || 0) > 1 ? 's' : ''}
-                </dt>
-                {shippingMethods &&
-                  shippingMethods.map((sm) => (
+            {/* Only show shipping method section for physical products */}
+            {!isDigitalOnly && shippingMethods && shippingMethods.length > 0 && (
+              <dl className="mt-12 grid grid-cols-2 gap-x-4 border-t border-gray-200 pt-12 text-sm text-gray-600">
+                <div>
+                  <dt className="font-bold text-gray-900">
+                    Shipping method{shippingMethods.length > 1 ? 's' : ''}
+                  </dt>
+                  {shippingMethods.map((sm) => (
                     <dd key={sm.id} className="mt-2">
                       {sm.name}
                     </dd>
                   ))}
-              </div>
-            </dl>
-
-            <div className="mt-16 border-t border-gray-200 pt-6 text-right">
-              <ButtonLink as={(buttonProps) => <Link to="/products" {...buttonProps} />}>
-                Continue Shopping<span aria-hidden="true"> &rarr;</span>
-              </ButtonLink>
-            </div>
+                </div>
+              </dl>
+            )}
           </div>
         </div>
       </Container>

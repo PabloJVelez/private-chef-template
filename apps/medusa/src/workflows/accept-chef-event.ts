@@ -29,7 +29,7 @@ import {
   StepResponse,
   WorkflowResponse
 } from "@medusajs/workflows-sdk"
-import { emitEventStep, createProductsWorkflow, createShippingProfilesWorkflow, createSalesChannelsWorkflow, createStockLocationsWorkflow, linkSalesChannelsToStockLocationWorkflow } from "@medusajs/medusa/core-flows"
+import { emitEventStep, createProductsWorkflow, createShippingProfilesWorkflow, createSalesChannelsWorkflow, createStockLocationsWorkflow, linkSalesChannelsToStockLocationWorkflow, createShippingOptionsWorkflow } from "@medusajs/medusa/core-flows"
 import { CHEF_EVENT_MODULE } from "../modules/chef-event"
 import ChefEventModuleService from "../modules/chef-event/service"
 import { Modules } from "@medusajs/framework/utils"
@@ -101,6 +101,89 @@ const ensureDigitalShippingProfileStep = createStep(
           }
         ]
       }
+    })
+    
+    return new StepResponse(result[0])
+  }
+)
+
+const ensureDigitalShippingOptionStep = createStep(
+  "ensure-digital-shipping-option-step",
+  async (input: { digitalShippingProfile: any }, { container }: { container: any }) => {
+    const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT)
+    const regionModuleService = container.resolve(Modules.REGION)
+    const logger = container.resolve("logger")
+    
+    // Check if digital delivery option already exists
+    const existingOptions = await fulfillmentModuleService.listShippingOptions({
+      name: "Digital Delivery"
+    })
+    
+    if (existingOptions.length > 0) {
+      return new StepResponse(existingOptions[0])
+    }
+    
+    // Get fulfillment sets to create shipping option
+    const fulfillmentSets = await fulfillmentModuleService.listFulfillmentSets()
+    const regions = await regionModuleService.listRegions()
+    
+    if (fulfillmentSets.length === 0 || !fulfillmentSets[0].service_zones?.length) {
+      logger.warn('No fulfillment sets or service zones found. Skipping digital shipping option creation.')
+      logger.warn('Please run the seed script or set up fulfillment in your Medusa store.')
+      logger.warn('Command: npx medusa db:seed -f ./src/scripts/seed.ts')
+      return new StepResponse(null)
+    }
+    
+    const fulfillmentSet = fulfillmentSets[0]
+    const usRegion = regions.find((r: any) => r.name === 'United States')
+    const caRegion = regions.find((r: any) => r.name === 'Canada')
+    
+    // Create digital delivery shipping option
+    const { result } = await createShippingOptionsWorkflow(container).run({
+      input: [
+        {
+          name: 'Digital Delivery',
+          price_type: 'flat',
+          provider_id: 'manual_manual',
+          service_zone_id: fulfillmentSet.service_zones[0].id,
+          shipping_profile_id: input.digitalShippingProfile.id,
+          type: {
+            label: 'Digital',
+            description: 'Instant delivery - No physical shipping required.',
+            code: 'digital',
+          },
+          prices: [
+            {
+              currency_code: 'usd',
+              amount: 0,
+            },
+            {
+              currency_code: 'cad',
+              amount: 0,
+            },
+            ...(usRegion ? [{
+              region_id: usRegion.id,
+              amount: 0,
+            }] : []),
+            ...(caRegion ? [{
+              region_id: caRegion.id,
+              amount: 0,
+            }] : []),
+          ],
+          rules: [
+            {
+              attribute: 'enabled_in_store',
+              value: 'true',
+              operator: 'eq',
+            },
+            {
+              attribute: 'is_return',
+              value: 'false',
+              operator: 'eq',
+            },
+          ],
+        },
+      ],
     })
     
     return new StepResponse(result[0])
@@ -391,6 +474,7 @@ export const acceptChefEventWorkflow = createWorkflow(
   function (input: AcceptChefEventWorkflowInput) {
     const chefEventData = acceptChefEventStep(input)
     const digitalShippingProfile = ensureDigitalShippingProfileStep()
+    const digitalShippingOption = ensureDigitalShippingOptionStep({ digitalShippingProfile }) // Ensure digital shipping option exists
     const digitalSalesChannel = ensureDigitalSalesChannelStep() // Ensure digital sales channel exists
     const defaultSalesChannel = ensureDefaultSalesChannelStep() // Ensure default sales channel exists
     const digitalLocation = ensureDigitalLocationStep() // Ensure digital location exists

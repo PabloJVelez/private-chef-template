@@ -1,4 +1,5 @@
 import { useCustomer } from '@app/hooks/useCustomer';
+import { isDigitalOnlyCart } from '@libs/util/cart/cart-helpers';
 import { checkAccountDetailsComplete, checkContactInfoComplete } from '@libs/util/checkout';
 import { createReducer } from '@libs/util/createReducer';
 import { StoreCart, StoreCartShippingOption, StorePaymentProvider } from '@medusajs/types';
@@ -38,12 +39,15 @@ export interface CheckoutProviderProps extends PropsWithChildren {
 }
 
 export const useNextStep = (state: Omit<CheckoutState, 'step'>): CheckoutStep => {
-  const { cart } = state;
+  const { cart, shippingOptions } = state;
   const { customer } = useCustomer();
   const isLoggedIn = !!customer?.id;
 
+  // Check if this is a digital-only cart
+  const isDigitalOnly = useMemo(() => isDigitalOnlyCart(cart, shippingOptions), [cart, shippingOptions]);
+
   const contactInfoComplete = useMemo(() => checkContactInfoComplete(cart!, customer!), [cart, customer]);
-  const accountDetailsComplete = useMemo(() => checkAccountDetailsComplete(cart!), [cart, isLoggedIn]);
+  const accountDetailsComplete = useMemo(() => checkAccountDetailsComplete(cart!, isDigitalOnly), [cart, isLoggedIn, isDigitalOnly]);
 
   let nextStep = CheckoutStep.ACCOUNT_DETAILS;
 

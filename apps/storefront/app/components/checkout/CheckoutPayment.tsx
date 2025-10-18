@@ -9,7 +9,11 @@ import { FC, useMemo } from 'react';
 import { ManualPayment } from './ManualPayment/ManualPayment';
 import { StripePayment } from './StripePayment';
 
-export const CheckoutPayment: FC = () => {
+export interface CheckoutPaymentProps {
+  isDigitalOnly?: boolean;
+}
+
+export const CheckoutPayment: FC<CheckoutPaymentProps> = ({ isDigitalOnly = false }) => {
   const { env } = useEnv();
   const { step, paymentProviders, cart } = useCheckout();
   const isActiveStep = step === CheckoutStep.PAYMENT;
@@ -73,7 +77,7 @@ export const CheckoutPayment: FC = () => {
 
               return (
                 <Tab.Panel key={paymentOption.id}>
-                  <PaymentComponent isActiveStep={isActiveStep} paymentMethods={[] as CustomPaymentSession[]} />
+                  <PaymentComponent isActiveStep={isActiveStep} paymentMethods={[] as CustomPaymentSession[]} isDigitalOnly={isDigitalOnly} />
                 </Tab.Panel>
               );
             })}

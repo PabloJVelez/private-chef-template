@@ -42,6 +42,15 @@ const ensureSelectedCartShippingMethod = async (request: Request, cart: StoreCar
 
   const shippingOptions = await fetchShippingOptions(cart.id);
 
+  if (shippingOptions.length === 0) return;
+
+  // If there's only one shipping option (likely digital), auto-select it
+  if (shippingOptions.length === 1) {
+    await setShippingMethod(request, { cartId: cart.id, shippingOptionId: shippingOptions[0].id });
+    return;
+  }
+
+  // Otherwise, find the cheapest shipping option
   const cheapestShippingOption = findCheapestShippingOption(shippingOptions);
 
   if (cheapestShippingOption) {
