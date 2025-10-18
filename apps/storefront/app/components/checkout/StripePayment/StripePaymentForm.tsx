@@ -13,9 +13,10 @@ import { CompleteCheckoutForm } from '../CompleteCheckoutForm';
 export interface StripePaymentFormProps extends PropsWithChildren {
   isActiveStep: boolean;
   paymentMethods: CustomPaymentSession[];
+  isDigitalOnly?: boolean;
 }
 
-export const StripePaymentForm: FC<StripePaymentFormProps> = ({ isActiveStep, paymentMethods }) => {
+export const StripePaymentForm: FC<StripePaymentFormProps> = ({ isActiveStep, paymentMethods, isDigitalOnly = false }) => {
   const [stripeElement, setStripeElement] = useState<StripePaymentElement>();
   const [stripeError, setStripeError] = useState<string | undefined>();
   const stripe = useStripe();
@@ -125,6 +126,7 @@ export const StripePaymentForm: FC<StripePaymentFormProps> = ({ isActiveStep, pa
         id="stripePaymentForm"
         paymentMethods={stripePaymentMethods}
         onSubmit={handleSubmit}
+        isDigitalOnly={isDigitalOnly}
       >
         <div
           className={clsx({

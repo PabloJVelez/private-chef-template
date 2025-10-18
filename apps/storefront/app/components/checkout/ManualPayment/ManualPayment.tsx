@@ -5,6 +5,7 @@ import { CompleteCheckoutForm } from '../CompleteCheckoutForm';
 export interface ManualPaymentProps extends PropsWithChildren {
   isActiveStep: boolean;
   paymentMethods: CustomPaymentSession[];
+  isDigitalOnly?: boolean;
 }
 
 export const ManualPayment: FC<ManualPaymentProps> = (props) => (

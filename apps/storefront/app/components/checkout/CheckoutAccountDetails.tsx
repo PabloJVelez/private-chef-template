@@ -13,7 +13,7 @@ import { medusaAddressToAddress } from '@libs/util';
 import { checkAccountDetailsComplete } from '@libs/util/checkout';
 import { FetcherKeys } from '@libs/util/fetcher-keys';
 import type { StoreRegion, StoreRegionCountry } from '@medusajs/types';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { FieldErrors } from 'react-hook-form';
 import { useFetcher } from 'react-router';
 import { RemixFormProvider, useRemixForm } from 'remix-hook-form';
@@ -27,7 +27,11 @@ import { selectInitialShippingAddress } from './checkout-form-helpers';
 
 const NEW_SHIPPING_ADDRESS_ID = 'new';
 
-export const CheckoutAccountDetails = () => {
+export interface CheckoutAccountDetailsProps {
+  isDigitalOnly?: boolean;
+}
+
+export const CheckoutAccountDetails = ({ isDigitalOnly = false }: CheckoutAccountDetailsProps) => {
   const checkoutAccountDetailsFormFetcher = useFetcher<{
     errors: FieldErrors;
   }>({ key: FetcherKeys.cart.accountDetails });
@@ -44,7 +48,7 @@ export const CheckoutAccountDetails = () => {
 
   const initialShippingAddress = selectInitialShippingAddress(cart, customer!);
 
-  const isComplete = checkAccountDetailsComplete(cart);
+  const isComplete = checkAccountDetailsComplete(cart, isDigitalOnly);
 
   const isSubmitting = ['submitting', 'loading'].includes(checkoutAccountDetailsFormFetcher.state);
 
@@ -63,14 +67,20 @@ export const CheckoutAccountDetails = () => {
     email: customer?.email || cart.email || '',
     customerId: customer?.id,
     allowSuggestions: true,
-    shippingAddress: {
-      ...medusaAddressToAddress(initialShippingAddress as MedusaAddress),
-    },
-    shippingAddressId: initialShippingAddressId,
+    // Only include shipping address for non-digital products
+    ...(isDigitalOnly 
+      ? {} 
+      : {
+          shippingAddress: {
+            ...medusaAddressToAddress(initialShippingAddress as MedusaAddress),
+          },
+          shippingAddressId: initialShippingAddressId,
+        }
+    ),
   };
 
   const form = useRemixForm({
-    resolver: zodResolver(accountDetailsSchema),
+    resolver: zodResolver(accountDetailsSchema) as any, // Type assertion needed due to conditional schema
     defaultValues,
     fetcher: checkoutAccountDetailsFormFetcher,
     submitConfig: {
@@ -78,16 +88,6 @@ export const CheckoutAccountDetails = () => {
       action: '/api/checkout/account-details',
     },
   });
-
-  // Debug form submission
-  useEffect(() => {
-    if (checkoutAccountDetailsFormFetcher.state === 'submitting') {
-      console.log('📤 Form submitting...', form.getValues());
-    }
-    if (checkoutAccountDetailsFormFetcher.state === 'idle' && checkoutAccountDetailsFormFetcher.data) {
-      console.log('📥 Form response received:', checkoutAccountDetailsFormFetcher.data);
-    }
-  }, [checkoutAccountDetailsFormFetcher.state, checkoutAccountDetailsFormFetcher.data]);
 
   const setShippingAddress = (address: StripeAddress) => {
     form.setValue('shippingAddress.address1', address.address.address1 ?? '');
@@ -103,26 +103,35 @@ export const CheckoutAccountDetails = () => {
     form.setValue('shippingAddress.phone', address.address.phone ?? '');
   };
 
-  const shippingAddress = form.watch('shippingAddress');
+  const shippingAddress = form.watch('shippingAddress') || {
+    firstName: '',
+    lastName: '',
+    address1: '',
+    address2: '',
+    city: '',
+    province: '',
+    postalCode: '',
+    countryCode: '',
+    phone: '',
+    company: '',
+  };
+
+  // Track previous isSubmitting to detect form completion
+  const wasSubmittingRef = useRef(false);
 
   useEffect(() => {
-    console.log('🔍 CheckoutAccountDetails Debug:', {
-      isActiveStep,
-      isSubmitting,
-      hasErrors,
-      isComplete,
-      fetcherState: checkoutAccountDetailsFormFetcher.state,
-      step,
-      cartEmail: cart.email,
-      cartShippingAddress: cart.shipping_address
-    });
+    // Only auto-advance when transitioning FROM submitting TO not submitting (form just completed)
+    // This prevents advancing on mount if cart already has data
+    const justFinishedSubmitting = wasSubmittingRef.current && !isSubmitting;
 
-    if (isActiveStep && !isSubmitting && !hasErrors && isComplete) {
-      console.log('✅ All conditions met, proceeding to next step');
+    if (isActiveStep && justFinishedSubmitting && !hasErrors && isComplete) {
       form.reset();
       goToNextStep();
     }
-  }, [isSubmitting, isComplete, hasErrors, isActiveStep, form, goToNextStep, step, cart.email, cart.shipping_address]);
+
+    // Update ref for next render
+    wasSubmittingRef.current = isSubmitting;
+  }, [isSubmitting, isComplete]); // Keep same dependencies as original
 
   const handleCancel = () => {
     goToNextStep();
@@ -133,23 +142,28 @@ export const CheckoutAccountDetails = () => {
   return (
     <div className="checkout-account-details">
       <CheckoutSectionHeader completed={showCompleted} setStep={setStep} step={CheckoutStep.ACCOUNT_DETAILS}>
-        Account details
+        {isDigitalOnly ? 'Billing details' : 'Account details'}
       </CheckoutSectionHeader>
 
-      {!isActiveStep && isComplete && (
+      {!isActiveStep && isComplete && !isDigitalOnly && (
         <AddressDisplay title="Shipping Address" address={shippingAddress} countryOptions={countryOptions} />
       )}
 
       {isActiveStep && (
         <>
-          {customer?.email ? (
+          {isDigitalOnly ? (
+            <p className="mt-2 text-sm mb-4">To get started, enter your email address.</p>
+          ) : customer?.email ? (
             <p className="mt-2 text-sm mb-2">To get started, please select your shipping address.</p>
           ) : (
             <p className="mt-2 text-sm mb-4">To get started, enter your email address.</p>
           )}
 
           <RemixFormProvider {...form}>
-            <checkoutAccountDetailsFormFetcher.Form id="checkout-account-details-form" onSubmit={form.handleSubmit}>
+            <checkoutAccountDetailsFormFetcher.Form 
+              id="checkout-account-details-form" 
+              onSubmit={form.handleSubmit}
+            >
               <TextField type="hidden" name="cartId" />
               <TextField type="hidden" name="customerId" />
 
@@ -160,18 +174,23 @@ export const CheckoutAccountDetails = () => {
                 placeholder="Email address"
                 label="Email Address"
                 className="[&_input]:!ring-0 mb-2"
+                required
               />
 
-              <HiddenAddressGroup address={shippingAddress} prefix="shippingAddress" />
+              {!isDigitalOnly && (
+                <>
+                  <HiddenAddressGroup address={shippingAddress} prefix="shippingAddress" />
 
-              <StyledTextField type="hidden" name="shippingAddressId" value={initialShippingAddressId} />
+                  <StyledTextField type="hidden" name="shippingAddressId" value={initialShippingAddressId} />
 
-              <MedusaStripeAddress
-                mode="shipping"
-                address={shippingAddress}
-                allowedCountries={allowedCountries}
-                setAddress={setShippingAddress}
-              />
+                  <MedusaStripeAddress
+                    mode="shipping"
+                    address={shippingAddress}
+                    allowedCountries={allowedCountries}
+                    setAddress={setShippingAddress}
+                  />
+                </>
+              )}
 
               <FormError />
 

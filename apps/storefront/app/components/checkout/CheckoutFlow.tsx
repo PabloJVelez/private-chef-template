@@ -1,6 +1,7 @@
 import { Alert } from '@app/components/common/alert/Alert';
 import { useCheckout } from '@app/hooks/useCheckout';
 import { useCustomer } from '@app/hooks/useCustomer';
+import { isDigitalOnlyCart } from '@libs/util/cart/cart-helpers';
 import { FC, useEffect } from 'react';
 import { CheckoutAccountDetails } from './CheckoutAccountDetails';
 import { CheckoutDeliveryMethod } from './CheckoutDeliveryMethod';
@@ -9,15 +10,16 @@ import { StripeExpressCheckout } from './StripePayment/StripeExpressPayment';
 
 export const CheckoutFlow: FC = () => {
   const { customer } = useCustomer();
-  const { goToNextStep, cart } = useCheckout();
+  const { goToNextStep, cart, shippingOptions } = useCheckout();
   const isLoggedIn = !!customer?.id;
+  const isDigitalOnly = isDigitalOnlyCart(cart, shippingOptions);
 
   if (!cart) return;
 
   useEffect(() => {
     if (isLoggedIn) goToNextStep();
     return () => goToNextStep();
-  }, [isLoggedIn]);
+  }, [isLoggedIn]); // Only depend on isLoggedIn, not goToNextStep!
 
   return (
     <>
@@ -33,13 +35,16 @@ export const CheckoutFlow: FC = () => {
 
         <StripeExpressCheckout cart={cart} />
 
-        <CheckoutAccountDetails />
+        <CheckoutAccountDetails isDigitalOnly={isDigitalOnly} />
 
-        <hr className="my-10" />
+        {!isDigitalOnly && (
+          <>
+            <hr className="my-10" />
+            <CheckoutDeliveryMethod />
+          </>
+        )}
 
-        <CheckoutDeliveryMethod />
-
-        <CheckoutPayment />
+        <CheckoutPayment isDigitalOnly={isDigitalOnly} />
       </div>
     </>
   );

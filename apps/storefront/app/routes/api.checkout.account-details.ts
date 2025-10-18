@@ -21,8 +21,8 @@ export const accountDetailsSchema = z.object({
     countryCode: z.string().min(1, 'Country is required'),
     postalCode: z.string().min(1, 'Postal code is required'),
     phone: z.string().optional(),
-  }),
-  shippingAddressId: z.string(),
+  }).optional(), // Make shipping address optional for digital products
+  shippingAddressId: z.string().optional(),
   isExpressCheckout: z.boolean().optional(),
 });
 
@@ -38,13 +38,19 @@ export async function action(actionArgs: ActionFunctionArgs) {
     return remixData({ errors }, { status: 400 });
   }
 
-  const formattedShippingAddress = addressToMedusaAddress(data.shippingAddress);
-
-  const { cart } = await updateCart(actionArgs.request, {
+  // For digital products, shipping address might not be provided
+  const updateData: any = {
     email: data.email,
-    shipping_address: formattedShippingAddress,
-    billing_address: formattedShippingAddress,
-  });
+  };
+
+  // Only add addresses if shipping address is provided (physical products)
+  if (data.shippingAddress) {
+    const formattedShippingAddress = addressToMedusaAddress(data.shippingAddress);
+    updateData.shipping_address = formattedShippingAddress;
+    updateData.billing_address = formattedShippingAddress;
+  }
+
+  const { cart } = await updateCart(actionArgs.request, updateData);
 
   return remixData({ cart });
 }

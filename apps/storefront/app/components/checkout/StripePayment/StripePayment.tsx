@@ -6,6 +6,7 @@ import { StripePaymentForm } from './StripePaymentForm';
 export interface StripePaymentProps extends PropsWithChildren {
   isActiveStep: boolean;
   paymentMethods: CustomPaymentSession[];
+  isDigitalOnly?: boolean;
 }
 
 export const StripePayment: FC<StripePaymentProps> = (props) => {

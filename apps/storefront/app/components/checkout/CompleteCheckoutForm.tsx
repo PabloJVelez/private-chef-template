@@ -25,6 +25,7 @@ export interface CompleteCheckoutFormProps extends PropsWithChildren {
   paymentMethods: CustomPaymentSession[];
   submitMessage?: string;
   className?: string;
+  isDigitalOnly?: boolean;
   onSubmit?: (
     data: CompleteCheckoutFormData,
     event: FormEvent<HTMLFormElement>,
@@ -43,6 +44,7 @@ export const CompleteCheckoutForm: FC<CompleteCheckoutFormProps> = ({
   children,
   providerId,
   className,
+  isDigitalOnly = false,
 }) => {
   const { activePaymentSession, cart, isCartMutating } = useCheckout();
 
@@ -72,7 +74,7 @@ export const CompleteCheckoutForm: FC<CompleteCheckoutFormProps> = ({
   const defaultValues: CompleteCheckoutFormData = {
     cartId: cart.id,
     paymentMethodId: initialPaymentMethodId,
-    sameAsShipping: true,
+    sameAsShipping: !isDigitalOnly, // For digital products, always collect billing address separately
     billingAddress: defaultBillingAddress,
     providerId,
   };
@@ -142,15 +144,20 @@ export const CompleteCheckoutForm: FC<CompleteCheckoutFormProps> = ({
 
           <h3 className="text-lg font-bold text-gray-900">Billing address</h3>
 
-          <Checkbox className="my-4" name="sameAsShipping" label="Same as shipping address" />
+          {/* Only show "Same as shipping" checkbox for physical products */}
+          {!isDigitalOnly && (
+            <Checkbox className="my-4" name="sameAsShipping" label="Same as shipping address" />
+          )}
 
-          {!sameAsShipping && (
+          {/* Show billing address form if: digital product OR user unchecked "same as shipping" */}
+          {(isDigitalOnly || !sameAsShipping) && (
             <MedusaStripeAddress mode="billing" address={billingAddress} setAddress={setBillingAddress} />
           )}
 
           <HiddenAddressGroup address={billingAddress} prefix="billingAddress" />
 
-          {sameAsShipping && (
+          {/* Only show shipping address display for physical products when "same as shipping" is checked */}
+          {!isDigitalOnly && sameAsShipping && (
             <div className="-mt-2 mb-4">
               <AddressDisplay address={shippingAddress.address} countryOptions={countryOptions} />
             </div>
