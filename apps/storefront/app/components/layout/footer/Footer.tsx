@@ -41,9 +41,11 @@ export const Footer = () => {
   return (
     <footer className="bg-accent-50 min-h-[140px] py-8 text-white">
       <Container>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-6 w-full flex-col items-center gap-8 sm:flex-row sm:items-start sm:gap-16">
-          <div className="flex w-full flex-col items-center gap-8 sm:w-auto sm:items-start sm:gap-9 sm:col-span-2 lg:col-span-3">
-            <div className="flex flex-col gap-5">
+        {/* Mobile-first responsive grid: stacks on mobile, 2 cols on sm, 3 cols on lg */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full flex-col items-center gap-8 sm:flex-row sm:items-start sm:gap-16">
+          {/* Culinary Experiences - Full width on mobile, spans 2 cols on sm, 1 col on lg */}
+          <div className="flex w-full flex-col items-center gap-8 sm:w-auto sm:items-start sm:gap-9 sm:col-span-2 lg:col-span-1">
+            <div className="flex flex-col gap-5 text-center sm:text-left">
               <h4 className="font-bold">Culinary Experiences</h4>
               <p className="text-sm">
                 Chef Velez offers premium private chef experiences including cooking classes, plated dinners, and
@@ -54,28 +56,42 @@ export const Footer = () => {
             <LogoStoreName />
           </div>
 
-          <nav
-            className={clsx('pt-2', {
-              'columns-2 gap-16': footerNavigationItems && footerNavigationItems?.length > 5,
-            })}
-          >
-            <h5 className="font-bold mb-4">Shop</h5>
-            {footerNavigationItems?.map(({ id, new_tab, ...navItemProps }) => (
-              <URLAwareNavLink
-                key={id}
-                {...navItemProps}
-                newTab={new_tab}
-                className="hover:text-slate-200 block pb-2 text-sm"
-                prefetch="viewport"
-              >
-                {navItemProps.label}
-              </URLAwareNavLink>
-            ))}
-          </nav>
-          <div className="flex flex-col gap-5 lg:col-span-2">
-            {/* <NewsletterSubscription className="mb-4" /> */}
+          {/* Quick Links - Full width on mobile, 1 col on sm and lg */}
+          {footerNavigationItems && footerNavigationItems.length > 0 && (
+            <nav className="pt-2 w-full sm:w-auto text-center sm:text-left">
+              <h5 className="font-bold mb-4">Quick Links</h5>
+              {footerNavigationItems.map(({ id, new_tab, ...navItemProps }) => (
+                <URLAwareNavLink
+                  key={id}
+                  {...navItemProps}
+                  newTab={new_tab}
+                  className="hover:text-slate-200 block pb-2 text-sm"
+                  prefetch="viewport"
+                >
+                  {navItemProps.label}
+                </URLAwareNavLink>
+              ))}
+            </nav>
+          )}
 
-            <SocialIcons siteSettings={settings} />
+          {/* Payment & Social - Full width on mobile, 1 col on sm and lg */}
+          <div className="flex flex-col gap-5 w-full sm:w-auto text-center sm:text-left">
+            <div className="flex flex-col gap-4">
+              <h5 className="font-bold">Payment</h5>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-sm">
+                  <span>🔒</span>
+                  <span>Guaranteed safe & secure checkout</span>
+                </div>
+                <div className="flex justify-center sm:justify-start">
+                  <StripeSecurityImage className="mt-2" />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-center sm:justify-start">
+              <SocialIcons siteSettings={settings} />
+            </div>
 
             {/*
             <div className="flex flex-col gap-4 mt-4">
@@ -112,9 +128,6 @@ export const Footer = () => {
               © {new Date().getFullYear()} Made with ❤️ by LambdaCurry
             </a>
             */}
-          </div>
-          <div className="mt-1 flex flex-col justify-end text-xs sm:mt-0">
-            {hasProducts && <StripeSecurityImage className="mt-2" />}
           </div>
         </div>
       </Container>
