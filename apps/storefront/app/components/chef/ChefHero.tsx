@@ -23,7 +23,7 @@ export const ChefHero: FC<ChefHeroProps> = ({
   tagline = "CULINARY EXPERIENCES & PRIVATE DINING",
   description = "Transform your special occasions into unforgettable culinary experiences. From intimate cooking classes to elegant plated dinners, I bring restaurant-quality cuisine directly to your home.",
   image = {
-    url: '/assets/images/chef_scallops_home.PNG',
+    url: '/assets/images/chef_scallops_home.jpg',
     alt: 'Chef Luis Velez preparing an elegant dish'
   },
   actions = [
