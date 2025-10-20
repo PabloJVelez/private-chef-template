@@ -168,7 +168,7 @@ export default function IndexRoute() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="relative order-1 lg:order-1">
             <Image
-              src="/assets/images/chef_experience.PNG"
+              src="/assets/images/chef_experience.jpg"
               loading="lazy"
               alt="Chef Luis Velez in his kitchen"
               className="rounded-2xl shadow-lg w-full h-[500px] object-cover"
@@ -261,7 +261,7 @@ export default function IndexRoute() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           <div className="relative order-1 lg:order-1">
             <Image
-              src="/assets/images/chef_book_experience.PNG"
+              src="/assets/images/chef_book_experience.jpg"
               alt="Guests enjoying a Chef Velez experience"
               className="rounded-2xl shadow-lg w-full h-[500px] object-cover lg:rounded-3xl lg:w-auto lg:h-auto"
               width={600}
