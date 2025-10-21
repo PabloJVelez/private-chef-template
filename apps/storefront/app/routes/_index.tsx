@@ -75,7 +75,7 @@ export const loader = async (_args: LoaderFunctionArgs) => {
       {
         id: 'sample-menu-1',
         name: 'Classic French Experience',
-        thumbnail: '/assets/images/chef_beef_menu.JPG',
+        thumbnail: '/assets/images/chef_beef_menu.jpg',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         courses: [
