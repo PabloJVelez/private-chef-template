@@ -58,7 +58,7 @@ const MenuCard: FC<MenuCardProps> = ({ menu, isSelected, onSelect, onPreview }) 
       {/* Menu image */}
       <div className="aspect-[4/3] overflow-hidden bg-gray-100 rounded-lg mb-4">
         <Image
-          src="/assets/images/chef_beef_menu.jpg"
+          src={menu.thumbnail || menu.images?.[0]?.url || "/assets/images/chef_beef_menu.jpg"}
           alt={menu.name}
           className="w-full h-full object-cover"
           width={400}
