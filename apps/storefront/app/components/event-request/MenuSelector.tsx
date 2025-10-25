@@ -33,7 +33,7 @@ const MenuCard: FC<MenuCardProps> = ({ menu, isSelected, onSelect, onPreview }) 
   return (
     <div
       className={clsx(
-        'relative bg-white rounded-lg border-2 p-6 transition-all duration-200 hover:shadow-md whitespace-normal h-[380px] flex flex-col',
+        'relative bg-white rounded-lg border-2 p-6 transition-all duration-200 hover:shadow-md whitespace-normal h-[420px] flex flex-col',
         isSelected ? 'border-accent-500 bg-accent-50 shadow-md' : 'border-gray-200 hover:border-accent-300'
       )}
       onClick={() => onSelect(menu.id)}
@@ -56,50 +56,67 @@ const MenuCard: FC<MenuCardProps> = ({ menu, isSelected, onSelect, onPreview }) 
       </div>
 
       {/* Menu image */}
-      <div className="aspect-[16/9] overflow-hidden bg-gray-100 rounded-lg mb-4">
+      <div className="aspect-[4/3] overflow-hidden bg-gray-100 rounded-lg mb-4">
         <Image
-          src="https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80"
+          src="/assets/images/chef_beef_menu.jpg"
           alt={menu.name}
           className="w-full h-full object-cover"
-          width={800}
-          height={600}
+          width={400}
+          height={300}
           loading="lazy"
         />
       </div>
 
       {/* Menu details */}
-      <div className="space-y-3 flex-1">
-        <div>
-          <h4 className="text-xl font-semibold text-primary-900 leading-snug">{menu.name}</h4>
-          <p className="text-sm text-primary-600">
-            {courseCount} courses • {estimatedTime}
-          </p>
+      <div className="flex-1 flex flex-col">
+        <div className="space-y-3 flex-1">
+          <div>
+            <h4 className="text-xl font-semibold text-primary-900 leading-tight line-clamp-2">{menu.name}</h4>
+            <p className="text-sm text-primary-600 mt-1">
+              {courseCount} courses • {estimatedTime}
+            </p>
+          </div>
+
+          {courseNames.length > 0 && (
+            <ul className="text-sm text-primary-700 space-y-1">
+              {courseNames.map((n, idx) => (
+                <li key={idx} className="flex items-center text-sm text-primary-700">
+                  <span className="w-1 h-1 bg-accent-500 rounded-full mr-2 flex-shrink-0" />
+                  <span className="line-clamp-1">{n}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-
-        {courseNames.length > 0 && (
-          <ul className="text-sm text-primary-700 space-y-1">
-            {courseNames.map((n, idx) => (
-              <li key={idx} className="flex items-start gap-2">
-                <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-accent-500" />
-                <span className="line-clamp-1">{n}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="pt-3">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPreview(menu);
-          }}
-          className="text-accent-700 hover:text-accent-800"
-        >
-          View full menu
-        </Button>
+        
+        {/* Integrated menu expansion area */}
+        <div className="h-16 flex items-end">
+          <div className="w-full">
+            <div className="border-t border-gray-100 pt-3">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPreview(menu);
+                }}
+                className="w-full text-left group hover:bg-gray-50 rounded-lg p-3 transition-all duration-200"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 rounded-full bg-accent-500"></div>
+                    <span className="text-sm font-medium text-primary-900">View full menu</span>
+                  </div>
+                  <div className="text-accent-500 group-hover:text-accent-600 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 ml-4">See complete menu details</p>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
