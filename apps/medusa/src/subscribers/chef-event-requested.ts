@@ -2,7 +2,7 @@ import type {
   SubscriberArgs,
   SubscriberConfig,
 } from "@medusajs/medusa"
-import { Modules } from "@medusajs/framework/utils"
+import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { CreateNotificationDTO } from "@medusajs/types"
 import { DateTime } from "luxon"
 import type { ChefEventType } from "../modules/chef-event/models/chef-event"
@@ -18,13 +18,14 @@ export default async function chefEventRequestedHandler({
   
   const notificationService = container.resolve(Modules.NOTIFICATION)
   const chefEventService = container.resolve("chefEventModuleService") as any
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
 
   try {
     // Fetch the chef event data from the database
     const chefEvent = await chefEventService.retrieveChefEvent(data.chefEventId)
     
     if (!chefEvent) {
-      console.error("❌ CHEF EVENT SUBSCRIBER: Chef event not found:", data.chefEventId)
+      logger.error(`Chef event not found: ${data.chefEventId}`)
       throw new Error(`Chef event not found: ${data.chefEventId}`)
     }
     
@@ -106,24 +107,40 @@ export default async function chefEventRequestedHandler({
       }
     } as CreateNotificationDTO)
 
-    // Send notification email to chef
-    await notificationService.createNotifications({
-      to: "pablo_3@icloud.com", // Chef's email (hardcoded for now)
-      channel: "email",
-      template: "chef-event-requested", // Using the same template
-      data: {
-        ...emailData,
-        emailType: "chef_notification",
-        requestReference: chefEvent.id.slice(0, 8).toUpperCase(),
-        chefContact: {
-          email: "support@chefvelez.com",
-          phone: "(347) 695-4445"
+    // Send notification emails to all chefs in the list
+    const chefEmails = process.env.CHEF_NOTIFICATIONS_LIST?.split(',').map(email => email.trim()).filter(Boolean) || []
+    
+    if (chefEmails.length === 0) {
+      logger.warn("No chef emails configured in CHEF_NOTIFICATIONS_LIST")
+    } else {
+      // Send individual notifications to each chef
+      const chefNotifications = chefEmails.map(email => ({
+        to: email,
+        channel: "email" as const,
+        template: "chef-event-requested",
+        data: {
+          ...emailData,
+          emailType: "chef_notification",
+          requestReference: chefEvent.id.slice(0, 8).toUpperCase(),
+          chefContact: {
+            email: "support@chefvelez.com",
+            phone: "(347) 695-4445"
+          }
         }
-      }
-    } as CreateNotificationDTO)
+      } as CreateNotificationDTO))
+
+      // Send all notifications
+      await Promise.all(
+        chefNotifications.map(notification => 
+          notificationService.createNotifications(notification)
+        )
+      )
+      
+      logger.info(`Sent chef event notifications to ${chefEmails.length} chef(s): ${chefEmails.join(', ')}`)
+    }
 
   } catch (error) {
-    console.error("❌ CHEF EVENT SUBSCRIBER: Failed to process event:", error)
+    logger.error(`Failed to process chef event request for ${data.chefEventId}: ${error instanceof Error ? error.message : String(error)}`)
     throw error
   }
 }

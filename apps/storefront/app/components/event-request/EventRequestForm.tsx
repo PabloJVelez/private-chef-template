@@ -158,9 +158,10 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
       defaultOpen?: boolean;
       header: React.ReactNode;
       children: React.ReactNode;
+      key?: string;
     }
   ) => (
-    <Disclosure defaultOpen={args.defaultOpen}>
+    <Disclosure key={args.key} defaultOpen={args.defaultOpen}>
       {({ open }) => (
         <div
           className={clsx(
@@ -199,18 +200,21 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
               return (
                 <>
                   {renderDisclosure({
+                    key: `step1-menu-${currentStep}`,
                     defaultOpen: true,
                     header: renderSectionHeader('Select a Menu', { complete: isMenuSelected }),
                     children: <MenuSelector menus={menus} />,
                   })}
 
                   {renderDisclosure({
+                    key: `step1-experience-${currentStep}`,
                     defaultOpen: false,
                     header: renderSectionHeader('Experience Type', { complete: isEventTypeComplete }),
                     children: <EventTypeSelector />,
                   })}
 
                   {renderDisclosure({
+                    key: `step1-guests-${currentStep}`,
                     defaultOpen: false,
                     header: renderSectionHeader('Number of Guests', { complete: isPartySizeComplete }),
                     children: <PartySizeSelector />,
@@ -233,18 +237,21 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
               return (
                 <>
                   {renderDisclosure({
-                    defaultOpen: false,
+                    key: `step2-date-${currentStep}`,
+                    defaultOpen: true,
                     header: renderSectionHeader('Date & Time', { complete: isDateComplete }),
                     children: <DateTimeForm />,
                   })}
 
                   {renderDisclosure({
+                    key: `step2-contact-${currentStep}`,
                     defaultOpen: false,
                     header: renderSectionHeader('Contact Information', { complete: isContactComplete }),
                     children: <ContactDetails />,
                   })}
 
                   {renderDisclosure({
+                    key: `step2-location-${currentStep}`,
                     defaultOpen: false,
                     header: renderSectionHeader('Event Address', { complete: isLocationComplete }),
                     children: <LocationForm />,
