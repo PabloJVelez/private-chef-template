@@ -35,7 +35,7 @@ const experienceTypes: ExperienceType[] = [
       'Great for mingling',
       'Flexible timing'
     ],
-    icon: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80',
+    icon: '/assets/images/buffet.jpg',
     idealFor: 'Birthday parties, family gatherings, casual celebrations',
     duration: '2.5 hours'
   },
@@ -50,7 +50,7 @@ const experienceTypes: ExperienceType[] = [
       'Interactive experience',
       'Take home new skills'
     ],
-    icon: 'https://images.unsplash.com/photo-1556908114-574ce6b1d42a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80',
+    icon: '/assets/images/cooking_class.jpg',
     idealFor: 'Date nights, team building, skill development',
     duration: '3 hours'
   },
@@ -65,7 +65,7 @@ const experienceTypes: ExperienceType[] = [
       'Full-service dining',
       'Premium ingredients'
     ],
-    icon: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80',
+    icon: '/assets/images/plated_dinner.jpg',
     idealFor: 'Anniversaries, proposals, formal celebrations',
     duration: '4 hours'
   }
@@ -99,13 +99,14 @@ const ExperienceCard: FC<ExperienceCardProps> = ({ experience, className, featur
       )}
       
       <div className="text-center space-y-4 flex-grow flex flex-col">
-        <div className="mx-auto w-12 h-12 bg-accent-100 rounded-full flex items-center justify-center">
+        <div className="w-full h-32 rounded-t-lg overflow-hidden">
           <Image
             src={experience.icon}
-            alt={`${experience.name} icon`}
-            width={24}
-            height={24}
-            className="w-6 h-6"
+            alt={`${experience.name} banner`}
+            width={400}
+            height={128}
+            className="w-full h-full object-cover"
+            fallbackSrc={['/assets/images/chef_experience.jpg', '/assets/images/chef_book_experience.jpg']}
           />
         </div>
         
@@ -210,13 +211,14 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
         >
           {/* Grid: 30% image (left), 70% details (right). Image spans both rows. */}
           <div className="grid grid-cols-[30%_1fr] gap-4 items-center">
-            <div className="row-span-2 rounded-2xl overflow-hidden h-24 md:h-28 bg-white/40">
+            <div className="row-span-2 rounded-2xl overflow-hidden h-32 md:h-36 bg-white/40 shadow-sm">
               <Image
                 src={experience.icon}
                 alt={`${experience.name} image`}
-                width={160}
-                height={200}
+                width={200}
+                height={160}
                 className="w-full h-full object-cover"
+                fallbackSrc={['/assets/images/chef_experience.jpg', '/assets/images/chef_book_experience.jpg']}
               />
             </div>
 
