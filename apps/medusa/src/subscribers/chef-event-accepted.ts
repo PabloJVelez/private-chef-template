@@ -49,6 +49,17 @@ export default async function chefEventAcceptedHandler({
     const pricePerPerson = pricePerPersonMap[chefEvent.eventType as ChefEventType] || 119.99
     const totalPrice = pricePerPerson * chefEvent.partySize
 
+    // Calculate deposit requirement
+    // Rules:
+    // - If party size > 4: Minimum of 4 tickets must be purchased within 72 hours
+    // - If party size <= 4: Full event cost must be paid within 72 hours
+    const depositRequired = chefEvent.partySize > 4 
+      ? pricePerPerson * 4  // 4 tickets minimum
+      : totalPrice           // Full amount for parties of 4 or less
+    
+    const depositDeadline = DateTime.now().plus({ hours: 72 }).toFormat('LLL d, yyyy')
+    const minimumTickets = chefEvent.partySize > 4 ? 4 : chefEvent.partySize
+
     // Format the date and time for display
     const requestedDate = typeof chefEvent.requestedDate === 'string' 
       ? new Date(chefEvent.requestedDate) 
@@ -89,7 +100,11 @@ export default async function chefEventAcceptedHandler({
       event: {
         status: "Confirmed",
         total_price: totalPrice.toFixed(2),
-        price_per_person: pricePerPerson.toFixed(2)
+        price_per_person: pricePerPerson.toFixed(2),
+        deposit_required: depositRequired.toFixed(2),
+        deposit_deadline: depositDeadline,
+        minimum_tickets: minimumTickets,
+        is_full_deposit: chefEvent.partySize <= 4
       },
       product: {
         id: product.id,

@@ -35,6 +35,10 @@ type ChefEventAcceptedEmailProps = {
     status: string
     total_price: string
     price_per_person: string
+    deposit_required: string
+    deposit_deadline: string
+    minimum_tickets: number
+    is_full_deposit: boolean
   }
   product: {
     id: string
@@ -185,15 +189,40 @@ function ChefEventAcceptedEmailComponent({
 
               <Row className="mb-3">
                 <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Deposit Required:</Text>
+                  <Text className="font-semibold text-gray-700">
+                    {event.is_full_deposit ? 'Full Payment Required:' : 'Minimum Deposit Required:'}
+                  </Text>
                 </Column>
                 <Column className="w-2/3">
-                  <Text className="text-gray-600">${event.total_price}</Text>
+                  <Text className="text-gray-600 font-bold">${event.deposit_required}</Text>
                 </Column>
               </Row>
 
+              <Row className="mb-3">
+                <Column className="w-1/3">
+                  <Text className="font-semibold text-gray-700">Payment Deadline:</Text>
+                </Column>
+                <Column className="w-2/3">
+                  <Text className="text-gray-600">{event.deposit_deadline}</Text>
+                </Column>
+              </Row>
+
+              {!event.is_full_deposit && (
+                <Row className="mb-3">
+                  <Column className="w-1/3">
+                    <Text className="font-semibold text-gray-700">Minimum Tickets:</Text>
+                  </Column>
+                  <Column className="w-2/3">
+                    <Text className="text-gray-600">{event.minimum_tickets} tickets</Text>
+                  </Column>
+                </Row>
+              )}
+
               <Text className="text-gray-600 mt-4">
-                To secure your booking, please pay the deposit within the next 24 hours.
+                {event.is_full_deposit 
+                  ? `To secure your booking, please pay the full amount by ${event.deposit_deadline}.`
+                  : `To secure your booking, please purchase at least ${event.minimum_tickets} tickets by ${event.deposit_deadline}. Additional guests can purchase their tickets later.`
+                }
               </Text>
             </Section>
 
@@ -203,7 +232,7 @@ function ChefEventAcceptedEmailComponent({
                 href={product.purchase_url}
                 className="bg-green-600 text-white px-8 py-4 rounded-lg font-semibold text-lg"
               >
-                Pay Deposit Now
+                {event.is_full_deposit ? 'Pay Full Amount Now' : 'Purchase Tickets Now'}
               </Button>
             </Section>
 
