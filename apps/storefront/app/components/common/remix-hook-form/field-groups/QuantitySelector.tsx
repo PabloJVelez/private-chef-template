@@ -62,7 +62,7 @@ export const QuantitySelector: FC<QuantitySelectorProps> = ({ className, variant
             <select
               {...field}
               className="focus:border-orange-500 focus:ring-orange-500 !h-14 !w-full rounded-xl border-2 border-gray-200 pl-20 pr-4 text-lg font-semibold bg-white shadow-sm hover:border-orange-300 transition-colors"
-              value={field.value || '1'}
+              value={String(field.value ?? 1)}
               onChange={(e) => {
                 const value = parseInt(e.target.value, 10);
                 field.onChange(value);

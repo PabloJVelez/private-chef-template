@@ -1,4 +1,3 @@
-import { LineItemQuantitySelect } from '@app/components/cart/line-items/LineItemQuantitySelect';
 import { Button } from '@app/components/common/buttons/Button';
 import { Image } from '@app/components/common/images/Image';
 import { useCheckout } from '@app/hooks/useCheckout';
@@ -56,7 +55,9 @@ export const CheckoutOrderSummaryItem: FC<CheckoutOrderSummaryItemProps> = ({ it
 
         <div className="flex flex-1 items-end justify-between pt-2">
           <div className="mr-4">
-            <LineItemQuantitySelect formId={`quantity-${name}-${item.id}`} item={item} />
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Qty {item.quantity}</span>
+            </p>
           </div>
 
           <p className="mt-1 text-lg">
