@@ -21,7 +21,7 @@ export const LineItemQuantitySelect: FC<LineItemQuantitySelectProps> = ({
   maxInventory = 10,
   ...props
 }) => {
-  const fetcher = useFetcher({ key: FetcherKeys.cart.updateLineItem });
+  const fetcher = useFetcher({ key: `${FetcherKeys.cart.updateLineItem}-${item.id}` });
 
   const isLoading = ['submitting', 'loading'].includes(fetcher.state);
 
@@ -29,7 +29,7 @@ export const LineItemQuantitySelect: FC<LineItemQuantitySelectProps> = ({
     resolver: zodResolver(updateLineItemSchema),
     defaultValues: {
       lineItemId: item.id,
-      quantity: item.quantity.toString(),
+      quantity: item.quantity,
     },
     fetcher,
     submitConfig: {
