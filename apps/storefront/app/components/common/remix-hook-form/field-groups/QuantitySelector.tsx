@@ -37,7 +37,13 @@ export const QuantitySelector: FC<QuantitySelectorProps> = ({ className, variant
     });
   }
 
-  const optionsArray = [...Array(Math.min(variantInventory, maxInventory))].map((_, index) => ({
+  // When customInventoryQuantity is provided, use it directly without maxInventory cap
+  // Otherwise, use the maxInventory as a fallback cap for backwards compatibility
+  const maxOptions = customInventoryQuantity !== undefined 
+    ? variantInventory 
+    : Math.min(variantInventory, maxInventory);
+
+  const optionsArray = [...Array(maxOptions)].map((_, index) => ({
     label: `${index + 1}`,
     value: index + 1,
   }));
