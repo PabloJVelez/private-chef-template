@@ -104,20 +104,10 @@ export class AdminMenusResource {
    * @returns List of menus
    */
   async list(query: AdminListMenusQuery = {}) {
-    console.log("🌐 SDK AdminMenusResource.list() called with query:", query)
-    console.log("🌐 Making request to: /admin/menus")
-    
-    try {
-      const result = await this.client.fetch<AdminMenusResponse>(`/admin/menus`, {
-        method: 'GET',
-        query,
-      })
-      console.log("🌐 SDK AdminMenusResource.list() response:", result)
-      return result
-    } catch (error) {
-      console.error("🌐 SDK AdminMenusResource.list() error:", error)
-      throw error
-    }
+    return this.client.fetch<AdminMenusResponse>(`/admin/menus`, {
+      method: 'GET',
+      query,
+    })
   }
 
   /**

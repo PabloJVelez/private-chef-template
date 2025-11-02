@@ -30,32 +30,16 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  console.log('🔧 BACKEND API: POST /store/chef-events - Request received');
-  console.log('🔧 BACKEND API: Request headers:', req.headers);
-  console.log('🔧 BACKEND API: Request body:', req.body);
+  const logger = req.scope.resolve("logger")
 
   try {
-    console.log('🔧 BACKEND API: Validating request data...');
     const validatedData = createStoreChefEventSchema.parse(req.body)
-    console.log('🔧 BACKEND API: Validation successful, validated data:', {
-      eventType: validatedData.eventType,
-      partySize: validatedData.partySize,
-      requestedDate: validatedData.requestedDate,
-      email: validatedData.email,
-    });
     
     // Auto-calculate pricing based on event type and party size
     const pricePerPerson = PRICING_STRUCTURE[validatedData.eventType]
     const totalPrice = pricePerPerson * validatedData.partySize
-    console.log('🔧 BACKEND API: Price calculation:', {
-      eventType: validatedData.eventType,
-      pricePerPerson,
-      partySize: validatedData.partySize,
-      totalPrice,
-    });
     
     // Create chef event request with calculated pricing and pending status
-    console.log('🔧 BACKEND API: Running createChefEventWorkflow...');
     const { result } = await createChefEventWorkflow(req.scope).run({
       input: {
         ...validatedData,
@@ -65,23 +49,15 @@ export async function POST(
       }
     })
     
-    console.log('🔧 BACKEND API: Workflow completed successfully, result:', {
-      chefEventId: result.chefEvent?.id,
-      status: result.chefEvent?.status,
-    });
-    
     res.status(200).json({
       chefEvent: result.chefEvent,
       message: "Event request submitted successfully. You will receive a response within 24-48 hours."
     })
     
-    console.log('🔧 BACKEND API: Response sent successfully');
-    
   } catch (error) {
-    console.error("💥 BACKEND API: Error creating store chef event request:", error)
+    logger.error(`Error creating store chef event request: ${error instanceof Error ? error.message : String(error)}`)
     
     if (error instanceof z.ZodError) {
-      console.log('💥 BACKEND API: Validation error details:', error.errors);
       res.status(400).json({
         message: "Validation error",
         errors: error.errors
@@ -89,7 +65,6 @@ export async function POST(
       return
     }
     
-    console.log('💥 BACKEND API: Internal server error:', error);
     res.status(500).json({
       message: "Internal server error",
       error: error instanceof Error ? error.message : "Unknown error"

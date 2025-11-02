@@ -13,8 +13,9 @@ export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
+  const logger = req.scope.resolve("logger")
+  
   try {
-    console.log("GETTING MENUS FOR STOREFRONt!!!")
     const query = listStoreMenusSchema.parse(req.query)
     const menuModuleService = req.scope.resolve(MENU_MODULE) as any
     
@@ -32,7 +33,6 @@ export async function GET(
         relations: ["courses", "courses.dishes", "courses.dishes.ingredients", "images"]
       }
     )
-    console.log("MENUS WE GOT BACK---->", menus)
 
     // Set cache headers for 30 minutes as specified in the plan
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300')
@@ -44,7 +44,7 @@ export async function GET(
       limit: query.limit
     })
   } catch (error) {
-    console.error("Error listing store menus:", error)
+    logger.error(`Error listing store menus: ${error instanceof Error ? error.message : String(error)}`)
     res.status(500).json({
       message: "Internal server error",
       error: error instanceof Error ? error.message : "Unknown error"

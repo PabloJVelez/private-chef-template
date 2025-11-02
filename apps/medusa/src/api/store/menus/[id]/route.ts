@@ -5,6 +5,8 @@ export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
+  const logger = req.scope.resolve("logger")
+  
   try {
     const { id } = req.params
     const menuModuleService = req.scope.resolve(MENU_MODULE) as any
@@ -27,7 +29,7 @@ export async function GET(
       menu
     })
   } catch (error) {
-    console.error("Error retrieving store menu:", error)
+    logger.error(`Error retrieving store menu: ${error instanceof Error ? error.message : String(error)}`)
     res.status(500).json({
       message: "Internal server error",
       error: error instanceof Error ? error.message : "Unknown error"

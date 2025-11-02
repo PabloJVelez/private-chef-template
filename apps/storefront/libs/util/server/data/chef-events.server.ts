@@ -67,28 +67,8 @@ export const calculateEventPrice = (
 export const createChefEventRequest = async (
   data: StoreCreateChefEventDTO
 ): Promise<StoreChefEventResponse> => {
-  console.log('🌐 API CLIENT: Starting chef event request to backend');
-  console.log('🌐 API CLIENT: Request data:', {
-    eventType: data.eventType,
-    partySize: data.partySize,
-    requestedDate: data.requestedDate,
-    requestedTime: data.requestedTime,
-    email: data.email,
-    baseUrl: baseMedusaConfig.baseUrl,
-    hasApiKey: !!baseMedusaConfig.publishableKey,
-  });
-  
-  console.log('🌐 API CLIENT: Detailed date validation:', {
-    requestedDate: data.requestedDate,
-    dateType: typeof data.requestedDate,
-    dateLength: data.requestedDate?.length,
-    isValidISOString: data.requestedDate ? !isNaN(Date.parse(data.requestedDate)) : false,
-    sampleParseResult: data.requestedDate ? new Date(data.requestedDate) : null,
-  });
-
   try {
     const requestUrl = `${baseMedusaConfig.baseUrl}/store/chef-events`;
-    console.log('🌐 API CLIENT: Making request to:', requestUrl);
 
     const response = await fetch(requestUrl, {
       method: 'POST',
@@ -99,18 +79,11 @@ export const createChefEventRequest = async (
       body: JSON.stringify(data),
     });
 
-    console.log('🌐 API CLIENT: Response status:', response.status);
-    console.log('🌐 API CLIENT: Response headers:', Object.fromEntries(response.headers.entries()));
-
     const responseData = await response.json();
-    console.log('🌐 API CLIENT: Response data:', responseData);
 
     if (!response.ok) {
-      console.log('❌ API CLIENT: Request failed with status:', response.status);
-      
       // Handle validation errors
       if (response.status === 400 && responseData.errors) {
-        console.log('❌ API CLIENT: Validation errors:', responseData.errors);
         const error: ChefEventError = {
           message: responseData.message || 'Validation error',
           errors: responseData.errors,
@@ -119,29 +92,22 @@ export const createChefEventRequest = async (
       }
 
       // Handle other errors
-      console.log('❌ API CLIENT: Other error:', responseData.message);
       throw new Error(responseData.message || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    console.log('✅ API CLIENT: Chef event request successful');
     return responseData;
   } catch (error) {
-    console.error('💥 API CLIENT: Error in createChefEventRequest:', error);
-    
     // Re-throw ChefEventError as-is
     if (error && typeof error === 'object' && 'errors' in error) {
-      console.log('💥 API CLIENT: Re-throwing validation error');
       throw error;
     }
 
     // Wrap other errors
-    const wrappedError = new Error(
+    throw new Error(
       error instanceof Error 
         ? `Failed to create chef event request: ${error.message}`
         : 'Failed to create chef event request: Unknown error'
     );
-    console.error('💥 API CLIENT: Wrapped error:', wrappedError.message);
-    throw wrappedError;
   }
 };
 

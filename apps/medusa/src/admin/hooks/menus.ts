@@ -11,21 +11,11 @@ import type {
 const QUERY_KEY = ['menus']
 
 export const useAdminListMenus = (query: AdminListMenusQuery = {}) => {
-  console.log("🔍 useAdminListMenus called with query:", query)
-  
   return useQuery<AdminMenusResponse>({
     queryKey: [...QUERY_KEY, query],
     placeholderData: (previousData) => previousData,
     queryFn: async () => {
-      console.log("🚀 Making API call to list menus with query:", query)
-      try {
-        const result = await sdk.admin.menus.list(query)
-        console.log("✅ API call successful, result:", result)
-        return result
-      } catch (error) {
-        console.error("❌ API call failed:", error)
-        throw error
-      }
+      return sdk.admin.menus.list(query)
     },
   })
 }

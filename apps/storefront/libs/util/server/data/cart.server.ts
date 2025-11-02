@@ -75,7 +75,6 @@ export const addToCart = withAuthHeaders(
 
     // Try to add to existing cart if we have a cart ID
     if (cartId) {
-      console.log('ADDING TO CART======>', cartId, variantId, quantity);
       try {
         const resp = await sdk.store.cart.createLineItem(
           cartId,
@@ -86,12 +85,10 @@ export const addToCart = withAuthHeaders(
           {},
           authHeaders,
         );
-        console.log('Response', resp);
         return resp;
       } catch (error: any) {
         // If the cart doesn't exist (stale cart ID), clear it and proceed to create new cart
         if (error?.message?.includes('Cart id not found') || error?.type === 'not_found') {
-          console.log('Stale cart ID detected, will create new cart');
           cartId = null; // Clear the stale cart ID so we create a new one below
         } else {
           throw error;
@@ -100,7 +97,6 @@ export const addToCart = withAuthHeaders(
     }
 
     // No cart ID (or stale cart ID was cleared) - create a new cart with the item
-    console.log('Creating new cart with item');
     const region = await getSelectedRegion(request.headers);
     const cart = await createCart(request, { 
       region_id: region.id, 

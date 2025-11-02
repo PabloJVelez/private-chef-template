@@ -38,15 +38,11 @@ export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
+  const logger = req.scope.resolve("logger")
+  
   try {
     const query = listMenusSchema.parse(req.query)
-    console.log("=== DEBUG: Admin menus GET ===")
-    console.log("1. Query:", query)
-    console.log("2. MENU_MODULE:", MENU_MODULE)
-    
     const menuModuleService = req.scope.resolve(MENU_MODULE) as any
-    console.log("3. Service resolved:", !!menuModuleService)
-    console.log("4. Service methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(menuModuleService)))
     
     const [menus, count] = await menuModuleService.listAndCountMenus(
       {
@@ -62,9 +58,6 @@ export async function GET(
         relations: ["courses", "images"]
       }
     )
-    
-    console.log("5. Raw menus result:", menus)
-    console.log("6. Menus found:", menus?.length || 0, "Total count:", count)
 
     res.status(200).json({
       menus,
@@ -73,7 +66,7 @@ export async function GET(
       limit: query.limit || 10
     })
   } catch (error) {
-    console.error("Error listing menus:", error)
+    logger.error(`Error listing menus: ${error instanceof Error ? error.message : String(error)}`)
     res.status(500).json({
       message: "Internal server error",
       error: error instanceof Error ? error.message : "Unknown error"
@@ -85,6 +78,8 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
+  const logger = req.scope.resolve("logger")
+  
   try {
     const validatedData = createMenuSchema.parse(req.body)
     
@@ -94,7 +89,7 @@ export async function POST(
     
     res.status(201).json(result.menu)
   } catch (error) {
-    console.error("Error creating menu:", error)
+    logger.error(`Error creating menu: ${error instanceof Error ? error.message : String(error)}`)
     
     if (error instanceof z.ZodError) {
       res.status(400).json({

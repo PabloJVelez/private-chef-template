@@ -48,7 +48,6 @@ export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDe
   const eventInfo = eventVariant?.sku ? parseEventSku(eventVariant.sku) : null;
   
   if (!isEventProduct(product) || !eventInfo) {
-    console.log('Not rendering EventProductDetails - not an event product or no event info');
     return null; // Not an event product, don't render
   }
 
@@ -90,35 +89,6 @@ export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDe
 
   const eventVariantOptions = getEventVariantOptions();
 
-  // Debug logging
-  console.log('💰 EventProductDetails PRICING Debug:', {
-    productId: product.id,
-    productTitle: product.title,
-    eventVariant: eventVariant ? {
-      id: eventVariant.id,
-      sku: eventVariant.sku,
-      inventory_quantity: eventVariant.inventory_quantity,
-      manage_inventory: eventVariant.manage_inventory,
-             calculated_price: eventVariant.calculated_price ? {
-         calculated_amount: eventVariant.calculated_price.calculated_amount,
-         currency_code: eventVariant.calculated_price.currency_code,
-         calculated_amount_in_dollars: (eventVariant.calculated_price.calculated_amount || 0) / 100
-       } : null
-    } : null,
-    calculatedInventoryQuantity: inventoryQuantity,
-    isSoldOut: isSoldOut,
-    eventVariantOptions: eventVariantOptions,
-    eventInfo: eventInfo,
-    chefEvent: chefEvent ? {
-      id: chefEvent.id,
-      eventType: chefEvent.eventType,
-      partySize: chefEvent.partySize,
-      totalPrice: chefEvent.totalPrice,
-      expectedPricePerPerson: chefEvent.totalPrice ? chefEvent.totalPrice / chefEvent.partySize : null
-    } : null,
-    menu: menu
-  });
-
   // Setup form with remix-hook-form
   const form = useRemixForm<AddToCartFormData>({
     resolver: zodResolver(addToCartSchema),
@@ -157,19 +127,8 @@ export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDe
 
   // Handle add to cart submission
   const handleAddToCart = useCallback(() => {
-    console.log('Add to cart submitted:', {
-      productId: product.id,
-      variantId: eventVariant?.id,
-      inventoryQuantity: eventVariant?.inventory_quantity,
-      eventVariantOptions: eventVariantOptions,
-      formData: {
-        productId: product.id,
-        options: eventVariantOptions,
-        quantity: 1
-      }
-    });
     toggleCartDrawer(true);
-  }, [toggleCartDrawer, product.id, eventVariant?.id, eventVariant?.inventory_quantity, eventVariantOptions]);
+  }, [toggleCartDrawer]);
 
   return (
     <Container className="px-0 sm:px-6 md:px-8">

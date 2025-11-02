@@ -100,42 +100,15 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export const action = async (actionArgs: ActionFunctionArgs) => {
-  console.log('🔄 REQUEST ACTION: Starting form submission');
-  
   try {
     const { errors, data } = await getValidatedFormData<EventRequestFormData>(
       actionArgs.request,
       zodResolver(eventRequestSchema),
     );
 
-    console.log('📝 REQUEST ACTION: Form data received:', {
-      hasData: !!data,
-      hasErrors: !!errors,
-      errorKeys: errors ? Object.keys(errors) : [],
-    });
-
     if (errors) {
-      console.log('❌ REQUEST ACTION: Validation errors found:', errors);
       return { errors, status: 400 };
     }
-
-    console.log('✅ REQUEST ACTION: Form validation passed, creating request with data:', {
-      eventType: data.eventType,
-      partySize: data.partySize,
-      requestedDate: data.requestedDate,
-      requestedTime: data.requestedTime,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-    });
-    
-    console.log('✅ REQUEST ACTION: Raw requestedDate received:', data.requestedDate);
-    console.log('✅ REQUEST ACTION: Date validation check:', {
-      isString: typeof data.requestedDate === 'string',
-      length: data.requestedDate?.length,
-      isValidDate: data.requestedDate ? !isNaN(Date.parse(data.requestedDate)) : false,
-      parsedDate: data.requestedDate ? new Date(data.requestedDate).toISOString() : null,
-    });
 
     // Create the chef event request
     const response = await createChefEventRequest({
@@ -154,29 +127,14 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
       specialRequirements: data.specialRequirements,
     });
 
-    console.log('🎉 REQUEST ACTION: Chef event created successfully:', {
-      eventId: response.chefEvent.id,
-      status: response.chefEvent.status,
-    });
-
-    // Return success data instead of redirect for better client handling
     const successUrl = `/request/success?eventId=${response.chefEvent.id}`;
-    console.log('🔀 REQUEST ACTION: Returning success data for client redirect:', successUrl);
-    
-    // Try using redirect directly instead of client-side redirect
-    console.log('🔀 REQUEST ACTION: Attempting server-side redirect to:', successUrl);
     return redirect(successUrl);
 
   } catch (error) {
-    console.error('💥 REQUEST ACTION: Failed to create chef event request:', error);
+    console.error('Failed to create chef event request:', error);
     
-    // Log more details about the error
     if (error instanceof Error) {
-      console.error('💥 REQUEST ACTION: Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      });
+      console.error('Error details:', error.message);
     }
     
     return {

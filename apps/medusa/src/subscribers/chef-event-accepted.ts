@@ -2,7 +2,7 @@ import type {
   SubscriberArgs,
   SubscriberConfig,
 } from "@medusajs/medusa"
-import { Modules } from "@medusajs/framework/utils"
+import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { CreateNotificationDTO } from "@medusajs/types"
 import { DateTime } from "luxon"
 
@@ -21,13 +21,14 @@ export default async function chefEventAcceptedHandler({
   const notificationService = container.resolve(Modules.NOTIFICATION)
   const chefEventService = container.resolve("chefEventModuleService") as any
   const productService = container.resolve("product")
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
 
   try {
     // Fetch the chef event data from the database
     const chefEvent = await chefEventService.retrieveChefEvent(data.chefEventId)
     
     if (!chefEvent) {
-      console.error("❌ CHEF EVENT ACCEPTED SUBSCRIBER: Chef event not found:", data.chefEventId)
+      logger.error(`Chef event not found: ${data.chefEventId}`)
       throw new Error(`Chef event not found: ${data.chefEventId}`)
     }
 
@@ -35,7 +36,7 @@ export default async function chefEventAcceptedHandler({
     const product = await productService.retrieveProduct(data.productId)
     
     if (!product) {
-      console.error("❌ CHEF EVENT ACCEPTED SUBSCRIBER: Product not found:", data.productId)
+      logger.error(`Product not found: ${data.productId}`)
       throw new Error(`Product not found: ${data.productId}`)
     }
     
@@ -117,10 +118,10 @@ export default async function chefEventAcceptedHandler({
       }
     } as CreateNotificationDTO)
 
-    console.log("✅ CHEF EVENT ACCEPTED SUBSCRIBER: Acceptance email sent to customer:", chefEvent.email)
+    logger.info(`Acceptance email sent to customer: ${chefEvent.email}`)
 
   } catch (error) {
-    console.error("❌ CHEF EVENT ACCEPTED SUBSCRIBER: Failed to process event:", error)
+    logger.error(`Failed to process chef event acceptance for ${data.chefEventId}: ${error instanceof Error ? error.message : String(error)}`)
     throw error
   }
 }

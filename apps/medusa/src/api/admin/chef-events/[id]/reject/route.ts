@@ -11,6 +11,7 @@ const rejectChefEventSchema = z.object({
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { id } = req.params
   const validatedBody = rejectChefEventSchema.parse(req.body)
+  const logger = req.scope.resolve("logger")
   
   try {
     const { result } = await rejectChefEventWorkflow(req.scope).run({
@@ -27,7 +28,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       data: result
     })
   } catch (error) {
-    console.error("Error rejecting chef event:", error)
+    logger.error(`Error rejecting chef event: ${error instanceof Error ? error.message : String(error)}`)
     res.status(500).json({
       success: false,
       message: "Failed to reject chef event",

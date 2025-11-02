@@ -14,13 +14,6 @@ export const MenuList = ({ onCreateMenu }: MenuListProps) => {
   const { data, isLoading, error } = useAdminListMenus(query)
   const deleteMenu = useAdminDeleteMenuMutation()
 
-  console.log("📋 MenuList component - Query:", query)
-  console.log("📋 MenuList component - isLoading:", isLoading)
-  console.log("📋 MenuList component - data:", data)
-  console.log("📋 MenuList component - error:", error)
-  console.log("📋 MenuList component - menus array:", data?.menus)
-  console.log("📋 MenuList component - count:", data?.count)
-
   const columns = [
     columnHelper.accessor("name", {
       header: "Name",

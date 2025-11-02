@@ -11,6 +11,7 @@ const resendEmailSchema = z.object({
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { id } = req.params
   const validatedBody = resendEmailSchema.parse(req.body)
+  const logger = req.scope.resolve("logger")
   
   try {
     const { result } = await resendEventEmailWorkflow(req.scope).run({
@@ -27,7 +28,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       data: result
     })
   } catch (error) {
-    console.error("Error resending event email:", error)
+    logger.error(`Error resending event email: ${error instanceof Error ? error.message : String(error)}`)
     res.status(500).json({
       success: false,
       message: "Failed to resend event email",

@@ -36,6 +36,8 @@ export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
+  const logger = req.scope.resolve("logger")
+  
   try {
     const { id } = req.params
     const menuModuleService = req.scope.resolve(MENU_MODULE) as any
@@ -53,7 +55,7 @@ export async function GET(
 
     res.status(200).json(menu)
   } catch (error) {
-    console.error("Error retrieving menu:", error)
+    logger.error(`Error retrieving menu: ${error instanceof Error ? error.message : String(error)}`)
     res.status(500).json({
       message: "Internal server error",
       error: error instanceof Error ? error.message : "Unknown error"
@@ -65,15 +67,15 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
+  const logger = req.scope.resolve("logger")
+  
   try {
     const { id } = req.params
-    console.log("ID WE GET IN THE API", id)
     const validatedData = updateMenuSchema.parse(req.body)
     
     // Check if menu exists first
     const menuModuleService = req.scope.resolve(MENU_MODULE) as any
     const existingMenu = await menuModuleService.retrieveMenu(id)
-    console.log("EXISTING MENU", existingMenu)
     
     if (!existingMenu) {
       res.status(404).json({
@@ -91,7 +93,7 @@ export async function POST(
 
     res.status(200).json(result.menu)
   } catch (error) {
-    console.error("Error updating menu:", error)
+    logger.error(`Error updating menu: ${error instanceof Error ? error.message : String(error)}`)
     
     if (error instanceof z.ZodError) {
       res.status(400).json({
@@ -112,6 +114,8 @@ export async function DELETE(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
+  const logger = req.scope.resolve("logger")
+  
   try {
     const { id } = req.params
     
@@ -121,7 +125,7 @@ export async function DELETE(
 
     res.status(204).send()
   } catch (error) {
-    console.error("Error deleting menu:", error)
+    logger.error(`Error deleting menu: ${error instanceof Error ? error.message : String(error)}`)
     
     if (error instanceof Error && error.message.includes("not found")) {
       res.status(404).json({

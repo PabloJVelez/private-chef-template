@@ -53,14 +53,12 @@ export const loader = async (_args: LoaderFunctionArgs) => {
       
       // Debug log for first menu to understand structure
       if (menus.length === 0) {
-        console.log('First menu structure:', JSON.stringify(menu, null, 2));
       }
       
       return menu;
     });
 
     // Lightweight server log (shows up in server console)
-    console.log('MENUS DATA (loader) – count:', menus.length);
 
   } catch (error: any) {
     // Log full server-side error details but don't fail the page

@@ -308,6 +308,7 @@ const linkStockLocationsToSalesChannelsStep = createStep(
 const createEventProductStep = createStep(
   "create-event-product-step",
   async (input: { originalChefEvent: ChefEventData, digitalShippingProfile: any, digitalSalesChannel: any, defaultSalesChannel: any, digitalLocation: any }, { container }: { container: any }) => {
+    const logger = container.resolve("logger")
     const chefEvent = input.originalChefEvent
     
     // Helper functions
@@ -438,7 +439,7 @@ const createEventProductStep = createStep(
         inventoryItems.push(inventoryItem)
         
       } catch (error) {
-        console.error(`❌ Error processing inventory for variant ${variant.title}:`, error)
+        logger.error(`Error processing inventory for variant ${variant.title}: ${error instanceof Error ? error.message : String(error)}`)
         throw error
       }
     }

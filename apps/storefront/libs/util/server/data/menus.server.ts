@@ -60,7 +60,6 @@ export const fetchMenus = async ({
   if (bypassCache) params.append('_ts', Date.now().toString());
 
   const fetcher = async () => {
-    console.log("FETCHING MENUS WITH BASE URL", baseMedusaConfig.baseUrl)
     
     // Add timeout to prevent hanging requests
     const controller = new AbortController();

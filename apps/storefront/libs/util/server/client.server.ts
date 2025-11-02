@@ -23,12 +23,5 @@ export const baseMedusaConfig = {
   publishableKey: config.MEDUSA_PUBLISHABLE_KEY,
 };
 
-console.log('⚙️ CLIENT CONFIG:', {
-  baseUrl: baseMedusaConfig.baseUrl,
-  debug: baseMedusaConfig.debug,
-  hasPublishableKey: !!baseMedusaConfig.publishableKey,
-  publishableKeyPrefix: baseMedusaConfig.publishableKey?.slice(0, 10) + '...',
-});
-
 export const sdk = new MedusaPluginsSDK(baseMedusaConfig);
 export const sdkCache = buildNewLRUCache({ max: 1000 });

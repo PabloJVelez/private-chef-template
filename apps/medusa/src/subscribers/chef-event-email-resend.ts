@@ -1,6 +1,6 @@
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
 import { CHEF_EVENT_MODULE } from "../modules/chef-event"
-import { Modules } from "@medusajs/framework/utils"
+import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { DateTime } from "luxon"
 
 type EventData = {
@@ -14,7 +14,9 @@ export default async function chefEventEmailResendHandler({
   event: { data },
   container,
 }: SubscriberArgs<EventData>) {
-  console.log("🔄 CHEF EVENT EMAIL RESEND SUBSCRIBER: Processing resend request:", data)
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  
+  logger.info(`Processing email resend request for chef event: ${data.chefEventId}`)
 
   try {
     const chefEventModuleService = container.resolve(CHEF_EVENT_MODULE) as any
@@ -106,11 +108,11 @@ export default async function chefEventEmailResendHandler({
         data: emailData
       })
       
-      console.log(`✅ CHEF EVENT EMAIL RESEND SUBSCRIBER: Email sent to ${recipient}`)
+      logger.info(`Email sent to ${recipient}`)
     }
 
   } catch (error) {
-    console.error("❌ CHEF EVENT EMAIL RESEND SUBSCRIBER: Failed to process resend:", error)
+    logger.error(`Failed to process email resend for ${data.chefEventId}: ${error instanceof Error ? error.message : String(error)}`)
     throw error
   }
 }

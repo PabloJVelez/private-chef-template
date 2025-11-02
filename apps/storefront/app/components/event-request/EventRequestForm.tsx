@@ -60,13 +60,9 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
     mode: 'onChange', // Validate on change for better UX
   });
 
-  // Log action data for debugging
+  // Handle action data errors
   useEffect(() => {
-    console.log('🎯 FORM: useEffect triggered with actionData:', actionData);
-    
-    if (actionData) {
-      console.log('🎯 FORM: Action data received:', actionData);
-    }
+    // Process action data if present
   }, [actionData]);
 
   const nextStep = () => {
@@ -295,12 +291,6 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
               }, 0);
             }}
             onSubmit={() => {
-              console.log('🎯 FORM: Submit button clicked, triggering form submission');
-              console.log('🎯 FORM: Form values before submit:', form.getValues());
-              console.log('🎯 FORM: Form errors before submit:', form.formState.errors);
-              console.log('🎯 FORM: Form isValid:', form.formState.isValid);
-              console.log('🎯 FORM: Form isSubmitting:', form.formState.isSubmitting);
-              
               // Force update hidden inputs with current values
               const formValues = form.getValues();
               Object.entries(formValues).forEach(([key, value]) => {
@@ -320,8 +310,6 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
               
               const form_element = document.querySelector('form') as HTMLFormElement;
               if (form_element) {
-                const formData = new FormData(form_element);
-                console.log('📤 FORM: Actual FormData being submitted:', Array.from(formData.entries()));
                 form_element.requestSubmit();
               }
             }}
@@ -385,23 +373,6 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
           method="post" 
           className="space-y-8"
           onSubmit={(e) => {
-            console.log('📤 FORM: Form submission event triggered');
-            console.log('📤 FORM: Event details:', {
-              type: e.type,
-              target: e.target,
-              currentTarget: e.currentTarget,
-            });
-            console.log('📤 FORM: Current form values:', form.getValues());
-            console.log('📤 FORM: Form errors:', form.formState.errors);
-            console.log('📤 FORM: Is form valid:', form.formState.isValid);
-            console.log('📤 FORM: Current step:', currentStep);
-            
-
-            
-            // Log the actual FormData that will be sent
-            const formData = new FormData(e.currentTarget);
-            console.log('📤 FORM: Actual FormData being submitted:', Array.from(formData.entries()));
-            
             // Don't prevent default - let remix-hook-form handle it
           }}
 

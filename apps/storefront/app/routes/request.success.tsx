@@ -26,10 +26,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const searchParams = new URLSearchParams(url.search);
   const eventId = searchParams.get('eventId') || '';
   
-  console.log('🎉 SUCCESS PAGE: Loader called with eventId:', eventId);
-  
   if (!eventId) {
-    console.log('🎉 SUCCESS PAGE: No eventId found, redirecting to home');
     throw redirect('/');
   }
   
@@ -43,21 +40,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 // Handle POST requests to success page (redirect to GET)
 export const action = async ({ request }: ActionFunctionArgs) => {
-  console.log('🔧 SUCCESS PAGE: Received POST request, redirecting to GET');
-  
   const url = new URL(request.url);
   const eventId = url.searchParams.get('eventId') || '';
   const redirectUrl = `/request/success?eventId=${eventId}`;
   
-  console.log('🔧 SUCCESS PAGE: Redirecting to:', redirectUrl);
   return redirect(redirectUrl);
 };
 
 export default function RequestSuccessPage() {
   const { eventId, supportEmail, supportPhone, responseTime } = useLoaderData<typeof loader>();
-
-  console.log('🎉 SUCCESS PAGE: Component rendered');
-  console.log('🎉 SUCCESS PAGE: Event ID from loader:', eventId);
 
   return (
     <Container className="py-12 lg:py-16 max-w-4xl">
