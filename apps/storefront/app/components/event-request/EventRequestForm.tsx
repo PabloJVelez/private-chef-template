@@ -65,6 +65,11 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
     // Process action data if present
   }, [actionData]);
 
+  // Scroll to top whenever step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
+
   const nextStep = () => {
     if (currentStep < STEPS.length) {
       setCurrentStep(currentStep + 1);
