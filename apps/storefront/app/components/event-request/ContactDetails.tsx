@@ -135,7 +135,7 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
           type="tel"
           value={phone || ''}
           onChange={(e) => handlePhoneChange(e.target.value)}
-          placeholder="(555) 123-4567"
+          placeholder="(702) 349-6158"
           maxLength={14}
           className={clsx(
             "w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500",

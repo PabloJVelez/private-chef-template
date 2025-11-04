@@ -32,8 +32,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   return {
     eventId: searchParams.get('eventId') || 'unknown',
-    supportEmail: 'chef@chefluisvelez.com',
-    supportPhone: '(555) 123-4567',
+    supportEmail: 'chefvelez85@gmail.com',
+    supportPhone: '(702) 349-6158',
     responseTime: '24 hours',
   };
 };
