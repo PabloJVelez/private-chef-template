@@ -92,7 +92,7 @@ export default function ProductDetailRoute() {
           chefEvent={chefEvent}
           menu={menu}
         />
-        <ProductList className="!pb-[100px] xl:px-9" heading="You may also like" />
+        {/* <ProductList className="!pb-[100px] xl:px-9" heading="You may also like" /> */}
         {/* <ProductReviewSection /> */}
       </>
     );

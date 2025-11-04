@@ -31,7 +31,6 @@ interface ProcessStep {
   title: string;
   description: string;
   timeline: string;
-  details: string[];
   icon: string;
 }
 
@@ -41,25 +40,13 @@ const processSteps: ProcessStep[] = [
     title: "Browse & Request",
     description: "Explore our menu collections and choose your preferred experience type. Submit a request with your event details.",
     timeline: "5 minutes",
-    details: [
-      "Browse available menu templates",
-      "Select experience type (Buffet, Cooking Class, or Plated Dinner)",
-      "Choose your date, time, and party size",
-      "Provide event location and special requirements"
-    ],
     icon: "🍽️"
   },
   {
     step: 2,
     title: "Chef Review & Approval",
-          description: "Chef Luis reviews your request and confirms availability. You'll receive a detailed proposal with menu customizations.",
+    description: "Chef Luis reviews your request and confirms availability. You'll receive a detailed proposal with menu customizations.",
     timeline: "24-48 hours",
-    details: [
-      "Chef reviews your event requirements",
-      "Availability and logistics confirmation",
-      "Menu customization based on preferences",
-      "Detailed proposal with final pricing"
-    ],
     icon: "👨‍🍳"
   },
   {
@@ -67,25 +54,13 @@ const processSteps: ProcessStep[] = [
     title: "Book & Purchase",
     description: "Once approved, your event becomes available for purchase. Buy tickets for your guests with secure payment processing.",
     timeline: "Immediate",
-    details: [
-      "Event becomes available as a product",
-      "Secure online ticket purchasing",
-      "Automatic confirmation emails",
-      "Guest management tools"
-    ],
     icon: "🎫"
   },
   {
     step: 4,
     title: "Experience & Enjoy",
-          description: "Chef Luis arrives at your location with all ingredients and equipment. Relax and enjoy your personalized culinary experience.",
+    description: "Chef Luis arrives at your location with all ingredients and equipment. Relax and enjoy your personalized culinary experience.",
     timeline: "Event day",
-    details: [
-      "Chef arrives with all necessary equipment",
-      "Fresh, premium ingredients sourced locally",
-      "Professional preparation and service",
-      "Cleanup included in service"
-    ],
     icon: "🎉"
   }
 ];
@@ -98,14 +73,14 @@ interface StepCardProps {
 
 const StepCard: FC<StepCardProps> = ({ step, isLast = false, className }) => {
   return (
-    <div className={clsx("relative", className)}>
+    <div className={clsx("relative h-full", className)}>
       {/* Connection line to next step */}
       {!isLast && (
         <div className="hidden md:block absolute top-16 left-1/2 transform translate-x-8 w-full h-0.5 bg-gradient-to-r from-accent-500 to-gray-300 z-0" />
       )}
       
-      <div className="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-300 z-10">
-        <div className="text-center space-y-6">
+      <div className="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-300 z-10 h-full flex flex-col">
+        <div className="text-center space-y-6 flex-1 flex flex-col">
           {/* Step number and icon */}
           <div className="relative mx-auto">
             <div className="w-20 h-20 bg-accent-500 rounded-full flex items-center justify-center text-white font-bold text-lg mb-4">
@@ -125,22 +100,9 @@ const StepCard: FC<StepCardProps> = ({ step, isLast = false, className }) => {
           </div>
           
           {/* Description */}
-          <p className="text-primary-700 leading-relaxed mb-6">
+          <p className="text-primary-700 leading-relaxed">
             {step.description}
           </p>
-          
-          {/* Details list */}
-          <div className="text-left">
-            <h4 className="font-semibold text-primary-900 mb-3 text-center">Key Points:</h4>
-            <ul className="space-y-2">
-              {step.details.map((detail, index) => (
-                <li key={index} className="flex items-start text-sm text-primary-700">
-                  <span className="w-1.5 h-1.5 bg-accent-500 rounded-full mt-2 mr-3 flex-shrink-0" />
-                  {detail}
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
       </div>
     </div>
@@ -155,39 +117,39 @@ interface FAQItem {
 const faqItems: FAQItem[] = [
   {
     question: "How far in advance should I book?",
-    answer: "We recommend booking 1-2 weeks in advance, especially for weekend events. However, we can often accommodate shorter notice requests."
+    answer: "I typically recommend booking 1-2 weeks in advance, especially for weekend events. However, I'm flexible and can often accommodate shorter notice requests depending on my availability."
   },
   {
     question: "What's included in the service?",
-    answer: "All ingredients, equipment, preparation, service, and cleanup are included. You just provide the location and we handle the rest."
+    answer: "I provide all fresh ingredients, preparation, service, and cleanup. Usually, events are at your home using your cooking utensils and equipment. However, I'm accommodating and can work with you to arrange what's needed for your specific event."
   },
   {
     question: "Can menus be customized?",
-          answer: "Absolutely! Chef Luis works with you to customize any menu based on dietary restrictions, preferences, and seasonal availability."
+    answer: "Absolutely! I work closely with you to customize any menu based on dietary restrictions, preferences, and seasonal availability. Every event can be tailored to your vision."
   },
   {
     question: "What is your service area?",
-    answer: "We primarily serve the greater metropolitan area within a 30-mile radius. For events outside this area, additional travel fees may apply."
+    answer: "I primarily serve the greater metropolitan area within a 30-mile radius. For events outside this area, I'm happy to discuss arrangements and any additional travel considerations."
   },
   {
     question: "Do you accommodate dietary restrictions?",
-    answer: "Yes! We can accommodate most dietary restrictions including vegetarian, vegan, gluten-free, and specific allergies. Please mention these when submitting your request."
+    answer: "Yes! I can accommodate most dietary restrictions including vegetarian, vegan, gluten-free, and specific allergies. Just let me know your needs when submitting your request, and I'll work with you to create the perfect menu."
   },
   {
     question: "What happens if I need to cancel?",
-    answer: "Cancellation policies vary by event type and timing. Once your event is confirmed, you'll receive detailed terms and conditions including our cancellation policy."
+    answer: "Cancellation policies vary by event type and timing. Once your event is confirmed, you'll receive detailed terms and conditions. I understand things come up and I'm flexible when possible."
   },
   {
     question: "How does pricing work?",
-    answer: "Our pricing is transparent and per-person based: Buffet Style ($99.99), Cooking Class ($119.99), and Plated Dinner ($149.99). No hidden fees or service charges."
+    answer: "My pricing is transparent and per-person based: Buffet Style ($99.99), Cooking Class ($119.99), and Plated Dinner ($149.99). There is a service fee of $149.99 per event. I'm happy to discuss the details and work within your budget."
   },
   {
     question: "Can I add more guests after booking?",
-    answer: "Additional guests can often be accommodated subject to availability and venue capacity. Contact us as soon as possible to discuss modifications."
+    answer: "Additional guests can usually be accommodated depending on availability and venue capacity. Just contact me as soon as possible and I'll work with you to make it happen."
   },
   {
     question: "What equipment do you bring?",
-    answer: "We bring all necessary cooking equipment, serving dishes, and utensils. We only need access to your kitchen facilities (stove, oven, sink) and adequate space to prepare and serve."
+    answer: "Typically, events are at your home using your existing kitchen equipment and cooking utensils. However, I'm flexible and happy to arrange what's needed based on your specific situation. Let's discuss what works best for your event."
   }
 ];
 
@@ -201,7 +163,7 @@ export default function HowItWorksPage() {
             How It Works
           </h1>
           <p className="text-xl text-primary-600 max-w-4xl mx-auto leading-relaxed">
-            From browsing menus to enjoying your culinary experience, we've made the process simple and transparent. 
+            From browsing menus to enjoying your culinary experience, I've made the process simple and transparent. 
             Here's how your culinary journey unfolds:
           </p>
         </div>
@@ -224,8 +186,8 @@ export default function HowItWorksPage() {
               Ready to Start Your Culinary Journey?
             </h2>
             <p className="text-primary-600 mb-6 text-lg">
-              Begin by exploring our menu collections or jump straight to requesting 
-              your custom culinary experience. No commitments until the chef approves your event.
+              Begin by exploring my menu collections or jump straight to requesting 
+              your custom culinary experience. No commitments until I approve your event.
             </p>
             <ActionList
               actions={[
@@ -251,7 +213,7 @@ export default function HowItWorksPage() {
             Frequently Asked Questions
           </h2>
           <p className="text-lg text-primary-600 max-w-3xl mx-auto">
-            Find answers to common questions about our culinary experiences and booking process.
+            Find answers to common questions about my culinary experiences and booking process.
           </p>
         </div>
 
@@ -275,12 +237,12 @@ export default function HowItWorksPage() {
               Still Have Questions?
             </h3>
             <p className="text-primary-600 mb-6">
-              We're here to help! Reach out to us directly for any specific questions about your event.
+              I'm here to help! Reach out to me directly for any specific questions about your event.
             </p>
             <ActionList
               actions={[
                 {
-                  label: 'Contact Us',
+                  label: 'Contact Me',
                   url: '/contact',
                 },
                 {

@@ -14,7 +14,6 @@ interface ProcessStep {
   title: string;
   description: string;
   timeline: string;
-  details: string[];
   icon: string;
 }
 
@@ -24,25 +23,13 @@ const processSteps: ProcessStep[] = [
     title: "Browse & Request",
     description: "Explore our menu collections and choose your preferred experience type. Submit a request with your event details.",
     timeline: "5 minutes",
-    details: [
-      "Browse available menu templates",
-      "Select experience type (Buffet, Cooking Class, or Plated Dinner)",
-      "Choose your date, time, and party size",
-      "Provide event location and special requirements"
-    ],
     icon: "🍽️"
   },
   {
     step: 2,
     title: "Chef Review & Approval",
-          description: "Chef Luis reviews your request and confirms availability. You'll receive a detailed proposal with menu customizations.",
+    description: "Chef Luis reviews your request and confirms availability. You'll receive a detailed proposal with menu customizations.",
     timeline: "24-48 hours",
-    details: [
-      "Chef reviews your event requirements",
-      "Availability and logistics confirmation",
-      "Menu customization based on preferences",
-      "Detailed proposal with final pricing"
-    ],
     icon: "👨‍🍳"
   },
   {
@@ -50,25 +37,13 @@ const processSteps: ProcessStep[] = [
     title: "Book & Purchase",
     description: "Once approved, your event becomes available for purchase. Buy tickets for your guests with secure payment processing.",
     timeline: "Immediate",
-    details: [
-      "Event becomes available as a product",
-      "Secure online ticket purchasing",
-      "Automatic confirmation emails",
-      "Guest management tools"
-    ],
     icon: "🎫"
   },
   {
     step: 4,
     title: "Experience & Enjoy",
-          description: "Chef Luis arrives at your location with all ingredients and equipment. Relax and enjoy your personalized culinary experience.",
+    description: "Chef Luis arrives at your location with all ingredients and equipment. Relax and enjoy your personalized culinary experience.",
     timeline: "Event day",
-    details: [
-      "Chef arrives with all necessary equipment",
-      "Fresh, premium ingredients sourced locally",
-      "Professional preparation and service",
-      "Cleanup included in service"
-    ],
     icon: "🎉"
   }
 ];
@@ -81,14 +56,14 @@ interface StepCardProps {
 
 const StepCard: FC<StepCardProps> = ({ step, isLast = false, className }) => {
   return (
-    <div className={clsx("relative", className)}>
+    <div className={clsx("relative h-full", className)}>
       {/* Connection line to next step */}
       {!isLast && (
         <div className="hidden md:block absolute top-16 left-1/2 transform translate-x-8 w-full h-0.5 bg-gradient-to-r from-blue-500 to-gray-300 z-0" />
       )}
       
-      <div className="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-300 z-10">
-        <div className="text-center space-y-6">
+      <div className="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-300 z-10 h-full flex flex-col">
+        <div className="text-center space-y-6 flex-1 flex flex-col">
           {/* Step number and icon */}
           <div className="relative mx-auto">
             <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg mb-4">
@@ -108,22 +83,9 @@ const StepCard: FC<StepCardProps> = ({ step, isLast = false, className }) => {
           </div>
           
           {/* Description */}
-          <p className="text-gray-700 leading-relaxed mb-6">
+          <p className="text-gray-700 leading-relaxed">
             {step.description}
           </p>
-          
-          {/* Details list */}
-          <div className="text-left">
-            <h4 className="font-semibold text-gray-900 mb-3 text-center">Key Points:</h4>
-            <ul className="space-y-2">
-              {step.details.map((detail, index) => (
-                <li key={index} className="flex items-start text-sm text-gray-700">
-                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0" />
-                  {detail}
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
       </div>
     </div>
@@ -146,7 +108,7 @@ export const HowItWorks: FC<HowItWorksProps> = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {processSteps.map((step, index) => (
           <StepCard 
             key={step.step} 
@@ -154,7 +116,7 @@ export const HowItWorks: FC<HowItWorksProps> = ({
             isLast={index === processSteps.length - 1}
           />
         ))}
-      </div>
+      </div> */}
 
       {/* Call to action section */}
       <div className="text-center mt-16">
