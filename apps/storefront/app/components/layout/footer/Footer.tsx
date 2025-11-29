@@ -48,9 +48,8 @@ export const Footer = () => {
             <div className="flex flex-col gap-5 text-center sm:text-left">
               <h4 className="font-bold">Culinary Experiences</h4>
               <p className="text-sm">
-                Chef Velez offers premium private chef experiences including cooking classes, plated dinners, and
-                buffet-style events. Restaurant-quality cuisine crafted in your home with professional service and
-                unforgettable flavors.
+                Premium private chef experiences including cooking classes, plated dinners, and buffet-style events.
+                Restaurant-quality cuisine crafted in your home with professional service and unforgettable flavors.
               </p>
             </div>
             <LogoStoreName />

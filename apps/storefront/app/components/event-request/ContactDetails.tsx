@@ -8,7 +8,11 @@ export interface ContactDetailsProps {
 }
 
 export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
-  const { watch, setValue, formState: { errors } } = useFormContext<EventRequestFormData>();
+  const {
+    watch,
+    setValue,
+    formState: { errors },
+  } = useFormContext<EventRequestFormData>();
   const firstName = watch('firstName');
   const lastName = watch('lastName');
   const email = watch('email');
@@ -18,7 +22,7 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digits
     const digits = value.replace(/\D/g, '');
-    
+
     // Format as (XXX) XXX-XXXX
     if (digits.length <= 3) {
       return digits;
@@ -42,11 +46,9 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
     <div className={clsx('space-y-6', className)}>
       {/* Header */}
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-primary-900 mb-2">
-          Contact Information
-        </h3>
+        <h3 className="text-lg font-semibold text-primary-900 mb-2">Contact Information</h3>
         <p className="text-primary-600">
-          Please provide your contact details so Chef Luis can reach you about your event request.
+          Please provide your contact details so we can reach you about your event request.
         </p>
       </div>
 
@@ -62,17 +64,11 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
             onChange={(e) => handleInputChange('firstName', e.target.value)}
             placeholder="Enter your first name"
             className={clsx(
-              "w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500",
-              errors.firstName
-                ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                : "border-gray-300"
+              'w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500',
+              errors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300',
             )}
           />
-          {errors.firstName && (
-            <p className="text-red-600 text-sm mt-1">
-              {errors.firstName.message}
-            </p>
-          )}
+          {errors.firstName && <p className="text-red-600 text-sm mt-1">{errors.firstName.message}</p>}
         </div>
 
         <div>
@@ -85,17 +81,11 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
             onChange={(e) => handleInputChange('lastName', e.target.value)}
             placeholder="Enter your last name"
             className={clsx(
-              "w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500",
-              errors.lastName
-                ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                : "border-gray-300"
+              'w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500',
+              errors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300',
             )}
           />
-          {errors.lastName && (
-            <p className="text-red-600 text-sm mt-1">
-              {errors.lastName.message}
-            </p>
-          )}
+          {errors.lastName && <p className="text-red-600 text-sm mt-1">{errors.lastName.message}</p>}
         </div>
       </div>
 
@@ -110,20 +100,12 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
           onChange={(e) => handleInputChange('email', e.target.value)}
           placeholder="Enter your email address"
           className={clsx(
-            "w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500",
-            errors.email
-              ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-              : "border-gray-300"
+            'w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500',
+            errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300',
           )}
         />
-        <p className="text-sm text-primary-600 mt-1">
-          Used for event confirmations and communication with Chef Luis
-        </p>
-        {errors.email && (
-          <p className="text-red-600 text-sm mt-1">
-            {errors.email.message}
-          </p>
-        )}
+        <p className="text-sm text-primary-600 mt-1">Used for event confirmations and communication</p>
+        {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>}
       </div>
 
       {/* Phone field */}
@@ -138,32 +120,30 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
           placeholder="(702) 349-6158"
           maxLength={14}
           className={clsx(
-            "w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500",
-            errors.phone
-              ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-              : "border-gray-300"
+            'w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500',
+            errors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300',
           )}
         />
-        <p className="text-sm text-primary-600 mt-1">
-          For quick communication and day-of-event coordination
-        </p>
-        {errors.phone && (
-          <p className="text-red-600 text-sm mt-1">
-            {errors.phone.message}
-          </p>
-        )}
+        <p className="text-sm text-primary-600 mt-1">For quick communication and day-of-event coordination</p>
+        {errors.phone && <p className="text-red-600 text-sm mt-1">{errors.phone.message}</p>}
       </div>
 
       {/* Contact summary */}
       {firstName && lastName && email && (
         <div className="bg-accent-50 border border-accent-200 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-accent-700 mb-2">
-            Contact Summary
-          </h4>
+          <h4 className="text-sm font-semibold text-accent-700 mb-2">Contact Summary</h4>
           <div className="space-y-1 text-sm text-accent-600">
-            <p><span className="font-medium">Name:</span> {firstName} {lastName}</p>
-            <p><span className="font-medium">Email:</span> {email}</p>
-            {phone && <p><span className="font-medium">Phone:</span> {phone}</p>}
+            <p>
+              <span className="font-medium">Name:</span> {firstName} {lastName}
+            </p>
+            <p>
+              <span className="font-medium">Email:</span> {email}
+            </p>
+            {phone && (
+              <p>
+                <span className="font-medium">Phone:</span> {phone}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -177,4 +157,4 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
   );
 };
 
-export default ContactDetails; 
+export default ContactDetails;

@@ -24,7 +24,7 @@ export interface LocationFormProps {
 
 export const LocationForm: FC<LocationFormProps> = ({ className }) => {
   const { watch, setValue } = useFormContext<EventRequestFormData>();
-  
+
   // Address-only structure (contact details collected separately)
   const [address, setAddress] = useState<AddressData>({
     address: {
@@ -143,7 +143,7 @@ export const LocationForm: FC<LocationFormProps> = ({ className }) => {
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• Please provide the complete address where the event will take place</li>
           <li>• Include apartment/unit number if applicable</li>
-          <li>• Chef Luis will arrive with all necessary equipment and ingredients</li>
+          <li>• The chef will arrive with all necessary equipment and ingredients</li>
           <li>• Travel within 30 miles is included in the service</li>
         </ul>
       </div>
@@ -192,4 +192,4 @@ export const LocationForm: FC<LocationFormProps> = ({ className }) => {
   );
 };
 
-export default LocationForm; 
+export default LocationForm;

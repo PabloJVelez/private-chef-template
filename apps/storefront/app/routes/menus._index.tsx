@@ -15,31 +15,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Search is not needed for this page; only fetch paginated menus
     const { menus, count } = await fetchMenus({ limit, offset });
 
-    return { 
-      menus, 
-      count, 
-      limit, 
+    return {
+      menus,
+      count,
+      limit,
       offset,
-      success: true 
+      success: true,
     };
   } catch (error) {
     console.error('Failed to load menus:', error);
-    return { 
-      menus: [], 
-      count: 0, 
-      limit: 12, 
+    return {
+      menus: [],
+      count: 0,
+      limit: 12,
       offset: 0,
-      success: false 
+      success: false,
     };
   }
 };
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const count = data?.count || 0;
-  
-  const title = `Menus (${count}) | Chef Luis Velez`;
-    
-  const description = `Browse ${count} expertly crafted menus by Chef Luis Velez. From intimate dinners to group celebrations, find the perfect menu for your culinary experience.`;
+
+  const title = `Menus (${count}) | Private Chef`;
+
+  const description = `Browse ${count} expertly crafted menus. From intimate dinners to group celebrations, find the perfect menu for your culinary experience.`;
 
   return [
     { title },
@@ -47,7 +47,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     { property: 'og:title', content: title },
     { property: 'og:description', content: description },
     { property: 'og:type', content: 'website' },
-          { name: 'keywords', content: 'chef menus, private dining menus, tasting menus, cooking class menus, Chef Luis Velez' },
+    { name: 'keywords', content: 'chef menus, private dining menus, tasting menus, cooking class menus, private chef' },
     ...(count === 0 ? [{ name: 'robots', content: 'noindex' }] : []),
   ];
 };
@@ -84,12 +84,10 @@ export default function MenusIndexRoute() {
 
       {/* Page Header */}
       <div className="mb-12 text-center">
-        <h1 className="text-4xl md:text-5xl font-italiana text-gray-900 mb-4">
-          Menus
-        </h1>
+        <h1 className="text-4xl md:text-5xl font-italiana text-gray-900 mb-4">Menus</h1>
         <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Explore our carefully crafted menus, each designed to create memorable culinary experiences.
-          Every menu can be customized to your preferences and dietary requirements.
+          Explore our carefully crafted menus, each designed to create memorable culinary experiences. Every menu can be
+          customized to your preferences and dietary requirements.
         </p>
       </div>
 
@@ -113,9 +111,7 @@ export default function MenusIndexRoute() {
         <div className="text-center py-16">
           <div className="max-w-md mx-auto">
             <div className="text-6xl mb-4">🍽️</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No menus available
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No menus available</h3>
             <p className="text-gray-600 mb-6">
               We're currently preparing our menus. Check back soon for exciting culinary options!
             </p>
@@ -130,4 +126,4 @@ export default function MenusIndexRoute() {
       )}
     </Container>
   );
-} 
+}

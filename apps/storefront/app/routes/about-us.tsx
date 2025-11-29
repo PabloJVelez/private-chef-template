@@ -1,7 +1,10 @@
 import { Container } from '@app/components/common/container';
 import Hero from '@app/components/sections/Hero';
 import { getMergedPageMeta } from '@libs/util/page';
+import { getChefConfig } from '@libs/config/chef/chef-config';
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
+
+const chefConfig = getChefConfig();
 
 // Remove coffee shop location blocks; not applicable for chef About page.
 const locations: LocationProps[] = [];
@@ -61,13 +64,11 @@ export default function IndexRoute() {
             <div className="text-center w-full space-y-9">
               <h4 className="text-lg md:text-2xl font-italiana tracking-wider">ABOUT THE CHEF</h4>
               <h1 className="text-4xl md:text-8xl font-italiana tracking-wider [text-shadow:_1px_1px_2px_rgb(0_0_0_/_40%)]">
-                Chef Velez
+                {chefConfig.displayName}
               </h1>
               <p className="mx-auto text-md md:text-2xl !leading-normal">
-                Chef Velez is a private chef specializing in premium at-home culinary experiences—cooking classes,
-                plated dinners, and buffet-style events. With years of professional experience, Chef Velez crafts
-                unforgettable menus using fresh, seasonal ingredients and provides a seamless, restaurant-quality
-                experience in your home.
+                {chefConfig.bio.short} With years of professional experience, crafting unforgettable menus using fresh,
+                seasonal ingredients and providing a seamless, restaurant-quality experience in your home.
               </p>
             </div>
           }

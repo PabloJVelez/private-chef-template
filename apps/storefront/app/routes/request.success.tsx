@@ -6,15 +6,17 @@ import { useLoaderData, useSearchParams, Link, redirect } from 'react-router';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Request Submitted Successfully - Chef Luis Velez' },
-    { 
-      name: 'description', 
-      content: 'Your culinary experience request has been submitted successfully. Chef Luis will review your request and respond within 24 hours.'
+    { title: 'Request Submitted Successfully - Private Chef' },
+    {
+      name: 'description',
+      content:
+        'Your culinary experience request has been submitted successfully. Your request will be reviewed and responded to within 24 hours.',
     },
-    { property: 'og:title', content: 'Request Submitted Successfully - Chef Luis Velez' },
-    { 
-      property: 'og:description', 
-      content: 'Your culinary experience request has been submitted successfully. Chef Luis will review your request and respond within 24 hours.'
+    { property: 'og:title', content: 'Request Submitted Successfully - Private Chef' },
+    {
+      property: 'og:description',
+      content:
+        'Your culinary experience request has been submitted successfully. Your request will be reviewed and responded to within 24 hours.',
     },
     { property: 'og:type', content: 'website' },
     { name: 'robots', content: 'noindex' }, // Don't index success pages
@@ -25,14 +27,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const searchParams = new URLSearchParams(url.search);
   const eventId = searchParams.get('eventId') || '';
-  
+
   if (!eventId) {
     throw redirect('/');
   }
-  
+
   return {
     eventId: searchParams.get('eventId') || 'unknown',
-    supportEmail: 'chefvelez85@gmail.com',
+    supportEmail: 'support@example.com', // TODO: Update with actual support email
     supportPhone: '(702) 349-6158',
     responseTime: '24 hours',
   };
@@ -43,7 +45,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const url = new URL(request.url);
   const eventId = url.searchParams.get('eventId') || '';
   const redirectUrl = `/request/success?eventId=${eventId}`;
-  
+
   return redirect(redirectUrl);
 };
 
@@ -59,23 +61,17 @@ export default function RequestSuccessPage() {
         </div>
 
         {/* Success Message */}
-        <h1 className="text-4xl md:text-5xl font-italiana text-primary-900 mb-4">
-          Request Submitted Successfully!
-        </h1>
+        <h1 className="text-4xl md:text-5xl font-italiana text-primary-900 mb-4">Request Submitted Successfully!</h1>
         <p className="text-lg text-primary-600 max-w-2xl mx-auto mb-8">
-                      Thank you for your interest in a personalized culinary experience with Chef Luis. 
-          Your request has been received and will be reviewed shortly.
+          Thank you for your interest in a personalized culinary experience. Your request has been received and will be
+          reviewed shortly.
         </p>
 
         {/* Request Reference */}
         {eventId && (
           <div className="bg-gray-50 rounded-lg p-6 mb-8 max-w-md mx-auto">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              Request Reference
-            </h2>
-            <p className="text-sm text-gray-600 mb-2">
-              Keep this reference number for your records:
-            </p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Request Reference</h2>
+            <p className="text-sm text-gray-600 mb-2">Keep this reference number for your records:</p>
             <p className="text-lg font-mono text-primary-600 bg-white px-4 py-2 rounded border">
               {eventId.slice(0, 8).toUpperCase()}
             </p>
@@ -84,22 +80,18 @@ export default function RequestSuccessPage() {
 
         {/* What Happens Next */}
         <div className="bg-white rounded-lg border border-gray-200 p-8 mb-8 text-left">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
-            What Happens Next?
-          </h2>
-          
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">What Happens Next?</h2>
+
           <div className="space-y-6">
             <div className="flex items-start space-x-4">
               <div className="flex-shrink-0 w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
                 <span className="text-primary-600 font-semibold">1</span>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">
-                  Review & Assessment
-                </h3>
+                <h3 className="font-semibold text-gray-900 mb-1">Review & Assessment</h3>
                 <p className="text-gray-600">
-                  Chef Luis will review your request details, including menu preferences, 
-                  party size, and special requirements to ensure she can create the perfect experience.
+                  Your request details will be reviewed, including menu preferences, party size, and special
+                  requirements to ensure the perfect experience can be created.
                 </p>
               </div>
             </div>
@@ -109,12 +101,10 @@ export default function RequestSuccessPage() {
                 <span className="text-primary-600 font-semibold">2</span>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">
-                  Custom Proposal
-                </h3>
+                <h3 className="font-semibold text-gray-900 mb-1">Custom Proposal</h3>
                 <p className="text-gray-600">
-                  You'll receive a detailed proposal including the final menu, timeline, 
-                  pricing breakdown, and any special accommodations for your event.
+                  You'll receive a detailed proposal including the final menu, timeline, pricing breakdown, and any
+                  special accommodations for your event.
                 </p>
               </div>
             </div>
@@ -124,12 +114,10 @@ export default function RequestSuccessPage() {
                 <span className="text-primary-600 font-semibold">3</span>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">
-                  Confirmation & Booking
-                </h3>
+                <h3 className="font-semibold text-gray-900 mb-1">Confirmation & Booking</h3>
                 <p className="text-gray-600">
-                  Once approved, your event will be added to our calendar and you'll receive 
-                  a booking link to purchase tickets for your guests.
+                  Once approved, your event will be added to our calendar and you'll receive a booking link to purchase
+                  tickets for your guests.
                 </p>
               </div>
             </div>
@@ -139,12 +127,10 @@ export default function RequestSuccessPage() {
                 <span className="text-primary-600 font-semibold">4</span>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">
-                  Event Preparation
-                </h3>
+                <h3 className="font-semibold text-gray-900 mb-1">Event Preparation</h3>
                 <p className="text-gray-600">
-                  Chef Luis will coordinate final details, source ingredients, 
-                  and prepare everything needed for your exceptional culinary experience.
+                  Final details will be coordinated, ingredients sourced, and everything prepared for your exceptional
+                  culinary experience.
                 </p>
               </div>
             </div>
@@ -156,25 +142,21 @@ export default function RequestSuccessPage() {
           <div className="bg-blue-50 rounded-lg p-6">
             <div className="flex items-center space-x-3 mb-4">
               <ClockIcon className="w-6 h-6 text-blue-600" />
-              <h3 className="text-lg font-semibold text-blue-900">
-                Response Timeline
-              </h3>
+              <h3 className="text-lg font-semibold text-blue-900">Response Timeline</h3>
             </div>
             <p className="text-blue-800 mb-2">
               <strong>Within {responseTime}</strong>
             </p>
             <p className="text-blue-700 text-sm">
-              Chef Luis personally reviews each request and will respond via email 
-              with either approval and next steps, or questions for clarification.
+              Each request is personally reviewed and will receive a response via email with either approval and next
+              steps, or questions for clarification.
             </p>
           </div>
 
           <div className="bg-green-50 rounded-lg p-6">
             <div className="flex items-center space-x-3 mb-4">
               <EnvelopeIcon className="w-6 h-6 text-green-600" />
-              <h3 className="text-lg font-semibold text-green-900">
-                Questions?
-              </h3>
+              <h3 className="text-lg font-semibold text-green-900">Questions?</h3>
             </div>
             <p className="text-green-800 mb-2">
               <strong>We're here to help!</strong>
@@ -188,13 +170,13 @@ export default function RequestSuccessPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link 
+          <Link
             to="/"
             className="inline-flex items-center gap-2 rounded-full border px-6 py-3 text-lg font-medium bg-primary-600 hover:bg-primary-700 text-white border-primary-600 hover:border-primary-700 transition-colors"
           >
             Return to Homepage
           </Link>
-          <Link 
+          <Link
             to="/menus"
             className="inline-flex items-center gap-2 rounded-full border px-6 py-3 text-lg font-medium bg-white hover:bg-gray-50 text-gray-700 border-gray-300 hover:border-gray-400 transition-colors"
           >
@@ -204,18 +186,18 @@ export default function RequestSuccessPage() {
 
         {/* Additional Information */}
         <div className="mt-12 p-6 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Important Notes
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Important Notes</h3>
           <div className="text-sm text-gray-600 space-y-2">
             <p>
-              • <strong>No payment required:</strong> Payment is only collected after your event is confirmed and tickets are made available.
+              • <strong>No payment required:</strong> Payment is only collected after your event is confirmed and
+              tickets are made available.
             </p>
             <p>
-              • <strong>Flexible planning:</strong> Chef Luis can accommodate most dietary restrictions and special requests.
+              • <strong>Flexible planning:</strong> Most dietary restrictions and special requests can be accommodated.
             </p>
             <p>
-              • <strong>Group bookings:</strong> Once approved, you'll receive a unique booking link to share with your guests.
+              • <strong>Group bookings:</strong> Once approved, you'll receive a unique booking link to share with your
+              guests.
             </p>
             <p>
               • <strong>Cancellation policy:</strong> Full details will be provided in your event proposal.
@@ -225,4 +207,4 @@ export default function RequestSuccessPage() {
       </div>
     </Container>
   );
-} 
+}

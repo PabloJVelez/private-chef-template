@@ -1,8 +1,11 @@
 import { ActionList } from '@app/components/common/actions-list/ActionList';
 import { Container } from '@app/components/common/container/Container';
 import type { CustomAction, ImageField } from '@libs/types';
+import { getChefConfig } from '@libs/config/chef/chef-config';
 import clsx from 'clsx';
 import type { FC } from 'react';
+
+const chefConfig = getChefConfig();
 
 export interface ChefHeroProps {
   className?: string;
@@ -15,16 +18,16 @@ export interface ChefHeroProps {
   actions?: CustomAction[];
 }
 
-export const ChefHero: FC<ChefHeroProps> = ({ 
-  className, 
-  backgroundClassName, 
+export const ChefHero: FC<ChefHeroProps> = ({
+  className,
+  backgroundClassName,
   actionsClassName,
-  chefName = "Chef Luis Velez",
-  tagline = "CULINARY EXPERIENCES & PRIVATE DINING",
-  description = "Transform your special occasions into unforgettable culinary experiences. From intimate cooking classes to elegant plated dinners, I bring restaurant-quality cuisine directly to your home.",
+  chefName = chefConfig.displayName,
+  tagline = chefConfig.hero.tagline,
+  description = chefConfig.hero.description,
   image = {
-    url: '/assets/images/chef_scallops_home.jpg',
-    alt: 'Chef Luis Velez preparing an elegant dish'
+    url: chefConfig.hero.imageUrl,
+    alt: chefConfig.hero.imageAlt,
   },
   actions = [
     {
@@ -35,7 +38,7 @@ export const ChefHero: FC<ChefHeroProps> = ({
       label: 'Request an Event',
       url: '/request',
     },
-  ]
+  ],
 }) => {
   return (
     <>
@@ -61,9 +64,9 @@ export const ChefHero: FC<ChefHeroProps> = ({
           </div>
 
           {!!actions?.length && (
-            <ActionList 
-              actions={actions} 
-              className={clsx('mt-8 lg:mt-10 flex-col gap-4 md:flex-row md:justify-center', actionsClassName)} 
+            <ActionList
+              actions={actions}
+              className={clsx('mt-8 lg:mt-10 flex-col gap-4 md:flex-row md:justify-center', actionsClassName)}
             />
           )}
         </div>
@@ -72,4 +75,4 @@ export const ChefHero: FC<ChefHeroProps> = ({
   );
 };
 
-export default ChefHero; 
+export default ChefHero;

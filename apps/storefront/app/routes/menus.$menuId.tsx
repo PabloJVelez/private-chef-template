@@ -10,7 +10,7 @@ import HomeIcon from '@heroicons/react/24/solid/HomeIcon';
 export const loader = async (args: LoaderFunctionArgs) => {
   try {
     const menuId = args.params.menuId;
-    
+
     if (!menuId) {
       throw redirect('/menus');
     }
@@ -32,18 +32,15 @@ export type MenuPageLoaderData = typeof loader;
 
 export const meta: MetaFunction<MenuPageLoaderData> = ({ data, location }) => {
   const menu = data?.menu;
-  
+
   if (!menu) {
-    return [
-      { title: 'Menu Not Found | Chef Luis Velez' },
-      { name: 'robots', content: 'noindex' },
-    ];
+    return [{ title: 'Menu Not Found | Private Chef' }, { name: 'robots', content: 'noindex' }];
   }
 
   const courseCount = menu.courses?.length || 0;
   const dishCount = menu.courses?.reduce((acc, course) => acc + (course.dishes?.length || 0), 0) || 0;
-  
-      const title = `${menu.name} - Menu Template | Chef Luis Velez`;
+
+  const title = `${menu.name} - Menu Template | Private Chef`;
   const description = `${menu.name} featuring ${courseCount} courses and ${dishCount} dishes. Perfect for cooking classes, plated dinners, or buffet-style events. Request this menu for your culinary experience.`;
 
   return [
@@ -53,7 +50,10 @@ export const meta: MetaFunction<MenuPageLoaderData> = ({ data, location }) => {
     { property: 'og:description', content: description },
     { property: 'og:type', content: 'article' },
     { property: 'og:url', content: `https://yourstore.com${location.pathname}` },
-            { name: 'keywords', content: `${menu.name}, chef menu, culinary experience, private dining, cooking class, chef Luis Velez` },
+    {
+      name: 'keywords',
+      content: `${menu.name}, chef menu, culinary experience, private dining, cooking class, private chef`,
+    },
     // Structured data for Recipe/Menu
     {
       tagName: 'script',
@@ -65,7 +65,7 @@ export const meta: MetaFunction<MenuPageLoaderData> = ({ data, location }) => {
         description: `Professional chef menu template with ${courseCount} courses`,
         author: {
           '@type': 'Person',
-                      name: 'Chef Luis Velez',
+          name: 'Private Chef',
         },
         recipeCategory: 'Chef Menu Template',
         recipeCuisine: 'Contemporary',
@@ -73,8 +73,8 @@ export const meta: MetaFunction<MenuPageLoaderData> = ({ data, location }) => {
           '@type': 'Offer',
           priceCurrency: 'USD',
           price: '99.99',
-          description: 'Starting price per person for culinary experiences'
-        }
+          description: 'Starting price per person for culinary experiences',
+        },
       }),
     },
   ];
@@ -113,4 +113,4 @@ export default function MenuDetailRoute() {
       <MenuTemplate menu={menu} />
     </Container>
   );
-} 
+}

@@ -12,18 +12,19 @@ import { ExperienceTypes } from '@app/components/chef/ExperienceTypes';
 import { ActionList } from '@app/components/common/actions-list/ActionList';
 import { fetchMenus, type StoreMenuDTO } from '@libs/util/server/data/menus.server';
 import { getMergedPageMeta } from '@libs/util/page';
+import { getChefConfig } from '@libs/config/chef/chef-config';
+
+const chefConfig = getChefConfig();
 
 export const loader = async (_args: LoaderFunctionArgs) => {
   let menus: any[] = [];
-  
+
   try {
     // Add timeout to prevent hanging requests
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Request timeout')), 10000)
-    );
-    
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 10000));
+
     const menusPromise = fetchMenus({ limit: 3 });
-    
+
     const menusData: any = await Promise.race([menusPromise, timeoutPromise]);
 
     // Trim to a safe, serializable snapshot to avoid circular/BigInt/etc.
@@ -50,16 +51,15 @@ export const loader = async (_args: LoaderFunctionArgs) => {
           : [],
         images: Array.isArray(m.images) ? m.images : [],
       };
-      
+
       // Debug log for first menu to understand structure
       if (menus.length === 0) {
       }
-      
+
       return menu;
     });
 
     // Lightweight server log (shows up in server console)
-
   } catch (error: any) {
     // Log full server-side error details but don't fail the page
     console.error('Index loader failed to fetch menus:', {
@@ -67,7 +67,7 @@ export const loader = async (_args: LoaderFunctionArgs) => {
       stack: error?.stack,
       cause: error?.cause,
     });
-    
+
     // Provide sample menu data as fallback for deployment
     menus = [
       {
@@ -82,20 +82,20 @@ export const loader = async (_args: LoaderFunctionArgs) => {
             name: 'Appetizer',
             dishes: [
               { id: 'dish-1', name: 'French Onion Soup', description: 'Rich and savory' },
-              { id: 'dish-2', name: 'Escargot', description: 'Traditional preparation' }
-            ]
+              { id: 'dish-2', name: 'Escargot', description: 'Traditional preparation' },
+            ],
           },
           {
             id: 'course-2',
             name: 'Main Course',
             dishes: [
               { id: 'dish-3', name: 'Coq au Vin', description: 'Classic French dish' },
-              { id: 'dish-4', name: 'Beef Bourguignon', description: 'Slow-cooked perfection' }
-            ]
-          }
+              { id: 'dish-4', name: 'Beef Bourguignon', description: 'Slow-cooked perfection' },
+            ],
+          },
         ],
-        images: []
-      }
+        images: [],
+      },
     ];
   }
 
@@ -106,29 +106,27 @@ export const loader = async (_args: LoaderFunctionArgs) => {
         // cheap way to confirm what the route delivered (visible in browser devtools)
         'X-Index-Debug': `menus=${menus.length}`,
       },
-    }
+    },
   );
 };
 
 export const meta: MetaFunction<typeof loader> = () => {
+  const chefConfig = getChefConfig();
   return [
-    { title: 'Chef Luis Velez - Premium Culinary Experiences' },
+    { title: chefConfig.seo.title },
     {
       name: 'description',
-      content:
-        "Transform your special occasions with Chef Luis's premium culinary experiences. From intimate cooking classes to elegant plated dinners, bringing restaurant-quality cuisine to your home.",
+      content: chefConfig.seo.description,
     },
-    { property: 'og:title', content: 'Chef Luis Velez - Premium Culinary Experiences' },
+    { property: 'og:title', content: chefConfig.seo.title },
     {
       property: 'og:description',
-      content:
-        'Professional chef services for cooking classes, plated dinners, and buffet-style events. Personalized culinary experiences in your home.',
+      content: chefConfig.seo.description,
     },
     { property: 'og:type', content: 'website' },
     {
       name: 'keywords',
-      content:
-        'private chef, cooking classes, plated dinner, culinary experiences, chef services, private dining',
+      content: chefConfig.seo.keywords.join(', '),
     },
   ];
 };
@@ -150,7 +148,7 @@ export default function IndexRoute() {
 
       <ChefHero
         className="h-[800px] !max-w-full -mt-[calc(var(--mkt-header-height)+3rem)] md:-mt-[calc(var(--mkt-header-height-desktop)+2rem)] pt-[var(--mkt-header-height)] md:pt-[var(--mkt-header-height-desktop)]"
-        description="From exclusive dinners to special events, I craft unique culinary experiences that will wow your guests."
+        description="From exclusive dinners to special events, we craft unique culinary experiences that will wow your guests."
       />
 
       <FeaturedMenusSection menus={menus} />
@@ -160,7 +158,7 @@ export default function IndexRoute() {
       <Container className="py-12 lg:py-24">
         {/* Mobile: show section title above the image with subtle underline */}
         <div className="lg:hidden text-center mb-6 pt-4">
-          <h2 className="text-5xl font-italiana text-primary-900">Meet Chef Luis</h2>
+          <h2 className="text-5xl font-italiana text-primary-900">Meet Your Chef</h2>
           <div className="w-16 mx-auto mt-3 border-t-2 border-blue-500" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -168,7 +166,7 @@ export default function IndexRoute() {
             <Image
               src="/assets/images/chef_experience.jpg"
               loading="lazy"
-              alt="Chef Luis Velez in his kitchen"
+              alt="Professional chef preparing a culinary experience"
               className="rounded-2xl shadow-lg w-full h-[500px] object-cover"
               height={500}
               width={600}
@@ -178,39 +176,29 @@ export default function IndexRoute() {
 
           <div className="order-2 lg:order-2 text-center lg:text-left space-y-6">
             <div className="space-y-4">
-              <h2 className="hidden lg:block text-5xl md:text-6xl lg:text-7xl font-italiana text-primary-900">Meet Chef Luis</h2>
-              <p className="text-2xl md:text-3xl lg:text-4xl font-italiana text-accent-600">Culinary Artistry</p>
+              <h2 className="hidden lg:block text-5xl md:text-6xl lg:text-7xl font-italiana text-primary-900">
+                Meet Your Chef
+              </h2>
+              <p className="text-2xl md:text-3xl lg:text-4xl font-italiana text-accent-600">
+                {chefConfig.bio.subtitle}
+              </p>
             </div>
 
-            {/* Unified first-person copy across breakpoints */}
+            {/* Biography paragraphs */}
             <div className="space-y-4 text-primary-700">
-              <p className="text-lg leading-relaxed">
-                With over 20 years of culinary experience, I’ve honed my craft under Michelin‑starred chefs. For the
-                past decade, I’ve excelled as a private chef, creating exquisite dining experiences for some of the most
-                renowned and respected figures in the industry.
-              </p>
-              <p className="text-base leading-relaxed">
-                My dedication to the culinary arts is evident in my mastery of various cooking techniques and my deep
-                understanding of culinary concepts, including food microbiology. I bring a passion for food that
-                transcends the ordinary, always seeking to educate and inspire those around me.
-              </p>
-              <p className="text-base leading-relaxed">
-                I’m ready to showcase my culinary expertise—not just a chef, but a leader in the kitchen, eager to
-                share my love and knowledge of all things food. Plan your next culinary experience with me and indulge
-                in a journey of flavors that will delight your palate.
-              </p>
+              {chefConfig.bio.long.map((paragraph, index) => (
+                <p key={index} className={index === 0 ? 'text-lg leading-relaxed' : 'text-base leading-relaxed'}>
+                  {paragraph}
+                </p>
+              ))}
             </div>
 
             <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
-              <div className="bg-accent-100 px-4 py-2 rounded-full">
-                <span className="text-sm font-medium text-accent-700">20+ Years Experience</span>
-              </div>
-              <div className="bg-accent-100 px-4 py-2 rounded-full">
-                <span className="text-sm font-medium text-accent-700">Michelin Trained</span>
-              </div>
-              <div className="bg-accent-100 px-4 py-2 rounded-full">
-                <span className="text-sm font-medium text-accent-700">Local Sourcing</span>
-              </div>
+              {chefConfig.credentials.highlights.map((highlight, index) => (
+                <div key={index} className="bg-accent-100 px-4 py-2 rounded-full">
+                  <span className="text-sm font-medium text-accent-700">{highlight}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -226,7 +214,7 @@ export default function IndexRoute() {
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <div className="text-4xl mb-4">⭐⭐⭐⭐⭐</div>
             <p className="text-gray-700 italic mb-4">
-              "Chef Luis created the most incredible anniversary dinner for us. Every course was a masterpiece, and the
+              "The chef created the most incredible anniversary dinner for us. Every course was a masterpiece, and the
               cooking class was so much fun!"
             </p>
             <div className="font-semibold text-gray-900">— Sarah &amp; Michael K.</div>
@@ -236,8 +224,8 @@ export default function IndexRoute() {
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <div className="text-4xl mb-4">⭐⭐⭐⭐⭐</div>
             <p className="text-gray-700 italic mb-4">
-              "The cooking class was amazing! Chef Velez taught us so much and we had a blast. Can't wait to book
-              another experience."
+              "The cooking class was amazing! We learned so much and had a blast. Can't wait to book another
+              experience."
             </p>
             <div className="font-semibold text-gray-900">— Jennifer L.</div>
             <div className="text-sm text-gray-600">Cooking Class Experience</div>
@@ -260,7 +248,7 @@ export default function IndexRoute() {
           <div className="relative order-1 lg:order-1">
             <Image
               src="/assets/images/chef_book_experience.jpg"
-              alt="Guests enjoying a Chef Velez experience"
+              alt="Guests enjoying a culinary experience"
               className="rounded-2xl shadow-lg w-full h-[500px] object-cover lg:rounded-3xl lg:w-auto lg:h-auto"
               width={600}
               height={400}
@@ -304,9 +292,7 @@ export function ErrorBoundary({ error }: { error: unknown }) {
       <div className="rounded-xl border p-6 bg-red-50">
         <h2 className="text-xl font-semibold mb-2">Something went wrong.</h2>
         <p className="text-sm text-red-700">
-          {process.env.NODE_ENV === 'development'
-            ? e?.message ?? 'Unknown error'
-            : 'Please try again in a bit.'}
+          {process.env.NODE_ENV === 'development' ? (e?.message ?? 'Unknown error') : 'Please try again in a bit.'}
         </p>
       </div>
     </Container>

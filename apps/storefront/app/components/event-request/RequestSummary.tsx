@@ -14,15 +14,9 @@ export interface RequestSummaryProps {
   isSubmitting: boolean;
 }
 
-export const RequestSummary: FC<RequestSummaryProps> = ({ 
-  className, 
-  menus, 
-  onEditStep, 
-  onSubmit,
-  isSubmitting 
-}) => {
+export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEditStep, onSubmit, isSubmitting }) => {
   const { watch } = useFormContext<EventRequestFormData>();
-  
+
   // Get all form data
   const formData = {
     menuId: watch('menuId'),
@@ -40,9 +34,7 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
   };
 
   // Get selected menu
-  const selectedMenu = formData.menuId 
-    ? menus.find(menu => menu.id === formData.menuId)
-    : null;
+  const selectedMenu = formData.menuId ? menus.find((menu) => menu.id === formData.menuId) : null;
 
   // Calculate pricing
   const pricePerPerson = formData.eventType ? PRICING_STRUCTURE[formData.eventType] : 0;
@@ -74,12 +66,8 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
     <div className={clsx('space-y-6', className)}>
       {/* Header */}
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-primary-900 mb-2">
-          Review Your Event Request
-        </h3>
-        <p className="text-primary-600">
-          Please review all details before submitting your request to Chef Luis.
-        </p>
+        <h3 className="text-lg font-semibold text-primary-900 mb-2">Review Your Event Request</h3>
+        <p className="text-primary-600">Please review all details before submitting your request.</p>
       </div>
 
       {/* Summary sections */}
@@ -88,7 +76,14 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-primary-900">Menu Selection</h4>
-            <Button type="button" variant="ghost" onClick={() => onEditStep(1, 'menu')} className="text-accent-600 text-sm">Edit</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onEditStep(1, 'menu')}
+              className="text-accent-600 text-sm"
+            >
+              Edit
+            </Button>
           </div>
           {selectedMenu ? (
             <div className="space-y-3">
@@ -109,7 +104,7 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
               )}
             </div>
           ) : (
-            <p className="text-primary-600">Custom menu - Chef Luis will design a unique experience for you</p>
+            <p className="text-primary-600">Custom menu - A unique experience will be designed for you</p>
           )}
         </div>
 
@@ -117,12 +112,21 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-primary-900">Experience Details</h4>
-            <Button type="button" variant="ghost" onClick={() => onEditStep(1, 'experience')} className="text-accent-600 text-sm">Edit</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onEditStep(1, 'experience')}
+              className="text-accent-600 text-sm"
+            >
+              Edit
+            </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-primary-700">Experience Type</p>
-              <p className="text-primary-900">{formData.eventType ? getEventTypeDisplayName(formData.eventType) : 'Not selected'}</p>
+              <p className="text-primary-900">
+                {formData.eventType ? getEventTypeDisplayName(formData.eventType) : 'Not selected'}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium text-primary-700">Number of Guests</p>
@@ -135,16 +139,27 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-primary-900">Date & Time</h4>
-            <Button type="button" variant="ghost" onClick={() => onEditStep(2, 'date')} className="text-accent-600 text-sm">Edit</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onEditStep(2, 'date')}
+              className="text-accent-600 text-sm"
+            >
+              Edit
+            </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-primary-700">Preferred Date</p>
-              <p className="text-primary-900">{formData.requestedDate ? formatDateForDisplay(formData.requestedDate) : 'Not selected'}</p>
+              <p className="text-primary-900">
+                {formData.requestedDate ? formatDateForDisplay(formData.requestedDate) : 'Not selected'}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium text-primary-700">Start Time</p>
-              <p className="text-primary-900">{formData.requestedTime ? formatTimeForDisplay(formData.requestedTime) : 'Not selected'}</p>
+              <p className="text-primary-900">
+                {formData.requestedTime ? formatTimeForDisplay(formData.requestedTime) : 'Not selected'}
+              </p>
             </div>
           </div>
         </div>
@@ -153,7 +168,14 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-primary-900">Location</h4>
-            <Button type="button" variant="ghost" onClick={() => onEditStep(2, 'location')} className="text-accent-600 text-sm">Edit</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onEditStep(2, 'location')}
+              className="text-accent-600 text-sm"
+            >
+              Edit
+            </Button>
           </div>
           <div className="space-y-3">
             <div>
@@ -173,12 +195,23 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-primary-900">Contact Information</h4>
-            <Button type="button" variant="ghost" onClick={() => onEditStep(2, 'contact')} className="text-accent-600 text-sm">Edit</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onEditStep(2, 'contact')}
+              className="text-accent-600 text-sm"
+            >
+              Edit
+            </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-primary-700">Name</p>
-              <p className="text-primary-900">{formData.firstName && formData.lastName ? `${formData.firstName} ${formData.lastName}` : 'Not provided'}</p>
+              <p className="text-primary-900">
+                {formData.firstName && formData.lastName
+                  ? `${formData.firstName} ${formData.lastName}`
+                  : 'Not provided'}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium text-primary-700">Email</p>
@@ -198,7 +231,14 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-primary-900">Special Requests</h4>
-              <Button type="button" variant="ghost" onClick={() => onEditStep(3, 'special')} className="text-accent-600 text-sm">Edit</Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onEditStep(3, 'special')}
+                className="text-accent-600 text-sm"
+              >
+                Edit
+              </Button>
             </div>
             <div className="space-y-3">
               {formData.specialRequirements && (
@@ -223,8 +263,12 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
             <h4 className="text-lg font-semibold text-accent-700 mb-4">Pricing Estimate</h4>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-accent-600">{getEventTypeDisplayName(formData.eventType)} × {formData.partySize} guests</span>
-                <span className="font-medium text-accent-800">${pricePerPerson.toFixed(2)} × {formData.partySize}</span>
+                <span className="text-accent-600">
+                  {getEventTypeDisplayName(formData.eventType)} × {formData.partySize} guests
+                </span>
+                <span className="font-medium text-accent-800">
+                  ${pricePerPerson.toFixed(2)} × {formData.partySize}
+                </span>
               </div>
               <div className="border-t border-accent-200 pt-3">
                 <div className="flex justify-between items-center">
@@ -233,35 +277,49 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
                 </div>
               </div>
             </div>
-            <p className="text-sm text-accent-600 mt-3">* Final pricing will be confirmed by Chef Luis and may include adjustments for location, special requirements, or menu customizations.</p>
+            <p className="text-sm text-accent-600 mt-3">
+              * Final pricing will be confirmed and may include adjustments for location, special requirements, or menu
+              customizations.
+            </p>
           </div>
         )}
       </div>
 
       {/* Submit button */}
       <div className="text-center pt-6">
-        <Button 
-          type="button" 
-          onClick={onSubmit} 
-          disabled={isSubmitting} 
+        <Button
+          type="button"
+          onClick={onSubmit}
+          disabled={isSubmitting}
           className="bg-primary-800 hover:bg-primary-900 text-white px-12 py-4 text-xl font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
         >
           {isSubmitting ? (
             <span className="flex items-center justify-center">
-              <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg
+                className="animate-spin -ml-1 mr-3 h-6 w-6 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               Submitting Request...
             </span>
           ) : (
-            'Submit Event Request to Chef Luis'
+            'Submit Event Request'
           )}
         </Button>
-        <p className="text-sm text-primary-600 mt-3 max-w-md mx-auto">No payment required now - you'll receive a secure payment link after Chef Luis confirms your event</p>
+        <p className="text-sm text-primary-600 mt-3 max-w-md mx-auto">
+          No payment required now - you'll receive a secure payment link after your event is confirmed
+        </p>
       </div>
     </div>
   );
 };
 
-export default RequestSummary; 
+export default RequestSummary;

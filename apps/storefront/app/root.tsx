@@ -19,7 +19,9 @@ import '@app/styles/global.css';
 import { useRootLoaderData } from './hooks/useRootLoaderData';
 
 export const getRootMeta: MetaFunction = ({ data }) => {
-  const title = 'Chef Velez';
+  // Using dynamic import inline to avoid module resolution issues
+  // In production, consider moving this to a hook or loader
+  const title = 'Private Chef - Premium Culinary Experiences';
   const description = 'Private chef experiences: cooking classes, plated dinners, and buffet-style events.';
   const ogTitle = title;
   const ogDescription = description;

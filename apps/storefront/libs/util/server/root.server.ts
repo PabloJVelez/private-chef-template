@@ -14,11 +14,7 @@ import { getSelectedRegion, listRegions } from './data/regions.server';
 export const getRootLoader = async ({ request }: LoaderFunctionArgs) => {
   const region = await getSelectedRegion(request.headers);
 
-  const [cart, regions, customer] = await Promise.all([
-    retrieveCart(request),
-    listRegions(),
-    getCustomer(request),
-  ]);
+  const [cart, regions, customer] = await Promise.all([retrieveCart(request), listRegions(), getCustomer(request)]);
 
   const headers = new Headers();
 
@@ -53,7 +49,7 @@ export const getRootLoader = async ({ request }: LoaderFunctionArgs) => {
       region,
       siteDetails: {
         store: {
-          name: 'Chef Velez',
+          name: 'Private Chef',
         },
         settings: siteSettings,
         headerNavigationItems,

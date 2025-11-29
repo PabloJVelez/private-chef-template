@@ -56,13 +56,17 @@ export const SpecialRequests: FC<SpecialRequestsProps> = ({ className }) => {
       {/* Header */}
       <div className="text-center">
         <h3 className="text-lg font-semibold text-primary-900 mb-2">Special Requests & Dietary Needs</h3>
-        <p className="text-primary-600">Help Chef Luis customize your experience by sharing any dietary restrictions or special requests.</p>
+        <p className="text-primary-600">
+          Help us customize your experience by sharing any dietary restrictions or special requests.
+        </p>
       </div>
 
       {/* Dietary restrictions */}
       <div>
         <h4 className="text-sm font-medium text-primary-900 mb-3">Dietary Restrictions & Allergies</h4>
-        <p className="text-sm text-primary-600 mb-4">Select any dietary restrictions or allergies that apply to your guests:</p>
+        <p className="text-sm text-primary-600 mb-4">
+          Select any dietary restrictions or allergies that apply to your guests:
+        </p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {DIETARY_RESTRICTIONS.map((restriction) => {
@@ -76,7 +80,7 @@ export const SpecialRequests: FC<SpecialRequestsProps> = ({ className }) => {
                   'px-3 py-2 rounded-lg text-sm font-medium transition-colors border-2 text-center',
                   isSelected
                     ? 'bg-accent-500 text-white border-accent-500'
-                    : 'bg-white text-primary-700 border-gray-200 hover:border-accent-300 hover:bg-accent-50'
+                    : 'bg-white text-primary-700 border-gray-200 hover:border-accent-300 hover:bg-accent-50',
                 )}
               >
                 {restriction}
@@ -99,11 +103,11 @@ export const SpecialRequests: FC<SpecialRequestsProps> = ({ className }) => {
         <textarea
           value={notes || ''}
           onChange={(e) => handleNotesChange(e.target.value)}
-          placeholder="Share any details, special occasions, preferences, allergies, or questions for Chef Luis..."
+          placeholder="Share any details, special occasions, preferences, allergies, or questions..."
           rows={5}
           className={clsx(
             'w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-accent-500 resize-none',
-            errors.notes ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+            errors.notes ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300',
           )}
         />
         {errors.notes && <p className="text-red-600 text-sm mt-1">{errors.notes.message}</p>}
@@ -137,4 +141,4 @@ export const SpecialRequests: FC<SpecialRequestsProps> = ({ className }) => {
   );
 };
 
-export default SpecialRequests; 
+export default SpecialRequests;

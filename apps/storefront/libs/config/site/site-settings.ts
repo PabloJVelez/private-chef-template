@@ -1,9 +1,12 @@
 import { SiteSettings } from '@libs/types';
 import { config } from '@libs/util/server/config.server';
+import { getChefConfig } from '../chef/chef-config';
+
+const chefConfig = getChefConfig();
 
 export const siteSettings: SiteSettings = {
   storefront_url: config.STOREFRONT_URL,
-  description: 'Chef Velez offers premium private chef experiences including cooking classes, plated dinners, and buffet-style events. Restaurant-quality cuisine crafted in your home.',
+  description: chefConfig.seo.description,
   favicon: '/favicon.jpg',
   social_facebook: '',
   social_instagram: '',
