@@ -1,9 +1,9 @@
 version: '3'
-name: medusa2-starter
+name: chef-template
 services:
   db:
     image: postgres:16
-    container_name: medusa2-starter-postgres
+    container_name: chef-template-postgres
     volumes:
       - database:/var/lib/postgresql/data
     ports:
@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: 'postgres'
   redis:
     image: redis
-    container_name: medusa2-starter-redis
+    container_name: chef-template-redis
     ports:
       - '6379:6379'
     volumes:
