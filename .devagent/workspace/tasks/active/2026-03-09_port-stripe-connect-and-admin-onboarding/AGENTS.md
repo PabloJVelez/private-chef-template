@@ -30,9 +30,10 @@ All three features are already implemented and proven in the sibling project. Th
 
 ## Progress Log
 - [2026-03-09] Event: Task hub created to port the Stripe Connect payment provider, admin onboarding, and configurable platform fee features from the sibling chef project into this parent template repo; see References and Embedded References for prior task docs.
+- [2026-03-09] Event: Task 1 initial backend wiring completed — added `apps/medusa/src/modules/stripe-connect/*` and updated `apps/medusa/medusa-config.ts` to use the new provider.
 
 ## Implementation Checklist
-- [ ] Task 1: Port the Stripe Connect payment provider and related configuration (custom provider module, types, currency util, env/config, storefront provider-id wiring, seed scripts).
+- [x] Task 1: Port the Stripe Connect payment provider and related configuration (custom provider module, types, currency util, env/config updated in medusa-config; storefront provider-id wiring and seed scripts pending for later task).
 - [ ] Task 2: Port the Stripe Connect admin onboarding stack (DB model/module, admin API routes, webhook for account.updated, payment provider integration to resolve connected account from DB, admin UI page, env/docs cleanup).
 - [ ] Task 3: Port the configurable platform fee logic (per-line fee calculation for events vs products, env vars for fee modes and amounts, cart line-item resolution, fallback to percentage-of-total, unit tests).
 - [ ] Task 4: Generalize sibling-project-specific details (e.g. "bento" references, SKU conventions) so the template expresses events vs products cleanly and per-chef projects can define their own product types.
