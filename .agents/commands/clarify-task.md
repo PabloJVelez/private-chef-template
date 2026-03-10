@@ -1,0 +1,1 @@
+../../.devagent/commands/clarify-task.md

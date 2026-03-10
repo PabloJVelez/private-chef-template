@@ -1,0 +1,1 @@
+../../.devagent/commands/compare-prs.md

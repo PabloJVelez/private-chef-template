@@ -1,0 +1,1 @@
+../../.devagent/commands/update-tech-stack.md

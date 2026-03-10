@@ -1,0 +1,1 @@
+../../.devagent/commands/verify-plugins.md
