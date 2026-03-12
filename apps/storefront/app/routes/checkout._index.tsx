@@ -71,6 +71,7 @@ const ensureCartPaymentSessions = async (request: Request, cart: StoreCart) => {
 
     const { payment_collection } = await initiatePaymentSession(request, cart, {
       provider_id: provider.id,
+      data: { cart_id: cart.id },
     });
 
     activeSession = payment_collection.payment_sessions?.find((session) => session.status === 'pending');
