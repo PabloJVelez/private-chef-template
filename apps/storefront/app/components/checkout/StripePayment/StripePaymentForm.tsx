@@ -23,7 +23,7 @@ export const StripePaymentForm: FC<StripePaymentFormProps> = ({ isActiveStep, pa
   const elements = useElements();
   const { activePaymentSession, cart } = useCheckout();
   const stripePaymentMethods = useMemo(
-    () => paymentMethods?.filter((pm) => pm.provider_id === 'pp_stripe_stripe'),
+    () => paymentMethods?.filter((pm) => pm.provider_id === 'pp_stripe-connect_stripe-connect'),
     [paymentMethods],
   );
 
@@ -122,7 +122,7 @@ export const StripePaymentForm: FC<StripePaymentFormProps> = ({ isActiveStep, pa
   return (
     <>
       <CompleteCheckoutForm
-        providerId="pp_stripe_stripe"
+        providerId="pp_stripe-connect_stripe-connect"
         id="stripePaymentForm"
         paymentMethods={stripePaymentMethods}
         onSubmit={handleSubmit}

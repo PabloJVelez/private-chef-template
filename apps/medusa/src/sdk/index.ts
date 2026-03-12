@@ -3,6 +3,7 @@ import { Client, Admin } from '@medusajs/js-sdk'
 import { AdminMenusResource } from './admin/admin-menus'
 import { AdminChefEventsResource } from './admin/admin-chef-events'
 import { AdminUploadsResource } from './admin/admin-uploads'
+import { AdminStripeConnectResource } from './admin/admin-stripe-connect'
 import { ExtendedStoreSDK } from './store'
 
 // Vite will inline this at build time for browser bundles.
@@ -13,12 +14,14 @@ class ExtendedAdminSDK extends Admin {
   public menus: AdminMenusResource
   public chefEvents: AdminChefEventsResource
   public uploads: AdminUploadsResource
+  public stripeConnect: AdminStripeConnectResource
 
   constructor(client: Client) {
     super(client)
     this.menus = new AdminMenusResource(client)
     this.chefEvents = new AdminChefEventsResource(client)
     this.uploads = new AdminUploadsResource(client)
+    this.stripeConnect = new AdminStripeConnectResource(client)
   }
 }
 
@@ -49,5 +52,12 @@ export const sdk = new ExtendedSDK(baseUrl)
 
 export { AdminChefEventsResource } from './admin/admin-chef-events'
 export { AdminMenusResource } from './admin/admin-menus'
+export { AdminStripeConnectResource } from './admin/admin-stripe-connect'
 export { ExtendedStoreSDK } from './store'
 export type * from './store'
+export type {
+  StripeConnectStatus,
+  StripeConnectStatusResponse,
+  StripeConnectAccountLinkBody,
+  StripeConnectAccountLinkResponse,
+} from './admin/admin-stripe-connect'

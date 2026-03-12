@@ -21,7 +21,7 @@ export const CheckoutPayment: FC<CheckoutPaymentProps> = ({ isDigitalOnly = fals
   if (!cart) return null;
 
   const hasStripePaymentProvider = useMemo(
-    () => paymentProviders?.some((p) => p.id.includes('pp_stripe_stripe')),
+    () => paymentProviders?.some((p) => p.id.includes('pp_stripe-connect_stripe-connect')),
     [paymentProviders],
   );
 
@@ -32,7 +32,7 @@ export const CheckoutPayment: FC<CheckoutPaymentProps> = ({ isDigitalOnly = fals
 
   const paymentOptions = [
     {
-      id: 'pp_stripe_stripe',
+      id: 'pp_stripe-connect_stripe-connect',
       label: 'Credit Card',
       component: StripePayment,
       isActive: hasStripePaymentProvider,

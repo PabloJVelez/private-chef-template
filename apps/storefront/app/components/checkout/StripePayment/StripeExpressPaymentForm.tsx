@@ -60,7 +60,7 @@ export const StripeExpressCheckoutForm: FC = () => {
 
   const { shippingOptions: initialShippingOptions, activePaymentSession, paymentProviders } = useCheckout();
 
-  const isStripeAvailable = paymentProviders.some((provider) => provider.id === 'pp_stripe_stripe');
+  const isStripeAvailable = paymentProviders.some((provider) => provider.id === 'pp_stripe-connect_stripe-connect');
 
   if (!cart || !isStripeAvailable) return null;
   if (canMakePaymentStatus === 'unavailable') return null;
@@ -164,7 +164,7 @@ export const StripeExpressCheckoutForm: FC = () => {
       const updatedCart = updatedCartRes.cart;
 
       const updatedPaymentSession = updatedCart.payment_collection?.payment_sessions?.find(
-        ({ provider_id, status }) => provider_id === 'pp_stripe_stripe' && status === 'pending',
+        ({ provider_id, status }) => provider_id === 'pp_stripe-connect_stripe-connect' && status === 'pending',
       );
       const updatedClientSecret = updatedPaymentSession?.data.client_secret as string;
 

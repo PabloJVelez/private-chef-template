@@ -53,6 +53,7 @@ Use this as the master checklist; each phase is expanded in the runbook below.
    - `STORE_CORS`, `ADMIN_CORS`, `AUTH_CORS` — Include storefront URL (e.g. `http://localhost:3000`).
    - `REDIS_URL` — If required by your Medusa setup.
    - `ADMIN_BACKEND_URL` — e.g. `http://localhost:9000`.
+   - **Stripe Connect (optional):** If using Stripe Connect for platform fees and chef payouts, set `USE_STRIPE_CONNECT=true`, `MEDUSA_ADMIN_URL` (e.g. `http://localhost:7000`), and complete onboarding in Medusa Admin (Stripe Connect widget). See [Stripe Connect & Platform Fees](./stripe-connect-and-fees.md).
 
 See [Templatized Values Inventory → Config and environment](./templatized-values-inventory.md#6-config-and-environment) for the full list.
 
@@ -166,8 +167,9 @@ Either replace with the chef name or (future) drive from chefConfig.
 ## Phase 8: First mock order (target: ~1 month from interest)
 
 1. **Stripe:** Use Stripe test mode; add test card (e.g. 4242 4242 4242 4242). Ensure `STRIPE_PUBLIC_KEY` (storefront) and `STRIPE_API_KEY` (Medusa) are test keys.
-2. **Checkout:** Add product to cart, go through checkout, complete payment with test card.
-3. **Confirm:** Order appears in Medusa Admin and (if applicable) webhooks/emails work.
+2. **Stripe Connect (if enabled):** If `USE_STRIPE_CONNECT=true`, complete Connect onboarding in Medusa Admin (Settings → Stripe Connect widget) before accepting payments. See [Stripe Connect & Platform Fees](./stripe-connect-and-fees.md).
+3. **Checkout:** Add product to cart, go through checkout, complete payment with test card.
+4. **Confirm:** Order appears in Medusa Admin and (if applicable) webhooks/emails work.
 
 **Chef sees:** They (or you) can place a test order and see it in admin. **First mock order = milestone for ~1-month target.**
 
@@ -197,5 +199,7 @@ Either replace with the chef name or (future) drive from chefConfig.
 ## References
 
 - [Templatized Values Inventory](./templatized-values-inventory.md) — all file paths and “what to change.”
+- [Stripe Connect & Platform Fees](./stripe-connect-and-fees.md) — env vars, admin onboarding, and platform fee configuration.
+- [Templatized Values Inventory](./templatized-values-inventory.md) — all file paths and what to change.
 - [IMAGE_REPLACEMENT_GUIDE.md](../apps/storefront/IMAGE_REPLACEMENT_GUIDE.md) — hero, CTA, and favicon specs and paths.
 - Root and apps README — prerequisites, Docker, and env setup details.
