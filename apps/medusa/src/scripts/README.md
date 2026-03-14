@@ -1,4 +1,18 @@
-# Custom CLI Script
+# Custom CLI Scripts
+
+## Init Script (Recommended)
+
+To initialize the project with US-only data and chef experiences:
+
+```bash
+yarn run init
+```
+
+This runs `medusa exec ./src/scripts/init.ts` then creates the admin user. It performs a selective wipe and reseeds regions, products, menus, and related entities. Requires migrations and sync to be run first.
+
+---
+
+## Custom CLI Script
 
 A custom CLI script is a function to execute through Medusa's CLI tool. This is useful when creating custom Medusa tooling to run as a CLI tool.
 

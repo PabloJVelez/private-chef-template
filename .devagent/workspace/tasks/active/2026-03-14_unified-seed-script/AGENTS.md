@@ -2,7 +2,7 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-14
-- Status: Draft
+- Status: In Progress
 - Task Hub: `.devagent/workspace/tasks/active/2026-03-14_unified-seed-script/`
 
 ## Summary
@@ -29,13 +29,14 @@ Create a single, dedicated seed script that initializes the project with everyth
 - [2026-03-14] Event: Task hub created to consolidate seed scripts into a single unified initialization script; US-only region, admin user pmltechpile@gmail.com / password!, coffee references to be reviewed/updated for private-chef context.
 - [2026-03-14] Event: Clarification session complete — idempotency: reset+selective wipe; product catalog: chef experiences only; old scripts → `apps/medusa/src/scripts/old-scripts/`; clarification packet at `clarification/2026-03-14_initial-clarification.md`.
 - [2026-03-14] Event: Plan created at `plan/2026-03-14_unified-seed-script-plan.md` — 5 implementation tasks: relocate scripts, selective wipe, unified seed (US + chef experiences), admin user + npm scripts, documentation.
+- [2026-03-14] Event: Implementation complete. Task 1: Moved seed.ts, seed-menus.ts, create-digital-shipping.ts, seed/ to old-scripts/. Task 2: Added wipe-seeded-data.ts. Task 3: Added init.ts, seed/chef-experiences.ts. Task 4: Updated package.json (init, add-user, medusa:init). Task 5: Updated plug-in-chef-playbook.md, scripts README.
 
 ## Implementation Checklist
-- [ ] Task 1: Relocate existing scripts to `apps/medusa/src/scripts/old-scripts/` (see plan)
-- [ ] Task 2: Implement selective wipe logic (reverse FK order; see plan for entity list)
-- [ ] Task 3: Implement unified seed script `init.ts` — US-only, chef experiences only
-- [ ] Task 4: Wire admin user creation and init npm script (add-user → pmltechpile@gmail.com / password!)
-- [ ] Task 5: Update documentation (README, playbook) and remove obsolete script references
+- [x] Task 1: Relocate existing scripts to `apps/medusa/src/scripts/old-scripts/` (see plan)
+- [x] Task 2: Implement selective wipe logic (reverse FK order; see plan for entity list)
+- [x] Task 3: Implement unified seed script `init.ts` — US-only, chef experiences only
+- [x] Task 4: Wire admin user creation and init npm script (add-user → pmltechpile@gmail.com / password!)
+- [x] Task 5: Update documentation (README, playbook) and remove obsolete script references
 
 ## Open Questions
 - ~~How should the unified script handle idempotency?~~ → **Clarified:** Reset and reseed; selective wipe (delete seeded entities only).

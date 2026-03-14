@@ -123,15 +123,15 @@ Either replace with the chef name or (future) drive from chefConfig.
    ```bash
    yarn run medusa:init
    ```
-   This typically runs: nukedb, create DB, migrate, sync, seed menus, add admin user. See `apps/medusa/package.json` for the exact script.
+   This runs: nukedb, create DB, migrate, sync, unified init (wipe + seed), add admin user. See `apps/medusa/package.json` for the exact script.
 
-3. **Optional — full product seed:** If you need products from `seed.ts` (e.g. for checkout):
+3. **Seed only (when DB exists):** If you already ran migrate and sync:
    ```bash
-   cd apps/medusa && yarn run seed
+   cd apps/medusa && yarn run init
    ```
-   (Or your project’s equivalent: `medusa exec ./src/scripts/seed.ts`.)
+   This wipes and reseeds with US-only chef experiences, then runs add-user.
 
-4. **Admin user:** Default from medusa:init is often `admin@medusa-test.com` / `supersecret`; change in production. Create a Publishable API Key in Medusa Admin and put it in storefront `MEDUSA_PUBLISHABLE_KEY`.
+4. **Admin user:** Default from init is `pmltechpile@gmail.com` / `password!`. Create a Publishable API Key in Medusa Admin and put it in storefront `MEDUSA_PUBLISHABLE_KEY`.
 
 **Chef sees:** Nothing yet (backend only).
 
@@ -189,8 +189,9 @@ Either replace with the chef name or (future) drive from chefConfig.
 | Action | Command (from repo root unless noted) |
 |--------|--------------------------------------|
 | Generate .env files | `yarn run generate-env` |
-| Medusa DB + init + seed menus + admin user | `yarn run medusa:init` |
-| Medusa full seed (products etc.) | `cd apps/medusa && yarn run seed` |
+| Medusa DB + init + seed + admin user | `yarn run medusa:init` |
+| Medusa init only (wipe + seed + add-user; after migrate) | `cd apps/medusa && yarn run init` |
+| Medusa legacy full seed (old coffee products) | `cd apps/medusa && yarn run seed` |
 | Start Medusa dev | `cd apps/medusa && yarn run dev` |
 | Start storefront dev | `cd apps/storefront && yarn run dev` |
 
