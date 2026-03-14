@@ -35,17 +35,17 @@ interface MenuTicketProductData {
   availableTickets: number;
 }
 
-// Menu definitions
+// Menu definitions — elegant private-chef experiences
 export const menuDefinitions: MenuSeedData[] = [
   {
-    name: "Winter Wonderland Feast",
+    name: "The Winter Table",
     courses: [
       {
         name: "Cocktails",
         dishes: [
           {
             name: "Frosted Cranberry Martini",
-            description: "A refreshing blend of vodka, cranberry juice, and a splash of sparkling wine, garnished with fresh cranberries.",
+            description: "Vodka, cranberry, and a splash of sparkling wine, garnished with fresh cranberries.",
             ingredients: [
               { name: "Vodka" },
               { name: "Cranberry juice" },
@@ -56,7 +56,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Spiced Apple Cider Mule",
-            description: "A cozy mix of spiced apple cider, ginger beer, and vodka, served in a copper mug with a cinnamon stick.",
+            description: "Spiced apple cider, ginger beer, and vodka in a copper mug with a cinnamon stick.",
             ingredients: [
               { name: "Spiced apple cider" },
               { name: "Ginger beer" },
@@ -68,11 +68,11 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       },
       {
-        name: "Cocktail Appetizers",
+        name: "Canapés",
         dishes: [
           {
-            name: "Mini Goat Cheese and Fig Tartlets",
-            description: "Flaky pastry filled with creamy goat cheese and sweet fig jam, topped with a drizzle of balsamic glaze.",
+            name: "Goat Cheese & Fig Tartlets",
+            description: "Flaky pastry with creamy goat cheese and fig jam, finished with balsamic glaze.",
             ingredients: [
               { name: "Puff pastry" },
               { name: "Goat cheese" },
@@ -82,8 +82,8 @@ export const menuDefinitions: MenuSeedData[] = [
             ]
           },
           {
-            name: "Pomegranate and Avocado Bites",
-            description: "Diced avocado and pomegranate seeds on toasted baguette slices, drizzled with lime juice.",
+            name: "Pomegranate & Avocado Crostini",
+            description: "Toasted baguette with avocado and pomegranate, lime and sea salt.",
             ingredients: [
               { name: "Baguette slices" },
               { name: "Avocado" },
@@ -95,11 +95,11 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       },
       {
-        name: "Entrees",
+        name: "Entrées",
         dishes: [
           {
             name: "Herb-Crusted Rack of Lamb",
-            description: "Juicy lamb rack coated with a savory herb crust, served with a red wine reduction.",
+            description: "Lamb rack with a savory herb crust and red wine reduction.",
             ingredients: [
               { name: "Rack of lamb" },
               { name: "Fresh rosemary" },
@@ -111,8 +111,8 @@ export const menuDefinitions: MenuSeedData[] = [
             ]
           },
           {
-            name: "Grilled Lemon-Herb Salmon",
-            description: "Tender salmon fillet marinated in lemon and herbs, grilled to perfection.",
+            name: "Lemon-Herb Salmon",
+            description: "Salmon fillet marinated in lemon and herbs, grilled to perfection.",
             ingredients: [
               { name: "Salmon fillet" },
               { name: "Lemon" },
@@ -129,7 +129,7 @@ export const menuDefinitions: MenuSeedData[] = [
         dishes: [
           {
             name: "Roasted Root Vegetables",
-            description: "A medley of seasonal root vegetables roasted with olive oil and herbs.",
+            description: "Seasonal roots and vegetables roasted with olive oil and herbs.",
             ingredients: [
               { name: "Carrots" },
               { name: "Parsnips" },
@@ -141,7 +141,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Garlic Mashed Potatoes",
-            description: "Creamy mashed potatoes infused with roasted garlic.",
+            description: "Creamy Yukon gold potatoes with roasted garlic.",
             ingredients: [
               { name: "Yukon potatoes" },
               { name: "Roasted garlic" },
@@ -158,7 +158,7 @@ export const menuDefinitions: MenuSeedData[] = [
         dishes: [
           {
             name: "Chocolate Peppermint Mousse",
-            description: "A rich chocolate mousse topped with whipped cream and crushed peppermint candies.",
+            description: "Dark chocolate mousse with whipped cream and crushed peppermint.",
             ingredients: [
               { name: "Dark chocolate" },
               { name: "Heavy cream" },
@@ -173,14 +173,14 @@ export const menuDefinitions: MenuSeedData[] = [
     ]
   },
   {
-    name: "Tropical Holiday Escape",
+    name: "Salt & Sun",
     courses: [
       {
         name: "Cocktails",
         dishes: [
           {
             name: "Pineapple Coconut Mojito",
-            description: "A refreshing mix of rum, fresh mint, pineapple juice, and coconut water, served over ice.",
+            description: "White rum, fresh mint, pineapple and coconut water over ice.",
             ingredients: [
               { name: "White rum" },
               { name: "Fresh mint" },
@@ -192,7 +192,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Mango Passionfruit Bellini",
-            description: "A bubbly blend of prosecco and mango-passionfruit puree, garnished with a slice of fresh mango.",
+            description: "Prosecco with mango and passionfruit purée, garnished with fresh mango.",
             ingredients: [
               { name: "Prosecco" },
               { name: "Mango puree" },
@@ -203,11 +203,11 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       },
       {
-        name: "Cocktail Appetizers",
+        name: "Canapés",
         dishes: [
           {
-            name: "Shrimp and Avocado Ceviche",
-            description: "Fresh shrimp marinated in lime juice with diced avocado, tomatoes, and cilantro.",
+            name: "Shrimp & Avocado Ceviche",
+            description: "Shrimp cured in lime with avocado, tomatoes, and cilantro.",
             ingredients: [
               { name: "Fresh shrimp" },
               { name: "Lime juice" },
@@ -220,7 +220,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Tropical Fruit Skewers",
-            description: "Skewers of assorted tropical fruits like pineapple, mango, and kiwi, drizzled with honey.",
+            description: "Pineapple, mango, kiwi and papaya with honey and lime.",
             ingredients: [
               { name: "Pineapple" },
               { name: "Mango" },
@@ -233,11 +233,11 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       },
       {
-        name: "Entrees",
+        name: "Entrées",
         dishes: [
           {
-            name: "Grilled Mahi Mahi with Mango Salsa",
-            description: "Flaky mahi-mahi fillets grilled and topped with a vibrant mango salsa.",
+            name: "Mahi Mahi with Mango Salsa",
+            description: "Grilled mahi-mahi with a vibrant mango salsa.",
             ingredients: [
               { name: "Mahi-mahi fillets" },
               { name: "Mango" },
@@ -250,7 +250,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Herb-Crusted Chicken with Pineapple Salsa",
-            description: "Juicy chicken breasts baked with an herb crust and served with sweet pineapple salsa.",
+            description: "Chicken breast with herb crust and sweet pineapple salsa.",
             ingredients: [
               { name: "Chicken breasts" },
               { name: "Fresh herbs" },
@@ -267,8 +267,8 @@ export const menuDefinitions: MenuSeedData[] = [
         name: "Sides",
         dishes: [
           {
-            name: "Coconut Rice",
-            description: "Fluffy jasmine rice cooked with coconut milk for a tropical twist.",
+            name: "Coconut Jasmine Rice",
+            description: "Jasmine rice cooked with coconut milk and a touch of salt.",
             ingredients: [
               { name: "Jasmine rice" },
               { name: "Coconut milk" },
@@ -279,7 +279,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Grilled Asparagus",
-            description: "Tender asparagus spears lightly seasoned and grilled.",
+            description: "Asparagus spears grilled with olive oil and lemon.",
             ingredients: [
               { name: "Fresh asparagus" },
               { name: "Olive oil" },
@@ -295,7 +295,7 @@ export const menuDefinitions: MenuSeedData[] = [
         dishes: [
           {
             name: "Coconut Lime Tart",
-            description: "A zesty lime tart with a coconut crust, topped with whipped cream and toasted coconut flakes.",
+            description: "Lime tart on coconut crust with whipped cream and toasted coconut.",
             ingredients: [
               { name: "Coconut" },
               { name: "Graham crackers" },
@@ -311,14 +311,14 @@ export const menuDefinitions: MenuSeedData[] = [
     ]
   },
   {
-    name: "Rustic Autumn Gathering",
+    name: "The Harvest Table",
     courses: [
       {
         name: "Cocktails",
         dishes: [
           {
             name: "Maple Bourbon Old Fashioned",
-            description: "A warm and inviting cocktail made with bourbon, maple syrup, and a dash of bitters.",
+            description: "Bourbon, maple syrup, and bitters with orange peel.",
             ingredients: [
               { name: "Bourbon whiskey" },
               { name: "Maple syrup" },
@@ -329,8 +329,8 @@ export const menuDefinitions: MenuSeedData[] = [
             ]
           },
           {
-            name: "Pear and Ginger Sparkler",
-            description: "A delightful mix of pear juice, ginger ale, and a splash of gin, garnished with a slice of fresh pear.",
+            name: "Pear & Ginger Sparkler",
+            description: "Pear juice, ginger ale, and gin with a slice of fresh pear.",
             ingredients: [
               { name: "Pear juice" },
               { name: "Ginger ale" },
@@ -342,11 +342,11 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       },
       {
-        name: "Cocktail Appetizers",
+        name: "Canapés",
         dishes: [
           {
             name: "Butternut Squash Soup Shots",
-            description: "Creamy butternut squash soup served in shot glasses, garnished with a sprinkle of nutmeg.",
+            description: "Creamy butternut squash soup in shot glasses with nutmeg.",
             ingredients: [
               { name: "Butternut squash" },
               { name: "Vegetable broth" },
@@ -358,8 +358,8 @@ export const menuDefinitions: MenuSeedData[] = [
             ]
           },
           {
-            name: "Brie and Cranberry Puff Pastry Bites",
-            description: "Flaky pastry filled with creamy brie and tart cranberry sauce.",
+            name: "Brie & Cranberry Puff Pastry Bites",
+            description: "Puff pastry with brie and cranberry, finished with thyme.",
             ingredients: [
               { name: "Puff pastry" },
               { name: "Brie cheese" },
@@ -371,11 +371,11 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       },
       {
-        name: "Entrees",
+        name: "Entrées",
         dishes: [
           {
             name: "Roasted Herb Chicken",
-            description: "Oven-roasted chicken seasoned with herbs and served with a rich gravy.",
+            description: "Whole chicken with rosemary, sage and garlic, served with gravy.",
             ingredients: [
               { name: "Whole chicken" },
               { name: "Fresh rosemary" },
@@ -387,8 +387,8 @@ export const menuDefinitions: MenuSeedData[] = [
             ]
           },
           {
-            name: "Baked Pesto Stuffed Chicken Breast",
-            description: "Chicken breasts filled with basil pesto and mozzarella, baked to perfection.",
+            name: "Pesto-Stuffed Chicken Breast",
+            description: "Chicken breast with basil pesto, mozzarella and sun-dried tomato.",
             ingredients: [
               { name: "Chicken breasts" },
               { name: "Basil pesto" },
@@ -405,7 +405,7 @@ export const menuDefinitions: MenuSeedData[] = [
         dishes: [
           {
             name: "Seasonal Vegetable Medley",
-            description: "A colorful mix of roasted seasonal vegetables.",
+            description: "Roasted seasonal vegetables with olive oil and herbs.",
             ingredients: [
               { name: "Butternut squash" },
               { name: "Acorn squash" },
@@ -418,7 +418,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Wild Rice Pilaf",
-            description: "Nutty wild rice cooked with herbs and spices.",
+            description: "Wild rice with vegetable broth, celery, onion and herbs.",
             ingredients: [
               { name: "Wild rice" },
               { name: "Vegetable broth" },
@@ -436,7 +436,7 @@ export const menuDefinitions: MenuSeedData[] = [
         dishes: [
           {
             name: "Apple Crisp",
-            description: "Warm baked apples topped with a crunchy oat topping, served with vanilla ice cream.",
+            description: "Baked apples with oat topping and vanilla ice cream.",
             ingredients: [
               { name: "Granny Smith apples" },
               { name: "Rolled oats" },
@@ -452,14 +452,14 @@ export const menuDefinitions: MenuSeedData[] = [
     ]
   },
   {
-    name: "Elegant Evening Soirée",
+    name: "Noir & Blanc",
     courses: [
       {
         name: "Cocktails",
         dishes: [
           {
             name: "Blackberry Gin Fizz",
-            description: "A refreshing cocktail made with gin, fresh blackberries, lemon juice, and tonic water.",
+            description: "Gin, fresh blackberries, lemon and tonic with mint.",
             ingredients: [
               { name: "Gin" },
               { name: "Fresh blackberries" },
@@ -471,7 +471,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "French 75",
-            description: "A classic cocktail made with gin, lemon juice, sugar, and topped with champagne.",
+            description: "Gin, lemon, sugar and champagne with a lemon twist.",
             ingredients: [
               { name: "Gin" },
               { name: "Fresh lemon juice" },
@@ -483,11 +483,11 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       },
       {
-        name: "Cocktail Appetizers",
+        name: "Canapés",
         dishes: [
           {
             name: "Caprese Skewers",
-            description: "Fresh mozzarella, cherry tomatoes, and basil drizzled with balsamic reduction on skewers.",
+            description: "Mozzarella, cherry tomatoes and basil with balsamic reduction.",
             ingredients: [
               { name: "Fresh mozzarella balls" },
               { name: "Cherry tomatoes" },
@@ -498,7 +498,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Smoked Salmon Blinis",
-            description: "Mini pancakes topped with smoked salmon and crème fraîche.",
+            description: "Buckwheat blinis with smoked salmon and crème fraîche.",
             ingredients: [
               { name: "Buckwheat flour" },
               { name: "Eggs" },
@@ -512,11 +512,11 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       },
       {
-        name: "Entrees",
+        name: "Entrées",
         dishes: [
           {
-            name: "Surf and Turf",
-            description: "A delicious combination of grilled lobster tail and filet mignon, served with a lemon butter sauce.",
+            name: "Surf & Turf",
+            description: "Grilled lobster tail and filet mignon with lemon butter.",
             ingredients: [
               { name: "Lobster tail" },
               { name: "Filet mignon" },
@@ -529,7 +529,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Herb-Crusted Chicken Thighs",
-            description: "Juicy chicken thighs baked with a flavorful herb crust.",
+            description: "Chicken thighs with herb crust and Parmesan.",
             ingredients: [
               { name: "Chicken thighs" },
               { name: "Fresh herbs" },
@@ -546,7 +546,7 @@ export const menuDefinitions: MenuSeedData[] = [
         dishes: [
           {
             name: "Sautéed Green Beans",
-            description: "Fresh green beans sautéed with garlic and olive oil.",
+            description: "Green beans with garlic, olive oil and optional almonds.",
             ingredients: [
               { name: "Fresh green beans" },
               { name: "Garlic" },
@@ -558,7 +558,7 @@ export const menuDefinitions: MenuSeedData[] = [
           },
           {
             name: "Truffle Mashed Potatoes",
-            description: "Creamy mashed potatoes infused with truffle oil.",
+            description: "Yukon gold potatoes with cream and truffle oil.",
             ingredients: [
               { name: "Yukon potatoes" },
               { name: "Heavy cream" },
@@ -575,7 +575,7 @@ export const menuDefinitions: MenuSeedData[] = [
         dishes: [
           {
             name: "Tiramisu",
-            description: "A classic Italian dessert made with layers of coffee-soaked ladyfingers and mascarpone cheese.",
+            description: "Espresso-soaked ladyfingers with mascarpone and cocoa.",
             ingredients: [
               { name: "Ladyfinger cookies" },
               { name: "Strong espresso" },
@@ -592,70 +592,50 @@ export const menuDefinitions: MenuSeedData[] = [
   }
 ];
 
-// Product data for menu experience tickets
+// Product data for menu experience tickets (legacy USD+CAD; see chef-experiences.ts for USD-only seed)
 export const menuProductData: MenuTicketProductData[] = [
   {
-    title: "Winter Wonderland Feast Experience",
-    description: "Indulge in a magical winter dining experience featuring sophisticated cocktails, herb-crusted lamb, and decadent chocolate peppermint mousse. Perfect for holiday celebrations and intimate gatherings.",
-    handle: "winter-wonderland-feast-experience",
-    price: {
-      usd: 125,
-      cad: 165
-    },
-    estimatedDuration: 180, // 3 hours
+    title: "The Winter Table",
+    description: "A refined winter tasting: cocktails, canapés, herb-crusted lamb or salmon, roasted roots, and chocolate peppermint mousse. Ideal for intimate holiday gatherings.",
+    handle: "the-winter-table",
+    price: { usd: 125, cad: 165 },
+    estimatedDuration: 180,
     maxGuests: 12,
     eventType: "plated_dinner",
-    images: [
-      "https://lambdacurrysites.s3.us-east-1.amazonaws.com/barrio/winter-wonderland-feast.jpg"
-    ],
+    images: ["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80"],
     availableTickets: 15
   },
   {
-    title: "Tropical Holiday Escape Experience",
-    description: "Transport yourself to paradise with this tropical-inspired dining experience featuring fresh seafood, exotic cocktails, and coconut lime desserts. A perfect escape from winter blues.",
-    handle: "tropical-holiday-escape-experience",
-    price: {
-      usd: 110,
-      cad: 145
-    },
-    estimatedDuration: 165, // 2.75 hours
+    title: "Salt & Sun",
+    description: "Coastal-inspired dining: tropical cocktails, ceviche, mahi-mahi or herb chicken, coconut rice, and coconut lime tart. Perfect for a relaxed, elegant gathering.",
+    handle: "salt-and-sun",
+    price: { usd: 110, cad: 145 },
+    estimatedDuration: 165,
     maxGuests: 14,
     eventType: "buffet_style",
-    images: [
-      "https://lambdacurrysites.s3.us-east-1.amazonaws.com/barrio/tropical-escape.jpg"
-    ],
+    images: ["https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&q=80"],
     availableTickets: 18
   },
   {
-    title: "Rustic Autumn Gathering Experience",
-    description: "Celebrate the harvest season with comfort food classics, seasonal vegetables, and warm bourbon cocktails. A cozy gathering perfect for fall celebrations.",
-    handle: "rustic-autumn-gathering-experience",
-    price: {
-      usd: 95,
-      cad: 125
-    },
-    estimatedDuration: 150, // 2.5 hours
+    title: "The Harvest Table",
+    description: "Farm-to-table experience: bourbon cocktails, squash soup, roast or pesto-stuffed chicken, seasonal vegetables, wild rice, and apple crisp. A warm, convivial evening.",
+    handle: "the-harvest-table",
+    price: { usd: 95, cad: 125 },
+    estimatedDuration: 150,
     maxGuests: 16,
     eventType: "cooking_class",
-    images: [
-      "https://lambdacurrysites.s3.us-east-1.amazonaws.com/barrio/autumn-gathering.jpg"
-    ],
+    images: ["https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80"],
     availableTickets: 12
   },
   {
-    title: "Elegant Evening Soirée Experience",
-    description: "An upscale dining experience featuring surf and turf, sophisticated cocktails, and classic tiramisu. Perfect for special occasions and romantic evenings.",
-    handle: "elegant-evening-soiree-experience",
-    price: {
-      usd: 150,
-      cad: 195
-    },
-    estimatedDuration: 210, // 3.5 hours
+    title: "Noir & Blanc",
+    description: "Upscale soirée: French 75 and blackberry fizz, caprese and salmon blinis, surf & turf or herb chicken, truffle mash, and tiramisu. For milestone celebrations.",
+    handle: "noir-and-blanc",
+    price: { usd: 150, cad: 195 },
+    estimatedDuration: 210,
     maxGuests: 10,
     eventType: "plated_dinner",
-    images: [
-      "https://lambdacurrysites.s3.us-east-1.amazonaws.com/barrio/elegant-soiree.jpg"
-    ],
+    images: ["https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80"],
     availableTickets: 10
   }
 ];

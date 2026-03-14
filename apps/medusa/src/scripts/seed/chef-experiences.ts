@@ -29,58 +29,58 @@ interface MenuTicketProductDataUsd {
 
 const menuProductDataUsd: MenuTicketProductDataUsd[] = [
   {
-    title: 'Winter Wonderland Feast Experience',
+    title: 'The Winter Table',
     description:
-      'Indulge in a magical winter dining experience featuring sophisticated cocktails, herb-crusted lamb, and decadent chocolate peppermint mousse.',
-    handle: 'winter-wonderland-feast-experience',
+      'A refined winter tasting: cocktails, canapés, herb-crusted lamb or salmon, roasted roots, and chocolate peppermint mousse. Ideal for intimate holiday gatherings.',
+    handle: 'the-winter-table',
     price: { usd: 125 },
     estimatedDuration: 180,
     maxGuests: 12,
     eventType: 'plated_dinner',
     images: [
-      'https://lambdacurrysites.s3.us-east-1.amazonaws.com/barrio/winter-wonderland-feast.jpg',
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     ],
     availableTickets: 15,
   },
   {
-    title: 'Tropical Holiday Escape Experience',
+    title: 'Salt & Sun',
     description:
-      'Transport yourself to paradise with this tropical-inspired dining experience featuring fresh seafood and exotic cocktails.',
-    handle: 'tropical-holiday-escape-experience',
+      'Coastal-inspired dining: tropical cocktails, ceviche, mahi-mahi or herb chicken, coconut rice, and coconut lime tart. Perfect for a relaxed, elegant gathering.',
+    handle: 'salt-and-sun',
     price: { usd: 110 },
     estimatedDuration: 165,
     maxGuests: 14,
     eventType: 'buffet_style',
     images: [
-      'https://lambdacurrysites.s3.us-east-1.amazonaws.com/barrio/tropical-escape.jpg',
+      'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&q=80',
     ],
     availableTickets: 18,
   },
   {
-    title: 'Rustic Autumn Gathering Experience',
+    title: 'The Harvest Table',
     description:
-      'Celebrate the harvest season with comfort food classics, seasonal vegetables, and warm bourbon cocktails.',
-    handle: 'rustic-autumn-gathering-experience',
+      'Farm-to-table experience: bourbon cocktails, squash soup, roast or pesto-stuffed chicken, seasonal vegetables, wild rice, and apple crisp. A warm, convivial evening.',
+    handle: 'the-harvest-table',
     price: { usd: 95 },
     estimatedDuration: 150,
     maxGuests: 16,
     eventType: 'cooking_class',
     images: [
-      'https://lambdacurrysites.s3.us-east-1.amazonaws.com/barrio/autumn-gathering.jpg',
+      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80',
     ],
     availableTickets: 12,
   },
   {
-    title: 'Elegant Evening Soirée Experience',
+    title: 'Noir & Blanc',
     description:
-      'An upscale dining experience featuring surf and turf, sophisticated cocktails, and classic tiramisu.',
-    handle: 'elegant-evening-soiree-experience',
+      'Upscale soirée: French 75 and blackberry fizz, caprese and salmon blinis, surf & turf or herb chicken, truffle mash, and tiramisu. For milestone celebrations.',
+    handle: 'noir-and-blanc',
     price: { usd: 150 },
     estimatedDuration: 210,
     maxGuests: 10,
     eventType: 'plated_dinner',
     images: [
-      'https://lambdacurrysites.s3.us-east-1.amazonaws.com/barrio/elegant-soiree.jpg',
+      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
     ],
     availableTickets: 10,
   },

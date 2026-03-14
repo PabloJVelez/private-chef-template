@@ -236,14 +236,26 @@ export default async function init({ container }: ExecArgs) {
     },
   });
 
+  // Link key must match how the menu module is registered for links (see src/links/product-menu.ts).
+  // If linking fails, run: medusa db:sync-links
+  const menuLinkKey = 'menuModuleService';
   for (let i = 0; i < createdMenus.length && i < menuProductResult.length; i++) {
     try {
       await remoteLink.create([
         {
           [Modules.PRODUCT]: { product_id: menuProductResult[i].id },
-          menuModule: { menu_id: createdMenus[i].id },
+          [menuLinkKey]: { menu_id: createdMenus[i].id },
         },
       ]);
+      const productThumbnail =
+        menuProductResult[i].thumbnail ??
+        (menuProductResult[i].images?.[0] as { url?: string } | undefined)?.url;
+      if (productThumbnail) {
+        await menuModuleService.updateMenus({
+          id: createdMenus[i].id,
+          thumbnail: productThumbnail,
+        });
+      }
     } catch (err) {
       logger.warn(
         `Failed to link menu "${createdMenus[i].name}" to product: ${err}`,
