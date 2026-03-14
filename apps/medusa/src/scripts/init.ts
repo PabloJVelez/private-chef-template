@@ -25,6 +25,8 @@ import {
   seedMenuEntities,
   seedMenuProductsUsd,
 } from './seed/chef-experiences';
+import { MENU_MODULE } from '../modules/menu';
+import type MenuModuleService from '../modules/menu/service';
 
 export default async function init({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
@@ -217,7 +219,7 @@ export default async function init({ container }: ExecArgs) {
     });
   const experienceTypeId = experienceTypeResult[0].id;
 
-  const menuModuleService = container.resolve('menuModuleService');
+  const menuModuleService: MenuModuleService = container.resolve(MENU_MODULE);
   const createdMenus = await seedMenuEntities(menuModuleService);
   logger.info(`Created ${createdMenus.length} menus.`);
 
