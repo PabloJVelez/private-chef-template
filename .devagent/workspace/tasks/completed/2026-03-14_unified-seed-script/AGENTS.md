@@ -2,8 +2,8 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-14
-- Status: In Progress
-- Task Hub: `.devagent/workspace/tasks/active/2026-03-14_unified-seed-script/`
+- Status: Complete
+- Task Hub: `.devagent/workspace/tasks/completed/2026-03-14_unified-seed-script/`
 
 ## Summary
 
@@ -30,6 +30,7 @@ Create a single, dedicated seed script that initializes the project with everyth
 - [2026-03-14] Event: Clarification session complete — idempotency: reset+selective wipe; product catalog: chef experiences only; old scripts → `apps/medusa/src/scripts/old-scripts/`; clarification packet at `clarification/2026-03-14_initial-clarification.md`.
 - [2026-03-14] Event: Plan created at `plan/2026-03-14_unified-seed-script-plan.md` — 5 implementation tasks: relocate scripts, selective wipe, unified seed (US + chef experiences), admin user + npm scripts, documentation.
 - [2026-03-14] Event: Implementation complete. Task 1: Moved seed.ts, seed-menus.ts, create-digital-shipping.ts, seed/ to old-scripts/. Task 2: Added wipe-seeded-data.ts. Task 3: Added init.ts, seed/chef-experiences.ts. Task 4: Updated package.json (init, add-user, medusa:init). Task 5: Updated plug-in-chef-playbook.md, scripts README.
+- [2026-03-14] Event: Task moved to completed. Updated all status references and file paths from active/ to completed/ throughout task directory.
 
 ## Implementation Checklist
 - [x] Task 1: Relocate existing scripts to `apps/medusa/src/scripts/old-scripts/` (see plan)

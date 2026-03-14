@@ -5,7 +5,7 @@
 - Date: 2026-03-14
 - Mode: Task Clarification
 - Status: Complete
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-14_unified-seed-script/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-14_unified-seed-script/`
 - Notes: Session 1 complete; all critical questions answered.
 
 ## Task Overview
@@ -119,6 +119,6 @@ Create a single unified seed script that resets and reseeds the project with US-
 ### Recommended Actions
 
 **Handoff to devagent create-plan:**
-- [ ] Provide link to this clarification packet: `.devagent/workspace/tasks/active/2026-03-14_unified-seed-script/clarification/2026-03-14_initial-clarification.md`
+- [ ] Provide link to this clarification packet: `.devagent/workspace/tasks/completed/2026-03-14_unified-seed-script/clarification/2026-03-14_initial-clarification.md`
 - [ ] Optional: Run `devagent research` first to discover Medusa v2 admin user creation, then `devagent create-plan`
 - [ ] Or: Run `devagent create-plan` directly; plan can include a "discover admin user API" implementation task

@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-03-14
 - Status: Draft
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-14_unified-seed-script/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-14_unified-seed-script/`
 - Stakeholders: PabloJVelez (Requestor, Decision Maker)
 - Notes: Based on clarification packet `clarification/2026-03-14_initial-clarification.md`
 
@@ -241,8 +241,8 @@ Refer to `AGENTS.md` in the task directory for progress logging during implement
 
 ## Appendices & References
 
-- **Clarification packet:** `.devagent/workspace/tasks/active/2026-03-14_unified-seed-script/clarification/2026-03-14_initial-clarification.md`
-- **Task AGENTS.md:** `.devagent/workspace/tasks/active/2026-03-14_unified-seed-script/AGENTS.md`
+- **Clarification packet:** `.devagent/workspace/tasks/completed/2026-03-14_unified-seed-script/clarification/2026-03-14_initial-clarification.md`
+- **Task AGENTS.md:** `.devagent/workspace/tasks/completed/2026-03-14_unified-seed-script/AGENTS.md`
 - **Product mission:** `.devagent/workspace/product/mission.md`
 - **Plug-in playbook:** `docs/plug-in-chef-playbook.md`
 - **Seed scripts (pre-relocation):** `apps/medusa/src/scripts/seed.ts`, `seed-menus.ts`, `seed/menus.ts`, `seed/products.ts`, `seed/reviews.ts`, `create-digital-shipping.ts`
