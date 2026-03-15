@@ -77,8 +77,9 @@ export const chefConfig: ChefConfig = {
     tagline: 'CULINARY EXPERIENCES & PRIVATE DINING',
     description:
       'Transform your special occasions into unforgettable culinary experiences. From intimate cooking classes to elegant plated dinners, bringing restaurant-quality cuisine directly to your home.',
-    imageUrl: '/assets/images/chef_scallops_home.jpg',
-    imageAlt: 'Private chef preparing an elegant dish',
+    imageUrl:
+      'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=2070&q=80',
+    imageAlt: 'Professional culinary preparation in a kitchen',
   },
 
   // Meta & SEO

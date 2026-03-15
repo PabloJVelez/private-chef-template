@@ -140,12 +140,6 @@ export default function IndexRoute() {
 
   return (
     <>
-      <link
-        rel="preload"
-        href="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
-        as="image"
-      />
-
       <ChefHero
         className="h-[800px] !max-w-full -mt-[calc(var(--mkt-header-height)+3rem)] md:-mt-[calc(var(--mkt-header-height-desktop)+2rem)] pt-[var(--mkt-header-height)] md:pt-[var(--mkt-header-height-desktop)]"
         description="From exclusive dinners to special events, we craft unique culinary experiences that will wow your guests."
@@ -164,12 +158,15 @@ export default function IndexRoute() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="relative order-1 lg:order-1">
             <Image
-              src="/assets/images/chef_experience.jpg"
+              src="https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?auto=format&fit=crop&w=1200&q=80"
               loading="lazy"
               alt="Professional chef preparing a culinary experience"
               className="rounded-2xl shadow-lg w-full h-[500px] object-cover"
               height={500}
               width={600}
+              fallbackSrc={[
+                'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80',
+              ]}
             />
             <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-accent-500 rounded-full opacity-20"></div>
           </div>
@@ -247,7 +244,7 @@ export default function IndexRoute() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           <div className="relative order-1 lg:order-1">
             <Image
-              src="/assets/images/chef_book_experience.jpg"
+              src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80"
               alt="Guests enjoying a culinary experience"
               className="rounded-2xl shadow-lg w-full h-[500px] object-cover lg:rounded-3xl lg:w-auto lg:h-auto"
               width={600}

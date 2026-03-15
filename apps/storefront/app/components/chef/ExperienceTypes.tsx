@@ -106,7 +106,10 @@ const ExperienceCard: FC<ExperienceCardProps> = ({ experience, className, featur
             width={400}
             height={128}
             className="w-full h-full object-cover"
-            fallbackSrc={['/assets/images/chef_experience.jpg', '/assets/images/chef_book_experience.jpg']}
+            fallbackSrc={[
+              'https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?auto=format&fit=crop&w=800&q=80',
+              'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+            ]}
           />
         </div>
         
@@ -218,7 +221,10 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
                 width={200}
                 height={160}
                 className="w-full h-full object-cover"
-                fallbackSrc={['/assets/images/chef_experience.jpg', '/assets/images/chef_book_experience.jpg']}
+                fallbackSrc={[
+                  'https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?auto=format&fit=crop&w=800&q=80',
+                  'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+                ]}
               />
             </div>
 
