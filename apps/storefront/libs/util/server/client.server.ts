@@ -16,12 +16,22 @@ const MEDUSA_BACKEND_URL =
   process.env.VITE_MEDUSA_BACKEND_URL ??
   'http://localhost:9000';
 
+const publishableKey = config.MEDUSA_PUBLISHABLE_KEY ?? '';
+
 export const baseMedusaConfig = {
   baseUrl: MEDUSA_BACKEND_URL.replace(/\/+$/, ''),
   debug: process.env.NODE_ENV === 'development',
-  // NOTE: config should already read MEDUSA_PUBLISHABLE_KEY from env
-  publishableKey: config.MEDUSA_PUBLISHABLE_KEY,
+  publishableKey,
 };
+
+// Diagnostic log: full key + backend URL (once per process) to verify env in Coolify
+if (typeof process !== 'undefined' && !(process as NodeJS.Process & { __medusaConfigLogged?: boolean }).__medusaConfigLogged) {
+  (process as NodeJS.Process & { __medusaConfigLogged?: boolean }).__medusaConfigLogged = true;
+  console.log('[Medusa storefront config]', {
+    baseUrl: baseMedusaConfig.baseUrl,
+    publishableKey: publishableKey || '[empty/missing]',
+  });
+}
 
 export const sdk = new MedusaPluginsSDK(baseMedusaConfig);
 export const sdkCache = buildNewLRUCache({ max: 1000 });
