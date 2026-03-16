@@ -50,17 +50,17 @@ export interface ChefConfig {
 export const chefConfig: ChefConfig = {
   // Basic Information
   name: 'Your Chef',
-  displayName: 'Your Private Chef',
-  tagline: 'Premium Culinary Experiences',
+  displayName: 'Your Culinary Storefront',
+  tagline: 'A DEMO FOR PRIVATE CHEFS',
 
   // Biography
   bio: {
     short:
-      'A private chef specializing in premium at-home culinary experiences—cooking classes, plated dinners, and buffet-style events.',
+      'A private chef specializing in premium at-home culinary experiences: cooking classes, plated dinners, buffet-style events, and more.',
     long: [
       'With years of culinary experience, our chef has honed their craft under renowned culinary experts. As a dedicated private chef, they create exquisite dining experiences for discerning clients who value exceptional cuisine.',
       'Their dedication to the culinary arts is evident in their mastery of various cooking techniques and deep understanding of culinary concepts. They bring a passion for food that transcends the ordinary, always seeking to educate and inspire those around them.',
-      'Ready to showcase culinary expertise—not just cooking, but creating memorable experiences. Plan your next culinary journey and indulge in flavors that will delight your palate.',
+      'Ready to showcase culinary expertise: not just cooking, but creating memorable experiences. Plan your next culinary journey and indulge in flavors that will delight your palate.',
     ],
     subtitle: 'Culinary Excellence',
   },
@@ -72,11 +72,11 @@ export const chefConfig: ChefConfig = {
     highlights: ['Professional Training', 'Seasonal Sourcing', 'Custom Menus'],
   },
 
-  // Hero Section
+  // Hero Section (demo copy: speaks to the chef evaluating the platform)
   hero: {
-    tagline: 'CULINARY EXPERIENCES & PRIVATE DINING',
+    tagline: 'A DEMO FOR PRIVATE CHEFS',
     description:
-      'Transform your special occasions into unforgettable culinary experiences. From intimate cooking classes to elegant plated dinners, bringing restaurant-quality cuisine directly to your home.',
+      'This is what your clients see. Showcase your menus, take event requests, and present whatever experiences you offer, from cooking classes and plated dinners to buffet events and beyond, all in one place.',
     imageUrl:
       'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=2070&q=80',
     imageAlt: 'Professional culinary preparation in a kitchen',
@@ -84,9 +84,9 @@ export const chefConfig: ChefConfig = {
 
   // Meta & SEO
   seo: {
-    title: 'Private Chef - Premium Culinary Experiences',
+    title: 'Private Chef Storefront Demo',
     description:
-      'Private chef experiences: cooking classes, plated dinners, and buffet-style events. Restaurant-quality cuisine crafted in your home.',
+      'Demo storefront for private chefs. See how your menus, events, and whatever experience types you offer can be presented to clients.',
     keywords: [
       'private chef',
       'cooking classes',

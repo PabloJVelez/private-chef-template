@@ -51,7 +51,7 @@ export default function AboutChefRoute() {
             <h2 className="font-italiana text-3xl text-gray-900">Experiences</h2>
             <p>
               Choose from cooking classes, plated dinners, or buffet-style events. All ingredients and equipment are
-              provided—so you can relax and enjoy.
+              provided, so you can relax and enjoy.
             </p>
           </div>
         </div>

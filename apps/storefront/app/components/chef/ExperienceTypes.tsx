@@ -346,7 +346,7 @@ export const ExperienceTypes: FC<ExperienceTypesProps> = ({
         </Accordion.Root>
       </div>
 
-      {/* Helper CTA — copy tweaked for mobile only */}
+      {/* Helper CTA: copy tweaked for mobile only */}
       <div className="text-center mt-10 lg:mt-12">
         <div className="max-w-xl mx-auto">
           {/* Desktop message unchanged */}

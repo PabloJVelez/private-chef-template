@@ -142,7 +142,6 @@ export default function IndexRoute() {
     <>
       <ChefHero
         className="h-[800px] !max-w-full -mt-[calc(var(--mkt-header-height)+3rem)] md:-mt-[calc(var(--mkt-header-height-desktop)+2rem)] pt-[var(--mkt-header-height)] md:pt-[var(--mkt-header-height-desktop)]"
-        description="From exclusive dinners to special events, we craft unique culinary experiences that will wow your guests."
       />
 
       <FeaturedMenusSection menus={menus} />
@@ -214,7 +213,7 @@ export default function IndexRoute() {
               "The chef created the most incredible anniversary dinner for us. Every course was a masterpiece, and the
               cooking class was so much fun!"
             </p>
-            <div className="font-semibold text-gray-900">— Sarah &amp; Michael K.</div>
+            <div className="font-semibold text-gray-900">Sarah &amp; Michael K.</div>
             <div className="text-sm text-gray-600">Plated Dinner Experience</div>
           </div>
 
@@ -224,7 +223,7 @@ export default function IndexRoute() {
               "The cooking class was amazing! We learned so much and had a blast. Can't wait to book another
               experience."
             </p>
-            <div className="font-semibold text-gray-900">— Jennifer L.</div>
+            <div className="font-semibold text-gray-900">Jennifer L.</div>
             <div className="text-sm text-gray-600">Cooking Class Experience</div>
           </div>
 
@@ -234,7 +233,7 @@ export default function IndexRoute() {
               "Perfect for our family gathering! The buffet style worked perfectly for our group and everything was
               absolutely delicious."
             </p>
-            <div className="font-semibold text-gray-900">— The Rodriguez Family</div>
+            <div className="font-semibold text-gray-900">The Rodriguez Family</div>
             <div className="text-sm text-gray-600">Buffet Style Experience</div>
           </div>
         </div>

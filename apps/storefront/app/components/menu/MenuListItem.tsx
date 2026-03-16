@@ -63,7 +63,7 @@ export const MenuListItem: FC<MenuListItemProps> = ({
         className
       )}
     >
-      {/* Menu Image — default 4/3; optionally tighter on mobile when used by Featured section */}
+      {/* Menu Image: default 4/3; optionally tighter on mobile when used by Featured section */}
       <div
         className={clsx(
           'overflow-hidden bg-gray-100',
