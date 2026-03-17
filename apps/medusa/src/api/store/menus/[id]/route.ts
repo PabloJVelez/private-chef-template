@@ -22,9 +22,6 @@ export async function GET(
       return
     }
 
-    // Set shorter cache headers to pick up media updates quickly
-    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300')
-    
     res.status(200).json({
       menu
     })

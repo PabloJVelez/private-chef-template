@@ -34,9 +34,6 @@ export async function GET(
       }
     )
 
-    // Set cache headers for 30 minutes as specified in the plan
-    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300')
-    
     res.status(200).json({
       menus,
       count,
