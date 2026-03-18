@@ -51,11 +51,15 @@ export async function action(actionArgs: ActionFunctionArgs) {
 
   const billingAddress = data.sameAsShipping ? cart.shipping_address : addressToMedusaAddress(data.billingAddress);
 
-  cart = (
-    await updateCart(actionArgs.request, {
-      billing_address: addressPayload(billingAddress),
-    })
-  )?.cart;
+  const updateData: Record<string, unknown> = {
+    billing_address: addressPayload(billingAddress),
+  };
+
+  if (!cart.shipping_address?.address_1) {
+    updateData.shipping_address = addressPayload(billingAddress);
+  }
+
+  cart = (await updateCart(actionArgs.request, updateData))?.cart;
 
   const activePaymentSession = cart.payment_collection?.payment_sessions?.find((ps) => ps.status === 'pending');
 
