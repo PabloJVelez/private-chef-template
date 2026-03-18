@@ -1,26 +1,21 @@
 /**
  * Accept Chef Event Workflow
- * 
- * This workflow handles the acceptance of chef event requests and creates
- * corresponding event products. The workflow ensures:
- * 
- * 1. Chef event status is updated to 'confirmed'
- * 2. Digital shipping profile exists (for digital products)
- * 3. Digital sales channel exists (for product assignment)
- * 4. Digital location exists (for inventory management)
- * 5. Event product is created with proper sales channel assignment
- * 6. Inventory items are created and assigned to digital location
- * 7. Initial stock is set to party size for ticket sales
- * 8. Chef event is linked to the created product
- * 9. Acceptance email is sent (if enabled)
- * 
- * FIXED: Sales channel assignment - Event products are now automatically
- * assigned to the "Digital Sales Channel" to ensure they appear in the
- * correct sales channel in the admin interface.
- * 
- * FIXED: Inventory location assignment - Event products are now automatically
- * assigned to the "Digital Location" with initial stock equal to party size,
- * enabling proper inventory management and ticket sales.
+ *
+ * Handles acceptance of chef event requests and creates corresponding
+ * digital event-ticket products. Steps:
+ *
+ * 1. Update chef event status to 'confirmed'
+ * 2. Ensure digital shipping profile & shipping option exist
+ * 3. Resolve the store's default sales channel (set by init script)
+ * 4. Ensure "Digital Location" stock location exists
+ * 5. Create event product assigned to the default sales channel
+ * 6. Create inventory items (requires_shipping: false) at Digital Location
+ * 7. Link chef event to created product
+ * 8. Emit acceptance event (for email, if enabled)
+ *
+ * Digital product behavior (no-shipping checkout, $0 delivery) is driven
+ * entirely by the "Digital Products" shipping profile + "Digital Delivery"
+ * shipping option + inventory requires_shipping: false — not by sales channels.
  */
 
 import { 
@@ -29,7 +24,7 @@ import {
   StepResponse,
   WorkflowResponse
 } from "@medusajs/workflows-sdk"
-import { emitEventStep, createProductsWorkflow, createShippingProfilesWorkflow, createSalesChannelsWorkflow, createStockLocationsWorkflow, linkSalesChannelsToStockLocationWorkflow, createShippingOptionsWorkflow } from "@medusajs/medusa/core-flows"
+import { emitEventStep, createProductsWorkflow, createShippingProfilesWorkflow, createStockLocationsWorkflow, linkSalesChannelsToStockLocationWorkflow, createShippingOptionsWorkflow } from "@medusajs/medusa/core-flows"
 import { CHEF_EVENT_MODULE } from "../modules/chef-event"
 import ChefEventModuleService from "../modules/chef-event/service"
 import { Modules } from "@medusajs/framework/utils"
@@ -38,7 +33,7 @@ type AcceptChefEventWorkflowInput = {
   chefEventId: string
   chefNotes?: string
   acceptedBy?: string
-  sendAcceptanceEmail?: boolean // New field
+  sendAcceptanceEmail?: boolean
 }
 
 type ChefEventData = {
@@ -57,10 +52,8 @@ const acceptChefEventStep = createStep(
   async (input: AcceptChefEventWorkflowInput, { container }: { container: any }) => {
     const chefEventModuleService: ChefEventModuleService = container.resolve(CHEF_EVENT_MODULE)
     
-    // Get the original chef event data
     const originalChefEvent = await chefEventModuleService.retrieveChefEvent(input.chefEventId)
     
-    // Update the chef event status to confirmed
     const updatedChefEvent = await chefEventModuleService.updateChefEvents({
       id: input.chefEventId,
       status: 'confirmed',
@@ -82,7 +75,6 @@ const ensureDigitalShippingProfileStep = createStep(
   async (input: {}, { container }: { container: any }) => {
     const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT)
     
-    // Check if digital shipping profile already exists
     const existingProfiles = await fulfillmentModuleService.listShippingProfiles({
       name: "Digital Products"
     })
@@ -91,7 +83,6 @@ const ensureDigitalShippingProfileStep = createStep(
       return new StepResponse(existingProfiles[0])
     }
     
-    // Create digital shipping profile if it doesn't exist
     const { result } = await createShippingProfilesWorkflow(container).run({
       input: {
         data: [
@@ -114,7 +105,6 @@ const ensureDigitalShippingOptionStep = createStep(
     const regionModuleService = container.resolve(Modules.REGION)
     const logger = container.resolve("logger")
     
-    // Check if digital delivery option already exists
     const existingOptions = await fulfillmentModuleService.listShippingOptions({
       name: "Digital Delivery"
     })
@@ -123,14 +113,12 @@ const ensureDigitalShippingOptionStep = createStep(
       return new StepResponse(existingOptions[0])
     }
     
-    // Get fulfillment sets to create shipping option
     const fulfillmentSets = await fulfillmentModuleService.listFulfillmentSets()
     const regions = await regionModuleService.listRegions()
     
     if (fulfillmentSets.length === 0 || !fulfillmentSets[0].service_zones?.length) {
       logger.warn('No fulfillment sets or service zones found. Skipping digital shipping option creation.')
-      logger.warn('Please run the seed script or set up fulfillment in your Medusa store.')
-      logger.warn('Command: npx medusa db:seed -f ./src/scripts/seed.ts')
+      logger.warn('Please run the init script first: npx medusa db:seed -f ./src/scripts/init.ts')
       return new StepResponse(null)
     }
     
@@ -138,7 +126,6 @@ const ensureDigitalShippingOptionStep = createStep(
     const usRegion = regions.find((r: any) => r.name === 'United States')
     const caRegion = regions.find((r: any) => r.name === 'Canada')
     
-    // Create digital delivery shipping option
     const { result } = await createShippingOptionsWorkflow(container).run({
       input: [
         {
@@ -153,34 +140,14 @@ const ensureDigitalShippingOptionStep = createStep(
             code: 'digital',
           },
           prices: [
-            {
-              currency_code: 'usd',
-              amount: 0,
-            },
-            {
-              currency_code: 'cad',
-              amount: 0,
-            },
-            ...(usRegion ? [{
-              region_id: usRegion.id,
-              amount: 0,
-            }] : []),
-            ...(caRegion ? [{
-              region_id: caRegion.id,
-              amount: 0,
-            }] : []),
+            { currency_code: 'usd', amount: 0 },
+            { currency_code: 'cad', amount: 0 },
+            ...(usRegion ? [{ region_id: usRegion.id, amount: 0 }] : []),
+            ...(caRegion ? [{ region_id: caRegion.id, amount: 0 }] : []),
           ],
           rules: [
-            {
-              attribute: 'enabled_in_store',
-              value: 'true',
-              operator: 'eq',
-            },
-            {
-              attribute: 'is_return',
-              value: 'false',
-              operator: 'eq',
-            },
+            { attribute: 'enabled_in_store', value: 'true', operator: 'eq' },
+            { attribute: 'is_return', value: 'false', operator: 'eq' },
           ],
         },
       ],
@@ -190,63 +157,25 @@ const ensureDigitalShippingOptionStep = createStep(
   }
 )
 
-const ensureDigitalSalesChannelStep = createStep(
-  "ensure-digital-sales-channel-step",
+const resolveStoreDefaultSalesChannelStep = createStep(
+  "resolve-store-default-sales-channel-step",
   async (input: {}, { container }: { container: any }) => {
+    const storeModuleService = container.resolve(Modules.STORE)
     const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL)
-    
-    // Check if digital sales channel already exists
-    const existingChannels = await salesChannelModuleService.listSalesChannels({
-      name: "Digital Sales Channel"
-    })
-    
-    if (existingChannels.length > 0) {
-      return new StepResponse(existingChannels[0])
-    }
-    
-    // Create digital sales channel if it doesn't exist
-    const { result } = await createSalesChannelsWorkflow(container).run({
-      input: {
-        salesChannelsData: [
-          {
-            name: "Digital Sales Channel",
-            description: "Channel for digital products and chef events"
-          }
-        ]
-      }
-    })
-    
-    return new StepResponse(result[0])
-  }
-)
 
-const ensureDefaultSalesChannelStep = createStep(
-  "ensure-default-sales-channel-step",
-  async (input: {}, { container }: { container: any }) => {
-    const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL)
-    
-    // Check if default sales channel already exists
-    const existingChannels = await salesChannelModuleService.listSalesChannels({
-      name: "Default Sales Channel"
-    })
-    
-    if (existingChannels.length > 0) {
-      return new StepResponse(existingChannels[0])
+    const [store] = await storeModuleService.listStores()
+
+    if (store?.default_sales_channel_id) {
+      const channel = await salesChannelModuleService.retrieveSalesChannel(store.default_sales_channel_id)
+      return new StepResponse(channel)
     }
-    
-    // Create default sales channel if it doesn't exist
-    const { result } = await createSalesChannelsWorkflow(container).run({
-      input: {
-        salesChannelsData: [
-          {
-            name: "Default Sales Channel",
-            description: "Default sales channel for all products"
-          }
-        ]
-      }
-    })
-    
-    return new StepResponse(result[0])
+
+    const [fallback] = await salesChannelModuleService.listSalesChannels({ name: "Default Sales Channel" })
+    if (fallback) {
+      return new StepResponse(fallback)
+    }
+
+    throw new Error("No default sales channel found. Run the init script first.")
   }
 )
 
@@ -255,7 +184,6 @@ const ensureDigitalLocationStep = createStep(
   async (input: {}, { container }: { container: any }) => {
     const stockLocationModuleService = container.resolve(Modules.STOCK_LOCATION)
     
-    // Check if digital location already exists
     const existingLocations = await stockLocationModuleService.listStockLocations({
       name: "Digital Location"
     })
@@ -264,7 +192,6 @@ const ensureDigitalLocationStep = createStep(
       return new StepResponse(existingLocations[0])
     }
     
-    // Create digital location if it doesn't exist
     const { result } = await createStockLocationsWorkflow(container).run({
       input: {
         locations: [
@@ -286,32 +213,29 @@ const ensureDigitalLocationStep = createStep(
   }
 )
 
-const linkStockLocationsToSalesChannelsStep = createStep(
-  "link-stock-locations-to-sales-channels-step",
-  async (input: { digitalLocation: any, defaultSalesChannel: any, digitalSalesChannel: any }, { container }: { container: any }) => {
-    
+const linkDigitalLocationToSalesChannelStep = createStep(
+  "link-digital-location-to-sales-channel-step",
+  async (input: { digitalLocation: any, defaultSalesChannel: any }, { container }: { container: any }) => {
     await linkSalesChannelsToStockLocationWorkflow(container).run({
       input: {
         id: input.digitalLocation.id,
-        add: [input.defaultSalesChannel.id, input.digitalSalesChannel.id]
+        add: [input.defaultSalesChannel.id]
       }
     })
     
     return new StepResponse({
       digitalLocation: input.digitalLocation,
-      defaultSalesChannel: input.defaultSalesChannel,
-      digitalSalesChannel: input.digitalSalesChannel
+      defaultSalesChannel: input.defaultSalesChannel
     })
   }
 )
 
 const createEventProductStep = createStep(
   "create-event-product-step",
-  async (input: { originalChefEvent: ChefEventData, digitalShippingProfile: any, digitalSalesChannel: any, defaultSalesChannel: any, digitalLocation: any }, { container }: { container: any }) => {
+  async (input: { originalChefEvent: ChefEventData, digitalShippingProfile: any, defaultSalesChannel: any, digitalLocation: any }, { container }: { container: any }) => {
     const logger = container.resolve("logger")
     const chefEvent = input.originalChefEvent
     
-    // Helper functions
     function getEventTypeLabel(eventType: ChefEventData['eventType']): string {
       const eventTypeLabels: Record<ChefEventData['eventType'], string> = {
         'cooking_class': 'Cooking Class',
@@ -327,13 +251,7 @@ const createEventProductStep = createStep(
         'plated_dinner': 149.99,
         'buffet_style': 99.99
       }
-      
       return pricing[chefEvent.eventType]
-    }
-
-    function calculateTotalPrice(chefEvent: ChefEventData): number {
-      const pricePerPerson = calculatePricePerPerson(chefEvent)
-      return pricePerPerson * chefEvent.partySize
     }
 
     function createUrlSafeHandle(chefEvent: ChefEventData): string {
@@ -343,11 +261,8 @@ const createEventProductStep = createStep(
       return `event-${eventType}-${customerName}-${date}`
     }
     
-    // Calculate pricing
     const pricePerPerson = calculatePricePerPerson(chefEvent)
-    const totalPrice = calculateTotalPrice(chefEvent)
     
-    // Create product using the createProductsWorkflow
     const { result } = await createProductsWorkflow(container).run({
       input: {
         products: [{
@@ -357,8 +272,7 @@ const createEventProductStep = createStep(
           status: 'published',
           shipping_profile_id: input.digitalShippingProfile.id,
           sales_channels: [
-            { id: input.digitalSalesChannel.id }, // Assign to Digital Sales Channel
-            { id: input.defaultSalesChannel.id }  // Assign to Default Sales Channel
+            { id: input.defaultSalesChannel.id },
           ],
           options: [
             {
@@ -384,13 +298,11 @@ const createEventProductStep = createStep(
     
     const product = result[0]
     
-    // Create inventory items directly in this step
     const inventoryModuleService = container.resolve(Modules.INVENTORY)
     const inventoryItems = []
     
     for (const variant of product.variants) {
       try {
-        // Check if inventory item already exists for this SKU
         const existingInventoryItems = await inventoryModuleService.listInventoryItems({
           sku: variant.sku
         })
@@ -398,11 +310,8 @@ const createEventProductStep = createStep(
         let inventoryItem
         
         if (existingInventoryItems.length > 0) {
-          // Use existing inventory item
           inventoryItem = existingInventoryItems[0]
-          
         } else {
-          // Create new inventory item
           inventoryItem = await inventoryModuleService.createInventoryItems({
             sku: variant.sku,
             origin_country: "US",
@@ -413,28 +322,24 @@ const createEventProductStep = createStep(
             length: 0,
             height: 0,
             width: 0,
-            requires_shipping: false, // Digital products don't require shipping
+            requires_shipping: false,
             description: `Digital ticket for ${variant.title}`,
             title: variant.title,
           })
-          
         }
         
-        // Check if inventory level already exists for this item and location
         const existingLevels = await inventoryModuleService.listInventoryLevels({
           inventory_item_id: inventoryItem.id,
           location_id: input.digitalLocation.id
         })
         
         if (existingLevels.length === 0) {
-          // Assign inventory item to digital location with initial stock
           await inventoryModuleService.createInventoryLevels({
             inventory_item_id: inventoryItem.id,
             location_id: input.digitalLocation.id,
-            stocked_quantity: input.originalChefEvent.partySize, // Set initial stock to party size
+            stocked_quantity: input.originalChefEvent.partySize,
             reserved_quantity: 0,
           })
-          
         }
         inventoryItems.push(inventoryItem)
         
@@ -451,14 +356,11 @@ const createEventProductStep = createStep(
   }
 )
 
-
-
 const linkChefEventToProductStep = createStep(
   "link-chef-event-to-product-step",
   async (input: { originalChefEvent: ChefEventData, product: any }, { container }: { container: any }) => {
     const chefEventModuleService: ChefEventModuleService = container.resolve(CHEF_EVENT_MODULE)
     
-    // Update chef event with product ID
     const updatedChefEvent = await chefEventModuleService.updateChefEvents({
       id: input.originalChefEvent.id,
       productId: input.product.id
@@ -468,35 +370,29 @@ const linkChefEventToProductStep = createStep(
   }
 )
 
-
-
 export const acceptChefEventWorkflow = createWorkflow(
   "accept-chef-event-workflow",
   function (input: AcceptChefEventWorkflowInput) {
     const chefEventData = acceptChefEventStep(input)
     const digitalShippingProfile = ensureDigitalShippingProfileStep()
-    const digitalShippingOption = ensureDigitalShippingOptionStep({ digitalShippingProfile }) // Ensure digital shipping option exists
-    const digitalSalesChannel = ensureDigitalSalesChannelStep() // Ensure digital sales channel exists
-    const defaultSalesChannel = ensureDefaultSalesChannelStep() // Ensure default sales channel exists
-    const digitalLocation = ensureDigitalLocationStep() // Ensure digital location exists
-    const linkedLocations = linkStockLocationsToSalesChannelsStep({
+    const digitalShippingOption = ensureDigitalShippingOptionStep({ digitalShippingProfile })
+    const defaultSalesChannel = resolveStoreDefaultSalesChannelStep()
+    const digitalLocation = ensureDigitalLocationStep()
+    const linkedLocation = linkDigitalLocationToSalesChannelStep({
       digitalLocation,
-      defaultSalesChannel,
-      digitalSalesChannel
+      defaultSalesChannel
     })
     const productAndInventory = createEventProductStep({ 
       originalChefEvent: chefEventData.originalChefEvent,
       digitalShippingProfile,
-      digitalSalesChannel: linkedLocations.digitalSalesChannel, // Pass digital sales channel to product creation
-      defaultSalesChannel: linkedLocations.defaultSalesChannel, // Pass default sales channel to product creation
-      digitalLocation: linkedLocations.digitalLocation // Pass digital location to inventory creation
+      defaultSalesChannel: linkedLocation.defaultSalesChannel,
+      digitalLocation: linkedLocation.digitalLocation
     })
     const linkedChefEvent = linkChefEventToProductStep({ 
       originalChefEvent: chefEventData.originalChefEvent, 
-      product: productAndInventory.product // Use the product directly from productAndInventory
+      product: productAndInventory.product
     })
     
-    // Only emit event if email should be sent
     if (input.sendAcceptanceEmail ?? true) {
       emitEventStep({
         eventName: "chef-event.accepted",
@@ -514,4 +410,4 @@ export const acceptChefEventWorkflow = createWorkflow(
       emailSent: input.sendAcceptanceEmail ?? true
     })
   }
-) 
+)

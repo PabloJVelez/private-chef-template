@@ -4,6 +4,7 @@ import { Empty } from '@app/components/common/Empty/Empty';
 import { Button } from '@app/components/common/buttons/Button';
 import { CheckoutProvider } from '@app/providers/checkout-provider';
 import ShoppingCartIcon from '@heroicons/react/24/outline/ShoppingCartIcon';
+import { filterShippingOptionsForCart, hasOnlyDigitalItems, isDigitalShippingOption } from '@libs/util/cart/cart-helpers';
 import { sdk } from '@libs/util/server/client.server';
 import { getCartId, removeCartId } from '@libs/util/server/cookies.server';
 import { initiatePaymentSession, retrieveCart, setShippingMethod } from '@libs/util/server/data/cart.server';
@@ -36,23 +37,30 @@ const findCheapestShippingOption = (shippingOptions: StoreCartShippingOption[]) 
 };
 
 const ensureSelectedCartShippingMethod = async (request: Request, cart: StoreCart) => {
-  const selectedShippingMethod = cart.shipping_methods?.[0];
-
-  if (selectedShippingMethod) return;
-
   const shippingOptions = await fetchShippingOptions(cart.id);
-
   if (shippingOptions.length === 0) return;
 
-  // If there's only one shipping option (likely digital), auto-select it
+  // For digital-only carts, always ensure the digital delivery option is selected
+  if (hasOnlyDigitalItems(cart)) {
+    const digitalOption = shippingOptions.find(isDigitalShippingOption);
+    if (digitalOption) {
+      const currentMethod = cart.shipping_methods?.[0];
+      if (!currentMethod || currentMethod.shipping_option_id !== digitalOption.id) {
+        await setShippingMethod(request, { cartId: cart.id, shippingOptionId: digitalOption.id });
+      }
+      return;
+    }
+  }
+
+  // For non-digital carts, only auto-select if no method is already set
+  if (cart.shipping_methods?.[0]) return;
+
   if (shippingOptions.length === 1) {
     await setShippingMethod(request, { cartId: cart.id, shippingOptionId: shippingOptions[0].id });
     return;
   }
 
-  // Otherwise, find the cheapest shipping option
   const cheapestShippingOption = findCheapestShippingOption(shippingOptions);
-
   if (cheapestShippingOption) {
     await setShippingMethod(request, { cartId: cart.id, shippingOptionId: cheapestShippingOption.id });
   }
@@ -124,7 +132,7 @@ export const loader = async ({
 
   return {
     cart: updatedCart,
-    shippingOptions,
+    shippingOptions: filterShippingOptionsForCart(updatedCart, shippingOptions),
     paymentProviders: paymentProviders,
     activePaymentSession: activePaymentSession as BasePaymentSession,
   };

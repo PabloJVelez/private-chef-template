@@ -180,8 +180,31 @@ export default async function init({ container }: ExecArgs) {
     ],
   });
 
+  const { result: digitalLocationResult } =
+    await createStockLocationsWorkflow(container).run({
+      input: {
+        locations: [
+          {
+            name: 'Digital Location',
+            address: {
+              address_1: 'Digital Product Location',
+              city: 'Digital',
+              country_code: 'US',
+              province: 'Digital',
+              postal_code: '00000',
+            },
+          },
+        ],
+      },
+    });
+  const digitalLocation = digitalLocationResult[0];
+
   await linkSalesChannelsToStockLocationWorkflow(container).run({
     input: { id: stockLocation.id, add: [defaultSalesChannel.id] },
+  });
+
+  await linkSalesChannelsToStockLocationWorkflow(container).run({
+    input: { id: digitalLocation.id, add: [defaultSalesChannel.id] },
   });
 
   const { result: collectionsResult } = await createCollectionsWorkflow(
