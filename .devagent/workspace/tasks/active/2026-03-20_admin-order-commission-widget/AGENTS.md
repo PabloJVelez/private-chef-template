@@ -20,14 +20,15 @@ Add visibility on the **Medusa admin orders** experience so chefs can see **comm
 - [2026-03-20] Event: Clarification session started — `clarification/2026-03-20_initial-clarification.md` (Q1–Q3 pending stakeholder answers).
 - [2026-03-20] Event: Clarification complete — order detail only; provider must persist `application_fee_amount` in v1 (no on-demand Stripe fallback); UI label “Platform commission”. See `clarification/2026-03-20_initial-clarification.md`.
 - [2026-03-20] Event: Plan created — 3 tasks: enrich provider lifecycle `data`, create order commission admin widget, verify `AdminOrder` prop depth. See `plan/2026-03-20_admin-order-commission-widget.md`.
+- [2026-03-20] Event: Implemented plan — `authorizePayment` / `capturePayment` / `retrievePayment` now persist `application_fee_amount` + `connected_account_id`; admin widget `order-commission-widget.tsx` (`order.details.side.after`) refetches order with expanded payment `data`; `formatFromSmallestUnit` in `get-smallest-unit.ts`. `yarn medusa build` passed.
 
 ## Implementation Checklist
 
-- [ ] Confirm how orders link to payment sessions / captures and where Stripe PaymentIntent IDs or fee fields are persisted (Medusa payment collection, custom module, or provider metadata).
-- [ ] Verify what commission data exists on the PaymentIntent today (`application_fee_amount`, metadata, etc.) and whether anything must be added at capture time for reliable admin display.
-- [ ] Identify the correct Medusa Admin extension point (order detail widget, custom section, or API + UI) consistent with this repo’s admin setup.
-- [ ] Design the widget copy and formatting (currency, cents vs major units, empty/partial states when fee is unavailable).
-- [ ] Implement the admin widget and any loader/API needed to read commission per order.
+- [x] Confirm how orders link to payment sessions / captures and where Stripe PaymentIntent IDs or fee fields are persisted (Medusa payment collection, custom module, or provider metadata).
+- [x] Verify what commission data exists on the PaymentIntent today (`application_fee_amount`, metadata, etc.) and whether anything must be added at capture time for reliable admin display.
+- [x] Identify the correct Medusa Admin extension point (order detail widget, custom section, or API + UI) consistent with this repo’s admin setup.
+- [x] Design the widget copy and formatting (currency, cents vs major units, empty/partial states when fee is unavailable).
+- [x] Implement the admin widget and any loader/API needed to read commission per order.
 - [ ] Add tests or manual verification steps for orders with and without Connect fees.
 
 ## Open Questions
