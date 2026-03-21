@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-03-20
 - Status: Draft
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-20_admin-order-commission-widget/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-20_admin-order-commission-widget/`
 - Stakeholders: PabloJVelez (session owner)
 
 ---

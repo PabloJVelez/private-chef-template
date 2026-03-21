@@ -2,8 +2,8 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-20
-- Status: Draft
-- Task Hub: `.devagent/workspace/tasks/active/2026-03-20_admin-order-commission-widget/`
+- Status: Complete
+- Task Hub: `.devagent/workspace/tasks/completed/2026-03-20_admin-order-commission-widget/`
 
 ## Summary
 
@@ -21,6 +21,8 @@ Add visibility on the **Medusa admin orders** experience so chefs can see **comm
 - [2026-03-20] Event: Clarification complete — order detail only; provider must persist `application_fee_amount` in v1 (no on-demand Stripe fallback); UI label “Platform commission”. See `clarification/2026-03-20_initial-clarification.md`.
 - [2026-03-20] Event: Plan created — 3 tasks: enrich provider lifecycle `data`, create order commission admin widget, verify `AdminOrder` prop depth. See `plan/2026-03-20_admin-order-commission-widget.md`.
 - [2026-03-20] Event: Implemented plan — `authorizePayment` / `capturePayment` / `retrievePayment` now persist `application_fee_amount` + `connected_account_id`; admin widget `order-commission-widget.tsx` (`order.details.side.after`) refetches order with expanded payment `data`; `formatFromSmallestUnit` in `get-smallest-unit.ts`. `yarn medusa build` passed.
+- [2026-03-20] Event: Follow-up UX — widget reads `payment_collections.payments` + provider id `pp_stripe-connect_stripe-connect`; zone `order.details.side.before`; payout line items (charged, platform commission, chef take-home); title **Payout summary**; no Stripe account id in UI.
+- [2026-03-20] Event: Task moved to completed. Updated all status references and file paths from active/ to completed/ throughout task directory.
 
 ## Implementation Checklist
 
@@ -29,7 +31,7 @@ Add visibility on the **Medusa admin orders** experience so chefs can see **comm
 - [x] Identify the correct Medusa Admin extension point (order detail widget, custom section, or API + UI) consistent with this repo’s admin setup.
 - [x] Design the widget copy and formatting (currency, cents vs major units, empty/partial states when fee is unavailable).
 - [x] Implement the admin widget and any loader/API needed to read commission per order.
-- [ ] Add tests or manual verification steps for orders with and without Connect fees.
+- [~] Add tests or manual verification steps for orders with and without Connect fees — manual verification done in admin; automated tests not added (acceptable for v1).
 
 ## Open Questions
 
@@ -47,10 +49,4 @@ Add visibility on the **Medusa admin orders** experience so chefs can see **comm
 
 ## Next Steps
 
-Recommended follow-up (invoke when ready):
-
-- `devagent research` — Map Medusa admin order UI, payment/order data model, and Stripe Connect fee fields end to end.
-- `devagent clarify-task` — If fee semantics or UX (multiple fee types, legacy orders) need stakeholder decisions first.
-- `devagent create-plan` — Turn findings into an implementation plan with concrete files and tasks.
-
-Optional: `devagent brainstorm` if multiple UI/UX approaches should be compared before research.
+Task archived in `completed/`. Further product decisions can open a new task hub if needed.

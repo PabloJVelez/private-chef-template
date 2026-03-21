@@ -3,8 +3,8 @@
 - Mode: Task
 - Requested By: PabloJVelez (inferred from git config / task hub)
 - Last Updated: 2026-03-20
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-20_admin-order-commission-widget/`
-- Storage Path: `.devagent/workspace/tasks/active/2026-03-20_admin-order-commission-widget/research/2026-03-20_admin-order-commission-visibility.md`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-20_admin-order-commission-widget/`
+- Storage Path: `.devagent/workspace/tasks/completed/2026-03-20_admin-order-commission-widget/research/2026-03-20_admin-order-commission-visibility.md`
 
 ## Request Overview
 
