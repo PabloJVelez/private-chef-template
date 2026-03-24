@@ -1,18 +1,6 @@
-import { 
-  Text, 
-  Column, 
-  Container, 
-  Heading, 
-  Html, 
-  Row, 
-  Section, 
-  Tailwind, 
-  Head, 
-  Preview, 
-  Body, 
-  Link, 
-  Button,
-} from "@react-email/components"
+import { Text, Column, Row, Section, Button } from "@react-email/components"
+import { TransactionalEmailLayout } from "./transactional-email-layout"
+import { layoutStyles } from "./transactional-email-layout-styles"
 
 export type ChefEventAcceptedEmailProps = {
   customer: {
@@ -24,7 +12,7 @@ export type ChefEventAcceptedEmailProps = {
   booking: {
     date: string
     time: string
-    menu: string
+    menu?: string
     event_type: string
     location_type: string
     location_address: string
@@ -57,230 +45,124 @@ export type ChefEventAcceptedEmailProps = {
   emailType: "customer_acceptance"
 }
 
-function ChefEventAcceptedEmailComponent({ 
-  customer, 
-  booking, 
-  event, 
-  product, 
-  chef, 
-  requestReference, 
-  acceptanceDate,
-  chefNotes 
-}: ChefEventAcceptedEmailProps) {
-  
+function row(label: string, value: string) {
   return (
-    <Tailwind>
-      <Html className="font-sans bg-gray-100">
-        <Head />
-        <Preview>Great news! Your chef event has been accepted</Preview>
-        <Body className="bg-white my-10 mx-auto w-full max-w-2xl">
-          {/* Header */}
-          <Section className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-4">
-            <Container>
-              <Row>
-                <Column>
-                  <Heading className="text-2xl font-bold m-0">
-                    🎉 Booking Confirmed!
-                  </Heading>
-                  <Text className="text-green-100 m-0">
-                    Your chef event request has been confirmed
-                  </Text>
-                </Column>
-              </Row>
-            </Container>
-          </Section>
+    <Row style={{ marginBottom: "0.5rem" }}>
+      <Column style={{ width: "38%" }}>
+        <Text style={layoutStyles.lineItemDescription}>{label}</Text>
+      </Column>
+      <Column style={{ width: "62%" }}>
+        <Text style={layoutStyles.lineItemSubtext}>{value}</Text>
+      </Column>
+    </Row>
+  )
+}
 
-          {/* Main Content */}
-          <Container className="p-6">
-            <Heading className="text-2xl font-bold text-gray-800 mb-4">
-              Great News!
-            </Heading>
-            <Text className="text-gray-600 mb-6">
-              Dear {customer.first_name},
-            </Text>
-            <Text className="text-gray-600 mb-6">
-              Your chef has confirmed your booking! Here are your event details:
-            </Text>
+function ChefEventAcceptedEmailComponent({
+  customer,
+  booking,
+  event,
+  product,
+  chef,
+  requestReference,
+  acceptanceDate,
+  chefNotes,
+}: ChefEventAcceptedEmailProps) {
+  const billToContent = (
+    <>
+      <Text style={layoutStyles.billToLabel}>BILL TO</Text>
+      <Text style={layoutStyles.billToText}>
+        {customer.first_name} {customer.last_name}
+      </Text>
+      <Text style={{ ...layoutStyles.metaText, margin: "0.25rem 0 0 0" }}>{customer.email}</Text>
+      <Text style={{ ...layoutStyles.metaText, margin: "0.25rem 0 0 0" }}>{customer.phone}</Text>
+    </>
+  )
 
-            {/* Event Details */}
-            <Section className="bg-gray-50 rounded-lg p-6 mb-6">
-              <Heading className="text-lg font-semibold text-gray-800 mb-4">
-                Event Details
-              </Heading>
-              
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Date:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600">{booking.date}</Text>
-                </Column>
-              </Row>
+  const metaContent = (
+    <>
+      <Text style={layoutStyles.metaText}>Reference #{requestReference}</Text>
+      <Text style={layoutStyles.metaText}>Accepted: {acceptanceDate}</Text>
+      <Text style={{ ...layoutStyles.metaText, margin: 0 }}>Status: CONFIRMED</Text>
+    </>
+  )
 
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Time:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600">{booking.time}</Text>
-                </Column>
-              </Row>
+  const bodyContent = (
+    <>
+      <Section style={layoutStyles.lineItemsSection}>
+        <Text style={layoutStyles.lineItemDescription}>
+          Great news — your booking is confirmed. Complete payment using the button below.
+        </Text>
+      </Section>
 
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Menu:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600">{booking.menu}</Text>
-                </Column>
-              </Row>
+      <Section style={layoutStyles.lineItemsSection}>
+        <Text style={{ ...layoutStyles.lineItemDescription, fontWeight: 700, marginBottom: "0.75rem" }}>
+          Event details
+        </Text>
+        {row("Date", booking.date)}
+        {row("Time", booking.time)}
+        {row("Menu", booking.menu ?? "To be finalized with your chef")}
+        {row("Event type", booking.event_type)}
+        {row("Location", booking.location_type)}
+        {row("Address", booking.location_address)}
+        {row("Party size", `${booking.party_size} guests`)}
+        {row("Notes", booking.notes)}
+      </Section>
 
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Event Type:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600">{booking.event_type}</Text>
-                </Column>
-              </Row>
+      <Section style={layoutStyles.lineItemsSection}>
+        <Text style={{ ...layoutStyles.lineItemDescription, fontWeight: 700, marginBottom: "0.75rem" }}>
+          Payment
+        </Text>
+        {row("Total", `$${event.total_price}`)}
+        {row(
+          event.is_full_deposit ? "Full payment due" : "Minimum deposit",
+          `$${event.deposit_required}`
+        )}
+        {row("Deadline", event.deposit_deadline)}
+        {!event.is_full_deposit ? row("Minimum tickets", String(event.minimum_tickets)) : null}
+        <Text style={{ ...layoutStyles.lineItemSubtext, marginTop: "0.75rem" }}>
+          {event.is_full_deposit
+            ? `Pay the full amount by ${event.deposit_deadline} to secure your booking.`
+            : `Purchase at least ${event.minimum_tickets} tickets by ${event.deposit_deadline}.`}
+        </Text>
+      </Section>
 
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Location:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600">{booking.location_type}</Text>
-                </Column>
-              </Row>
+      <Section style={{ ...layoutStyles.lineItemsSection, textAlign: "center" as const }}>
+        <Button
+          href={product.purchase_url}
+          style={{
+            backgroundColor: "#16a34a",
+            color: "#fff",
+            padding: "12px 24px",
+            borderRadius: "6px",
+            fontWeight: 600,
+          }}
+        >
+          {event.is_full_deposit ? "Pay full amount" : "Purchase tickets"}
+        </Button>
+      </Section>
 
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Address:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600">{booking.location_address}</Text>
-                </Column>
-              </Row>
+      <Section style={layoutStyles.lineItemsSection}>
+        <Text style={{ ...layoutStyles.lineItemDescription, fontWeight: 700, marginBottom: "0.5rem" }}>
+          Chef note
+        </Text>
+        <Text style={layoutStyles.lineItemSubtext}>{chefNotes}</Text>
+      </Section>
+    </>
+  )
 
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Party Size:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600">{booking.party_size} guests</Text>
-                </Column>
-              </Row>
-            </Section>
-
-            {/* Payment Details */}
-            <Section className="bg-green-50 rounded-lg p-6 mb-6">
-              <Heading className="text-lg font-semibold text-gray-800 mb-4">
-                Payment Details
-              </Heading>
-              
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Total Price:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600 font-bold">${event.total_price}</Text>
-                </Column>
-              </Row>
-
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">
-                    {event.is_full_deposit ? 'Full Payment Required:' : 'Minimum Deposit Required:'}
-                  </Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600 font-bold">${event.deposit_required}</Text>
-                </Column>
-              </Row>
-
-              <Row className="mb-3">
-                <Column className="w-1/3">
-                  <Text className="font-semibold text-gray-700">Payment Deadline:</Text>
-                </Column>
-                <Column className="w-2/3">
-                  <Text className="text-gray-600">{event.deposit_deadline}</Text>
-                </Column>
-              </Row>
-
-              {!event.is_full_deposit && (
-                <Row className="mb-3">
-                  <Column className="w-1/3">
-                    <Text className="font-semibold text-gray-700">Minimum Tickets:</Text>
-                  </Column>
-                  <Column className="w-2/3">
-                    <Text className="text-gray-600">{event.minimum_tickets} tickets</Text>
-                  </Column>
-                </Row>
-              )}
-
-              <Text className="text-gray-600 mt-4">
-                {event.is_full_deposit 
-                  ? `To secure your booking, please pay the full amount by ${event.deposit_deadline}.`
-                  : `To secure your booking, please purchase at least ${event.minimum_tickets} tickets by ${event.deposit_deadline}. Additional guests can purchase their tickets later.`
-                }
-              </Text>
-            </Section>
-
-            {/* Payment Button */}
-            <Section className="text-center mb-6">
-              <Button 
-                href={product.purchase_url}
-                className="bg-green-600 text-white px-8 py-4 rounded-lg font-semibold text-lg"
-              >
-                {event.is_full_deposit ? 'Pay Full Amount Now' : 'Purchase Tickets Now'}
-              </Button>
-            </Section>
-
-            {/* What's Next */}
-            <Section className="bg-blue-50 rounded-lg p-6 mb-6">
-              <Heading className="text-lg font-semibold text-gray-800 mb-4">
-                What's Next?
-              </Heading>
-              <Text className="text-gray-600 mb-3">
-                1. Pay your deposit to secure the booking
-              </Text>
-              <Text className="text-gray-600 mb-3">
-                2. Our chef will contact you to discuss menu details
-              </Text>
-              <Text className="text-gray-600">
-                3. We'll send you a reminder 48 hours before the event
-              </Text>
-            </Section>
-
-            {/* Reference Number */}
-            <Section className="text-center mb-6">
-              <Text className="text-sm text-gray-500">
-                Reference: <strong>{requestReference}</strong>
-              </Text>
-              <Text className="text-sm text-gray-500">
-                Accepted on: {acceptanceDate}
-              </Text>
-            </Section>
-          </Container>
-
-          {/* Footer */}
-          <Section className="bg-gray-50 p-6">
-            <Container>
-              <Row>
-                <Column>
-                  <Text className="text-center text-gray-500 text-sm mb-4">
-                    If you have any questions, please don't hesitate to contact us at {chef.email}
-                  </Text>
-                  <Text className="text-center text-gray-400 text-xs">
-                    © {new Date().getFullYear()} Chef Luis Velez. All rights reserved.
-                  </Text>
-                </Column>
-              </Row>
-            </Container>
-          </Section>
-        </Body>
-      </Html>
-    </Tailwind>
+  return (
+    <TransactionalEmailLayout
+      preview="Your chef event has been accepted"
+      brandName={chef.name}
+      headerLabel="BOOKING CONFIRMED"
+      billToContent={billToContent}
+      metaContent={metaContent}
+      thankYouText="We look forward to hosting your event."
+      brandContact={chef}
+    >
+      {bodyContent}
+    </TransactionalEmailLayout>
   )
 }
 
@@ -303,9 +185,9 @@ ChefEventAcceptedEmailComponent.PreviewProps = {
   },
   event: {
     status: "accepted",
-    total_price: "$2,400.00",
-    price_per_person: "$300.00",
-    deposit_required: "$600.00",
+    total_price: "2,400.00",
+    price_per_person: "300.00",
+    deposit_required: "600.00",
     deposit_deadline: "April 5, 2026",
     minimum_tickets: 6,
     is_full_deposit: false,
@@ -331,4 +213,4 @@ export default ChefEventAcceptedEmailComponent
 
 export const chefEventAcceptedEmail = (props: ChefEventAcceptedEmailProps) => (
   <ChefEventAcceptedEmailComponent {...props} />
-) 
+)

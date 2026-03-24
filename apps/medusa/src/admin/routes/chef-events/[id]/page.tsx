@@ -1,11 +1,18 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { Container, Heading, toast, Button, FocusModal, Textarea, Label, Checkbox } from "@medusajs/ui"
+import { Container, Heading, toast, Button, FocusModal, Textarea, Label, Checkbox, Input, Text } from "@medusajs/ui"
 import { useParams } from "react-router-dom"
 import { useState } from "react"
+import { DateTime } from "luxon"
 import { ChefEventForm } from "../components/chef-event-form"
 import { MenuDetails } from "../components/menu-details"
 import { EmailManagementSection } from "../components/EmailManagementSection"
-import { useAdminRetrieveChefEvent, useAdminUpdateChefEventMutation, useAdminAcceptChefEventMutation, useAdminRejectChefEventMutation } from "../../../hooks/chef-events"
+import {
+  useAdminRetrieveChefEvent,
+  useAdminUpdateChefEventMutation,
+  useAdminAcceptChefEventMutation,
+  useAdminRejectChefEventMutation,
+  useAdminSendReceiptMutation,
+} from "../../../hooks/chef-events"
 
 const ChefEventDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -13,12 +20,19 @@ const ChefEventDetailPage = () => {
   const updateChefEvent = useAdminUpdateChefEventMutation(id!)
   const acceptChefEvent = useAdminAcceptChefEventMutation()
   const rejectChefEvent = useAdminRejectChefEventMutation()
+  const sendReceipt = useAdminSendReceiptMutation()
   
   const [showAcceptModal, setShowAcceptModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [chefNotes, setChefNotes] = useState("")
   const [rejectionReason, setRejectionReason] = useState("")
   const [sendAcceptanceEmail, setSendAcceptanceEmail] = useState(true)
+  const [receiptTipAmount, setReceiptTipAmount] = useState("")
+  const [receiptTipMethod, setReceiptTipMethod] = useState<string>("")
+  const [receiptTipMethodOther, setReceiptTipMethodOther] = useState("")
+  const [receiptNotes, setReceiptNotes] = useState("")
+  const [receiptDuplicateConfirmed, setReceiptDuplicateConfirmed] = useState(false)
 
   const handleUpdateChefEvent = async (data: any) => {
     try {
@@ -113,6 +127,92 @@ const ChefEventDetailPage = () => {
   const isPending = chefEvent.status === 'pending'
   const isConfirmed = chefEvent.status === 'confirmed'
 
+  const requestedDateRaw = chefEvent.requestedDate as string | Date | undefined
+  const eventDay =
+    requestedDateRaw == null
+      ? null
+      : typeof requestedDateRaw === "string"
+        ? DateTime.fromISO(requestedDateRaw.split("T")[0]!, { zone: "utc" })
+        : DateTime.fromJSDate(requestedDateRaw)
+  const hasEventTakenPlace =
+    eventDay != null && eventDay.startOf("day") < DateTime.now().startOf("day")
+
+  const availableTickets =
+    typeof chefEvent.availableTickets === "number" ? chefEvent.availableTickets : undefined
+  const soldOut = availableTickets === 0
+  const canSendReceipt =
+    isConfirmed &&
+    Boolean(chefEvent.productId) &&
+    (hasEventTakenPlace || soldOut)
+
+  const emailHistory = chefEvent.emailHistory as
+    | Array<{ type?: string }>
+    | undefined
+  const alreadySentReceipt = emailHistory?.some((e) => e.type === "receipt")
+
+  const resetReceiptModal = () => {
+    setReceiptTipAmount("")
+    setReceiptTipMethod("")
+    setReceiptTipMethodOther("")
+    setReceiptNotes("")
+    setReceiptDuplicateConfirmed(false)
+  }
+
+  const handleSendReceipt = async () => {
+    const amountRaw = receiptTipAmount.trim()
+    const tipAmount =
+      amountRaw === "" ? undefined : Number.parseFloat(amountRaw)
+    if (amountRaw !== "" && (Number.isNaN(tipAmount!) || tipAmount! < 0)) {
+      toast.error("Invalid tip", { description: "Enter a valid non-negative amount or leave blank." })
+      return
+    }
+    let tipMethod: string | undefined
+    if (tipAmount != null && tipAmount > 0) {
+      if (receiptTipMethod === "other") {
+        const o = receiptTipMethodOther.trim()
+        if (!o) {
+          toast.error("Tip method required", { description: "Describe how gratuity was received." })
+          return
+        }
+        tipMethod = o
+      } else if (receiptTipMethod) {
+        tipMethod =
+          receiptTipMethod === "cash"
+            ? "Cash"
+            : receiptTipMethod.charAt(0).toUpperCase() + receiptTipMethod.slice(1)
+      } else {
+        toast.error("Tip method required", { description: "Select how gratuity was received." })
+        return
+      }
+    }
+
+    if (alreadySentReceipt && !receiptDuplicateConfirmed) {
+      toast.error("Confirmation needed", {
+        description: "A receipt was already sent. Check the box to send again.",
+      })
+      return
+    }
+
+    try {
+      await sendReceipt.mutateAsync({
+        chefEventId: id!,
+        notes: receiptNotes.trim() || undefined,
+        tipAmount,
+        tipMethod,
+      })
+      toast.success("Receipt sent", {
+        description: "The host will receive the receipt by email.",
+      })
+      setShowReceiptModal(false)
+      resetReceiptModal()
+    } catch (e) {
+      console.error(e)
+      toast.error("Failed to send receipt", {
+        description: e instanceof Error ? e.message : "Please try again.",
+      })
+    }
+  }
+
   return (
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
@@ -132,11 +232,25 @@ const ChefEventDetailPage = () => {
         )}
         
         {isConfirmed && chefEvent.productId && (
-          <Button variant="secondary" size="small" asChild>
-            <a href={`/products/${chefEvent.productId}`} target="_blank">
-              View Product
-            </a>
-          </Button>
+          <div className="flex items-center gap-2">
+            {canSendReceipt ? (
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => {
+                  resetReceiptModal()
+                  setShowReceiptModal(true)
+                }}
+              >
+                Send Receipt
+              </Button>
+            ) : null}
+            <Button variant="secondary" size="small" asChild>
+              <a href={`/products/${chefEvent.productId}`} target="_blank" rel="noreferrer">
+                View Product
+              </a>
+            </Button>
+          </div>
         )}
       </div>
       
@@ -182,7 +296,7 @@ const ChefEventDetailPage = () => {
                   <Checkbox
                     id="send-acceptance-email"
                     checked={sendAcceptanceEmail}
-                    onCheckedChange={setSendAcceptanceEmail}
+                    onCheckedChange={(v) => setSendAcceptanceEmail(v === true)}
                   />
                   <Label htmlFor="send-acceptance-email">
                     Send acceptance email to customer
@@ -208,6 +322,116 @@ const ChefEventDetailPage = () => {
                     disabled={acceptChefEvent.isPending}
                   >
                     {acceptChefEvent.isPending ? "Accepting..." : "Accept Event"}
+                  </Button>
+                </div>
+              </div>
+            </FocusModal.Body>
+          </FocusModal.Content>
+        </FocusModal>
+      )}
+
+      {/* Send receipt modal */}
+      {showReceiptModal && (
+        <FocusModal
+          open
+          onOpenChange={(open) => {
+            setShowReceiptModal(open)
+            if (!open) resetReceiptModal()
+          }}
+        >
+          <FocusModal.Content>
+            <FocusModal.Header>
+              <FocusModal.Title>Send receipt to host</FocusModal.Title>
+            </FocusModal.Header>
+            <FocusModal.Body>
+              <div className="space-y-4">
+                <Text size="small" className="text-ui-fg-subtle">
+                  Sends a receipt email to the host ({chefEvent.email}). Optional gratuity can be
+                  included for their records.
+                </Text>
+                {alreadySentReceipt ? (
+                  <div className="rounded-md border border-ui-border-warning bg-ui-bg-subtle-hover p-3 space-y-2">
+                    <Text weight="plus" className="text-ui-fg-base">
+                      Receipt already sent
+                    </Text>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="receipt-dup-confirm"
+                        checked={receiptDuplicateConfirmed}
+                        onCheckedChange={(v) =>
+                          setReceiptDuplicateConfirmed(v === true)
+                        }
+                      />
+                      <Label htmlFor="receipt-dup-confirm" className="cursor-pointer">
+                        I understand and want to send another receipt email
+                      </Label>
+                    </div>
+                  </div>
+                ) : null}
+                <div>
+                  <Label htmlFor="receipt-tip-amount">Gratuity amount (optional)</Label>
+                  <Input
+                    id="receipt-tip-amount"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    value={receiptTipAmount}
+                    onChange={(e) => setReceiptTipAmount(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="receipt-tip-method">Gratuity method</Label>
+                  <select
+                    id="receipt-tip-method"
+                    className="w-full rounded-md border border-ui-border-base bg-ui-bg-field px-2 py-1.5 text-sm"
+                    value={receiptTipMethod}
+                    onChange={(e) => setReceiptTipMethod(e.target.value)}
+                  >
+                    <option value="">None</option>
+                    <option value="cash">Cash</option>
+                    <option value="venmo">Venmo</option>
+                    <option value="zelle">Zelle</option>
+                    <option value="paypal">PayPal</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                {receiptTipMethod === "other" ? (
+                  <div>
+                    <Label htmlFor="receipt-tip-other">Describe method</Label>
+                    <Input
+                      id="receipt-tip-other"
+                      value={receiptTipMethodOther}
+                      onChange={(e) => setReceiptTipMethodOther(e.target.value)}
+                      placeholder="e.g. check, Apple Pay"
+                    />
+                  </div>
+                ) : null}
+                <div>
+                  <Label htmlFor="receipt-notes">Internal notes (optional)</Label>
+                  <Textarea
+                    id="receipt-notes"
+                    value={receiptNotes}
+                    onChange={(e) => setReceiptNotes(e.target.value)}
+                    placeholder="Shown in email if provided"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setShowReceiptModal(false)
+                      resetReceiptModal()
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleSendReceipt}
+                    disabled={sendReceipt.isPending}
+                  >
+                    {sendReceipt.isPending ? "Sending…" : "Send receipt"}
                   </Button>
                 </div>
               </div>

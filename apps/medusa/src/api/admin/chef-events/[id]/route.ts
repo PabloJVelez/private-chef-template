@@ -3,6 +3,7 @@ import { z } from "zod"
 import { updateChefEventWorkflow } from "../../../../workflows/update-chef-event"
 import { deleteChefEventWorkflow } from "../../../../workflows/delete-chef-event"
 import { CHEF_EVENT_MODULE } from "../../../../modules/chef-event"
+import { getAvailableTicketsForProduct } from "../../../../lib/chef-event-available-tickets"
 
 const updateChefEventSchema = z.object({
   status: z.enum(['pending', 'confirmed', 'cancelled', 'completed']).optional(),
@@ -33,8 +34,13 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   if (!chefEvent) {
     return res.status(404).json({ message: "Chef event not found" })
   }
-  
-  res.json({ chefEvent })
+
+  let availableTickets: number | undefined
+  if (chefEvent.productId) {
+    availableTickets = await getAvailableTicketsForProduct(req.scope, chefEvent.productId)
+  }
+
+  res.json({ chefEvent: { ...chefEvent, ...(availableTickets !== undefined ? { availableTickets } : {}) } })
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {

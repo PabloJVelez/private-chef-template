@@ -53,6 +53,11 @@ export const ChefEvent = model.define("chef_event", {
   emailHistory: model.json().nullable(), // Track sent emails with timestamps and recipients
   lastEmailSentAt: model.dateTime().nullable(), // Last email activity timestamp
   customEmailRecipients: model.json().nullable(), // Additional email recipients for resends
+
+  /** Optional gratuity amount (set when sending receipt to host) */
+  tipAmount: model.number().nullable(),
+  /** How gratuity was provided, e.g. cash / Venmo / other */
+  tipMethod: model.text().nullable(),
   
 }).cascades({
   delete: [] // Add any cascading deletes if needed
@@ -99,4 +104,6 @@ export type ChefEventType = {
   }>
   lastEmailSentAt?: Date
   customEmailRecipients?: string[]
+  tipAmount?: number | null
+  tipMethod?: string | null
 }
