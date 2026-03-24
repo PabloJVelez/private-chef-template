@@ -13,7 +13,7 @@ import {
   Button,
 } from "@react-email/components"
 
-type EventDetailsResendEmailProps = {
+export type EventDetailsResendEmailProps = {
   customer: {
     first_name: string
     last_name: string
@@ -247,6 +247,45 @@ function EventDetailsResendEmailComponent({
     </Tailwind>
   )
 }
+
+EventDetailsResendEmailComponent.PreviewProps = {
+  customer: {
+    first_name: "Riley",
+    last_name: "Nguyen",
+    email: "riley@example.com",
+    phone: "+1 555-0166",
+  },
+  booking: {
+    date: "Saturday, July 19, 2026",
+    time: "6:30 PM",
+    event_type: "Birthday",
+    location_type: "Private residence",
+    location_address: "321 Elm St, San Antonio, TX",
+    party_size: 14,
+    notes: "Gluten-free options needed.",
+  },
+  event: {
+    status: "confirmed",
+    total_price: "$3,200.00",
+    price_per_person: "$228.57",
+  },
+  product: {
+    id: "prod_event_preview",
+    handle: "celebration-package",
+    title: "Celebration package",
+    purchase_url: "https://example.com/products/celebration-package",
+  },
+  chef: {
+    name: "Chef Luis Velez",
+    email: "chef@example.com",
+    phone: "+1 555-0199",
+  },
+  requestReference: "REQ-PREVIEW-004",
+  customNotes: "Please arrive 30 minutes early for setup.",
+  emailType: "event_details_resend",
+} satisfies EventDetailsResendEmailProps
+
+export default EventDetailsResendEmailComponent
 
 export const eventDetailsResendEmail = (props: EventDetailsResendEmailProps) => (
   <EventDetailsResendEmailComponent {...props} />

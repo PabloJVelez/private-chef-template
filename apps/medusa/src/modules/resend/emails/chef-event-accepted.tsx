@@ -14,7 +14,7 @@ import {
   Button,
 } from "@react-email/components"
 
-type ChefEventAcceptedEmailProps = {
+export type ChefEventAcceptedEmailProps = {
   customer: {
     first_name: string
     last_name: string
@@ -283,6 +283,51 @@ function ChefEventAcceptedEmailComponent({
     </Tailwind>
   )
 }
+
+ChefEventAcceptedEmailComponent.PreviewProps = {
+  customer: {
+    first_name: "Alex",
+    last_name: "Rivera",
+    email: "alex@example.com",
+    phone: "+1 555-0100",
+  },
+  booking: {
+    date: "Saturday, April 12, 2026",
+    time: "6:00 PM",
+    menu: "Tasting menu",
+    event_type: "Private dinner",
+    location_type: "Client home",
+    location_address: "123 Main St, Austin, TX",
+    party_size: 8,
+    notes: "Two vegetarians.",
+  },
+  event: {
+    status: "accepted",
+    total_price: "$2,400.00",
+    price_per_person: "$300.00",
+    deposit_required: "$600.00",
+    deposit_deadline: "April 5, 2026",
+    minimum_tickets: 6,
+    is_full_deposit: false,
+  },
+  product: {
+    id: "prod_preview",
+    handle: "private-chef-experience",
+    title: "Private chef experience",
+    purchase_url: "https://example.com/products/private-chef-experience",
+  },
+  chef: {
+    name: "Chef Luis Velez",
+    email: "chef@example.com",
+    phone: "+1 555-0199",
+  },
+  requestReference: "REQ-PREVIEW-001",
+  acceptanceDate: "March 20, 2026",
+  chefNotes: "Looking forward to cooking for your group!",
+  emailType: "customer_acceptance",
+} satisfies ChefEventAcceptedEmailProps
+
+export default ChefEventAcceptedEmailComponent
 
 export const chefEventAcceptedEmail = (props: ChefEventAcceptedEmailProps) => (
   <ChefEventAcceptedEmailComponent {...props} />

@@ -14,7 +14,7 @@ import {
   Button,
 } from "@react-email/components"
 
-type ChefEventRequestedEmailProps = {
+export type ChefEventRequestedEmailProps = {
   customer: {
     first_name: string
     last_name: string
@@ -274,6 +274,38 @@ function ChefEventRequestedEmailComponent({
     </Tailwind>
   )
 }
+
+ChefEventRequestedEmailComponent.PreviewProps = {
+  customer: {
+    first_name: "Sam",
+    last_name: "Taylor",
+    email: "sam@example.com",
+    phone: "+1 555-0144",
+  },
+  booking: {
+    date: "Sunday, June 8, 2026",
+    time: "5:00 PM",
+    menu: "Family-style brunch",
+    event_type: "Brunch",
+    location_type: "Home",
+    location_address: "789 Pine Rd, Houston, TX",
+    party_size: 10,
+    notes: "Kids welcome.",
+  },
+  event: {
+    status: "pending",
+    total_price: "$1,800.00",
+    conflict: false,
+  },
+  requestReference: "REQ-PREVIEW-003",
+  chefContact: {
+    email: "bookings@example.com",
+    phone: "+1 555-0177",
+  },
+  emailType: "customer_confirmation",
+} satisfies ChefEventRequestedEmailProps
+
+export default ChefEventRequestedEmailComponent
 
 export const chefEventRequestedEmail = (props: ChefEventRequestedEmailProps) => (
   <ChefEventRequestedEmailComponent {...props} />
