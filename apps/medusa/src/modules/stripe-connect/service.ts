@@ -4,40 +4,40 @@
  * When USE_STRIPE_CONNECT is true: destination charges with application_fee_amount
  * and transfer_data.destination. When false: standard PaymentIntent (no Connect).
  */
-import Stripe from 'stripe';
-import { AbstractPaymentProvider, MedusaError, PaymentSessionStatus, BigNumber } from '@medusajs/framework/utils';
 import type {
-  Logger,
+  AuthorizePaymentInput,
+  AuthorizePaymentOutput,
+  CancelPaymentInput,
+  CancelPaymentOutput,
+  CapturePaymentInput,
+  CapturePaymentOutput,
+  DeletePaymentInput,
+  DeletePaymentOutput,
+  GetPaymentStatusInput,
+  GetPaymentStatusOutput,
   ICartModuleService,
   InitiatePaymentInput,
   InitiatePaymentOutput,
-  AuthorizePaymentInput,
-  AuthorizePaymentOutput,
-  CapturePaymentInput,
-  CapturePaymentOutput,
+  Logger,
+  ProviderWebhookPayload,
   RefundPaymentInput,
   RefundPaymentOutput,
-  CancelPaymentInput,
-  CancelPaymentOutput,
-  DeletePaymentInput,
-  DeletePaymentOutput,
   RetrievePaymentInput,
   RetrievePaymentOutput,
   UpdatePaymentInput,
   UpdatePaymentOutput,
-  GetPaymentStatusInput,
-  GetPaymentStatusOutput,
-  ProviderWebhookPayload,
   WebhookActionResult,
 } from '@medusajs/framework/types';
+import { AbstractPaymentProvider, BigNumber, MedusaError, PaymentSessionStatus } from '@medusajs/framework/utils';
+import Stripe from 'stripe';
 import type {
-  StripeConnectProviderOptions,
+  PlatformFeeLineItem,
   StripeConnectConfig,
   StripeConnectPaymentData,
-  PlatformFeeLineItem,
+  StripeConnectProviderOptions,
 } from './types';
-import { getSmallestUnit } from './utils/get-smallest-unit';
 import { getPlatformFeeConfigFromEnv } from './utils/get-fee-config';
+import { getSmallestUnit } from './utils/get-smallest-unit';
 import { calculatePlatformFeeFromLines } from './utils/platform-fee';
 
 interface StripeConnectAccountService {
@@ -208,6 +208,26 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
     return data.id as string | undefined;
   }
 
+  /**
+   * Persist Connect-related PI fields on Medusa Payment.data (e.g. admin “platform commission” widget).
+   */
+  private persistDataFromPaymentIntent(pi: Stripe.PaymentIntent): {
+    application_fee_amount?: number;
+    connected_account_id?: string;
+  } {
+    const dest = pi.transfer_data?.destination;
+    const connected = typeof dest === 'string' ? dest : dest != null ? String(dest) : undefined;
+    const fee = pi.application_fee_amount;
+    const out: { application_fee_amount?: number; connected_account_id?: string } = {};
+    if (typeof fee === 'number') {
+      out.application_fee_amount = fee;
+    }
+    if (connected) {
+      out.connected_account_id = connected;
+    }
+    return out;
+  }
+
   async initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentOutput> {
     const { amount, currency_code, context, data: inputData } = input;
     const amountInCents = getSmallestUnit(amount as unknown as number, currency_code);
@@ -369,6 +389,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           status: paymentIntent.status,
           amount: paymentIntent.amount,
           currency: paymentIntent.currency,
+          ...this.persistDataFromPaymentIntent(paymentIntent),
         },
       };
     } catch (error) {
@@ -400,6 +421,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             status: existingIntent.status,
             amount: existingIntent.amount,
             currency: existingIntent.currency,
+            ...this.persistDataFromPaymentIntent(existingIntent),
           },
         };
       }
@@ -412,6 +434,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             status: paymentIntent.status,
             amount: paymentIntent.amount,
             currency: paymentIntent.currency,
+            ...this.persistDataFromPaymentIntent(paymentIntent),
           },
         };
       }
@@ -425,6 +448,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           status: existingIntent.status,
           amount: existingIntent.amount,
           currency: existingIntent.currency,
+          ...this.persistDataFromPaymentIntent(existingIntent),
         },
       };
     } catch (error) {
@@ -563,6 +587,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           amount: paymentIntent.amount,
           currency: paymentIntent.currency,
           client_secret: paymentIntent.client_secret,
+          ...this.persistDataFromPaymentIntent(paymentIntent),
         },
       };
     } catch (error) {
