@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-03-23
 - Status: Draft
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-23_chef-receipt-to-host-and-email-refactor/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-23_chef-receipt-to-host-and-email-refactor/`
 - Stakeholders: PabloJVelez (Owner / Decision Maker)
 - Notes: **Phase A** — receipt feature end-to-end. **Phase B** — shared layout + refactor five templates. Repository inventory folded into this plan (no separate research packet). Customer-facing copy must follow `clarification/2026-03-23_initial-clarification.md` (no internal/sibling codenames in emails).
 
@@ -196,7 +196,7 @@ Chefs need to send a **receipt email to the host** after a confirmed, ticketed e
 
 ## Progress Tracking
 
-Use `.devagent/workspace/tasks/active/2026-03-23_chef-receipt-to-host-and-email-refactor/AGENTS.md` — Implementation Checklist, Progress Log, Key Decisions.
+Use `.devagent/workspace/tasks/completed/2026-03-23_chef-receipt-to-host-and-email-refactor/AGENTS.md` — Implementation Checklist, Progress Log, Key Decisions.
 
 ---
 

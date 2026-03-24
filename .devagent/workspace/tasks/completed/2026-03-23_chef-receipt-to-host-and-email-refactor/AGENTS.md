@@ -2,8 +2,8 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-23
-- Status: Draft
-- Task Hub: `.devagent/workspace/tasks/active/2026-03-23_chef-receipt-to-host-and-email-refactor/`
+- Status: Complete
+- Task Hub: `.devagent/workspace/tasks/completed/2026-03-23_chef-receipt-to-host-and-email-refactor/`
 
 ## Summary
 
@@ -29,13 +29,14 @@ We need to do two things in this codebase: **support sending receipts** (includi
 - [2026-03-23] Event: **Clarification complete** (`clarification/2026-03-23_initial-clarification.md`). Confirmed Q1–A (full parity + **no sibling naming in customer-facing emails**), Q2–A (same out-of-scope as reference), Q3–A (PabloJVelez decider). Next: `devagent research` → `devagent create-plan`.
 - [2026-03-23] Event: **Implementation plan created** — `plan/2026-03-23_chef-receipt-and-email-refactor-implementation-plan.md` (Phase A receipt pipeline A1–A5, Phase B shared layout B1 + five-template refactor B2; repo inventory inlined). Next: review plan → `devagent implement-plan` or explicit implementation.
 - [2026-03-23] Event: **implement-plan executed** — Phase A: `tipAmount`/`tipMethod` on chef event + `Migration20260323120000`, SDK DTOs, `getAvailableTicketsForProduct` + GET `admin/chef-events/[id]`, `send-receipt` workflow, `chef-event-receipt` subscriber, `receipt.tsx` + Resend `RECEIPT`, POST `send-receipt`, SDK `sendReceipt` + `useAdminSendReceiptMutation`, admin detail **Send Receipt** modal (duplicate-send confirm, tip fields). Phase B: `transactional-email-layout` + styles + `receipt-layout` re-export; refactored five event/order templates to shared layout. **Follow-up:** run `yarn migrate` (or `medusa db:migrate`) in `apps/medusa`; manual QA receipt send + `yarn dev:email` previews.
+- [2026-03-23] Event: Task moved to **completed**. Updated status references and file paths from `active/` to `completed/` throughout this task directory.
 
 ## Implementation Checklist
 
 - [~] Research: Repo inventory and gaps captured **in** the implementation plan (2026-03-23); optional follow-up diff vs sibling codebase if implementer needs it.
 - [x] Plan: `plan/2026-03-23_chef-receipt-and-email-refactor-implementation-plan.md` (Phase A/B tasks A1–A5, B1–B2).
 - [x] Implement: Receipt pipeline + shared transactional layout + five template refactors (see Progress Log).
-- [ ] Verify: Run DB migration; manual receipt send + React Email preview for all templates; spot-check order-placed and resend flows.
+- [~] Verify: Run DB migration; manual receipt send + React Email preview for all templates; spot-check order-placed and resend flows. **Note:** Archived as complete; finish verification in normal QA if not already done.
 
 ## Open Questions
 
@@ -54,7 +55,4 @@ We need to do two things in this codebase: **support sending receipts** (includi
 
 ## Next Steps
 
-- From `apps/medusa`: **`yarn migrate`** (or `medusa db:migrate`) to apply `Migration20260323120000`.
-- **`yarn dev:email`** — confirm `receipt` + five refactored templates in preview.
-- Send a test receipt from admin (confirmed event, `productId`, date passed or `availableTickets === 0`).
-- When satisfied: **`devagent mark-task-complete`** (optional).
+- *(Task archived.)* Remaining QA if needed: from `apps/medusa`, **`yarn migrate`**, **`yarn dev:email`**, manual **Send Receipt** on a qualifying confirmed event.

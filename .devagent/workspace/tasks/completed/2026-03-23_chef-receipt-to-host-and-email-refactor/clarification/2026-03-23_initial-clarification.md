@@ -5,7 +5,7 @@
 - Date: 2026-03-23
 - Mode: Task Clarification
 - Status: Complete
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-23_chef-receipt-to-host-and-email-refactor/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-23_chef-receipt-to-host-and-email-refactor/`
 - Notes: Session 1 complete. Scope, out-of-scope, and governance confirmed. Sibling codebase may be used **only** as an internal implementation reference during research/planning—**not** in customer-facing email copy.
 
 ## Task Overview
