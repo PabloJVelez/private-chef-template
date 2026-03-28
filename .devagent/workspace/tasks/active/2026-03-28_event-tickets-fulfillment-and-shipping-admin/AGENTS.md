@@ -2,7 +2,7 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-28
-- Status: Draft
+- Status: Draft (implementation plan ready)
 - Task Hub: `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/`
 
 ## Summary
@@ -31,18 +31,19 @@ The full intent from intake: *“Since these are event tickets, we should consid
 - [2026-03-28] Event: Research packet added — root cause for admin **Requires shipping** (Medusa default inventory `requires_shipping: true` + SKU reuse in `accept-chef-event`); see `research/2026-03-28_event-tickets-fulfillment-shipping-research.md`.
 - [2026-03-28] Event: Clarification session 1 started — `clarification/2026-03-28_initial-clarification.md` (in progress); awaiting Q1–Q3 on auto-fulfill, post-event without capture, and mixed carts.
 - [2026-03-28] Event: Clarification **complete** — auto-fulfill on capture; post-event **cron ~24h after event date** to **auto-capture** then fulfillment; mixed carts = ticket lines only. See `clarification/2026-03-28_initial-clarification.md`.
+- [2026-03-28] Event: Implementation plan added — `plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` (inventory fix, `payment.captured` subscriber, scheduled post-event capture, tests).
 
 ## Implementation Checklist
 - [x] Clarify fulfillment semantics — **real Medusa fulfillments** on capture; post-event via **cron ~24h after event date** → **auto-capture** → same fulfillment path; mixed carts = **ticket lines only** (`clarification/2026-03-28_initial-clarification.md`).
 - [x] Event date source for automation — **`ChefEvent.requestedDate`** (see clarification); **timezone +24h anchor** still to lock in plan.
 - [~] Trace Medusa fields driving **Requires shipping** / fulfillment requirements for Event Ticket products (variants, shipping profiles, fulfillment sets, modules). — Research: line item flag comes from linked inventory item; core defaults `requires_shipping: true`; `accept-chef-event` reuses that item by SKU without updating the flag (see research packet).
-- [ ] Design backend + admin behavior: payment-captured path, post-event path, and product-level “digital / no shipping” configuration.
+- [x] Design backend + admin behavior: payment-captured path, post-event path, and product-level “digital / no shipping” configuration — see `plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md`.
 - [ ] Implement, add tests, and verify in admin for captured orders and past-event scenarios.
 
 ## Open Questions
-- **Timezone anchor** for “event date + 24h” vs stored `ChefEvent.requestedDate` — lock in plan.
-- **Capture failures** after cron (declined, expired authorization) — retry/notify behavior in plan.
-- Canonical **event date** for jobs: prefer **`ChefEvent.requestedDate`** over SKU parsing (already assumed in clarification).
+- **Timezone anchor** — Plan default: eligibility = `requestedDate` **instant + 24h** (timestamptz); change if business needs “end of local event day.”
+- **Capture failures** after job — v1: log + optional alert; structured retries deferred (see plan risks).
+- Canonical **event date** for jobs: **`ChefEvent.requestedDate`** + `productId` linkage (per clarification).
 
 ## References
 - [2026-03-28] `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/research/2026-03-28_event-tickets-fulfillment-shipping-research.md` — Research: admin **Requires shipping**, Medusa inventory defaults, `accept-chef-event` interaction, fulfillment automation gaps.
@@ -51,12 +52,8 @@ The full intent from intake: *“Since these are event tickets, we should consid
 - [2026-03-28] `.devagent/AGENTS.md` — DevAgent workflow roster and standard instructions.
 - [2026-03-28] `.devagent/workflows/new-task.md` — Workflow definition for task hub scaffolding.
 - [2026-03-28] `apps/medusa/src/workflows/accept-chef-event.ts` — Chef event acceptance workflow (inventory / digital location patterns referenced in prior plans; likely related to ticket products).
-- [2026-03-28] `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/clarification/2026-03-28_initial-clarification.md` — Requirement clarification (in progress).
+- [2026-03-28] `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/clarification/2026-03-28_initial-clarification.md` — Requirement clarification (complete).
+- [2026-03-28] `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` — Implementation plan.
 
 ## Next Steps
-Recommended follow-up (run when ready; do not auto-run):
-
-- `devagent clarify-task` — Lock fulfillment vs. display semantics, event date source, and mixed-cart rules.
-- `devagent research` — Map Medusa v2 fulfillment/shipping flags and admin UI to codebase locations.
-- `devagent create-plan` — Implementation plan after research.
-- `devagent implement-plan` — Execute plan tasks when approved.
+- `devagent implement-plan` (or explicit implementation pass) — Execute tasks in `plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` in order (Task 1 → 4).
