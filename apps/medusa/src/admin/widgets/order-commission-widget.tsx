@@ -31,10 +31,18 @@ function extractPlatformCommission(
   show: boolean;
   feeSmallest: number | null;
   grossSmallest: number | null;
+  passStripeFeeToChef: boolean;
+  stripeProcessingEstimateSmallest: number | null;
 } {
   const collections = order?.payment_collections;
   if (!collections?.length) {
-    return { show: false, feeSmallest: null, grossSmallest: null };
+    return {
+      show: false,
+      feeSmallest: null,
+      grossSmallest: null,
+      passStripeFeeToChef: false,
+      stripeProcessingEstimateSmallest: null,
+    };
   }
 
   for (const col of collections) {
@@ -46,6 +54,8 @@ function extractPlatformCommission(
 
       const data = payment.data;
       const feeSmallest = parseNumericSmallest(data?.application_fee_amount);
+      const passStripeFeeToChef = data?.pass_stripe_fee_to_chef === true;
+      const stripeProcessingEstimateSmallest = parseNumericSmallest(data?.stripe_processing_fee_estimate);
 
       const fromStripePi = parseNumericSmallest(data?.amount);
       const fromOrderTotal =
@@ -59,19 +69,23 @@ function extractPlatformCommission(
 
       const grossSmallest = fromStripePi ?? fromPaymentMajor ?? fromOrderTotal;
 
-      return { show: true, feeSmallest, grossSmallest };
+      return {
+        show: true,
+        feeSmallest,
+        grossSmallest,
+        passStripeFeeToChef,
+        stripeProcessingEstimateSmallest,
+      };
     }
   }
 
-  return { show: false, feeSmallest: null, grossSmallest: null };
-}
-
-function formatFeePercent(feeSmallest: number, grossSmallest: number | null): string | null {
-  if (grossSmallest === null || grossSmallest <= 0) return null;
-  const pct = (feeSmallest / grossSmallest) * 100;
-  if (!Number.isFinite(pct)) return null;
-  const rounded = Math.round(pct * 10) / 10;
-  return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+  return {
+    show: false,
+    feeSmallest: null,
+    grossSmallest: null,
+    passStripeFeeToChef: false,
+    stripeProcessingEstimateSmallest: null,
+  };
 }
 
 function BreakdownRow({
@@ -129,7 +143,8 @@ const OrderCommissionWidget = ({ data }: { data: HttpTypes.AdminOrder }) => {
 
   const order = !isError && res?.order ? res.order : data;
   const currency = order.currency_code || 'usd';
-  const { show, feeSmallest, grossSmallest } = extractPlatformCommission(order, currency);
+  const { show, feeSmallest, grossSmallest, passStripeFeeToChef, stripeProcessingEstimateSmallest } =
+    extractPlatformCommission(order, currency);
 
   if (!show) {
     return null;
@@ -137,10 +152,19 @@ const OrderCommissionWidget = ({ data }: { data: HttpTypes.AdminOrder }) => {
 
   const hasGross = typeof grossSmallest === 'number' && grossSmallest > 0;
   const feeIsKnown = typeof feeSmallest === 'number' && Number.isFinite(feeSmallest);
-  const feePercent =
-    feeIsKnown && hasGross && grossSmallest !== null && feeSmallest > 0
-      ? formatFeePercent(feeSmallest, grossSmallest)
-      : null;
+  const showStripeFeesRow =
+    passStripeFeeToChef &&
+    typeof stripeProcessingEstimateSmallest === 'number' &&
+    Number.isFinite(stripeProcessingEstimateSmallest) &&
+    stripeProcessingEstimateSmallest > 0 &&
+    feeIsKnown;
+
+  const platformNetSmallest =
+    showStripeFeesRow && feeIsKnown && typeof feeSmallest === 'number' && stripeProcessingEstimateSmallest !== null
+      ? Math.max(0, feeSmallest - stripeProcessingEstimateSmallest)
+      : feeSmallest;
+
+  const platformNetIsKnown = typeof platformNetSmallest === 'number' && Number.isFinite(platformNetSmallest);
 
   let takeHomeSmallest: number | null = null;
   if (grossSmallest !== null && feeIsKnown && typeof feeSmallest === 'number' && grossSmallest >= feeSmallest) {
@@ -157,12 +181,20 @@ const OrderCommissionWidget = ({ data }: { data: HttpTypes.AdminOrder }) => {
             <>
               <BreakdownRow label="Charged to customer" value={formatFromSmallestUnit(grossSmallest, currency)} />
 
+              {showStripeFeesRow && stripeProcessingEstimateSmallest !== null ? (
+                <BreakdownRow
+                  label="Stripe processing fees"
+                  value={`−${formatFromSmallestUnit(stripeProcessingEstimateSmallest, currency)}`}
+                  valueClassName="text-ui-fg-muted tabular-nums"
+                  valueWeight="plus"
+                />
+              ) : null}
+
               <BreakdownRow
                 label="Platform commission"
-                sublabel={feePercent ? `${feePercent} of charge` : undefined}
-                value={feeIsKnown ? `−${formatFromSmallestUnit(feeSmallest, currency)}` : '—'}
+                value={platformNetIsKnown ? `−${formatFromSmallestUnit(platformNetSmallest, currency)}` : '—'}
                 valueClassName="text-ui-fg-muted tabular-nums"
-                valueWeight={feeIsKnown ? 'plus' : 'regular'}
+                valueWeight={platformNetIsKnown ? 'plus' : 'regular'}
               />
 
               <div className="border-ui-border-base border-t pt-3">
