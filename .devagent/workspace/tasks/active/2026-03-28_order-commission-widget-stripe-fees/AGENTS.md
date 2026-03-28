@@ -2,7 +2,7 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-28
-- Status: Planned (ready for implement)
+- Status: Implemented (pending manual admin verification)
 - Task Hub: `.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/`
 
 ## Summary
@@ -22,14 +22,15 @@ Extend the **Medusa admin order payout summary** implemented in `apps/medusa/src
 - [2026-03-28] Event: Clarification session started — `clarification/2026-03-28_initial-clarification.md` (Round 1: fee source, pass-through-off UX, copy).
 - [2026-03-28] Event: Clarification complete — Round 1 answers **1A, 2A, 3A**; packet status Complete; ready for `create-plan`.
 - [2026-03-28] Event: Plan created — `plan/2026-03-28_order-commission-widget-stripe-fees.md` (4 implementation tasks: util/types, provider persistence + per-line gross-up, medusa-config/env, admin widget).
+- [2026-03-28] Event: **Implemented** — `estimate-stripe-processing-fee.ts`, provider `payoutAdminFieldsForAmount` + per-line gross-up, `medusa-config` / `.env.template`, `order-commission-widget.tsx`; removed provider `console.log`; `yarn workspace medusa build` passed.
 
 ## Implementation Checklist
 
-- [ ] Confirm where Stripe processing fee amounts can be sourced reliably per order (PaymentIntent/charge/balance transaction, provider `data`, metadata, or post-capture webhook) without violating the “no on-demand Stripe read” preference from the prior commission widget work, or document an explicit exception.
-- [ ] Define the exact breakdown labels and math (order of subtraction, currency/smallest-unit handling) so “charged amount”, “Stripe processing fees”, “platform commission”, and “chef take-home” are consistent.
-- [ ] Persist or surface fee data in the Stripe Connect payment provider lifecycle if not already available on `payment.data` for admin reads.
-- [ ] Update `order-commission-widget.tsx` (and any shared formatting helpers) to render the new line and handle missing/partial fee data.
-- [ ] Manually verify orders with Connect payments; note any follow-up for historical backfill.
+- [x] Fee source for v1: **estimated** fee on `payment.data` (`stripe_processing_fee_estimate`, `pass_stripe_fee_to_chef`); no browser Stripe calls.
+- [x] Breakdown math: charged → optional Stripe fees (est.) → platform commission (net) → chef take-home = gross − `application_fee_amount`.
+- [x] Provider persists fields on initiate/authorize/capture/retrieve/update (Connect).
+- [x] Admin widget conditional row + net platform commission.
+- [ ] Manually verify in admin with `PASS_STRIPE_FEE_TO_CHEF=true` / `false`; legacy payments without new keys behave as pass-through off.
 
 ## Open Questions
 
@@ -52,4 +53,4 @@ Extend the **Medusa admin order payout summary** implemented in `apps/medusa/src
 
 ## Next Steps
 
-- `devagent implement-plan` or explicit **implement** request — follow `plan/2026-03-28_order-commission-widget-stripe-fees.md` (Tasks 1–4).
+- Manual smoke test on a Connect order in Medusa Admin; then optional `devagent mark-task-complete` when satisfied.

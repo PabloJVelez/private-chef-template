@@ -78,6 +78,10 @@ export interface StripeConnectPaymentData {
   currency: string;
   connected_account_id?: string;
   application_fee_amount?: number;
+  /** When true, stripe_processing_fee_estimate is included in application_fee_amount (pass-through to chef). */
+  pass_stripe_fee_to_chef?: boolean;
+  /** Estimated card processing fee in smallest currency unit (admin payout widget). */
+  stripe_processing_fee_estimate?: number;
 }
 
 /** Line item for platform fee calculation. unit_price_cents = price per unit in smallest currency unit. */

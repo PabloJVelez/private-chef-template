@@ -36,6 +36,7 @@ import type {
   StripeConnectPaymentData,
   StripeConnectProviderOptions,
 } from './types';
+import { estimateStripeProcessingFee } from './utils/estimate-stripe-processing-fee';
 import { getPlatformFeeConfigFromEnv } from './utils/get-fee-config';
 import { getSmallestUnit } from './utils/get-smallest-unit';
 import { calculatePlatformFeeFromLines } from './utils/platform-fee';
@@ -84,7 +85,6 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
 
     this.stripeConnectAccountService_ = stripeConnectAccountModuleService;
     const feeConfig = getPlatformFeeConfigFromEnv();
-    console.log('feeConfig', feeConfig);
     this.config_ = {
       apiKey: options.apiKey,
       useStripeConnect,
@@ -178,8 +178,10 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
       return baseFee;
     }
 
-    const estimatedStripeFee =
-      Math.round(amount * (this.config_.stripeFeePercent / 100)) + this.config_.stripeFeeFlatCents;
+    const estimatedStripeFee = estimateStripeProcessingFee(amount, {
+      stripeFeePercent: this.config_.stripeFeePercent,
+      stripeFeeFlatCents: this.config_.stripeFeeFlatCents,
+    });
 
     return baseFee + estimatedStripeFee;
   }
@@ -228,6 +230,26 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
     return out;
   }
 
+  /**
+   * Fields for admin payout widget: pass-through flag + estimated Stripe processing fee (smallest unit).
+   */
+  private payoutAdminFieldsForAmount(amountSmallest: number): Record<string, unknown> {
+    if (!this.isConnectEnabled()) {
+      return {};
+    }
+    if (!this.config_.passStripeFeeToChef) {
+      return { pass_stripe_fee_to_chef: false };
+    }
+    const stripe_processing_fee_estimate = estimateStripeProcessingFee(amountSmallest, {
+      stripeFeePercent: this.config_.stripeFeePercent,
+      stripeFeeFlatCents: this.config_.stripeFeeFlatCents,
+    });
+    return {
+      pass_stripe_fee_to_chef: true,
+      stripe_processing_fee_estimate,
+    };
+  }
+
   async initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentOutput> {
     const { amount, currency_code, context, data: inputData } = input;
     const amountInCents = getSmallestUnit(amount as unknown as number, currency_code);
@@ -264,6 +286,12 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           );
           if (lines.length > 0) {
             applicationFeeAmount = calculatePlatformFeeFromLines(lines, this.config_);
+            if (this.config_.passStripeFeeToChef && applicationFeeAmount > 0) {
+              applicationFeeAmount += estimateStripeProcessingFee(amountInCents, {
+                stripeFeePercent: this.config_.stripeFeePercent,
+                stripeFeeFlatCents: this.config_.stripeFeeFlatCents,
+              });
+            }
             this.logger_.info(
               `${StripeConnectProviderService.LOG_PREFIX} [fee] platform fee from lines=${applicationFeeAmount} cents`,
             );
@@ -337,6 +365,10 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
         currency: currency_code.toLowerCase(),
         connected_account_id: connectedAccountId ?? undefined,
         application_fee_amount: this.isConnectEnabled() ? applicationFeeAmount : undefined,
+        ...(this.payoutAdminFieldsForAmount(amountInCents) as Pick<
+          StripeConnectPaymentData,
+          'pass_stripe_fee_to_chef' | 'stripe_processing_fee_estimate'
+        >),
       };
 
       return {
@@ -390,6 +422,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           amount: paymentIntent.amount,
           currency: paymentIntent.currency,
           ...this.persistDataFromPaymentIntent(paymentIntent),
+          ...this.payoutAdminFieldsForAmount(paymentIntent.amount),
         },
       };
     } catch (error) {
@@ -422,6 +455,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             amount: existingIntent.amount,
             currency: existingIntent.currency,
             ...this.persistDataFromPaymentIntent(existingIntent),
+            ...this.payoutAdminFieldsForAmount(existingIntent.amount),
           },
         };
       }
@@ -435,6 +469,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             amount: paymentIntent.amount,
             currency: paymentIntent.currency,
             ...this.persistDataFromPaymentIntent(paymentIntent),
+            ...this.payoutAdminFieldsForAmount(paymentIntent.amount),
           },
         };
       }
@@ -449,6 +484,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           amount: existingIntent.amount,
           currency: existingIntent.currency,
           ...this.persistDataFromPaymentIntent(existingIntent),
+          ...this.payoutAdminFieldsForAmount(existingIntent.amount),
         },
       };
     } catch (error) {
@@ -588,6 +624,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           currency: paymentIntent.currency,
           client_secret: paymentIntent.client_secret,
           ...this.persistDataFromPaymentIntent(paymentIntent),
+          ...this.payoutAdminFieldsForAmount(paymentIntent.amount),
         },
       };
     } catch (error) {
@@ -674,6 +711,10 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
         application_fee_amount: this.isConnectEnabled()
           ? (paymentIntent.application_fee_amount ?? undefined)
           : undefined,
+        ...(this.payoutAdminFieldsForAmount(paymentIntent.amount) as Pick<
+          StripeConnectPaymentData,
+          'pass_stripe_fee_to_chef' | 'stripe_processing_fee_estimate'
+        >),
       };
 
       return {
