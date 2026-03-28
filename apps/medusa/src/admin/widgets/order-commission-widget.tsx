@@ -88,14 +88,6 @@ function extractPlatformCommission(
   };
 }
 
-function formatFeePercent(feeSmallest: number, grossSmallest: number | null): string | null {
-  if (grossSmallest === null || grossSmallest <= 0) return null;
-  const pct = (feeSmallest / grossSmallest) * 100;
-  if (!Number.isFinite(pct)) return null;
-  const rounded = Math.round(pct * 10) / 10;
-  return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
-}
-
 function BreakdownRow({
   label,
   sublabel,
@@ -173,10 +165,6 @@ const OrderCommissionWidget = ({ data }: { data: HttpTypes.AdminOrder }) => {
       : feeSmallest;
 
   const platformNetIsKnown = typeof platformNetSmallest === 'number' && Number.isFinite(platformNetSmallest);
-  const feePercent =
-    platformNetIsKnown && hasGross && grossSmallest !== null && platformNetSmallest > 0
-      ? formatFeePercent(platformNetSmallest, grossSmallest)
-      : null;
 
   let takeHomeSmallest: number | null = null;
   if (grossSmallest !== null && feeIsKnown && typeof feeSmallest === 'number' && grossSmallest >= feeSmallest) {
@@ -196,7 +184,6 @@ const OrderCommissionWidget = ({ data }: { data: HttpTypes.AdminOrder }) => {
               {showStripeFeesRow && stripeProcessingEstimateSmallest !== null ? (
                 <BreakdownRow
                   label="Stripe processing fees"
-                  sublabel="Estimated"
                   value={`−${formatFromSmallestUnit(stripeProcessingEstimateSmallest, currency)}`}
                   valueClassName="text-ui-fg-muted tabular-nums"
                   valueWeight="plus"
@@ -205,7 +192,6 @@ const OrderCommissionWidget = ({ data }: { data: HttpTypes.AdminOrder }) => {
 
               <BreakdownRow
                 label="Platform commission"
-                sublabel={feePercent ? `${feePercent} of charge` : undefined}
                 value={platformNetIsKnown ? `−${formatFromSmallestUnit(platformNetSmallest, currency)}` : '—'}
                 valueClassName="text-ui-fg-muted tabular-nums"
                 valueWeight={platformNetIsKnown ? 'plus' : 'regular'}

@@ -103,8 +103,19 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
     this.stripe_ = new Stripe(this.config_.apiKey);
 
     if (this.config_.useStripeConnect) {
+      const feeSummary = this.config_.feePerUnitBased
+        ? `per-unit — events: ${
+            this.config_.feeModeEvents === 'per_unit'
+              ? `${this.config_.feePerEventCents}¢/ticket`
+              : `${this.config_.feePercentEvents ?? this.config_.feePercent}% of ticket lines`
+          }; products: ${
+            this.config_.feeModeProducts === 'per_unit'
+              ? `${this.config_.feePerProductCents}¢/item`
+              : `${this.config_.feePercentProducts ?? this.config_.feePercent}% of product lines`
+          }`
+        : `${this.config_.feePercent}% of order total`;
       this.logger_.info(
-        `${StripeConnectProviderService.LOG_PREFIX} Connect enabled (account from DB or env), fee ${this.config_.feePercent}%`,
+        `${StripeConnectProviderService.LOG_PREFIX} Connect enabled (account from DB or env), fee ${feeSummary}`,
       );
     }
     this.logger_.info(
