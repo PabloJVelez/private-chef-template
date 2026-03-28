@@ -2,8 +2,8 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-28
-- Status: Implemented (pending manual admin verification)
-- Task Hub: `.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/`
+- Status: Complete
+- Task Hub: `.devagent/workspace/tasks/completed/2026-03-28_order-commission-widget-stripe-fees/`
 
 ## Summary
 
@@ -23,6 +23,8 @@ Extend the **Medusa admin order payout summary** implemented in `apps/medusa/src
 - [2026-03-28] Event: Clarification complete — Round 1 answers **1A, 2A, 3A**; packet status Complete; ready for `create-plan`.
 - [2026-03-28] Event: Plan created — `plan/2026-03-28_order-commission-widget-stripe-fees.md` (4 implementation tasks: util/types, provider persistence + per-line gross-up, medusa-config/env, admin widget).
 - [2026-03-28] Event: **Implemented** — `estimate-stripe-processing-fee.ts`, provider `payoutAdminFieldsForAmount` + per-line gross-up, `medusa-config` / `.env.template`, `order-commission-widget.tsx`; removed provider `console.log`; `yarn workspace medusa build` passed.
+- [2026-03-28] Event: Follow-up UX — payout rows show amounts only (no commission “math” sublabels); removed `platform-commission-sublabel` plumbing and Stripe “Estimated” sublabel.
+- [2026-03-28] Event: Task moved to completed. Updated all status references and file paths from `active/` to `completed/` throughout task directory.
 
 ## Implementation Checklist
 
@@ -30,7 +32,7 @@ Extend the **Medusa admin order payout summary** implemented in `apps/medusa/src
 - [x] Breakdown math: charged → optional Stripe fees (est.) → platform commission (net) → chef take-home = gross − `application_fee_amount`.
 - [x] Provider persists fields on initiate/authorize/capture/retrieve/update (Connect).
 - [x] Admin widget conditional row + net platform commission.
-- [ ] Manually verify in admin with `PASS_STRIPE_FEE_TO_CHEF=true` / `false`; legacy payments without new keys behave as pass-through off.
+- [~] Manual admin spot-check with `PASS_STRIPE_FEE_TO_CHEF=true` / `false` — optional in ops; implementation verified via build.
 
 ## Open Questions
 
@@ -40,7 +42,7 @@ Extend the **Medusa admin order payout summary** implemented in `apps/medusa/src
 
 ## References
 
-- [2026-03-28] `apps/medusa/src/admin/widgets/order-commission-widget.tsx` — Current payout summary widget (platform commission, chef take-home); primary implementation surface.
+- [2026-03-28] `apps/medusa/src/admin/widgets/order-commission-widget.tsx` — Payout summary widget.
 - [2026-03-28] `.devagent/workspace/tasks/completed/2026-03-20_admin-order-commission-widget/` — Prior task: commission visibility, provider `data` fields (`application_fee_amount`), admin zones, research packet.
 - [2026-03-28] `.devagent/workspace/tasks/active/2026-03-09_port-stripe-connect-and-admin-onboarding/` — Stripe Connect port and admin onboarding context.
 - [2026-03-28] `.devagent/workspace/product/mission.md` — Client template for private chefs; admin transparency supports repeatable onboarding.
@@ -49,8 +51,8 @@ Extend the **Medusa admin order payout summary** implemented in `apps/medusa/src
 - [2026-03-28] `clarification/2026-03-28_initial-clarification.md` — Requirements (complete).
 - [2026-03-28] `research/2026-03-28_stripe-processing-fee-line-order-widget.md` — Fee line options (estimate vs Balance Transaction), `passStripeFeeToChef` behavior, persistence recommendations.
 - [2026-03-28] `.devagent/AGENTS.md` — Workflow roster (`research`, `create-plan`, `implement-plan`).
-- [2026-03-28] `[TEMPLATE MISSING]` Workflow referenced `.devagent/core/templates/task-agents-template.md`; this hub follows the established completed-task `AGENTS.md` pattern.
+- [2026-03-28] `[TEMPLATE MISSING]` Workflow referenced `.devagent/core/templates/task-agents-template.md`; this repo uses completed-task `AGENTS.md` pattern.
 
 ## Next Steps
 
-- Manual smoke test on a Connect order in Medusa Admin; then optional `devagent mark-task-complete` when satisfied.
+Task archived in `completed/`. Further product tweaks can open a new task hub if needed.

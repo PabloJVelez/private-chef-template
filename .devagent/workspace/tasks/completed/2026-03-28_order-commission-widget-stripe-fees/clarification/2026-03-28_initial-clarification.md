@@ -5,7 +5,7 @@
 - Date: 2026-03-28
 - Mode: Task Clarification
 - Status: Complete
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-28_order-commission-widget-stripe-fees/`
 - **Plan readiness:** Ready for `devagent create-plan` (v1 scope and UX decided; implementation details for persistence in plan).
 
 ## Task overview

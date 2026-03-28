@@ -3,8 +3,8 @@
 - Classification: Implementation design (admin UI + payment `data` persistence)
 - Requested by: PabloJVelez (inferred from task hub / git context)
 - Last updated: 2026-03-28
-- Related task hub: `.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/`
-- Storage path: `.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/research/2026-03-28_stripe-processing-fee-line-order-widget.md`
+- Related task hub: `.devagent/workspace/tasks/completed/2026-03-28_order-commission-widget-stripe-fees/`
+- Storage path: `.devagent/workspace/tasks/completed/2026-03-28_order-commission-widget-stripe-fees/research/2026-03-28_stripe-processing-fee-line-order-widget.md`
 
 ## Inferred problem statement
 

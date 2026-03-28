@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-03-28
 - Status: Draft
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-28_order-commission-widget-stripe-fees/`
 - Stakeholders: PabloJVelez (requestor, decision maker)
 
 ---
@@ -146,13 +146,13 @@ Operators viewing a Medusa **admin order** with Stripe Connect need a **Payout s
 
 ## Progress tracking
 
-Track execution in the task hub [`AGENTS.md`](.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/AGENTS.md) during `implement-plan`.
+Track execution in the task hub [`AGENTS.md`](.devagent/workspace/tasks/completed/2026-03-28_order-commission-widget-stripe-fees/AGENTS.md) during `implement-plan`.
 
 ---
 
 ## Appendices & references
 
-- Research: `.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/research/2026-03-28_stripe-processing-fee-line-order-widget.md`
-- Clarification: `.devagent/workspace/tasks/active/2026-03-28_order-commission-widget-stripe-fees/clarification/2026-03-28_initial-clarification.md`
+- Research: `.devagent/workspace/tasks/completed/2026-03-28_order-commission-widget-stripe-fees/research/2026-03-28_stripe-processing-fee-line-order-widget.md`
+- Clarification: `.devagent/workspace/tasks/completed/2026-03-28_order-commission-widget-stripe-fees/clarification/2026-03-28_initial-clarification.md`
 - Prior commission widget task: `.devagent/workspace/tasks/completed/2026-03-20_admin-order-commission-widget/`
 - Code: `apps/medusa/src/modules/stripe-connect/service.ts`, `apps/medusa/src/admin/widgets/order-commission-widget.tsx`, `apps/medusa/medusa-config.ts`
