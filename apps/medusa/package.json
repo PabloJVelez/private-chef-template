@@ -49,6 +49,8 @@
     "medusa:init:prod": "npm run migrate:prod && npm run sync && npm run init:prod",
     "create:medusadb": "medusa db:create --db chef-template",
     "add-user": "medusa user --email pmltechpile@gmail.com --password \"password!\"",
+    "fix-tickets": "medusa exec ./src/scripts/fix-event-ticket-inventory-shipping.ts",
+    "fix-tickets-delivered": "medusa exec ./src/scripts/backfill-event-ticket-fulfillments-delivered.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
