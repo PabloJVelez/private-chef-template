@@ -5,7 +5,7 @@
 - **Date:** 2026-03-28
 - **Mode:** Task Clarification
 - **Status:** Complete
-- **Related Task Hub:** `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/`
+- **Related Task Hub:** `.devagent/workspace/tasks/completed/2026-03-28_event-tickets-fulfillment-and-shipping-admin/`
 - **Related Research:** `../research/2026-03-28_event-tickets-fulfillment-shipping-research.md`
 
 ## Inferred task concept (updated after clarification)

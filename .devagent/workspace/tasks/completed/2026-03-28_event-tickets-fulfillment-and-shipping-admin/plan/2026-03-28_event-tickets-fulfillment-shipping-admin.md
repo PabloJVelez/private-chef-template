@@ -3,7 +3,7 @@
 - **Owner:** PabloJVelez
 - **Last Updated:** 2026-03-28
 - **Status:** Draft
-- **Related Task Hub:** `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/`
+- **Related Task Hub:** `.devagent/workspace/tasks/completed/2026-03-28_event-tickets-fulfillment-and-shipping-admin/`
 - **Stakeholders:** PabloJVelez (decision maker)
 - **Inputs:** [Research](../research/2026-03-28_event-tickets-fulfillment-shipping-research.md), [Clarification](../clarification/2026-03-28_initial-clarification.md)
 

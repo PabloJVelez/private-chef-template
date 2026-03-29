@@ -2,8 +2,8 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-28
-- Status: Implemented (verify in admin / staging)
-- Task Hub: `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/`
+- Status: Complete
+- Task Hub: `.devagent/workspace/tasks/completed/2026-03-28_event-tickets-fulfillment-and-shipping-admin/`
 
 ## Summary
 This task covers **event ticket** orders in Medusa admin and backend behavior. The product owner wants two outcomes:
@@ -33,6 +33,8 @@ The full intent from intake: *“Since these are event tickets, we should consid
 - [2026-03-28] Event: Clarification **complete** — auto-fulfill on capture; post-event **cron ~24h after event date** to **auto-capture** then fulfillment; mixed carts = ticket lines only. See `clarification/2026-03-28_initial-clarification.md`.
 - [2026-03-28] Event: Implementation plan added — `plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` (inventory fix, `payment.captured` subscriber, scheduled post-event capture, tests).
 - [2026-03-28] Event: **implement-plan** executed — `accept-chef-event` inventory patch; `fulfill-event-ticket-lines` + `event-ticket-payment-captured` subscriber; `post-event-capture-ticket-payments` job/workflow; script `fix-event-ticket-inventory-shipping.ts`; unit tests `src/lib/__tests__/event-ticket.unit.spec.ts`.
+- [2026-03-28] Event: Task moved to completed. Updated all status references and file paths from active/ to completed/ throughout task directory.
+- [2026-03-28] Event: Follow-ups captured in code: job `5 0 * * *` (daily 12:05); `post-event-capture-ticket-payments` scopes chef events by `requestedDate` (7-day lookback, eligible after +24h); `digital-stock-location` + `backfill-event-ticket-fulfillments-delivered.ts` / `yarn fix-tickets-delivered` in `apps/medusa`.
 
 ## Implementation Checklist
 - [x] Clarify fulfillment semantics — **real Medusa fulfillments** on capture; post-event via **cron ~24h after event date** → **auto-capture** → same fulfillment path; mixed carts = **ticket lines only** (`clarification/2026-03-28_initial-clarification.md`).
@@ -40,7 +42,7 @@ The full intent from intake: *“Since these are event tickets, we should consid
 - [x] Trace Medusa fields driving **Requires shipping** — implemented fix (inventory `requires_shipping: false` on create/reuse + optional backfill script).
 - [x] Design backend + admin behavior: payment-captured path, post-event path, and product-level “digital / no shipping” configuration — see `plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md`.
 - [x] Implement + unit tests (`yarn test:unit` in `apps/medusa`).
-- [ ] **Manual verification:** ticket-only order after capture → admin shows ticket line fulfilled, no **Requires shipping** on ticket lines (after backfill for old data); mixed cart → only `EVENT-*` lines auto-fulfill; job at `0 * * * *` attempts capture for confirmed events past `requestedDate + 24h` (requires running Medusa process).
+- [~] **Manual verification (ops):** ticket-only order after capture → admin shows ticket line fulfilled, no **Requires shipping** on ticket lines (after `yarn fix-tickets` for old data); mixed cart → only `EVENT-*` lines auto-fulfill; daily job `5 0 * * *` + 7-day lookback attempts capture for eligible confirmed events (requires long-running Medusa).
 
 ## Open Questions
 - **Timezone anchor** — Plan default: eligibility = `requestedDate` **instant + 24h** (timestamptz); change if business needs “end of local event day.”
@@ -48,19 +50,18 @@ The full intent from intake: *“Since these are event tickets, we should consid
 - Canonical **event date** for jobs: **`ChefEvent.requestedDate`** + `productId` linkage (per clarification).
 
 ## References
-- [2026-03-28] `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/research/2026-03-28_event-tickets-fulfillment-shipping-research.md` — Research: admin **Requires shipping**, Medusa inventory defaults, `accept-chef-event` interaction, fulfillment automation gaps.
+- [2026-03-28] `.devagent/workspace/tasks/completed/2026-03-28_event-tickets-fulfillment-and-shipping-admin/research/2026-03-28_event-tickets-fulfillment-shipping-research.md` — Research: admin **Requires shipping**, Medusa inventory defaults, `accept-chef-event` interaction, fulfillment automation gaps.
 - [2026-03-28] `.devagent/workspace/tasks/active/2026-03-17_digital-only-checkout-shipping-display/AGENTS.md` — Prior task on digital-only / event ticket cart and checkout shipping display; adjacent problem space.
 - [2026-03-28] `.devagent/workspace/product/mission.md` — Product context (private-chef template, Medusa + Remix).
 - [2026-03-28] `.devagent/AGENTS.md` — DevAgent workflow roster and standard instructions.
 - [2026-03-28] `.devagent/workflows/new-task.md` — Workflow definition for task hub scaffolding.
 - [2026-03-28] `apps/medusa/src/workflows/accept-chef-event.ts` — Chef event acceptance workflow (inventory / digital location patterns referenced in prior plans; likely related to ticket products).
-- [2026-03-28] `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/clarification/2026-03-28_initial-clarification.md` — Requirement clarification (complete).
-- [2026-03-28] `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` — Implementation plan.
+- [2026-03-28] `.devagent/workspace/tasks/completed/2026-03-28_event-tickets-fulfillment-and-shipping-admin/clarification/2026-03-28_initial-clarification.md` — Requirement clarification (complete).
+- [2026-03-28] `.devagent/workspace/tasks/completed/2026-03-28_event-tickets-fulfillment-and-shipping-admin/plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` — Implementation plan.
 
 ## Next Steps
-- Run backfill once: `npx medusa exec ./src/scripts/fix-event-ticket-inventory-shipping.ts` (from `apps/medusa`).
-- Confirm **worker / long-running** `medusa start` runs scheduled jobs in production.
-- Manual checks above; then optional `devagent mark-task-complete` when verified.
+- Task archived under **completed/**; use this hub for historical context.
+- Ops: run `yarn fix-tickets` / `yarn fix-tickets-delivered` from `apps/medusa` once if legacy data needs it; confirm long-running `medusa start` runs scheduled jobs in production.
 
 ### Manual test matrix (post-implementation)
 | Scenario | Expect |
@@ -68,4 +69,4 @@ The full intent from intake: *“Since these are event tickets, we should consid
 | New accepted chef event → order placed → capture | Ticket lines **Fulfilled** without manual fulfill; no **Requires shipping** on those lines. |
 | Existing DB before fix | Run backfill script; re-open order or new checkout. |
 | Mixed cart (ticket + physical) | After capture, only **EVENT-** lines fulfilled; physical lines still await shipping flow. |
-| Event + 24h, auth not captured | Within ~1h of job tick, capture attempted; logs on failure (e.g. expired auth). |
+| Event + 24h, auth not captured | Next daily run (~12:05 AM), capture attempted for events in lookback window; logs on failure (e.g. expired auth). |

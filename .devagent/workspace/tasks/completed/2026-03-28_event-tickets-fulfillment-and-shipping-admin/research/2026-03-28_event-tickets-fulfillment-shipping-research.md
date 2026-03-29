@@ -2,8 +2,8 @@
 
 - **Classification:** Implementation design (Medusa v2 + custom chef-event workflow)
 - **Last Updated:** 2026-03-28 (run `date +%Y-%m-%d` before edits)
-- **Storage path:** `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/research/2026-03-28_event-tickets-fulfillment-shipping-research.md`
-- **Related task hub:** `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/AGENTS.md`
+- **Storage path:** `.devagent/workspace/tasks/completed/2026-03-28_event-tickets-fulfillment-and-shipping-admin/research/2026-03-28_event-tickets-fulfillment-shipping-research.md`
+- **Related task hub:** `.devagent/workspace/tasks/completed/2026-03-28_event-tickets-fulfillment-and-shipping-admin/AGENTS.md`
 
 ## Inferred problem statement
 
