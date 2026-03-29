@@ -2,7 +2,7 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-28
-- Status: Draft (implementation plan ready)
+- Status: Implemented (verify in admin / staging)
 - Task Hub: `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/`
 
 ## Summary
@@ -32,13 +32,15 @@ The full intent from intake: *“Since these are event tickets, we should consid
 - [2026-03-28] Event: Clarification session 1 started — `clarification/2026-03-28_initial-clarification.md` (in progress); awaiting Q1–Q3 on auto-fulfill, post-event without capture, and mixed carts.
 - [2026-03-28] Event: Clarification **complete** — auto-fulfill on capture; post-event **cron ~24h after event date** to **auto-capture** then fulfillment; mixed carts = ticket lines only. See `clarification/2026-03-28_initial-clarification.md`.
 - [2026-03-28] Event: Implementation plan added — `plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` (inventory fix, `payment.captured` subscriber, scheduled post-event capture, tests).
+- [2026-03-28] Event: **implement-plan** executed — `accept-chef-event` inventory patch; `fulfill-event-ticket-lines` + `event-ticket-payment-captured` subscriber; `post-event-capture-ticket-payments` job/workflow; script `fix-event-ticket-inventory-shipping.ts`; unit tests `src/lib/__tests__/event-ticket.unit.spec.ts`.
 
 ## Implementation Checklist
 - [x] Clarify fulfillment semantics — **real Medusa fulfillments** on capture; post-event via **cron ~24h after event date** → **auto-capture** → same fulfillment path; mixed carts = **ticket lines only** (`clarification/2026-03-28_initial-clarification.md`).
 - [x] Event date source for automation — **`ChefEvent.requestedDate`** (see clarification); **timezone +24h anchor** still to lock in plan.
-- [~] Trace Medusa fields driving **Requires shipping** / fulfillment requirements for Event Ticket products (variants, shipping profiles, fulfillment sets, modules). — Research: line item flag comes from linked inventory item; core defaults `requires_shipping: true`; `accept-chef-event` reuses that item by SKU without updating the flag (see research packet).
+- [x] Trace Medusa fields driving **Requires shipping** — implemented fix (inventory `requires_shipping: false` on create/reuse + optional backfill script).
 - [x] Design backend + admin behavior: payment-captured path, post-event path, and product-level “digital / no shipping” configuration — see `plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md`.
-- [ ] Implement, add tests, and verify in admin for captured orders and past-event scenarios.
+- [x] Implement + unit tests (`yarn test:unit` in `apps/medusa`).
+- [ ] **Manual verification:** ticket-only order after capture → admin shows ticket line fulfilled, no **Requires shipping** on ticket lines (after backfill for old data); mixed cart → only `EVENT-*` lines auto-fulfill; job at `0 * * * *` attempts capture for confirmed events past `requestedDate + 24h` (requires running Medusa process).
 
 ## Open Questions
 - **Timezone anchor** — Plan default: eligibility = `requestedDate` **instant + 24h** (timestamptz); change if business needs “end of local event day.”
@@ -56,4 +58,14 @@ The full intent from intake: *“Since these are event tickets, we should consid
 - [2026-03-28] `.devagent/workspace/tasks/active/2026-03-28_event-tickets-fulfillment-and-shipping-admin/plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` — Implementation plan.
 
 ## Next Steps
-- `devagent implement-plan` (or explicit implementation pass) — Execute tasks in `plan/2026-03-28_event-tickets-fulfillment-shipping-admin.md` in order (Task 1 → 4).
+- Run backfill once: `npx medusa exec ./src/scripts/fix-event-ticket-inventory-shipping.ts` (from `apps/medusa`).
+- Confirm **worker / long-running** `medusa start` runs scheduled jobs in production.
+- Manual checks above; then optional `devagent mark-task-complete` when verified.
+
+### Manual test matrix (post-implementation)
+| Scenario | Expect |
+| --- | --- |
+| New accepted chef event → order placed → capture | Ticket lines **Fulfilled** without manual fulfill; no **Requires shipping** on those lines. |
+| Existing DB before fix | Run backfill script; re-open order or new checkout. |
+| Mixed cart (ticket + physical) | After capture, only **EVENT-** lines fulfilled; physical lines still await shipping flow. |
+| Event + 24h, auth not captured | Within ~1h of job tick, capture attempted; logs on failure (e.g. expired auth). |
