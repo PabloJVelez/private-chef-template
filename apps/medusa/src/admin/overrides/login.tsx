@@ -6,7 +6,7 @@ import { useForm, type ControllerRenderProps } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as z from 'zod';
-import loginBrandMarkUrl from '../../../../storefront/public/favicon.jpg';
+import loginBrandMarkUrl from '../../assets/chefhat.jpg';
 import { Form } from '~dashboard/components/common/form';
 import { useSignInWithEmailPass } from '~dashboard/hooks/api';
 import { isFetchError } from '~dashboard/lib/is-fetch-error';
@@ -32,52 +32,10 @@ export const Login = () => {
   useEffect(() => {
     const previousTitle = document.title;
     document.title = DOC_TITLE;
-
-    const existingIcons = [
-      ...document.querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="shortcut icon"]'),
-    ];
-
-    const restored = existingIcons.map((el) => ({
-      el,
-      href: el.getAttribute('href'),
-      type: el.getAttribute('type'),
-    }));
-
-    let appended: HTMLLinkElement | null = null;
-
-    if (existingIcons.length === 0) {
-      appended = document.createElement('link');
-      appended.rel = 'icon';
-      appended.type = 'image/jpeg';
-      appended.href = loginBrandMarkUrl;
-      document.head.appendChild(appended);
-    } else {
-      existingIcons.forEach((el) => {
-        el.type = 'image/jpeg';
-        el.href = loginBrandMarkUrl;
-      });
-    }
-
     return () => {
       document.title = previousTitle;
-      if (appended) {
-        appended.remove();
-        return;
-      }
-      restored.forEach(({ el, href, type }) => {
-        if (href === null) {
-          el.removeAttribute('href');
-        } else {
-          el.setAttribute('href', href);
-        }
-        if (type === null) {
-          el.removeAttribute('type');
-        } else {
-          el.setAttribute('type', type);
-        }
-      });
     };
-  }, [loginBrandMarkUrl]);
+  }, []);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(LoginSchema),
@@ -131,7 +89,7 @@ export const Login = () => {
         <img
           src={loginBrandMarkUrl}
           alt="Private Chef"
-          className="mb-2 h-14 w-14 shrink-0 rounded-2xl object-contain"
+          className="shadow-elevation-card-rest mb-4 h-[50px] w-[50px] shrink-0 rounded-xl object-cover"
         />
         <div className="mb-4 flex flex-col items-center">
           <Heading>Private Chef&apos;s Admin</Heading>

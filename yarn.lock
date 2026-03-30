@@ -5510,12 +5510,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@medusajs/icons@npm:2.8.4":
-  version: 2.8.4
-  resolution: "@medusajs/icons@npm:2.8.4"
+"@medusajs/icons@npm:2.13.5":
+  version: 2.13.5
+  resolution: "@medusajs/icons@npm:2.13.5"
   peerDependencies:
-    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-  checksum: 10c0/a673d5c97a591daff07097f45bb43a3fdecf3228f53f845ab58c6da3fdf1e9e4813459b53290405bd08fe8c70f5b82886bf1f3c8c55e4bd2e00865aafea71fe0
+    react: ^18.3.1
+  checksum: 10c0/43e54d38a9c5b05212da1028df754232723d57288b939930b14472c541ea9ad80a9600304d0d93fadec3fd9bdd2d843cec2b2060e83f5fc18d866225904637ec
   languageName: node
   linkType: hard
 
@@ -27718,7 +27718,7 @@ __metadata:
   dependencies:
     "@biomejs/biome": "npm:1.9.3"
     "@hookform/resolvers": "npm:^5.1.0"
-    "@medusajs/icons": "npm:^2.8.4"
+    "@medusajs/icons": "npm:2.13.5"
     "@medusajs/ui": "npm:^4.0.14"
     "@tanstack/react-query": "npm:^5.80.6"
     prettier: "npm:^3.2.5"
@@ -27777,7 +27777,7 @@ __metadata:
     "@medusajs/cli": "npm:2.7.0"
     "@medusajs/file-s3": "npm:^2.10.2"
     "@medusajs/framework": "npm:2.7.0"
-    "@medusajs/icons": "npm:2.8.0"
+    "@medusajs/icons": "npm:2.13.5"
     "@medusajs/js-sdk": "npm:2.7.0"
     "@medusajs/medusa": "npm:2.7.0"
     "@medusajs/test-utils": "npm:2.7.0"
