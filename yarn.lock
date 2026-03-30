@@ -18935,6 +18935,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@unlockable/vite-plugin-unlock@npm:^0.1.6":
+  version: 0.1.6
+  resolution: "@unlockable/vite-plugin-unlock@npm:0.1.6"
+  peerDependencies:
+    vite: ">=5.0.0"
+  checksum: 10c0/441462ad30e2a30cfc809a1c8797de8a8ca16933abb92dd1eac1604c78117abf6c60d7c4fda05609baf8efcaafd82c549d28b384420daf0b50e5fa88ee847132
+  languageName: node
+  linkType: hard
+
 "@vanilla-extract/babel-plugin-debug-ids@npm:^1.0.4":
   version: 1.2.0
   resolution: "@vanilla-extract/babel-plugin-debug-ids@npm:1.2.0"
@@ -27801,6 +27810,7 @@ __metadata:
     "@types/node": "npm:^17.0.8"
     "@types/react": "npm:^18.3.2"
     "@types/react-big-calendar": "npm:^1"
+    "@unlockable/vite-plugin-unlock": "npm:^0.1.6"
     awilix: "npm:^8.0.1"
     concurrently: "npm:^9.2.1"
     date-fns: "npm:^4.1.0"

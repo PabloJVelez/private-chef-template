@@ -1,24 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "jsx": "react-jsx",
     "strict": true,
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "allowJs": true,
     "noEmit": true,
+    "esModuleInterop": true,
     "isolatedModules": true,
-    "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "*": ["*", "../*", "../../*"]
-    }
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": "."
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  "include": ["ambient.d.ts", "dashboard-imports.d.ts", "overrides/**/*.ts", "overrides/**/*.tsx"]
 }

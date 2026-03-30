@@ -2,10 +2,10 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-29
-- Status: Draft
+- Status: Active (scope expanded beyond initial clarification; implemented in repo)
 - Related Task Hub: `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides/`
 - Stakeholders: PabloJVelez (DRI)
-- Notes: Clarified requirements in `clarification/2026-03-29_initial-clarification.md`. Research in `research/2026-03-29_medusa-admin-overrides-with-vite-plugin-unlock.md`.
+- Notes: Original requirements in `clarification/2026-03-29_initial-clarification.md`. Research in `research/2026-03-29_medusa-admin-overrides-with-vite-plugin-unlock.md`. **Authoritative “how we use overrides” doc:** `docs/medusa-admin-unlock-overrides.md`.
 
 ---
 
@@ -13,76 +13,92 @@
 
 ### Summary
 
-Private Chef needs small, branded touches on Medusa Admin—sign-in copy, browser tab title, a chef-hat mark instead of the default avatar on login, and a clearer Orders list column label—**without** forking `@medusajs/dashboard`. This plan uses [`@unlockable/vite-plugin-unlock`](https://github.com/unlockablejs/vite-plugin-unlock) with its Medusa preset so Vite resolves a few basename-matched override files from `apps/medusa/src/admin/overrides/` while the real dashboard package stays a normal dependency.
+Private Chef customizes Medusa Admin—branding, navigation, orders UX, and Stripe Connect payout visibility—**without** forking `@medusajs/dashboard`. This plan documents [`@unlockable/vite-plugin-unlock`](https://github.com/unlockablejs/vite-plugin-unlock) with its Medusa preset so Vite resolves basename-matched files under `apps/medusa/src/admin/overrides/` while the dashboard stays a normal dependency.
+
+The **initial** task hub focused on login copy and the orders list “Fulfillment” column. **Current codebase** also includes default landing redirect, sidebar `menu.config.ts`, order detail + summary forks (no fulfillment section on detail, payout block in Summary), shared payout helpers, TypeScript shim for `~dashboard`, and repo docs.
 
 ### Context & Problem
 
-- **Current state:** Admin uses stock `@medusajs/dashboard` UI: generic welcome copy, default login graphic, generic “Fulfillment” column header on the orders table.
-- **Pain:** Operators and stakeholders see Medusa-default chrome; “Fulfillment” is ambiguous for an event-ticket product model.
-- **Trigger:** Task hub + clarification session locked scope to plugin wiring plus **only** these UI changes; further admin branding is explicitly out of scope for this iteration.
+- **Original pain:** Generic Medusa chrome; “Fulfillment” ambiguous for event tickets; need branded sign-in.
+- **Extended needs:** Default admin home should match product (chef events); sidebar should surface Menus / Chef Events and de-emphasize irrelevant core items; order detail should not emphasize physical fulfillment for digital/event tickets; platform commission and chef take-home should appear in the order Summary when Stripe Connect payments include fee data.
 
 **Evidence / artifacts**
 
 - Clarification packet: `clarification/2026-03-29_initial-clarification.md`
 - Research packet: `research/2026-03-29_medusa-admin-overrides-with-vite-plugin-unlock.md`
+- Operational guide: `docs/medusa-admin-unlock-overrides.md`
 
 ### Objectives & Success Metrics
 
-| Objective | Baseline | Target | How we know |
-| --- | --- | --- | --- |
-| Branded sign-in | “Welcome to Medusa” (i18n `login.title`) | Heading: **Welcome to Private Chef's Admin** | Visible on `/login` |
-| Branded sign-in subtitle | i18n `login.hint` | Private Chef–specific subtitle (exact string: see Risks) | Visible under heading |
-| Tab title | Generic / Medusa default | Private Chef–specific tab title | Browser tab on `/login` |
-| Login mark | `AvatarBox` default | Chef-hat graphic | Visible above heading |
-| Orders list column | “Fulfillment” (i18n `fields.fulfillment`) | **Fulfillment for Event** | Orders list grid header only |
+| Objective | Target | How we know |
+| --- | --- | --- |
+| Branded sign-in | Heading **Welcome to Private Chef's Admin**, subtitle, tab title, chef-hat (or chosen) mark | `/login` |
+| Default landing | Open `/` in admin → lands on **`/chef-events`** (not `/orders`) | Browser |
+| Sidebar | **Chef Events** first in configured order; **Menus** present; **Inventory** / **Price Lists** removed; core vs Extensions duplicates handled per plugin rules | Left nav |
+| Orders list | Event-oriented column behavior + extended `fields`; optional column exclusions (e.g. sales channel) | `/orders` |
+| Order detail | No **Order fulfillment** block in main column; breadcrumbs + order retrieve still work | Order detail URL |
+| Summary payout | **Payout** subsection in cost breakdown for Stripe Connect payments (gross, optional Stripe fee row, platform commission, chef take-home) | Order detail Summary card |
+| Build | Admin client builds; unlock lists expected overrides in dev | `yarn build` / `medusa develop` |
 
 ### Users & Insights
 
-- **Primary users:** Internal admins (operators) signing into Medusa Admin and scanning the Orders list.
-- **Insight:** Scope is intentionally narrow (clarification Q3 = strict two feature areas + plugin) to preserve upgrade safety.
+- **Primary users:** Internal operators using Admin for events, menus, orders, and payouts.
+- **Insight:** Overrides stay basename-small where possible; large forks (`order-summary-section.tsx`) carry `// @ts-nocheck` and track upstream for upgrades.
 
 ### Solution Principles
 
-- **Minimal surface:** Prefer overriding the smallest number of dashboard files; do not change auth or data-fetching behavior.
-- **Orders list only:** Do **not** override shared header components used elsewhere if that would change the customer-detail orders table; scope is the main **Orders list** view only.
-- **Upstream-safe:** Prefer copying upstream `login.tsx` / `order-list-table.tsx` patterns and adjusting only presentation (strings, logo, column header mapping).
-- **Typed, boring code:** Match existing Medusa/TS style; avoid `any` unless matching upstream patterns.
+- **Minimal where possible:** Prefer single-file overrides; use `~dashboard/...` to reuse upstream.
+- **Sibling overrides:** When an override imports another overridden module, use a **relative import** (e.g. `./order-summary-section`) so Vite loads **your** fork. Imports from `~dashboard/...` resolve to **original** dashboard sources—so `order-detail.tsx` must not import `OrderSummarySection` from `~dashboard` if the summary is also overridden.
+- **Upstream-safe:** Pin `@unlockable/vite-plugin-unlock`; after Medusa bumps, diff the same basenames in `node_modules/@medusajs/dashboard`.
+- **Shared logic:** Stripe payout math lives in `apps/medusa/src/lib/order-stripe-payout.ts`; admin UI in `apps/medusa/src/admin/components/order-stripe-payout-breakdown.tsx`.
 
 ### Scope Definition
 
-- **In scope**
-  - Add dev dependency `@unlockable/vite-plugin-unlock`.
-  - Extend `apps/medusa/medusa-config.ts` `admin` config with `vite: () => ({ plugins: [unlock(medusa())] })` (optionally `debug: true` during rollout).
-  - Create `apps/medusa/src/admin/overrides/` with:
-    - `login.tsx` — branded heading, subtitle, tab title, chef-hat image; same form + navigation behavior as upstream.
-    - `order-list-table.tsx` — same data/query/table behavior as upstream; fulfillment column header shows **Fulfillment for Event** (only for this table instance).
-  - Static asset for chef hat (e.g. SVG under `apps/medusa/src/admin/assets/` or co-located import path that Vite resolves).
-- **Out of scope / future**
-  - Sidebar/menu copy (“Medusa Store”), other routes, i18n locale file overrides, customer-detail order subsection table, global override of `use-order-table-columns.tsx` or `fulfillment-status-cell.tsx` (would affect customer detail—**avoid** per clarification).
-  - Automated visual regression tests (not assumed available).
+- **In scope (implemented or planned in this task hub)**
+  - `apps/medusa/medusa-config.ts` — `admin.vite` registers `unlock(unlockMedusa({ overrides: "./src/admin/overrides", debug: IS_DEV }))`.
+  - `apps/medusa/package.json` — devDependency `@unlockable/vite-plugin-unlock`.
+  - **Overrides** (`apps/medusa/src/admin/overrides/`):
+    - `login.tsx` — branding; exports `Component` (and default per route/unlock expectations).
+    - `home.tsx` — redirect `/` → `/chef-events`.
+    - `menu.config.ts` — `MenuConfig`: remove routes, add Menus/Chef Events, custom `order`.
+    - `order-list-table.tsx` — orders list table; extended query fields; column customizations.
+    - `order-detail.tsx` — fork: no `OrderFulfillmentSection`; re-exports `Breadcrumb`, `loader`; imports `OrderSummarySection` from **`./order-summary-section`** (not `~dashboard`).
+    - `order-summary-section.tsx` — fork: `CostBreakdown` includes `OrderStripePayoutBreakdown`.
+  - **Admin UI helper:** `apps/medusa/src/admin/components/order-stripe-payout-breakdown.tsx`.
+  - **Shared lib:** `apps/medusa/src/lib/order-stripe-payout.ts` — flatten payments, normalize Stripe Connect `provider_id`, extract commission / gross for display.
+  - **TypeScript:** `apps/medusa/src/admin/tsconfig.json`, `dashboard-imports.d.ts`, `ambient.d.ts`; root `apps/medusa/tsconfig.json` excludes overrides from default `tsc` where configured.
+  - **Docs:** `docs/medusa-admin-unlock-overrides.md`.
+  - **Removed:** sidebar/widget approach for commission (e.g. `order-commission-widget.tsx` deleted in favor of Summary-embedded payout).
+- **Related but not “unlock basename” overrides**
+  - Custom admin routes under `apps/medusa/src/admin/routes/` (e.g. chef-events, menus)—wired as extensions; **referenced** by `menu.config.ts`.
+- **Out of scope**
+  - Automated admin e2e in CI (manual smoke recommended).
+  - Forking `@medusajs/dashboard` as a package.
 
 ### Functional Narrative
 
-#### Flow: Admin sign-in (`/login`)
+#### Flow: Sign-in (`/login`)
 
-- **Trigger:** User opens admin app, lands on login route.
-- **Experience:** User sees chef-hat graphic, **Welcome to Private Chef's Admin**, Private Chef subtitle, correct browser tab title; email/password and continue behavior unchanged.
-- **Acceptance criteria:** Successful login still redirects to prior `location.state.from` or default `/orders`; errors still surface as today.
+- Branded copy and mark; auth behavior unchanged; post-login fallback aligns with **`/chef-events`** where configured in login override.
+
+#### Flow: Default admin root (`/`)
+
+- User is redirected to **`/chef-events`** via `home.tsx` override.
 
 #### Flow: Orders list (`/orders`)
 
-- **Trigger:** Authenticated user views main orders data table.
-- **Experience:** Fulfillment status column header reads **Fulfillment for Event**; cell values and sorting unchanged.
-- **Acceptance criteria:** Customer detail → order list subsection still shows default “Fulfillment” header (unless product later expands scope).
+- Table uses override for columns/fields; fulfillment labeling/event-oriented behavior per `order-list-table.tsx` implementation.
+
+#### Flow: Order detail
+
+- Main column: summary + payment sections **without** fulfillment section (per `order-detail.tsx` override).
+- Summary: after tax breakdown, **Payout** block when a payment matches Stripe Connect and order totals allow display.
 
 ### Technical Notes & Dependencies
 
-- **Repo entry points:** `apps/medusa/medusa-config.ts` (today: `admin: { disable, backendUrl }` only — Vite plugins not yet wired).
-- **Dashboard sources (installed package; verify version in lockfile during impl):**
-  - Login UI: `node_modules/@medusajs/dashboard/src/routes/login/login.tsx` (exported as route `Component` via `routes/login/index.ts`).
-  - Orders list table: `node_modules/@medusajs/dashboard/src/routes/orders/order-list/components/order-list-table/order-list-table.tsx`.
-  - Shared hook `useOrderTableColumns` is used by **both** orders list and `customer-order-section`; therefore **do not** change the hook or `FulfillmentStatusHeader` globally if the goal is orders-list-only header text.
-- **Package manager:** `apps/medusa/package.json` uses **yarn 4** (`packageManager: yarn@4.5.0`).
+- **Repo entry points:** `apps/medusa/medusa-config.ts`; overrides dir `./src/admin/overrides`.
+- **Package manager:** yarn 4 (`packageManager: yarn@4.5.0` in `apps/medusa/package.json`).
+- **Import alias:** `~dashboard/*` = original dashboard only; use relative paths between co-overridden modules.
 
 ---
 
@@ -90,94 +106,97 @@ Private Chef needs small, branded touches on Medusa Admin—sign-in copy, browse
 
 ### Scope & Assumptions
 
-- **Scope focus:** `apps/medusa` admin Vite pipeline + two dashboard override files + one static logo asset.
-- **Key assumptions**
-  - Medusa admin build accepts `admin.vite` callback returning extra Vite plugins (per Medusa + plugin docs).
-  - Basename overrides `login.tsx` and `order-list-table.tsx` each match **exactly one** dashboard source file (verified in current `@medusajs/dashboard` tree).
-- **Out of scope:** Any backend API, storefront, or non-admin app changes.
+- **Scope:** Medusa app admin Vite pipeline, overrides directory, supporting `src/lib` + `src/admin` helpers, and documentation.
+- **Assumptions:** Medusa `admin.vite()` accepts extra plugins; basename overrides match dashboard tree files for the installed `@medusajs/dashboard` version.
 
 ### Implementation Tasks
 
 #### Task 1: Add `@unlockable/vite-plugin-unlock` and wire Medusa admin Vite
 
-- **Objective:** Install the plugin and enable the Medusa preset so override files under `src/admin/overrides` shadow dashboard modules.
-- **Impacted modules/files**
-  - `apps/medusa/package.json` — add devDependency (pin to a known stable version, e.g. latest from npm at implement time).
-  - `apps/medusa/medusa-config.ts` — import `unlock` and `medusa` from the plugin; extend `admin` with `vite: () => ({ plugins: [unlock(medusa({ overrides: "./src/admin/overrides", debug: process.env.NODE_ENV === "development" }))] })` or equivalent per team preference.
-- **References:** [unlockablejs/vite-plugin-unlock README](https://github.com/unlockablejs/vite-plugin-unlock) (Medusa section).
-- **Dependencies:** None (first task).
-- **Acceptance criteria**
-  - `yarn install` succeeds at repo root / Medusa app per workspace conventions.
-  - `medusa develop` starts without Vite config errors; with `debug: true` in development, logs show overrides resolving when override files exist.
-- **Testing criteria**
-  - Run `yarn workspace medusa build` (or project-standard build) and confirm admin client build completes.
-- **Validation plan:** Build passes; optional dev smoke: temporarily add a trivial override to confirm resolution, then replace with real overrides in Tasks 2–3.
+- **Objective:** Install plugin; enable Medusa preset with `overrides: "./src/admin/overrides"`.
+- **Files:** `apps/medusa/package.json`, `apps/medusa/medusa-config.ts`, `yarn.lock`.
+- **Acceptance:** `yarn install`; `medusa develop` / `yarn build` (Medusa) succeeds; with `debug: true` in dev, logs show resolved overrides.
 
-#### Task 2: Override `login.tsx` (copy, title, chef-hat logo)
+#### Task 2: `login.tsx` override
 
-- **Objective:** Replace Medusa-default welcome copy and login mark while preserving authentication flow and layout structure from upstream `routes/login/login.tsx`.
-- **Impacted modules/files**
-  - `apps/medusa/src/admin/overrides/login.tsx` (new) — start from upstream component; **export the same public component** the route expects (`Login` is fine if `routes/login/index.ts` still re-exports; confirm actual export pattern: upstream uses `export { Login as Component } from "./login"` in `index.ts` — lazy import resolves package `routes/login` folder; overriding **`login.tsx`** replaces the implementation file consumed by that `index.ts`).
-  - Static asset: e.g. `apps/medusa/src/admin/assets/chef-hat.svg` (or similar) — ensure license/originality is acceptable (custom SVG preferred).
-- **References**
-  - Upstream: `node_modules/@medusajs/dashboard/src/routes/login/login.tsx`
-  - Plugin alias: imports from `~dashboard/...` where needed (per plugin README).
-- **Dependencies:** Task 1 complete.
-- **Acceptance criteria**
-  - Heading text is exactly: **Welcome to Private Chef's Admin**.
-  - Subtitle reflects Private Chef (exact approved string — if not provided in backlog, use a neutral default and record it in the task hub decision log; see Risks).
-  - Browser tab title on `/login` reflects Private Chef (implement via `document.title` in `useEffect` or another pattern consistent with dashboard stack; `react-helmet-async` is available at the app root but may be unused in routes—prefer the smallest dependency on global providers).
-  - `<AvatarBox />` is replaced (or wrapped) so the visible mark is a chef-hat graphic with appropriate `alt` text for accessibility.
-  - Login success and error handling behave as upstream.
-- **Testing criteria**
-  - Manual: load `/app` login, verify strings, tab title, image, and successful sign-in.
-- **Validation plan:** Manual check only (no new e2e infrastructure assumed).
+- **Objective:** Branded heading, subtitle, document title, mark; preserve auth.
+- **Files:** `apps/medusa/src/admin/overrides/login.tsx`; assets as referenced by that file.
 
-#### Task 3: Override `order-list-table.tsx` (Fulfillment header on main list only)
+#### Task 3: `home.tsx` override
 
-- **Objective:** Change only the **main Orders list** table fulfillment column header to **Fulfillment for Event** without affecting other tables using `useOrderTableColumns`.
-- **Impacted modules/files**
-  - `apps/medusa/src/admin/overrides/order-list-table.tsx` (new) — copy upstream `order-list-table.tsx`, import `useOrderTableColumns` from the real dashboard (via `~dashboard/.../use-order-table-columns` or a relative path the plugin documents), then adjust the `columns` array so the `fulfillment_status` column’s `header` renders **Fulfillment for Event** (structure may use `ColumnDef` from `@tanstack/react-table`; map immutably).
-- **References**
-  - Upstream: `node_modules/@medusajs/dashboard/src/routes/orders/order-list/components/order-list-table/order-list-table.tsx`
-  - Upstream hook: `node_modules/@medusajs/dashboard/src/hooks/table/columns/use-order-table-columns.tsx`
-- **Dependencies:** Task 1 complete.
-- **Acceptance criteria**
-  - On `/orders`, the fulfillment column header displays **Fulfillment for Event**.
-  - Order row navigation, filters, pagination, and cell renderers behave as upstream.
-  - Customer detail page order subsection (if exercised) still shows the default Fulfillment label — confirms we did not globally override `FulfillmentStatusHeader` / the shared hook.
-- **Testing criteria**
-  - Manual: compare `/orders` vs customer → orders subsection header labels.
-- **Validation plan:** Manual verification.
+- **Objective:** Redirect admin `/` to `/chef-events`.
+- **Files:** `apps/medusa/src/admin/overrides/home.tsx`.
+
+#### Task 4: `menu.config.ts` patch
+
+- **Objective:** Sidebar `remove` / `add` / `order` per product (Menus, Chef Events, drop Inventory/Price Lists, etc.).
+- **Files:** `apps/medusa/src/admin/overrides/menu.config.ts`.
+- **Note:** `add` paths should align with custom routes under `src/admin/routes/` so plugin can de-duplicate Extensions entries.
+
+#### Task 5: `order-list-table.tsx` override
+
+- **Objective:** Orders list behavior + field extensions + column mapping (event/fulfillment UX, exclusions).
+- **Files:** `apps/medusa/src/admin/overrides/order-list-table.tsx`; possibly shared helpers (e.g. `apps/medusa/src/lib/event-ticket.ts` if used).
+
+#### Task 6: `order-detail.tsx` + `order-summary-section.tsx` forks
+
+- **Objective:** Remove fulfillment section from order detail; embed Stripe Connect payout in Summary `CostBreakdown`; keep route exports compatible with lazy route loading.
+- **Files:**
+  - `apps/medusa/src/admin/overrides/order-detail.tsx` — import **`OrderSummarySection` from `./order-summary-section`**; re-export `Breadcrumb`, `loader` from `~dashboard` paths.
+  - `apps/medusa/src/admin/overrides/order-summary-section.tsx` — render `OrderStripePayoutBreakdown` inside `CostBreakdown`.
+  - `apps/medusa/src/admin/components/order-stripe-payout-breakdown.tsx`
+  - `apps/medusa/src/lib/order-stripe-payout.ts`
+- **Acceptance:** Payout visible when order retrieve includes `payment_collections[].payments[]` with Stripe Connect `provider_id` and fee-related `data`; no breadcrumb regression.
+
+#### Task 7: TypeScript / IDE support for overrides
+
+- **Objective:** Optional `tsc` for overrides + `declare module` for each `~dashboard` import used.
+- **Files:** `apps/medusa/src/admin/tsconfig.json`, `dashboard-imports.d.ts`, `ambient.d.ts`; root `apps/medusa/tsconfig.json` policy for excluding `src/admin/overrides`.
+
+#### Task 8: Documentation
+
+- **Objective:** Single place describing wiring, basename rules, `menu.config`, relative-import pitfall, and examples.
+- **Files:** `docs/medusa-admin-unlock-overrides.md`.
 
 ### Implementation Guidance
 
-- **Medusa config & modules:** Follow existing patterns in `apps/medusa/medusa-config.ts` (TypeScript, `defineConfig`, env via `loadEnv`). `.cursor/rules/medusa-development.mdc` applies to backend structure and TypeScript discipline.
-- **Dashboard overrides:** Match filenames exactly (`login.tsx`, `order-list-table.tsx`). Organize under `apps/medusa/src/admin/overrides/` (nested folders allowed; basename is what matters).
-- **Imports from upstream:** Use `~dashboard/...` for original modules when the plugin exposes that alias (per [plugin README](https://github.com/unlockablejs/vite-plugin-unlock)).
-- **Accessibility:** Chef-hat mark should have meaningful `alt` text; heading hierarchy should stay coherent with upstream (`Heading` from `@medusajs/ui`).
+- **Relative imports between overrides:** If module A and B are both overridden, **A → B** should be `import { B } from "./b"` (same folder) or correct relative path—not `~dashboard/.../b`.
+- **Medusa config:** Follow `defineConfig` / `loadEnv` patterns in `apps/medusa/medusa-config.ts`.
+- **Accessibility:** Meaningful `alt` / labels on branded imagery.
 
 ### Release & Delivery Strategy
 
-- Land behind normal PR review; no feature flags required for copy-only changes.
-- After merge, smoke-test **development** and **production** admin builds if CI does not already build admin artifacts.
+- Normal PR review; smoke login, `/` redirect, sidebar, orders list, order detail Summary + Payments after deploy.
 
 ---
 
 ## Risks & Open Questions
 
-| Item | Type | Owner | Mitigation / Next Step | Due |
-| --- | --- | --- | --- | --- |
-| Subtitle and tab title copy not explicitly provided | Question | PabloJVelez | Approve final strings during implementation (or accept implementer default: e.g. subtitle “Sign in to manage Private Chef.” / title “Private Chef Admin”). | Before PR |
-| `@unlockable/vite-plugin-unlock` API drift (early plugin) | Risk | Implementer | Pin version; read changelog; keep overrides minimal. | Implementation |
-| Dashboard internal file renames on upgrade | Risk | Implementer | After Medusa upgrades, verify `login.tsx` / `order-list-table.tsx` still exist; run with plugin `debug: true` locally. | Each upgrade |
-| Wrong override file (e.g. shared `index.ts`) | Risk | Implementer | Only use basenames verified unique in current dashboard tree (`login.tsx`, `order-list-table.tsx`). | Implementation |
+| Item | Type | Mitigation |
+| --- | --- | --- |
+| `~dashboard` vs relative import for co-overridden modules | Risk | Document in plan + `docs/medusa-admin-unlock-overrides.md`; use relative path from `order-detail` → `order-summary-section`. |
+| Plugin / dashboard API drift | Risk | Pin versions; unlock `debug` on upgrade branches. |
+| Large fork drift (`order-summary-section`) | Risk | Re-diff upstream file on `@medusajs/dashboard` bumps; keep `// @ts-nocheck` scope minimal if TS improves later. |
+| Original clarification scope vs expanded implementation | Process | This plan supersedes “login + orders column only” as **historical** minimum; AGENTS.md / checklist should match this doc. |
 
 ---
 
 ## Progress Tracking
 
-Use `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides/AGENTS.md` for checklist updates during implementation.
+Use `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides/AGENTS.md` for checklist updates. Align checklist items with **Task 1–8** above.
+
+---
+
+## Implementation inventory (quick reference)
+
+| Area | Path(s) |
+| --- | --- |
+| Vite + plugin | `apps/medusa/medusa-config.ts`, `apps/medusa/package.json` |
+| Overrides | `apps/medusa/src/admin/overrides/login.tsx`, `home.tsx`, `menu.config.ts`, `order-list-table.tsx`, `order-detail.tsx`, `order-summary-section.tsx` |
+| Payout UI + lib | `apps/medusa/src/admin/components/order-stripe-payout-breakdown.tsx`, `apps/medusa/src/lib/order-stripe-payout.ts` |
+| TS shim | `apps/medusa/src/admin/tsconfig.json`, `dashboard-imports.d.ts`, `ambient.d.ts` |
+| Docs | `docs/medusa-admin-unlock-overrides.md` |
+| Custom routes (related) | `apps/medusa/src/admin/routes/**` |
 
 ---
 
@@ -186,4 +205,5 @@ Use `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides
 - Task hub: `AGENTS.md`
 - Clarification: `clarification/2026-03-29_initial-clarification.md`
 - Research: `research/2026-03-29_medusa-admin-overrides-with-vite-plugin-unlock.md`
+- Repo guide: `docs/medusa-admin-unlock-overrides.md`
 - Plugin: [unlockablejs/vite-plugin-unlock](https://github.com/unlockablejs/vite-plugin-unlock)
