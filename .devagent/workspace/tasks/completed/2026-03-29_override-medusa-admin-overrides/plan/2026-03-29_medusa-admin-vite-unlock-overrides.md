@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-03-29
 - Status: Active (scope expanded beyond initial clarification; implemented in repo)
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-29_override-medusa-admin-overrides/`
 - Stakeholders: PabloJVelez (DRI)
 - Notes: Original requirements in `clarification/2026-03-29_initial-clarification.md`. Research in `research/2026-03-29_medusa-admin-overrides-with-vite-plugin-unlock.md`. **Authoritative “how we use overrides” doc:** `docs/medusa-admin-unlock-overrides.md`.
 
@@ -183,7 +183,7 @@ The **initial** task hub focused on login copy and the orders list “Fulfillmen
 
 ## Progress Tracking
 
-Use `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides/AGENTS.md` for checklist updates. Align checklist items with **Task 1–8** above.
+Use `.devagent/workspace/tasks/completed/2026-03-29_override-medusa-admin-overrides/AGENTS.md` for historical checklist; task is complete. Align checklist items with **Task 1–8** above.
 
 ---
 

@@ -5,7 +5,7 @@
 - Date: 2026-03-29
 - Mode: Task Clarification
 - Status: In Progress
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-03-29_override-medusa-admin-overrides/`
 - Notes: Incremental packet; questions below will be updated as the session continues.
 
 ## Task Overview

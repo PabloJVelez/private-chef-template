@@ -2,8 +2,8 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-03-29
-- Status: Active
-- Task Hub: `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides/`
+- Status: Complete
+- Task Hub: `.devagent/workspace/tasks/completed/2026-03-29_override-medusa-admin-overrides/`
 
 ## Summary
 
@@ -22,6 +22,7 @@ This task integrates `@unlockable/vite-plugin-unlock` into the Medusa admin Vite
 - [2026-03-29] Event: Overrides landed — `login.tsx`, `home.tsx` (`/` → `/chef-events`), `menu.config.ts`, `order-list-table.tsx`, `order-detail.tsx`, `order-summary-section.tsx`; payout helper `src/admin/components/order-stripe-payout-breakdown.tsx` + `src/lib/order-stripe-payout.ts`.
 - [2026-03-29] Event: Fixed Summary payout not rendering by importing `OrderSummarySection` from `./order-summary-section` in `order-detail.tsx` (not `~dashboard`).
 - [2026-03-29] Event: Plan doc expanded to match shipped scope; added `docs/medusa-admin-unlock-overrides.md`.
+- [2026-03-29] Event: Task moved to `completed/`; status and task-hub paths updated under `.devagent/workspace/tasks/completed/2026-03-29_override-medusa-admin-overrides/`.
 
 ## Implementation Checklist
 
@@ -35,7 +36,7 @@ Aligned with `plan/2026-03-29_medusa-admin-vite-unlock-overrides.md` (Tasks 1–
 - [x] **Task 6 — Order detail + Summary:** `overrides/order-detail.tsx` (no `OrderFulfillmentSection`; re-export `Breadcrumb` + `loader`; relative `OrderSummarySection`); `overrides/order-summary-section.tsx` embeds payout; `order-stripe-payout-breakdown.tsx` + `lib/order-stripe-payout.ts`.
 - [x] **Task 7 — TypeScript:** `src/admin/tsconfig.json`, `dashboard-imports.d.ts`, `ambient.d.ts` for `~dashboard` imports used in overrides.
 - [x] **Task 8 — Docs:** `docs/medusa-admin-unlock-overrides.md`.
-- [ ] **Ongoing — QA:** Manual smoke after Medusa/dashboard upgrades (login, `/` redirect, sidebar, `/orders`, order detail Summary + Payments, `yarn build` in `apps/medusa`). No automated admin e2e in repo.
+- [~] **Ongoing — QA:** Recurring manual smoke after Medusa/dashboard upgrades (login, `/` redirect, sidebar, `/orders`, order detail Summary + Payments, `yarn build` in `apps/medusa`). Not a single task deliverable; no automated admin e2e in repo.
 
 ## Open Questions
 
@@ -45,7 +46,7 @@ Aligned with `plan/2026-03-29_medusa-admin-vite-unlock-overrides.md` (Tasks 1–
 ## References
 
 - [2026-03-29] Repo guide: `docs/medusa-admin-unlock-overrides.md` — wiring, basename rules, `menu.config`, relative-import pitfall, examples.
-- [2026-03-29] Plan: `.devagent/workspace/tasks/active/2026-03-29_override-medusa-admin-overrides/plan/2026-03-29_medusa-admin-vite-unlock-overrides.md`
+- [2026-03-29] Plan: `.devagent/workspace/tasks/completed/2026-03-29_override-medusa-admin-overrides/plan/2026-03-29_medusa-admin-vite-unlock-overrides.md`
 - [2026-03-29] Plugin: [unlockablejs/vite-plugin-unlock](https://github.com/unlockablejs/vite-plugin-unlock)
 - [2026-03-29] Clarification (historical scope): `clarification/2026-03-29_initial-clarification.md`
 - [2026-03-29] Research: `research/2026-03-29_medusa-admin-overrides-with-vite-plugin-unlock.md`
