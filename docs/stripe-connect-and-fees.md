@@ -61,3 +61,7 @@ This template is designed for **"Stripe handles pricing"** — the platform does
 ## Provider ID
 
 The payment provider ID is **`pp_stripe-connect_stripe-connect`**. Storefront and seed scripts use this when creating payment sessions and checking payment methods.
+
+## Related documentation
+
+- [Custom → Express migration changelog](./stripe-connect-custom-to-express-migration.md) — summary of code and configuration changes when switching from Custom accounts and destination charges to Express and direct charges.
