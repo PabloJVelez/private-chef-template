@@ -1,6 +1,8 @@
 # Stripe Connect & Platform Fees
 
-This template uses a custom **Stripe Connect** payment provider so the platform can collect configurable application fees and route the remainder to a connected chef/vendor Stripe account.
+This template uses **Stripe Connect Express accounts** with **direct charges** so that each chef is the merchant of record. The platform collects its cut via `application_fee_amount` on each PaymentIntent.
+
+With direct charges, Stripe processing fees, refunds, and chargebacks are debited from the connected (chef) account — not the platform.
 
 ## Environment variables
 
@@ -8,17 +10,16 @@ This template uses a custom **Stripe Connect** payment provider so the platform 
 
 - **`STRIPE_API_KEY`** — Stripe secret key (test or live). Required for all payment flows.
 
-### Stripe Connect (optional)
+### Stripe Connect
 
-- **`USE_STRIPE_CONNECT`** — Set to `true` to use Stripe Connect (destination charges). When `false`, the provider behaves like standard Stripe (no Connect).
-- **`MEDUSA_ADMIN_URL`** — Full URL of the Medusa Admin app (e.g. `http://localhost:7000`). Required for the Stripe Connect onboarding flow (account links).
+- **`MEDUSA_ADMIN_URL`** — Full URL of the Medusa Admin app (e.g. `http://localhost:7000`). Required for the Stripe Connect onboarding flow (Express account links).
 - **`STRIPE_CONNECT_WEBHOOK_SECRET`** — Webhook signing secret for the Connect endpoint (`account.updated`). Optional; if set, the webhook route must receive the raw request body for signature verification.
 
 ### Payment webhooks
 
-- **`STRIPE_WEBHOOK_SECRET`** — Webhook secret for payment intents (payments, refunds). Used by the stripe-connect provider for payment webhooks.
+- **`STRIPE_WEBHOOK_SECRET`** — Webhook secret for payment intents (payments, refunds). **Important:** This must be registered as a Connect webhook endpoint in Stripe so that direct charge events from connected accounts are forwarded to the platform.
 
-### Platform fees (when using Stripe Connect)
+### Platform fees
 
 Fees can be per-unit (events vs products) or a percentage. Events are identified by line items whose product SKU starts with `EVENT-`; all other line items are treated as products.
 
@@ -35,22 +36,27 @@ Fees can be per-unit (events vs products) or a percentage. Events are identified
 
 ### Refunds
 
-- **`REFUND_APPLICATION_FEE`** — Set to `true` to refund the platform’s application fee when a Connect charge is refunded.
+- **`REFUND_APPLICATION_FEE`** — Set to `true` to refund the platform's application fee when a direct charge is refunded. With direct charges, the refund amount is debited from the connected account.
 
 ## Admin onboarding
 
-When Stripe Connect is enabled, the connected account is managed via the admin UI (no `STRIPE_CONNECTED_ACCOUNT_ID` in env):
+The connected account is managed via the admin UI:
 
 1. Open **Medusa Admin** → **Settings** (or **Store**) and find the **Stripe Connect** widget.
-2. Click **Connect with Stripe** and complete the Stripe Connect onboarding (Custom account).
-3. When status is **Active**, payments will use that connected account for destination charges.
+2. Click **Connect with Stripe** — Stripe handles the Express onboarding (identity verification, bank details, etc.).
+3. When status is **Active**, payments will use that connected account for direct charges.
+4. Click **Express Dashboard** to open the chef's Stripe Express Dashboard (payouts, balance, etc.).
 
-The widget shows status: **Not connected**, **Onboarding incomplete**, **Pending verification**, or **Active**. You can **Update Account Details** to get a new account link from Stripe.
+The widget shows status: **Not connected**, **Onboarding incomplete**, **Pending verification**, or **Active**. You can **Update Account Details** to return to Stripe's onboarding flow.
+
+## Connect billing model
+
+This template is designed for **"Stripe handles pricing"** — the platform does not incur additional per-account, per-payout, or payout-volume fees from Stripe. Configure this in your Stripe Dashboard under **Settings → Connect → Pricing**.
 
 ## Webhooks
 
-- **Payment webhooks** — Use your existing Stripe webhook endpoint for payment events; configure `STRIPE_WEBHOOK_SECRET` and point Stripe to the payment webhook URL used by the template.
-- **Connect account webhook** — To keep the stored Connect account status in sync, configure a Stripe webhook for **Connect** → **account.updated** and set `STRIPE_CONNECT_WEBHOOK_SECRET`. The backend route is `POST /webhooks/stripe-connect`; it must receive the **raw body** for signature verification.
+- **Payment webhooks** — Register your Stripe webhook endpoint as a **Connect webhook endpoint** (select "Events on Connected accounts") so that `payment_intent.succeeded`, `payment_intent.amount_capturable_updated`, and similar events from direct charges are forwarded to the platform. Configure `STRIPE_WEBHOOK_SECRET` accordingly.
+- **Connect account webhook** — To keep the stored Connect account status in sync, configure a separate Stripe webhook for **Connect** → **account.updated** and set `STRIPE_CONNECT_WEBHOOK_SECRET`. The backend route is `POST /webhooks/stripe-connect`.
 
 ## Provider ID
 

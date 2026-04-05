@@ -39,14 +39,13 @@ type Props = {
 };
 
 /**
- * Stripe Connect payout rows inside the order Summary cost breakdown (replaces sidebar widget).
- * Expects the same order payload as the order detail page (`DEFAULT_FIELDS` includes `*payment_collections.payments`).
- * Do not call `useOrder` here with a narrow `fields` list — it can replace this data with an incomplete order and hide payout rows.
+ * Stripe Connect payout rows inside the order Summary cost breakdown.
+ * Shows: Charged to customer, Platform commission, Chef take-home.
+ * Stripe processing fees are visible in the chef's Express Dashboard.
  */
 export function OrderStripePayoutBreakdown({ order }: Props) {
   const currency = order.currency_code || 'usd';
-  const { show, feeSmallest, grossSmallest, passStripeFeeToChef, stripeProcessingEstimateSmallest } =
-    extractPlatformCommission(order, currency);
+  const { show, feeSmallest, grossSmallest } = extractPlatformCommission(order, currency);
 
   if (!show) {
     return null;
@@ -54,19 +53,6 @@ export function OrderStripePayoutBreakdown({ order }: Props) {
 
   const hasGross = typeof grossSmallest === 'number' && grossSmallest > 0;
   const feeIsKnown = typeof feeSmallest === 'number' && Number.isFinite(feeSmallest);
-  const showStripeFeesRow =
-    passStripeFeeToChef &&
-    typeof stripeProcessingEstimateSmallest === 'number' &&
-    Number.isFinite(stripeProcessingEstimateSmallest) &&
-    stripeProcessingEstimateSmallest > 0 &&
-    feeIsKnown;
-
-  const platformNetSmallest =
-    showStripeFeesRow && feeIsKnown && typeof feeSmallest === 'number' && stripeProcessingEstimateSmallest !== null
-      ? Math.max(0, feeSmallest - stripeProcessingEstimateSmallest)
-      : feeSmallest;
-
-  const platformNetIsKnown = typeof platformNetSmallest === 'number' && Number.isFinite(platformNetSmallest);
 
   let takeHomeSmallest: number | null = null;
   if (grossSmallest !== null && feeIsKnown && typeof feeSmallest === 'number' && grossSmallest >= feeSmallest) {
@@ -93,18 +79,10 @@ export function OrderStripePayoutBreakdown({ order }: Props) {
       </Text>
       <BreakdownCostRow label="Charged to customer" value={formatFromSmallestUnit(grossSmallest, currency)} />
 
-      {showStripeFeesRow && stripeProcessingEstimateSmallest !== null ? (
-        <BreakdownCostRow
-          label="Stripe processing fees"
-          value={`−${formatFromSmallestUnit(stripeProcessingEstimateSmallest, currency)}`}
-          valueClassName="text-ui-fg-muted tabular-nums"
-        />
-      ) : null}
-
       <BreakdownCostRow
         label="Platform commission"
-        value={platformNetIsKnown ? `−${formatFromSmallestUnit(platformNetSmallest, currency)}` : '—'}
-        valueClassName={platformNetIsKnown ? 'text-ui-fg-muted tabular-nums' : 'text-ui-fg-muted'}
+        value={feeIsKnown ? `−${formatFromSmallestUnit(feeSmallest, currency)}` : '—'}
+        valueClassName={feeIsKnown ? 'text-ui-fg-muted tabular-nums' : 'text-ui-fg-muted'}
       />
 
       <div className="border-ui-border-base grid grid-cols-3 items-center border-t pt-2">

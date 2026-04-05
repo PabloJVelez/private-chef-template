@@ -10,18 +10,7 @@ loadEnv(process.env.NODE_ENV || 'development', process.cwd());
 
 const REDIS_URL = process.env.REDIS_URL;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
-const USE_STRIPE_CONNECT = process.env.USE_STRIPE_CONNECT === 'true';
 const REFUND_APPLICATION_FEE = process.env.REFUND_APPLICATION_FEE === 'true';
-const PASS_STRIPE_FEE_TO_CHEF = process.env.PASS_STRIPE_FEE_TO_CHEF === 'true';
-const stripeFeePercentRaw = process.env.STRIPE_FEE_PERCENT;
-const STRIPE_FEE_PERCENT =
-  stripeFeePercentRaw !== undefined &&
-  stripeFeePercentRaw !== '' &&
-  Number.isFinite(Number(stripeFeePercentRaw))
-    ? Number(stripeFeePercentRaw)
-    : 2.9;
-const stripeFeeFlatParsed = parseInt(process.env.STRIPE_FEE_FLAT_CENTS || '30', 10);
-const STRIPE_FEE_FLAT_CENTS = Number.isFinite(stripeFeeFlatParsed) ? stripeFeeFlatParsed : 30;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const SENTRY_DSN = process.env.SENTRY_DSN || '';
 // const SENTRY_API_TOKEN = process.env.SENTRY_API_TOKEN || ""; // Only needed for webhooks
@@ -168,11 +157,7 @@ module.exports = defineConfig({
             id: 'stripe-connect',
             options: {
               apiKey: STRIPE_API_KEY,
-              useStripeConnect: USE_STRIPE_CONNECT,
               refundApplicationFee: REFUND_APPLICATION_FEE,
-              passStripeFeeToChef: PASS_STRIPE_FEE_TO_CHEF,
-              stripeFeePercent: STRIPE_FEE_PERCENT,
-              stripeFeeFlatCents: STRIPE_FEE_FLAT_CENTS,
               webhookSecret: STRIPE_WEBHOOK_SECRET,
             },
           },

@@ -2,7 +2,7 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-04-05
-- Status: Draft
+- Status: Implementation Complete
 - Task Hub: `.devagent/workspace/tasks/active/2026-04-05_stripe-connect-express-direct-charges-migration/`
 
 ## Summary
@@ -50,18 +50,19 @@ Refactor the Stripe Connect integration from Custom accounts + destination charg
 - [2026-04-05] Event: Research completed — comprehensive analysis of Express account creation, direct charges API (Stripe-Account header pattern), Stripe.js stripeAccount parameter, refund mechanics, webhook routing for Connect, and Connect billing models. Key finding: all current Stripe API calls need `{ stripeAccount }` option; `PASS_STRIPE_FEE_TO_CHEF` and fee gross-up logic can be removed entirely. See `research/2026-04-05_express-direct-charges-migration-research.md`.
 - [2026-04-05] Event: Clarification completed — 9 questions resolved across 3 rounds. Key decisions: "Stripe handles pricing" billing model, remove `USE_STRIPE_CONNECT` toggle (always Connect), no automated migration (manual deletion), simplified admin widget with Express Dashboard link, commission-only order widget, all Stripe API call sites in scope including `post-event-capture-ticket-payments` workflow, manual testing. See `clarification/2026-04-05_initial-clarification.md`.
 - [2026-04-05] Event: Implementation plan created — 7 tasks covering onboarding module (Express accounts), payment provider (direct charges + toggle/fee removal), medusa-config cleanup, storefront stripeAccount param, admin UI (simplified widget + commission-only breakdown), workflow audit, and docs/env update. See `plan/2026-04-05_express-direct-charges-migration-plan.md`.
+- [2026-04-05] Event: All 7 implementation tasks completed. Changed files: `stripe-connect-account/service.ts` (Express + dashboard link), `stripe-connect/service.ts` (direct charges, removed toggle/fee gross-up), `stripe-connect/types.ts` (simplified), deleted `estimate-stripe-processing-fee.ts`, `medusa-config.ts` (removed deprecated options), `StripeElementsProvider.tsx` (stripeAccount param), `stripe-connect-store-widget.tsx` (simplified, Express Dashboard), `order-stripe-payout-breakdown.tsx` (commission only), `order-stripe-payout.ts` (simplified), added `express-login/route.ts`, updated SDK/hooks, `.env.template`, `docs/stripe-connect-and-fees.md`. Task 6 confirmed no changes needed (delegates to provider).
 
 ## Implementation Checklist
 - [x] Research: Document Stripe API differences (Custom+destination vs Express+direct), webhook behavior, refund mechanics, billing models.
 - [x] Clarification: Resolve product/operational decisions for migration.
 - [x] Plan: Create implementation plan with concrete tasks, files, and acceptance criteria.
-- [ ] Task 1: Update onboarding module — Express accounts (`stripe-connect-account/service.ts`)
-- [ ] Task 2: Refactor payment provider — direct charges + remove toggle + remove fee gross-up (`stripe-connect/service.ts`, `types.ts`, delete `estimate-stripe-processing-fee.ts`)
-- [ ] Task 3: Update `medusa-config.ts` — remove deprecated options
-- [ ] Task 4: Update storefront — `stripeAccount` in `loadStripe()` (`StripeElementsProvider.tsx`)
-- [ ] Task 5: Update admin UI — onboarding widget + order payout breakdown
-- [ ] Task 6: Audit `post-event-capture-ticket-payments` workflow
-- [ ] Task 7: Update `.env.template` and `docs/stripe-connect-and-fees.md`
+- [x] Task 1: Update onboarding module — Express accounts (`stripe-connect-account/service.ts`)
+- [x] Task 2: Refactor payment provider — direct charges + remove toggle + remove fee gross-up (`stripe-connect/service.ts`, `types.ts`, delete `estimate-stripe-processing-fee.ts`)
+- [x] Task 3: Update `medusa-config.ts` — remove deprecated options
+- [x] Task 4: Update storefront — `stripeAccount` in `loadStripe()` (`StripeElementsProvider.tsx`)
+- [x] Task 5: Update admin UI — onboarding widget + order payout breakdown
+- [x] Task 6: Audit `post-event-capture-ticket-payments` workflow — no changes needed (delegates to capturePaymentWorkflow)
+- [x] Task 7: Update `.env.template` and `docs/stripe-connect-and-fees.md`
 
 ## Open Questions
 *Resolved — see `clarification/2026-04-05_initial-clarification.md` for all decisions.*
