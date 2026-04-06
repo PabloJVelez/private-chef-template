@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-04-05
 - Status: Draft
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-04-05_stripe-connect-express-direct-charges-migration/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-04-05_stripe-connect-express-direct-charges-migration/`
 - Stakeholders: PabloJVelez (Owner, Decision Maker)
 
 ---
@@ -256,7 +256,7 @@ Refer to the AGENTS.md file in the task directory for instructions on tracking a
 
 - **Research:** `research/2026-04-05_express-direct-charges-migration-research.md`
 - **Clarification:** `clarification/2026-04-05_initial-clarification.md`
-- **Task hub:** `.devagent/workspace/tasks/active/2026-04-05_stripe-connect-express-direct-charges-migration/AGENTS.md`
+- **Task hub:** `.devagent/workspace/tasks/completed/2026-04-05_stripe-connect-express-direct-charges-migration/AGENTS.md`
 - **Prior task:** `.devagent/workspace/tasks/active/2026-03-09_port-stripe-connect-and-admin-onboarding/AGENTS.md`
 - **Stripe docs:** [Direct charges](https://docs.stripe.com/connect/direct-charges), [Express accounts](https://docs.stripe.com/connect/express-accounts), [Connect pricing](https://stripe.com/us/connect/pricing), [Connect webhooks](https://docs.stripe.com/connect/webhooks)
 - **Coding standards:** `.cursor/rules/medusa-development.mdc`, `.cursor/rules/typescript-patterns.mdc`, `.cursor/rules/remix-storefront-components.mdc`

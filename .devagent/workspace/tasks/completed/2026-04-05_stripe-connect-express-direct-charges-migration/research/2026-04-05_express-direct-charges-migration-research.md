@@ -2,7 +2,7 @@
 
 - Owner: PabloJVelez
 - Date: 2026-04-05
-- Task Hub: `.devagent/workspace/tasks/active/2026-04-05_stripe-connect-express-direct-charges-migration/`
+- Task Hub: `.devagent/workspace/tasks/completed/2026-04-05_stripe-connect-express-direct-charges-migration/`
 
 ## Classification & Assumptions
 

@@ -133,4 +133,4 @@ Direct charges require Elements to run in the context of the connected account.
 ## Related docs
 
 - **Day-to-day setup and env vars:** `docs/stripe-connect-and-fees.md`
-- **Task research / decisions (internal):** `.devagent/workspace/tasks/active/2026-04-05_stripe-connect-express-direct-charges-migration/`
+- **Task research / decisions (internal):** `.devagent/workspace/tasks/completed/2026-04-05_stripe-connect-express-direct-charges-migration/`
