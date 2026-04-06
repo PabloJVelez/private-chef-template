@@ -1,5 +1,8 @@
 /**
  * Stripe Connect payment row shapes for platform fee / chef payout breakdown on orders.
+ *
+ * With direct charges, Stripe fees are visible in the chef's Express Dashboard,
+ * so the admin only shows: Charged to customer, Platform commission, Chef take-home.
  */
 import type { HttpTypes } from '@medusajs/types';
 import { getSmallestUnit } from '../modules/stripe-connect/utils/get-smallest-unit';
@@ -63,8 +66,6 @@ export function extractPlatformCommission(
   show: boolean;
   feeSmallest: number | null;
   grossSmallest: number | null;
-  passStripeFeeToChef: boolean;
-  stripeProcessingEstimateSmallest: number | null;
 } {
   const payments = flattenOrderPayments(order);
   if (!payments.length) {
@@ -72,8 +73,6 @@ export function extractPlatformCommission(
       show: false,
       feeSmallest: null,
       grossSmallest: null,
-      passStripeFeeToChef: false,
-      stripeProcessingEstimateSmallest: null,
     };
   }
 
@@ -82,8 +81,6 @@ export function extractPlatformCommission(
 
     const data = paymentDataAsRecord(payment.data);
     const feeSmallest = parseNumericSmallest(data?.application_fee_amount);
-    const passStripeFeeToChef = data?.pass_stripe_fee_to_chef === true;
-    const stripeProcessingEstimateSmallest = parseNumericSmallest(data?.stripe_processing_fee_estimate);
 
     const fromStripePi = parseNumericSmallest(data?.amount);
     const orderTotalMajor = parseNumericSmallest(order?.total as unknown);
@@ -99,8 +96,6 @@ export function extractPlatformCommission(
       show: true,
       feeSmallest,
       grossSmallest,
-      passStripeFeeToChef,
-      stripeProcessingEstimateSmallest,
     };
   }
 
@@ -108,7 +103,5 @@ export function extractPlatformCommission(
     show: false,
     feeSmallest: null,
     grossSmallest: null,
-    passStripeFeeToChef: false,
-    stripeProcessingEstimateSmallest: null,
   };
 }

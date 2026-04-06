@@ -12,14 +12,22 @@ export const StripeElementsProvider: FC<StripeElementsProviderProps> = ({ option
   const { env } = useEnv();
   const { cart } = useCheckout();
 
-  const stripePromise = useMemo(() => (env.STRIPE_PUBLIC_KEY ? loadStripe(env.STRIPE_PUBLIC_KEY) : null), []);
-
   const stripeSession = useMemo(
     () => cart?.payment_collection?.payment_sessions?.find((s) => s.provider_id === 'pp_stripe-connect_stripe-connect'),
     [cart?.payment_collection?.payment_sessions],
   ) as unknown as {
-    data: { client_secret: string };
+    data: { client_secret: string; connected_account_id?: string };
   };
+
+  const connectedAccountId = stripeSession?.data?.connected_account_id;
+
+  const stripePromise = useMemo(
+    () =>
+      env.STRIPE_PUBLIC_KEY
+        ? loadStripe(env.STRIPE_PUBLIC_KEY, connectedAccountId ? { stripeAccount: connectedAccountId } : undefined)
+        : null,
+    [env.STRIPE_PUBLIC_KEY, connectedAccountId],
+  );
 
   const clientSecret = stripeSession?.data?.client_secret as string;
 

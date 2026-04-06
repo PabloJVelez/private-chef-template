@@ -62,4 +62,11 @@ export class AdminStripeConnectResource {
       method: "DELETE",
     });
   }
+
+  async createExpressLoginLink() {
+    return this.client.fetch<{ url: string }>(
+      "/admin/stripe-connect/express-login",
+      { method: "POST" },
+    );
+  }
 }
