@@ -2,7 +2,7 @@
 
 ## ⚠️ Critical: Chef-Specific Images
 
-The storefront template currently contains images of **Chef Luis Velez**. These images are for demonstration purposes only and **MUST be replaced** with your chef's actual photographs before launching the site.
+The storefront template currently contains images of **Chef John Doe**. These images are for demonstration purposes only and **MUST be replaced** with your chef's actual photographs before launching the site.
 
 ## Images That Need Replacement
 
@@ -33,7 +33,7 @@ The storefront template currently contains images of **Chef Luis Velez**. These 
 ### 2. "Meet Your Chef" Section Image
 **File**: `public/assets/images/chef_experience.jpg`
 
-**Current Image**: Chef Luis at an outdoor desert cooking location  
+**Current Image**: Chef John Doe at an outdoor desert cooking location  
 **Location Used**: Homepage "Meet Your Chef" section (below featured menus)  
 **Direct Reference**: Line 169 in `app/routes/_index.tsx`
 
@@ -57,7 +57,7 @@ The storefront template currently contains images of **Chef Luis Velez**. These 
 ### 3. Booking CTA Section Image
 **File**: `public/assets/images/chef_book_experience.jpg`
 
-**Current Image**: Chef Luis cooking at outdoor scenic location  
+**Current Image**: Chef John Doe cooking at outdoor scenic location  
 **Location Used**: Homepage "Book Your Experience" call-to-action section  
 **Direct Reference**: Line 262 in `app/routes/_index.tsx`
 
@@ -193,19 +193,19 @@ After uploading, verify:
 When replacing images, also update alt text for accessibility:
 
 ### Hero Image Alt Text
-**Current**: "Chef Luis Velez preparing an elegant dish"  
+**Current**: "Chef John Doe preparing an elegant dish"  
 **Update to**: "[Your Chef Name] preparing [signature dish/cuisine type]"
 
 **Example**: "Chef Maria Garcia preparing fresh pasta"
 
 ### Meet Your Chef Alt Text
-**Current**: "Chef Luis Velez in his kitchen"  
+**Current**: "Chef John Doe in his kitchen"  
 **Update to**: "Professional chef [Your Name] [in kitchen/cooking/portrait]"
 
 **Example**: "Professional chef James Wilson in his culinary kitchen"
 
 ### Booking CTA Alt Text
-**Current**: "Guests enjoying a Chef Velez experience"  
+**Current**: "Guests enjoying a Chef John Doe experience"  
 **Update to**: "Guests enjoying a culinary experience"
 
 **Where to Update Alt Text**:

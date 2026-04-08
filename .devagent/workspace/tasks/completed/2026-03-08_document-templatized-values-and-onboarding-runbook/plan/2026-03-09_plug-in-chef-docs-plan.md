@@ -118,7 +118,7 @@ The product is a client template for private chefs: you swap templatized values,
 | Item | Type | Owner | Mitigation / Next Step | Due |
 |------|------|--------|------------------------|-----|
 | Medusa store name in DB vs storefront | Question | Implementer | Research noted store record may have a name; playbook can state “ensure store name in admin matches intent” or defer to seed/README until confirmed. | At implementation |
-| Hardcoded "Chef Luis Velez" in email subscribers | Risk | Implementer | Document in inventory and playbook as “change in chef-event-accepted.ts and chef-event-rejected.ts” (or env/config if templatized later); no code change in this task. | — |
+| Hardcoded "Chef John Doe" in email subscribers | Risk | Implementer | Document in inventory and playbook as “change in chef-event-accepted.ts and chef-event-rejected.ts” (or env/config if templatized later); no code change in this task. | — |
 | Exact seed script names (medusa:init vs seed) | Question | Implementer | Confirmed from apps/medusa package.json: `medusa:init` (nukedb + create + migrate + sync + seed:menus + add-user), `seed` runs seed.ts. Playbook should use these. | — |
 
 ---

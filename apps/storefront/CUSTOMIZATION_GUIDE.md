@@ -4,7 +4,7 @@ This guide explains how to customize the storefront for a new chef or culinary p
 
 ## Quick Start
 
-⚠️ **IMPORTANT**: The storefront currently contains images of Chef Luis Velez. You MUST replace these images before going live with a new chef.
+⚠️ **IMPORTANT**: The storefront currently contains images of Chef John Doe. You MUST replace these images before going live with a new chef.
 
 ### Two Main Steps:
 
@@ -132,7 +132,7 @@ Open `apps/storefront/libs/config/chef/chef-config.ts` and update:
 
 ### 5. Update Images ⚠️ IMPORTANT
 
-**The current images show Chef Luis Velez and MUST be replaced with your chef's photos before going live.**
+**The current images show Chef John Doe and MUST be replaced with your chef's photos before going live.**
 
 Replace these specific images in `apps/storefront/public/assets/images/`:
 
@@ -144,13 +144,13 @@ Replace these specific images in `apps/storefront/public/assets/images/`:
    - Used in: Homepage hero section
 
 2. **`chef_experience.jpg`** - "Meet Your Chef" section
-   - Current: Shows Chef Luis at a scenic outdoor cooking location
+   - Current: Shows Chef John Doe at a scenic outdoor cooking location
    - Should show: Professional photo of your chef (headshot or action shot)
    - Dimensions: 800x800px (square) or 1200x800px (landscape)
    - Used in: Homepage "Meet Your Chef" section
 
 3. **`chef_book_experience.jpg`** - Booking call-to-action section
-   - Current: Shows Chef Luis cooking at outdoor location
+   - Current: Shows Chef John Doe cooking at outdoor location
    - Should show: Your chef in action, engaging with food or guests
    - Dimensions: 1200x800px (landscape)
    - Used in: Homepage booking section, various CTAs
@@ -243,7 +243,7 @@ After making changes:
 Before launching with a new chef, verify:
 
 ### Critical (Must Complete)
-- [ ] ⚠️ **Replace ALL Chef Luis photos with chef's actual photos**
+- [ ] ⚠️ **Replace ALL Chef John Doe photos with chef's actual photos**
   - [ ] `chef_scallops_home.jpg` - Homepage hero
   - [ ] `chef_experience.jpg` - Meet Your Chef section
   - [ ] `chef_book_experience.jpg` - Booking CTA

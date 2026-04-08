@@ -199,7 +199,7 @@ ChefEventAcceptedEmailComponent.PreviewProps = {
     purchase_url: "https://example.com/products/private-chef-experience",
   },
   chef: {
-    name: "Chef Luis Velez",
+    name: "Chef John Doe",
     email: "chef@example.com",
     phone: "+1 555-0199",
   },

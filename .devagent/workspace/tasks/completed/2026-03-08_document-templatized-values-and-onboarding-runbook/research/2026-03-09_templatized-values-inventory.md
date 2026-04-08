@@ -102,7 +102,7 @@ Where do templatized values (branding, copy, products, config, env) live in this
 | **Storefront config consumed** | `apps/storefront/libs/util/server/config.server.ts` | Reads `NODE_ENV`, `ENVIRONMENT`, `STRIPE_PUBLIC_KEY`, `PUBLIC_MEDUSA_API_URL`, `STOREFRONT_URL`, `SENTRY_*`, `EVENT_LOGGING`, `MEDUSA_PUBLISHABLE_KEY`. `loadEnv()` in env.ts loads .env. |
 | **Medusa env** | `apps/medusa/.env` (from `.env.template`) | `DB_NAME=chef-template`, `DATABASE_URL`, `POSTGRES_URL`, `STORE_CORS`, `ADMIN_CORS`, `AUTH_CORS`, `REDIS_URL`, `JWT_SECRET`, `COOKIE_SECRET`, `ADMIN_BACKEND_URL`, `STRIPE_API_KEY`, `SENTRY_DSN`. |
 | **Medusa store** | Backend DB | Store record (name, currencies, etc.) updated in `seed.ts` via `updateStoresWorkflow`; display name for storefront may still come from root.server store name. |
-| **Email / event subscribers** | `apps/medusa/src/subscribers/chef-event-accepted.ts`, `chef-event-rejected.ts` | Hardcoded chef name "Chef Luis Velez" and use of `process.env.STOREFRONT_URL` for links. **Templatize chef name** (env or config) and ensure STOREFRONT_URL set per env. |
+| **Email / event subscribers** | `apps/medusa/src/subscribers/chef-event-accepted.ts`, `chef-event-rejected.ts` | Hardcoded chef name "Chef John Doe" and use of `process.env.STOREFRONT_URL` for links. **Templatize chef name** (env or config) and ensure STOREFRONT_URL set per env. |
 
 **Key path:** Runbook should list: copy `.env.template` → `.env` for both apps; set `STRIPE_*`, `MEDUSA_PUBLISHABLE_KEY`, `PUBLIC_MEDUSA_API_URL`, `STOREFRONT_URL`; run `yarn run generate-env` if project provides it; document Medusa seed and Stripe webhook/base URL if needed for mock orders.
 
@@ -119,7 +119,7 @@ Where do templatized values (branding, copy, products, config, env) live in this
 
 1. **Inventory doc:** Publish a short **Templatized Values Inventory** (e.g. in `docs/` or `.devagent/workspace/`) that lists the tables above with file paths and one-line “what to change” notes. Add a “Quick reference” section: chef-config first, then env, then images, then Medusa seed.
 2. **Combined playbook:** Structure the runbook around: (1) Clone/copy template repo, (2) Env setup (both apps, keys and URLs), (3) Chef identity (chef-config + store name + root meta), (4) Images (replace or point hero/CTA/favicon), (5) Route meta (“Private Chef” → config or site name), (6) Medusa DB + seed (one product/menu, run seed), (7) Stripe test mode + first mock order. Include exact paths and key commands (e.g. `yarn run generate-env`, `yarn run medusa:init`, seed command).
-3. **Hardcoded chef name in email:** Add to inventory and playbook: replace "Chef Luis Velez" in `chef-event-accepted.ts` and `chef-event-rejected.ts` with a value from env or a small shared config so emails show the correct chef name.
+3. **Hardcoded chef name in email:** Add to inventory and playbook: replace "Chef John Doe" in `chef-event-accepted.ts` and `chef-event-rejected.ts` with a value from env or a small shared config so emails show the correct chef name.
 
 ---
 

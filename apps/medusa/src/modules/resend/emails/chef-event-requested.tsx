@@ -32,7 +32,7 @@ export type ChefEventRequestedEmailProps = {
   emailType: "customer_confirmation" | "chef_notification"
 }
 
-const BRAND_NAME = "Chef Luis Velez"
+const BRAND_NAME = "Chef John Doe"
 
 function row(label: string, value: string) {
   return (

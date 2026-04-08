@@ -241,8 +241,8 @@ ReceiptEmailComponent.PreviewProps = {
   tipAmount: 150,
   tipMethod: "Cash",
   chef: {
-    name: "Chef Luis Velez",
-    email: "support@chefvelez.com",
+    name: "Chef John Doe",
+    email: "support@example.com",
     phone: "(347) 695-4445",
   },
   requestReference: "CE-2025-001",

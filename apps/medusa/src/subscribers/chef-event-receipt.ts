@@ -109,8 +109,8 @@ export default async function chefEventReceiptHandler({
       tipAmount: data.tipAmount,
       tipMethod: data.tipMethod,
       chef: {
-        name: "Chef Luis Velez",
-        email: "support@chefvelez.com",
+        name: "Chef John Doe",
+        email: "support@example.com",
         phone: "(347) 695-4445",
       },
       requestReference: String(chefEvent.id).slice(0, 8).toUpperCase(),

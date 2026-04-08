@@ -172,7 +172,7 @@ ChefEventRejectedEmailComponent.PreviewProps = {
     chefNotes: "Our calendar is fully booked that weekend.",
   },
   chef: {
-    name: "Chef Luis Velez",
+    name: "Chef John Doe",
     email: "chef@example.com",
     phone: "+1 555-0199",
   },

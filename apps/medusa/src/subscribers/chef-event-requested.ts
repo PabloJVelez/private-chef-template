@@ -101,7 +101,7 @@ export default async function chefEventRequestedHandler({
           emailType: "customer_confirmation",
         requestReference: chefEvent.id.slice(0, 8).toUpperCase(),
         chefContact: {
-          email: "support@chefvelez.com",
+          email: "support@example.com",
           phone: "(347) 695-4445"
         }
       }
@@ -123,7 +123,7 @@ export default async function chefEventRequestedHandler({
           emailType: "chef_notification",
           requestReference: chefEvent.id.slice(0, 8).toUpperCase(),
           chefContact: {
-            email: "support@chefvelez.com",
+            email: "support@example.com",
             phone: "(347) 695-4445"
           }
         }

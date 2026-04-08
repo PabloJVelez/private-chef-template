@@ -44,7 +44,7 @@ cp .env.example .env
 
 ⚠️ **CRITICAL FIRST STEPS**:
 
-1. **Replace Chef Images** - The template contains images of Chef Luis Velez that MUST be replaced:
+1. **Replace Chef Images** - The template contains images of Chef John Doe that MUST be replaced:
    - See [IMAGE_REPLACEMENT_GUIDE.md](./IMAGE_REPLACEMENT_GUIDE.md) for detailed instructions
    - Images to replace are in `public/assets/images/`:
      - `chef_scallops_home.jpg` (hero)
@@ -83,7 +83,7 @@ This template is designed to be easily customized for any private chef.
 
 ### ⚠️ Before You Start
 
-**The template currently shows Chef Luis Velez**. You must replace:
+**The template currently shows Chef John Doe**. You must replace:
 1. Chef-specific images (see [IMAGE_REPLACEMENT_GUIDE.md](./IMAGE_REPLACEMENT_GUIDE.md))
 2. Chef information in configuration file
 
