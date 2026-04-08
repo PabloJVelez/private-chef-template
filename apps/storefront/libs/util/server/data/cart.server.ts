@@ -6,6 +6,7 @@ import { withAuthHeaders } from '../auth.server';
 import { getCartId } from '../cookies.server';
 import { getProductsById } from './products.server';
 import { getSelectedRegion } from './regions.server';
+import { STRIPE_CONNECT_PROVIDER_ID, isStaleStripeConnectPaymentSession } from '@libs/util/stripe/stripe-connect-session';
 
 export const retrieveCart = withAuthHeaders(async (request, authHeaders) => {
   const cartId = await getCartId(request.headers);
@@ -114,10 +115,18 @@ export const ensureStripePaymentSession = async (request: Request, cart: StoreCa
 
   if (!activeSession) {
     await initiatePaymentSession(request, cart, {
-      provider_id: 'pp_stripe-connect_stripe-connect',
+      provider_id: STRIPE_CONNECT_PROVIDER_ID,
       data: { cart_id: cart.id },
     });
 
+    return (await retrieveCart(request))!;
+  }
+
+  if (isStaleStripeConnectPaymentSession(activeSession)) {
+    await initiatePaymentSession(request, cart, {
+      provider_id: STRIPE_CONNECT_PROVIDER_ID,
+      data: { cart_id: cart.id },
+    });
     return (await retrieveCart(request))!;
   }
 

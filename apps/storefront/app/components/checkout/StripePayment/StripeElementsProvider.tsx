@@ -2,7 +2,7 @@ import { useCheckout } from '@app/hooks/useCheckout';
 import { useEnv } from '@app/hooks/useEnv';
 import { Elements } from '@stripe/react-stripe-js';
 import { StripeElementsOptions, loadStripe } from '@stripe/stripe-js';
-import { FC, PropsWithChildren, useMemo } from 'react';
+import { FC, PropsWithChildren, useEffect, useMemo } from 'react';
 
 export interface StripeElementsProviderProps extends PropsWithChildren {
   options?: StripeElementsOptions;
@@ -30,6 +30,15 @@ export const StripeElementsProvider: FC<StripeElementsProviderProps> = ({ option
   );
 
   const clientSecret = stripeSession?.data?.client_secret as string;
+
+  useEffect(() => {
+    if (clientSecret && !connectedAccountId) {
+      console.warn(
+        '[Stripe] Payment session has client_secret but missing connected_account_id. ' +
+          'Direct-charge checkouts need a fresh payment session; reload checkout or clear the cart if this persists.',
+      );
+    }
+  }, [clientSecret, connectedAccountId]);
 
   if (!stripeSession || !stripePromise || !clientSecret) return null;
 

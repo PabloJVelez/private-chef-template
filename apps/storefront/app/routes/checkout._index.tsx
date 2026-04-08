@@ -9,6 +9,10 @@ import { sdk } from '@libs/util/server/client.server';
 import { getCartId, removeCartId } from '@libs/util/server/cookies.server';
 import { initiatePaymentSession, retrieveCart, setShippingMethod } from '@libs/util/server/data/cart.server';
 import { listCartPaymentProviders } from '@libs/util/server/data/payment.server';
+import {
+  STRIPE_CONNECT_PROVIDER_ID,
+  isStaleStripeConnectPaymentSession,
+} from '@libs/util/stripe/stripe-connect-session';
 import { CartDTO, StoreCart, StoreCartShippingOption, StorePaymentProvider } from '@medusajs/types';
 import { BasePaymentSession } from '@medusajs/types/dist/http/payment/common';
 import { LoaderFunctionArgs, redirect } from 'react-router';
@@ -83,6 +87,15 @@ const ensureCartPaymentSessions = async (request: Request, cart: StoreCart) => {
     });
 
     activeSession = payment_collection.payment_sessions?.find((session) => session.status === 'pending');
+  }
+
+  if (activeSession && isStaleStripeConnectPaymentSession(activeSession)) {
+    const { payment_collection } = await initiatePaymentSession(request, cart, {
+      provider_id: STRIPE_CONNECT_PROVIDER_ID,
+      data: { cart_id: cart.id },
+    });
+    activeSession =
+      payment_collection.payment_sessions?.find((session) => session.status === 'pending') ?? activeSession;
   }
 
   return activeSession as BasePaymentSession;
