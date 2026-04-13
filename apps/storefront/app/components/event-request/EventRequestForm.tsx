@@ -163,7 +163,6 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
         // Special requests optional but must be valid if provided
         return !errors.specialRequirements && !errors.notes;
       case 4:
-        // No validation errors on final step
         return Object.keys(errors).length === 0;
       default:
         return false;
@@ -173,7 +172,13 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
   const isAllComplete = () => {
     const v = form.getValues();
     const e = form.formState.errors;
-    const step1 = !!v.menuId && !!v.eventType && !e.eventType && v.partySize >= 2 && v.partySize <= 50 && !e.partySize;
+    const step1 =
+      !!v.menuId &&
+      !!v.eventType &&
+      !e.eventType &&
+      v.partySize >= 2 &&
+      v.partySize <= 50 &&
+      !e.partySize;
     const step2Date = !!v.requestedDate && !!v.requestedTime && !e.requestedDate && !e.requestedTime;
     const step2Contact = !!v.firstName && !!v.lastName && !!v.email && !e.firstName && !e.lastName && !e.email && (!v.phone || !e.phone);
     const step2Location = !!v.locationAddress && v.locationAddress.length >= 10 && !e.locationAddress;

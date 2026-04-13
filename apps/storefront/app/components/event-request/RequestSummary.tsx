@@ -1,7 +1,11 @@
 import { Button } from '@app/components/common/buttons/Button';
 import { useFormContext } from 'react-hook-form';
 import type { EventRequestFormData } from '@app/routes/request._index';
-import { estimatePricePerPersonForRequest, getEventTypeDisplayName } from '@libs/constants/pricing';
+import {
+  estimatePricePerPersonForRequest,
+  getEventTypeDisplayName,
+  MENU_EXPERIENCE_TBD_PRICING_MESSAGE,
+} from '@libs/constants/pricing';
 import type { StoreMenuDTO } from '@libs/util/server/data/menus.server';
 import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
 import clsx from 'clsx';
@@ -60,8 +64,12 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
           menus,
           menuId: formData.menuId,
         })
-      : 0;
-  const totalPrice = pricePerPerson * (formData.partySize || 0);
+      : null;
+  const totalPrice =
+    pricePerPerson != null ? pricePerPerson * (formData.partySize || 0) : null;
+  const showTbdPricingCopy =
+    !!(formData.menuId && formData.experienceTypeId && formData.eventType && formData.partySize) &&
+    pricePerPerson === null;
 
   // Format date (parse YYYY-MM-DD as local to avoid UTC offset issues)
   const formatDateForDisplay = (dateString: string) => {
@@ -281,7 +289,14 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
         )}
 
         {/* Pricing Summary */}
-        {formData.eventType && formData.partySize && (
+        {formData.eventType && formData.partySize && showTbdPricingCopy && (
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
+            <h4 className="text-lg font-semibold text-primary-900 mb-2">Pricing to be confirmed</h4>
+            <p className="text-sm text-primary-800">{MENU_EXPERIENCE_TBD_PRICING_MESSAGE}</p>
+          </div>
+        )}
+
+        {formData.eventType && formData.partySize && pricePerPerson != null && totalPrice != null && (
           <div className="bg-accent-50 border border-accent-200 rounded-lg p-6">
             <h4 className="text-lg font-semibold text-accent-700 mb-4">Pricing Estimate</h4>
             <div className="space-y-3">

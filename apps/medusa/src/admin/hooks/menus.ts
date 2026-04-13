@@ -89,6 +89,7 @@ export const useAdminUpsertMenuPricingMutation = (menuId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...PRICING_QUERY_KEY, menuId] })
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, menuId] })
     },
   })
 } 

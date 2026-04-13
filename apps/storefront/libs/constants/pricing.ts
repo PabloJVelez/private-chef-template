@@ -1,7 +1,7 @@
 import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
 import type { StoreMenuDTO } from '@libs/util/server/data/menus.server';
 
-/** @deprecated Legacy fallback only — use menu × experience pricing instead. */
+/** @deprecated Legacy fallback only when no menu is selected on the request form. */
 export const PRICING_STRUCTURE = {
   buffet_style: 99.99,
   cooking_class: 119.99,
@@ -56,21 +56,26 @@ export const getEventTypeEstimatedDuration = (eventType: string): number => {
 export function getMenuExperiencePrice(
   menus: StoreMenuDTO[],
   menuId: string | undefined,
-  experienceTypeId: string | undefined
+  experienceTypeId: string | undefined,
 ): number | null {
   if (!menuId || !experienceTypeId) return null;
   const menu = menus.find((m) => m.id === menuId);
   if (!menu?.menu_experience_prices?.length) return null;
-  const row = menu.menu_experience_prices.find(
-    (p) => p.experience_type_id === experienceTypeId
-  );
+  const row = menu.menu_experience_prices.find((p) => p.experience_type_id === experienceTypeId);
   if (!row) return null;
   return Number(row.price_per_person);
 }
 
+/** Shown when a menu + experience are selected but there is no per-person matrix price (TBD until chef accepts). */
+export const MENU_EXPERIENCE_TBD_PRICING_MESSAGE = 'Chef will confirm pricing before your event is accepted.';
+
 /**
  * Estimate $/person for the request form.
- * Priority: menu × experience pricing → catalog price_per_unit → legacy fallback.
+ *
+ * When **both** `menuId` and `experienceTypeId` are set, only the menu × experience matrix applies.
+ * If there is no row or the price is zero, returns `null` (do not fall back to legacy — avoids misleading quotes).
+ *
+ * When no menu is selected, uses catalog `price_per_unit` then legacy constants (custom-menu / edge paths).
  */
 export function estimatePricePerPersonForRequest(params: {
   eventType: string;
@@ -78,30 +83,27 @@ export function estimatePricePerPersonForRequest(params: {
   experienceTypes: StoreExperienceTypeDTO[];
   menus?: StoreMenuDTO[];
   menuId?: string;
-}): number {
+}): number | null {
   const { eventType, experienceTypeId, experienceTypes, menus, menuId } = params;
 
-  // 1. Menu × experience pricing (cents → dollars)
-  if (menus && menuId && experienceTypeId) {
+  if (menus && menuId?.trim() && experienceTypeId?.trim()) {
     const cents = getMenuExperiencePrice(menus, menuId, experienceTypeId);
     if (cents != null && cents > 0) {
       return cents / 100;
     }
+    return null;
   }
 
-  // 2. Catalog price_per_unit
   const row = experienceTypeId ? experienceTypes.find((t) => t.id === experienceTypeId) : undefined;
   if (row?.price_per_unit != null) {
     return Number(row.price_per_unit) / 100;
   }
 
-  // 3. Legacy slug → PRICING_STRUCTURE
   if (row?.slug) {
     const key = legacyPricingKeyFromSlug(row.slug);
     if (key) return PRICING_STRUCTURE[key];
   }
 
-  // 4. Legacy eventType → PRICING_STRUCTURE
   if (isLegacyEventTypeKey(eventType)) {
     return PRICING_STRUCTURE[eventType];
   }

@@ -50,8 +50,9 @@ export async function POST(
       }
     }
 
-    // Priority 1: Menu × experience type pricing
     const menuId = validatedData.templateProductId?.trim() || null
+
+    // Menu + experience: matrix is authoritative — no legacy/catalog fallback (avoids wrong totals).
     if (menuId && experienceTypeId) {
       try {
         const menuModuleService = req.scope.resolve(MENU_MODULE) as any
@@ -60,29 +61,36 @@ export async function POST(
           experience_type_id: experienceTypeId,
         })
         if (prices.length > 0) {
-          pricePerPerson = Number(prices[0].price_per_person) / 100
+          const cents = Number(prices[0].price_per_person)
+          if (Number.isFinite(cents) && cents > 0) {
+            pricePerPerson = cents / 100
+          }
         }
       } catch (err) {
         logger.warn(`Failed to look up menu pricing: ${err instanceof Error ? err.message : String(err)}`)
       }
-    }
 
-    // Priority 2: Catalog price_per_unit
-    if (pricePerPerson == null && experienceTypeId) {
-      try {
-        const experienceTypeSvc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService
-        const experienceType = await experienceTypeSvc.retrieveExperienceType(experienceTypeId)
-        if (experienceType.price_per_unit != null) {
-          pricePerPerson = Number(experienceType.price_per_unit) / 100
-        }
-      } catch {
-        // Already logged above
+      // No matrix row or zero price: store $0 total; host and chef agree pricing before acceptance (see storefront copy).
+      if (pricePerPerson == null) {
+        pricePerPerson = 0
       }
-    }
+    } else {
+      // No menu (or no experience id): catalog, then legacy
+      if (experienceTypeId) {
+        try {
+          const experienceTypeSvc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService
+          const experienceType = await experienceTypeSvc.retrieveExperienceType(experienceTypeId)
+          if (experienceType.price_per_unit != null) {
+            pricePerPerson = Number(experienceType.price_per_unit) / 100
+          }
+        } catch {
+          // ignore
+        }
+      }
 
-    // Priority 3: Legacy fallback
-    if (pricePerPerson == null) {
-      pricePerPerson = fallbackPricePerPersonFromStrings(eventType, experienceSlug)
+      if (pricePerPerson == null) {
+        pricePerPerson = fallbackPricePerPersonFromStrings(eventType, experienceSlug)
+      }
     }
 
     const totalPrice = pricePerPerson * validatedData.partySize

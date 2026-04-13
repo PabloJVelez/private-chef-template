@@ -9,6 +9,7 @@ const upsertPricingSchema = z.object({
       price_per_person: z.number().int().min(0),
     })
   ),
+  allow_tbd_pricing: z.boolean().optional().default(false),
 })
 
 export async function GET(
@@ -18,12 +19,16 @@ export async function GET(
   const { id } = req.params
   const menuModuleService = req.scope.resolve(MENU_MODULE) as any
 
+  const menu = await menuModuleService.retrieveMenu(id)
   const prices = await menuModuleService.listMenuExperiencePrices(
     { menu_id: id },
     { order: { created_at: "ASC" } }
   )
 
-  res.status(200).json({ prices })
+  res.status(200).json({
+    prices,
+    allow_tbd_pricing: Boolean((menu as { allow_tbd_pricing?: boolean }).allow_tbd_pricing),
+  })
 }
 
 export async function POST(
@@ -34,11 +39,21 @@ export async function POST(
   const { id: menuId } = req.params
 
   try {
-    const { prices } = upsertPricingSchema.parse(req.body)
+    const { prices, allow_tbd_pricing: allowTbdPricing } = upsertPricingSchema.parse(req.body)
     const menuModuleService = req.scope.resolve(MENU_MODULE) as any
 
     // Verify menu exists
     await menuModuleService.retrieveMenu(menuId)
+
+    const hasPositivePrice = prices.some((p) => p.price_per_person > 0)
+    if (!allowTbdPricing && !hasPositivePrice) {
+      res.status(400).json({
+        message:
+          "Add a per-person price for at least one experience, or enable \"allow requests without listed prices\" to save.",
+        code: "MENU_PRICING_REQUIRES_PRICE_OR_TBD",
+      })
+      return
+    }
 
     const existing = await menuModuleService.listMenuExperiencePrices({ menu_id: menuId })
     const existingMap = new Map(
@@ -71,12 +86,20 @@ export async function POST(
       }
     }
 
+    await menuModuleService.updateMenus({
+      id: menuId,
+      allow_tbd_pricing: allowTbdPricing,
+    })
+
     const updated = await menuModuleService.listMenuExperiencePrices(
       { menu_id: menuId },
       { order: { created_at: "ASC" } }
     )
 
-    res.status(200).json({ prices: updated })
+    res.status(200).json({
+      prices: updated,
+      allow_tbd_pricing: allowTbdPricing,
+    })
   } catch (error) {
     logger.error(
       `Error upserting menu pricing: ${error instanceof Error ? error.message : String(error)}`

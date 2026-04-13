@@ -39,6 +39,7 @@ export interface AdminMenuDTO {
   courses: AdminCourseDTO[]
   images: AdminMenuImageDTO[]
   thumbnail?: string | null
+  allow_tbd_pricing?: boolean
   created_at: string
   updated_at: string
 }
@@ -96,10 +97,12 @@ export interface AdminUpsertMenuPricingDTO {
     experience_type_id: string
     price_per_person: number
   }>
+  allow_tbd_pricing?: boolean
 }
 
 export interface AdminMenuPricingResponse {
   prices: AdminMenuExperiencePriceDTO[]
+  allow_tbd_pricing: boolean
 }
 
 export interface AdminListMenusQuery {

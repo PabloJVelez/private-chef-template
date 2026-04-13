@@ -1,8 +1,20 @@
-import { Button, Label, Text, Input } from "@medusajs/ui"
+import {
+  Button,
+  IconButton,
+  Input,
+  Label,
+  Switch,
+  Text,
+  toast,
+  Tooltip,
+} from "@medusajs/ui"
+import { InformationCircle } from "@medusajs/icons"
 import { useState, useEffect, useMemo } from "react"
 import { useAdminListMenuPricing, useAdminUpsertMenuPricingMutation } from "../../../hooks/menus"
 import { useAdminListExperienceTypes } from "../../../hooks/experience-types"
-import { toast } from "@medusajs/ui"
+
+const ALLOW_TBD_TOOLTIP =
+  "If you allow requests without listed prices, guests can submit when there is no dollar amount yet"
 
 interface MenuPricingTabProps {
   menuId: string
@@ -21,6 +33,16 @@ export const MenuPricingTab = ({ menuId }: MenuPricingTabProps) => {
 
   const [rows, setRows] = useState<PriceRow[]>([])
   const [initialized, setInitialized] = useState(false)
+  const [allowTbd, setAllowTbd] = useState(false)
+
+  useEffect(() => {
+    if (pricingLoading || pricingData == null) return
+    setAllowTbd(Boolean(pricingData.allow_tbd_pricing))
+  }, [pricingData?.allow_tbd_pricing, pricingLoading])
+
+  useEffect(() => {
+    setInitialized(false)
+  }, [menuId])
 
   const experienceTypes = useMemo(() => {
     const list = experienceTypesData?.experience_types ?? []
@@ -67,17 +89,34 @@ export const MenuPricingTab = ({ menuId }: MenuPricingTabProps) => {
       }))
       .filter((r) => !isNaN(r.price_per_person) && r.price_per_person >= 0)
 
+    const hasPositivePrice = prices.some((p) => p.price_per_person > 0)
+    if (!allowTbd && !hasPositivePrice) {
+      toast.error("Cannot save", {
+        description:
+          "Add a per-person price for at least one experience, or turn on \"Allow requests without listed prices\".",
+        duration: 6000,
+      })
+      return
+    }
+
     try {
-      await upsertPricing.mutateAsync({ prices })
+      await upsertPricing.mutateAsync({ prices, allow_tbd_pricing: allowTbd })
       toast.success("Pricing Saved", {
         description: "Menu pricing has been updated successfully.",
         duration: 3000,
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to save pricing:", error)
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message: unknown }).message === "string"
+          ? (error as { message: string }).message
+          : "There was an error saving the pricing. Please try again."
       toast.error("Save Failed", {
-        description: "There was an error saving the pricing. Please try again.",
-        duration: 5000,
+        description: message,
+        duration: 6000,
       })
     }
   }
@@ -106,11 +145,43 @@ export const MenuPricingTab = ({ menuId }: MenuPricingTabProps) => {
       <div>
         <Text className="text-lg font-medium">Pricing per Experience Type</Text>
         <Text className="text-sm text-gray-600 mt-1">
-          Set the per-person price for each experience type on this menu. Leave blank if this menu doesn't offer that experience.
+          Set the per-person price for each experience type on this menu. Leave blank if this menu doesn't offer that
+          experience. Final pricing is agreed before the event is accepted. Otherwise, save at least one price greater than
+          zero.
         </Text>
       </div>
 
       <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="w-48 shrink-0">
+            <div className="flex items-center gap-1">
+              <Label htmlFor="menu-allow-tbd-pricing" className="cursor-pointer">
+                Allow requests without listed prices
+              </Label>
+              <Tooltip content={ALLOW_TBD_TOOLTIP}>
+                <IconButton
+                  type="button"
+                  variant="transparent"
+                  size="2xsmall"
+                  className="text-ui-fg-muted shrink-0"
+                  aria-label="More about allowing requests without listed prices"
+                >
+                  <InformationCircle />
+                </IconButton>
+              </Tooltip>
+            </div>
+          </div>
+          <div className="relative flex flex-1 max-w-xs items-center">
+            <Switch
+              id="menu-allow-tbd-pricing"
+              checked={allowTbd}
+              onCheckedChange={setAllowTbd}
+              aria-label="Allow guest requests when no per-person price is set for an experience"
+            />
+          </div>
+          <Text className="text-sm text-gray-500 shrink-0">no list price</Text>
+        </div>
+
         {rows.map((row) => (
           <div key={row.experience_type_id} className="flex items-center gap-4">
             <div className="w-48 shrink-0">

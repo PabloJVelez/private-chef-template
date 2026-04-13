@@ -35,6 +35,7 @@ export interface StoreMenuDTO {
   images?: { id: string; url: string; rank: number }[];
   menu_experience_prices?: StoreMenuExperiencePriceDTO[];
   thumbnail?: string | null;
+  allow_tbd_pricing?: boolean;
   created_at: string;
   updated_at: string;
 }
