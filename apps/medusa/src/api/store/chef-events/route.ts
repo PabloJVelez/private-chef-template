@@ -2,13 +2,15 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
 import { createChefEventWorkflow } from "../../../workflows/create-chef-event"
 import { EXPERIENCE_TYPE_MODULE } from "../../../modules/experience-type"
+import { MENU_MODULE } from "../../../modules/menu"
 import type ExperienceTypeModuleService from "../../../modules/experience-type/service"
+import { fallbackPricePerPersonFromStrings } from "../../../lib/chef-event-legacy-pricing"
 
 const createStoreChefEventSchema = z.object({
   requestedDate: z.string().min(1, "Requested date is required"),
   requestedTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
   partySize: z.number().min(2, "Minimum party size is 2").max(50, "Maximum party size is 50"),
-  eventType: z.enum(['cooking_class', 'plated_dinner', 'buffet_style']),
+  eventType: z.string().min(1, "Event type is required"),
   experience_type_id: z.string().optional(),
   templateProductId: z.string().optional(),
   locationType: z.enum(['customer_location', 'chef_location']),
@@ -21,12 +23,6 @@ const createStoreChefEventSchema = z.object({
   specialRequirements: z.string().optional()
 })
 
-const FALLBACK_PRICING = {
-  'buffet_style': 99.99,
-  'cooking_class': 119.99,
-  'plated_dinner': 149.99,
-} as const
-
 export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
@@ -36,22 +32,57 @@ export async function POST(
   try {
     const validatedData = createStoreChefEventSchema.parse(req.body)
 
-    let eventType = validatedData.eventType
+    let eventType = validatedData.eventType.trim()
     let experienceTypeId: string | null = validatedData.experience_type_id?.trim() || null
-    let pricePerPerson: number = FALLBACK_PRICING[eventType]
+    let experienceSlug: string | null = null
+    let pricePerPerson: number | null = null
 
     if (experienceTypeId) {
       try {
         const experienceTypeSvc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService
         const experienceType = await experienceTypeSvc.retrieveExperienceType(experienceTypeId)
-        eventType = experienceType.workflow_event_type as typeof eventType
+        eventType = experienceType.name
+        experienceSlug = experienceType.slug ?? null
+      } catch {
+        logger.warn(`Experience type ${experienceTypeId} not found, using provided eventType`)
+        experienceTypeId = null
+        experienceSlug = null
+      }
+    }
+
+    // Priority 1: Menu × experience type pricing
+    const menuId = validatedData.templateProductId?.trim() || null
+    if (menuId && experienceTypeId) {
+      try {
+        const menuModuleService = req.scope.resolve(MENU_MODULE) as any
+        const prices = await menuModuleService.listMenuExperiencePrices({
+          menu_id: menuId,
+          experience_type_id: experienceTypeId,
+        })
+        if (prices.length > 0) {
+          pricePerPerson = Number(prices[0].price_per_person) / 100
+        }
+      } catch (err) {
+        logger.warn(`Failed to look up menu pricing: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+
+    // Priority 2: Catalog price_per_unit
+    if (pricePerPerson == null && experienceTypeId) {
+      try {
+        const experienceTypeSvc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService
+        const experienceType = await experienceTypeSvc.retrieveExperienceType(experienceTypeId)
         if (experienceType.price_per_unit != null) {
           pricePerPerson = Number(experienceType.price_per_unit) / 100
         }
       } catch {
-        logger.warn(`Experience type ${experienceTypeId} not found, using provided eventType`)
-        experienceTypeId = null
+        // Already logged above
       }
+    }
+
+    // Priority 3: Legacy fallback
+    if (pricePerPerson == null) {
+      pricePerPerson = fallbackPricePerPersonFromStrings(eventType, experienceSlug)
     }
 
     const totalPrice = pricePerPerson * validatedData.partySize

@@ -30,17 +30,6 @@ export const ExperienceTypeList = ({ onCreate }: ExperienceTypeListProps) => {
       header: 'Slug',
       cell: ({ row }) => row.original.slug,
     }),
-    columnHelper.accessor('workflow_event_type', {
-      header: 'Workflow Type',
-      cell: ({ row }) => {
-        const labels: Record<string, string> = {
-          cooking_class: 'Cooking Class',
-          plated_dinner: 'Plated Dinner',
-          buffet_style: 'Buffet Style',
-        };
-        return labels[row.original.workflow_event_type] ?? row.original.workflow_event_type;
-      },
-    }),
     columnHelper.accessor('location_type', {
       header: 'Location',
       cell: ({ row }) => (row.original.location_type === 'customer' ? 'Customer' : 'Fixed'),

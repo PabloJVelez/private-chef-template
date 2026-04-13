@@ -46,7 +46,7 @@ const STEPS = [
   { id: 4, title: 'Review & Submit', subtitle: 'Confirm your event details' },
 ];
 
-/** Aligns eventType + experienceTypeId for defaults and URL prefill (no effects in child selectors). */
+/** Aligns eventType (display name or legacy key) + experienceTypeId for defaults and URL prefill. */
 function mergeExperienceDefaults(
   experienceTypes: StoreExperienceTypeDTO[],
   initialValues: Partial<EventRequestFormData>,
@@ -56,22 +56,27 @@ function mergeExperienceDefaults(
 
   if (initialId && active.some((t) => t.id === initialId)) {
     const row = active.find((t) => t.id === initialId)!;
-    return { eventType: row.workflow_event_type, experienceTypeId: row.id };
+    return { eventType: row.name, experienceTypeId: row.id };
   }
 
   if (initialValues.eventType && active.length > 0) {
-    const sameWorkflow = active.filter((t) => t.workflow_event_type === initialValues.eventType);
-    const row =
-      sameWorkflow.find((t) => t.is_featured) ||
-      sameWorkflow[0] ||
-      active.find((t) => t.is_featured) ||
-      active[0];
-    return { eventType: row.workflow_event_type, experienceTypeId: row.id };
+    const legacy = initialValues.eventType;
+    const slugish = legacy.replace(/_/g, '-');
+    const bySlug = active.find((t) => t.slug === slugish || t.slug === legacy);
+    if (bySlug) {
+      return { eventType: bySlug.name, experienceTypeId: bySlug.id };
+    }
+    const byName = active.find((t) => t.name === legacy);
+    if (byName) {
+      return { eventType: byName.name, experienceTypeId: byName.id };
+    }
+    const row = active.find((t) => t.is_featured) || active[0];
+    return { eventType: row.name, experienceTypeId: row.id };
   }
 
   if (active.length > 0) {
     const row = active.find((t) => t.is_featured) || active[0];
-    return { eventType: row.workflow_event_type, experienceTypeId: row.id };
+    return { eventType: row.name, experienceTypeId: row.id };
   }
 
   return {
@@ -257,7 +262,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
                     key: `step1-guests-${currentStep}`,
                     defaultOpen: false,
                     header: renderSectionHeader('Number of Guests', { complete: isPartySizeComplete }),
-                    children: <PartySizeSelector />,
+                    children: <PartySizeSelector experienceTypes={experienceTypes} menus={menus} />,
                   })}
                 </>
               );
@@ -306,7 +311,8 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
       case 4:
         return (
           <RequestSummary 
-            menus={menus} 
+            menus={menus}
+            experienceTypes={experienceTypes}
             onEditStep={(step: number, section?: string) => {
               setCurrentStep(step);
               // brief timeout to allow render then expand intended section

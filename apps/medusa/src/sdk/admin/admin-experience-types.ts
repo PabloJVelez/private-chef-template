@@ -2,7 +2,6 @@ import type { Client } from '@medusajs/js-sdk';
 
 export type LocationType = 'customer' | 'fixed';
 export type PricingType = 'per_person' | 'per_item' | 'product_based';
-export type WorkflowEventType = 'cooking_class' | 'plated_dinner' | 'buffet_style';
 
 export interface AdminExperienceTypeDTO {
   id: string;
@@ -29,7 +28,6 @@ export interface AdminExperienceTypeDTO {
   time_slot_interval_minutes: number;
   min_party_size: number;
   max_party_size?: number | null;
-  workflow_event_type: WorkflowEventType;
   is_active: boolean;
   is_featured: boolean;
   sort_order: number;
@@ -61,7 +59,6 @@ export interface AdminCreateExperienceTypeDTO {
   time_slot_interval_minutes?: number;
   min_party_size?: number;
   max_party_size?: number | null;
-  workflow_event_type?: WorkflowEventType;
   is_active?: boolean;
   is_featured?: boolean;
   sort_order?: number;

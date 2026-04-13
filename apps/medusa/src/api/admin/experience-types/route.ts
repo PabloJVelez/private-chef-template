@@ -27,7 +27,6 @@ const createSchema = z.object({
   time_slot_interval_minutes: z.number().optional(),
   min_party_size: z.number().optional(),
   max_party_size: z.number().optional().nullable(),
-  workflow_event_type: z.enum(['cooking_class', 'plated_dinner', 'buffet_style']).optional(),
   is_active: z.boolean().optional(),
   is_featured: z.boolean().optional(),
   sort_order: z.number().optional(),

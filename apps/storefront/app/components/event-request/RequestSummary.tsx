@@ -1,26 +1,36 @@
 import { Button } from '@app/components/common/buttons/Button';
 import { useFormContext } from 'react-hook-form';
 import type { EventRequestFormData } from '@app/routes/request._index';
-import { PRICING_STRUCTURE, getEventTypeDisplayName } from '@libs/constants/pricing';
+import { estimatePricePerPersonForRequest, getEventTypeDisplayName } from '@libs/constants/pricing';
 import type { StoreMenuDTO } from '@libs/util/server/data/menus.server';
+import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
 import clsx from 'clsx';
 import type { FC } from 'react';
 
 export interface RequestSummaryProps {
   className?: string;
   menus: StoreMenuDTO[];
+  experienceTypes?: StoreExperienceTypeDTO[];
   onEditStep: (step: number, section?: string) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
 }
 
-export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEditStep, onSubmit, isSubmitting }) => {
+export const RequestSummary: FC<RequestSummaryProps> = ({
+  className,
+  menus,
+  experienceTypes = [],
+  onEditStep,
+  onSubmit,
+  isSubmitting,
+}) => {
   const { watch } = useFormContext<EventRequestFormData>();
 
   // Get all form data
   const formData = {
     menuId: watch('menuId'),
     eventType: watch('eventType'),
+    experienceTypeId: watch('experienceTypeId'),
     partySize: watch('partySize'),
     requestedDate: watch('requestedDate'),
     requestedTime: watch('requestedTime'),
@@ -36,8 +46,21 @@ export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEd
   // Get selected menu
   const selectedMenu = formData.menuId ? menus.find((menu) => menu.id === formData.menuId) : null;
 
-  // Calculate pricing
-  const pricePerPerson = formData.eventType ? PRICING_STRUCTURE[formData.eventType] : 0;
+  const catalogRow = formData.experienceTypeId
+    ? experienceTypes.find((t) => t.id === formData.experienceTypeId)
+    : undefined;
+  const experienceTypeLabel = catalogRow?.name ?? getEventTypeDisplayName(formData.eventType || '');
+
+  const pricePerPerson =
+    formData.eventType || formData.experienceTypeId
+      ? estimatePricePerPersonForRequest({
+          eventType: formData.eventType || '',
+          experienceTypeId: formData.experienceTypeId,
+          experienceTypes,
+          menus,
+          menuId: formData.menuId,
+        })
+      : 0;
   const totalPrice = pricePerPerson * (formData.partySize || 0);
 
   // Format date (parse YYYY-MM-DD as local to avoid UTC offset issues)
@@ -125,7 +148,7 @@ export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEd
             <div>
               <p className="text-sm font-medium text-primary-700">Experience Type</p>
               <p className="text-primary-900">
-                {formData.eventType ? getEventTypeDisplayName(formData.eventType) : 'Not selected'}
+                {formData.eventType || formData.experienceTypeId ? experienceTypeLabel : 'Not selected'}
               </p>
             </div>
             <div>
@@ -264,7 +287,7 @@ export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEd
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-accent-600">
-                  {getEventTypeDisplayName(formData.eventType)} × {formData.partySize} guests
+                  {experienceTypeLabel} × {formData.partySize} guests
                 </span>
                 <span className="font-medium text-accent-800">
                   ${pricePerPerson.toFixed(2)} × {formData.partySize}

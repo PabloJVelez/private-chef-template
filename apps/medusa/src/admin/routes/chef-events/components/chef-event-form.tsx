@@ -36,10 +36,7 @@ const transformDataForForm = (data: any) => {
 
   const requestedDate = data.requestedDate ? new Date(data.requestedDate).toISOString().split('T')[0] : ''
 
-  const eventType = (data.eventType ?? data.event_type ?? "plated_dinner") as
-    | "cooking_class"
-    | "plated_dinner"
-    | "buffet_style"
+  const eventType = String(data.eventType ?? data.event_type ?? "plated_dinner")
   const experience_type_id = String(data.experience_type_id ?? data.experienceTypeId ?? "").trim()
 
   return {
@@ -119,7 +116,10 @@ export const ChefEventForm = ({
       return `et:${experienceTypeIdWatched}`
     }
     const wf = eventTypeWatched || "plated_dinner"
-    return `wf:${wf}`
+    if (eventTypeOptions.some((o) => o.value === wf)) {
+      return `wf:${wf}`
+    }
+    return `wf:plated_dinner`
   }, [experienceTypeIdWatched, eventTypeWatched, catalogExperiences])
 
   const handleExperienceSelect = (v: string) => {
@@ -128,7 +128,7 @@ export const ChefEventForm = ({
       const et = catalogExperiences.find((e) => e.id === id)
       if (et) {
         setValue("experience_type_id", id, { shouldDirty: true, shouldValidate: true })
-        setValue("eventType", et.workflow_event_type as any, { shouldDirty: true, shouldValidate: true })
+        setValue("eventType", et.name, { shouldDirty: true, shouldValidate: true })
       }
       return
     }

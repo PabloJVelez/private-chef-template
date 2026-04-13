@@ -14,11 +14,8 @@ export const ChefEvent = model.define("chef_event", {
   requestedDate: model.dateTime(),
   requestedTime: model.text(), // Format: HH:mm
   partySize: model.number(),
-  eventType: model.enum([
-    'cooking_class',
-    'plated_dinner',
-    'buffet_style'
-  ]),
+  /** Display name from experience catalog or legacy enum string (cooking_class, etc.) */
+  eventType: model.text(),
   experience_type_id: model.text().nullable(),
   templateProductId: model.text(),
   
@@ -72,7 +69,7 @@ export type ChefEventType = {
   requestedDate: Date
   requestedTime: string
   partySize: number
-  eventType: 'cooking_class' | 'plated_dinner' | 'buffet_style'
+  eventType: string
   experience_type_id?: string | null
   locationType: 'customer_location' | 'chef_location'
   locationAddress?: string

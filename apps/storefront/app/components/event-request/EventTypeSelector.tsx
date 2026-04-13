@@ -1,6 +1,7 @@
 import { useFormContext } from 'react-hook-form';
 import type { EventRequestFormData } from '@app/routes/request._index';
 import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
+import { legacyPricingKeyFromSlug } from '@libs/constants/pricing';
 import clsx from 'clsx';
 import { useMemo, type FC } from 'react';
 
@@ -9,10 +10,10 @@ export interface EventTypeSelectorProps {
   className?: string;
 }
 
-type WorkflowType = 'cooking_class' | 'plated_dinner' | 'buffet_style';
+type LegacyWorkflowKey = 'cooking_class' | 'plated_dinner' | 'buffet_style';
 
 interface FallbackExperienceType {
-  id: WorkflowType;
+  id: LegacyWorkflowKey;
   name: string;
   description: string;
   highlights: string[];
@@ -55,7 +56,8 @@ const fallbackTypes: FallbackExperienceType[] = [
 
 interface NormalizedOption {
   apiId: string | null;
-  workflowType: WorkflowType;
+  /** Legacy enum string for pricing when API catalog is empty (fallback mode). */
+  legacyKey: LegacyWorkflowKey | null;
   name: string;
   description: string;
   highlights: string[];
@@ -69,7 +71,7 @@ function normalizeOptions(apiTypes: StoreExperienceTypeDTO[]): NormalizedOption[
   if (apiTypes.length === 0) {
     return fallbackTypes.map((t) => ({
       apiId: null,
-      workflowType: t.id,
+      legacyKey: t.id,
       name: t.name,
       description: t.description,
       highlights: t.highlights,
@@ -84,7 +86,7 @@ function normalizeOptions(apiTypes: StoreExperienceTypeDTO[]): NormalizedOption[
     .filter((t) => t.is_active)
     .map((t) => ({
       apiId: t.id,
-      workflowType: t.workflow_event_type,
+      legacyKey: legacyPricingKeyFromSlug(t.slug),
       name: t.name,
       description: t.description ?? '',
       highlights: t.highlights ?? [],
@@ -95,10 +97,10 @@ function normalizeOptions(apiTypes: StoreExperienceTypeDTO[]): NormalizedOption[
     }));
 }
 
-/** Stable <select> value: catalog rows use exp:id so multiple types can share one workflow. */
+/** Stable <select> value: catalog rows use exp:id; fallback uses wf:legacyKey. */
 function encodeSelectValue(opt: NormalizedOption): string {
   if (opt.apiId) return `exp:${opt.apiId}`;
-  return `wf:${opt.workflowType}`;
+  return `wf:${opt.legacyKey ?? 'plated_dinner'}`;
 }
 
 function findOptionByEncodedValue(options: NormalizedOption[], encoded: string): NormalizedOption | undefined {
@@ -107,8 +109,8 @@ function findOptionByEncodedValue(options: NormalizedOption[], encoded: string):
     return options.find((o) => o.apiId === id);
   }
   if (encoded.startsWith('wf:')) {
-    const wf = encoded.slice(3) as WorkflowType;
-    return options.find((o) => o.workflowType === wf && !o.apiId) ?? options.find((o) => o.workflowType === wf);
+    const wf = encoded.slice(3) as LegacyWorkflowKey;
+    return options.find((o) => o.legacyKey === wf && !o.apiId) ?? options.find((o) => o.legacyKey === wf);
   }
   return undefined;
 }
@@ -132,7 +134,7 @@ export const EventTypeSelector: FC<EventTypeSelectorProps> = ({ experienceTypes 
       const fallback = options.find((o) => o.isMostPopular) || options[0];
       return encodeSelectValue(fallback);
     }
-    return `wf:${eventType || 'plated_dinner'}`;
+    return `wf:${(eventType as LegacyWorkflowKey) || 'plated_dinner'}`;
   }, [options, isCatalogMode, experienceTypeId, eventType]);
 
   const selectedOption = useMemo(() => {
@@ -145,16 +147,29 @@ export const EventTypeSelector: FC<EventTypeSelectorProps> = ({ experienceTypes 
       }
       return findOptionByEncodedValue(options, selectValue);
     }
-    return options.find((o) => o.workflowType === eventType) ?? options[0];
+    return options.find((o) => o.legacyKey === eventType) ?? options[0];
   }, [options, isCatalogMode, experienceTypeId, eventType, selectValue]);
 
   const applySelection = (opt: NormalizedOption) => {
-    setValue('eventType', opt.workflowType, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-    setValue('experienceTypeId', opt.apiId ?? '', {
-      shouldValidate: true,
-      shouldDirty: true,
-      shouldTouch: true,
-    });
+    if (opt.apiId) {
+      setValue('eventType', opt.name, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+      setValue('experienceTypeId', opt.apiId, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+    } else {
+      setValue('eventType', opt.legacyKey ?? 'plated_dinner', {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+      setValue('experienceTypeId', '', {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+    }
   };
 
   const handleSelectChange = (encoded: string) => {

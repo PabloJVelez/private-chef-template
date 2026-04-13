@@ -5,6 +5,7 @@ import { useState } from "react"
 import { menuSchema } from "../schemas"
 import type { AdminCreateMenuDTO, AdminMenuDTO, AdminUpdateMenuDTO } from "../../../../sdk/admin/admin-menus"
 import { MenuMedia } from "./menu-media/MenuMedia"
+import { MenuPricingTab } from "./menu-pricing-tab"
 
 interface MenuFormProps {
   initialData?: AdminMenuDTO
@@ -13,7 +14,7 @@ interface MenuFormProps {
   isLoading?: boolean
 }
 
-type TabType = "general" | "courses" | "media"
+type TabType = "general" | "courses" | "media" | "pricing"
 
 //REFACTOR : Use form to handle state and validation not useState
 
@@ -115,6 +116,7 @@ export const MenuForm = ({ initialData, onSubmit, onCancel, isLoading }: MenuFor
           <TabButton tab="general" label="General Info" />
           <TabButton tab="courses" label="Courses" count={courseFields.length} />
           <TabButton tab="media" label="Media" />
+          {initialData && <TabButton tab="pricing" label="Pricing" />}
         </div>
 
         {/* Tab Content */}
@@ -144,6 +146,10 @@ export const MenuForm = ({ initialData, onSubmit, onCancel, isLoading }: MenuFor
             value={mediaState}
             onChange={setMediaState}
           />
+        )}
+
+        {activeTab === "pricing" && initialData && (
+          <MenuPricingTab menuId={initialData.id} />
         )}
 
         {/* Form Actions */}

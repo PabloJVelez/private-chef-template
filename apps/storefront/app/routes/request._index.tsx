@@ -16,9 +16,7 @@ export const eventRequestSchema = z.object({
   menuId: z.string().optional(),
 
   // Step 2: Event Type Selection
-  eventType: z.enum(['cooking_class', 'plated_dinner', 'buffet_style'], {
-    required_error: 'Please select an experience type',
-  }),
+  eventType: z.string().min(1, 'Please select an experience type'),
   experienceTypeId: z.string().optional(),
 
   // Step 3: Date & Time

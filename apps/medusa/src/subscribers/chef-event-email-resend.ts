@@ -3,6 +3,7 @@ import { CHEF_EVENT_MODULE } from "../modules/chef-event"
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { DateTime } from "luxon"
 import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
+import { fallbackPricePerPersonFromStrings } from "../lib/chef-event-legacy-pricing"
 
 type EventData = {
   chefEventId: string
@@ -48,17 +49,11 @@ export default async function chefEventEmailResendHandler({
       chef_location: "at Chef's Location"
     }
 
-    // Calculate pricing
-    const PRICING_STRUCTURE = {
-      buffet_style: 99.99,
-      cooking_class: 119.99,
-      plated_dinner: 149.99
-    }
-    
-    const pricePerPerson = PRICING_STRUCTURE[chefEvent.eventType as keyof typeof PRICING_STRUCTURE]
-    const fallbackTotal = pricePerPerson * chefEvent.partySize
     const storedTotal = Number(chefEvent.totalPrice)
-    const totalPrice = Number.isFinite(storedTotal) && storedTotal > 0 ? storedTotal : fallbackTotal
+    const totalPrice = Number.isFinite(storedTotal) && storedTotal > 0
+      ? storedTotal
+      : fallbackPricePerPersonFromStrings(String(chefEvent.eventType), null) * chefEvent.partySize
+    const pricePerPerson = chefEvent.partySize > 0 ? totalPrice / chefEvent.partySize : 0
 
     // Common email data
     const emailData = {

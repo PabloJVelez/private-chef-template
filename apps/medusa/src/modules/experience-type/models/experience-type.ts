@@ -34,8 +34,6 @@ export const ExperienceType = model.define('experience_type', {
   min_party_size: model.number().default(1),
   max_party_size: model.number().nullable(),
 
-  workflow_event_type: model.enum(['cooking_class', 'plated_dinner', 'buffet_style']).default('plated_dinner'),
-
   is_active: model.boolean().default(true),
   is_featured: model.boolean().default(false),
   sort_order: model.number().default(0),

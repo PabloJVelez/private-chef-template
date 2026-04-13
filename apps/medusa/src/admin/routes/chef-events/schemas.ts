@@ -16,7 +16,7 @@ export const chefEventSchema = z.object({
     "Time must be in HH:MM format"
   ),
   partySize: z.number().min(1, "Party size must be at least 1").max(50, "Party size cannot exceed 50"),
-  eventType: z.enum(['cooking_class', 'plated_dinner', 'buffet_style']),
+  eventType: z.string().min(1, 'Event type is required'),
   experience_type_id: z.string().optional().nullable(),
   templateProductId: z.string().optional(),
   locationType: z.enum(['customer_location', 'chef_location']),
@@ -105,7 +105,7 @@ export const getDefaultChefEventValues = () => ({
   requestedDate: '',
   requestedTime: '',
   partySize: 1,
-  eventType: 'plated_dinner' as const,
+  eventType: 'plated_dinner',
   experience_type_id: '' as string | null,
   templateProductId: '',
   locationType: 'customer_location' as const,

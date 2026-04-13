@@ -46,7 +46,6 @@ export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading 
       image_url: values.image_url || undefined,
       ideal_for: values.ideal_for || undefined,
       pricing_type: values.pricing_type,
-      workflow_event_type: values.workflow_event_type,
       price_per_unit: dollarsToCents(values.price_dollars),
       duration_minutes: hoursToMinutes(values.duration_hours),
       duration_display: values.duration_display || undefined,
@@ -107,24 +106,14 @@ export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading 
         </div>
       </Section>
 
-      <Section title="Classification" description="How this experience maps to workflow and pricing categories.">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Workflow Event Type" error={form.formState.errors.workflow_event_type?.message}>
-            <select className="w-full rounded border px-3 py-2 text-sm" {...form.register('workflow_event_type')}>
-              <option value="cooking_class">Cooking Class</option>
-              <option value="plated_dinner">Plated Dinner</option>
-              <option value="buffet_style">Buffet Style</option>
-            </select>
-          </Field>
-
-          <Field label="Pricing Type" error={form.formState.errors.pricing_type?.message}>
-            <select className="w-full rounded border px-3 py-2 text-sm" {...form.register('pricing_type')}>
-              <option value="per_person">Per Person</option>
-              <option value="per_item">Per Item</option>
-              <option value="product_based">Product Based</option>
-            </select>
-          </Field>
-        </div>
+      <Section title="Pricing model" description="How this experience is priced in the catalog.">
+        <Field label="Pricing Type" error={form.formState.errors.pricing_type?.message}>
+          <select className="w-full rounded border px-3 py-2 text-sm" {...form.register('pricing_type')}>
+            <option value="per_person">Per Person</option>
+            <option value="per_item">Per Item</option>
+            <option value="product_based">Product Based</option>
+          </select>
+        </Field>
       </Section>
 
       <Section title="Pricing & Duration" description="Display price and estimated duration for this experience.">

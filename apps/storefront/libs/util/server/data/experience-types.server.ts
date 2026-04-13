@@ -15,7 +15,6 @@ export interface StoreExperienceTypeDTO {
   duration_minutes?: number | null;
   duration_display?: string | null;
   is_product_based: boolean;
-  workflow_event_type: 'cooking_class' | 'plated_dinner' | 'buffet_style';
   location_type: 'customer' | 'fixed';
   fixed_location_address?: string | null;
   requires_advance_notice: boolean;

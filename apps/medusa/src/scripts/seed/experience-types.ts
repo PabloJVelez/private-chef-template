@@ -13,7 +13,6 @@ interface ExperienceTypeSeedRow {
   price_per_unit: number | null;
   duration_minutes: number;
   duration_display: string;
-  workflow_event_type: 'cooking_class' | 'plated_dinner' | 'buffet_style';
   is_active: boolean;
   is_featured: boolean;
   sort_order: number;
@@ -41,7 +40,6 @@ const defaultExperienceTypes: ExperienceTypeSeedRow[] = [
     price_per_unit: null,
     duration_minutes: 150,
     duration_display: '~2.5 hours',
-    workflow_event_type: 'buffet_style',
     is_active: true,
     is_featured: false,
     sort_order: 0,
@@ -67,7 +65,6 @@ const defaultExperienceTypes: ExperienceTypeSeedRow[] = [
     price_per_unit: null,
     duration_minutes: 180,
     duration_display: '~3 hours',
-    workflow_event_type: 'cooking_class',
     is_active: true,
     is_featured: true,
     sort_order: 1,
@@ -93,7 +90,6 @@ const defaultExperienceTypes: ExperienceTypeSeedRow[] = [
     price_per_unit: null,
     duration_minutes: 240,
     duration_display: '~4 hours',
-    workflow_event_type: 'plated_dinner',
     is_active: true,
     is_featured: false,
     sort_order: 2,

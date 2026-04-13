@@ -17,6 +17,8 @@ export interface ExperienceTypesProps {
 
 interface ExperienceType {
   id: string;
+  /** Medusa catalog row id — when set, request page pre-selects this experience */
+  catalogId?: string;
   name: string;
   price: string;
   description: string;
@@ -157,7 +159,9 @@ const ExperienceCard: FC<ExperienceCardProps> = ({ experience, className, featur
             actions={[
               {
                 label: 'Request This Experience',
-                url: `/request?type=${experience.id}`,
+                url: experience.catalogId
+                  ? `/request?experienceTypeId=${experience.catalogId}`
+                  : `/request?type=${experience.id}`,
               }
             ]}
             className=""
@@ -288,7 +292,9 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
               actions={[
                 {
                   label: 'Request This Experience',
-                  url: `/request?type=${experience.id}`,
+                  url: experience.catalogId
+                    ? `/request?experienceTypeId=${experience.catalogId}`
+                    : `/request?type=${experience.id}`,
                 }
               ]}
               className=""
@@ -303,8 +309,13 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
 function mapApiToLocal(apiTypes: StoreExperienceTypeDTO[]): ExperienceType[] {
   return apiTypes
     .filter((t) => t.is_active)
-    .map((t) => ({
-      id: t.workflow_event_type ?? t.slug,
+    .map((t) => {
+      const slugKey = t.slug.replace(/-/g, '_');
+      const legacyIds = ['buffet_style', 'cooking_class', 'plated_dinner'] as const;
+      const id = legacyIds.includes(slugKey as (typeof legacyIds)[number]) ? slugKey : t.slug;
+      return {
+      id,
+      catalogId: t.id,
       name: t.name,
       price: t.price_per_unit ? `$${(Number(t.price_per_unit) / 100).toFixed(2)}` : '',
       description: t.description ?? '',
@@ -312,7 +323,8 @@ function mapApiToLocal(apiTypes: StoreExperienceTypeDTO[]): ExperienceType[] {
       icon: t.image_url ?? '',
       idealFor: t.ideal_for ?? '',
       duration: t.duration_display ?? '',
-    }));
+    };
+    });
 }
 
 export const ExperienceTypes: FC<ExperienceTypesProps> = ({ 

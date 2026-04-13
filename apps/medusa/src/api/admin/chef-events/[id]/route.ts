@@ -10,7 +10,7 @@ const updateChefEventSchema = z.object({
   requestedDate: z.string().optional(),
   requestedTime: z.string().optional(),
   partySize: z.number().min(1).max(50).optional(),
-  eventType: z.enum(['cooking_class', 'plated_dinner', 'buffet_style']).optional(),
+  eventType: z.string().min(1).optional(),
   experience_type_id: z.string().nullable().optional(),
   templateProductId: z.string().optional(),
   locationType: z.enum(['customer_location', 'chef_location']).optional(),

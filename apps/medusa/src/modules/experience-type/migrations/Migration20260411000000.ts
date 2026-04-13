@@ -29,7 +29,6 @@ export class Migration20260411000000 extends Migration {
         "time_slot_interval_minutes" int not null default 30,
         "min_party_size" int not null default 1,
         "max_party_size" int null,
-        "workflow_event_type" text check ("workflow_event_type" in ('cooking_class','plated_dinner','buffet_style')) not null default 'plated_dinner',
         "is_active" boolean not null default true,
         "is_featured" boolean not null default false,
         "sort_order" int not null default 0,

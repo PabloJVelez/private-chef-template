@@ -6,6 +6,7 @@ import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { CreateNotificationDTO } from "@medusajs/types"
 import { DateTime } from "luxon"
 import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
+import { fallbackPricePerPersonFromStrings } from "../lib/chef-event-legacy-pricing"
 
 type EventData = {
   chefEventId: string
@@ -29,16 +30,10 @@ export default async function chefEventRequestedHandler({
       throw new Error(`Chef event not found: ${data.chefEventId}`)
     }
     
-    const pricePerPersonMap = {
-      cooking_class: 119.99,
-      plated_dinner: 149.99,
-      buffet_style: 99.99,
-    }
-    const pricePerPerson =
-      pricePerPersonMap[chefEvent.eventType as keyof typeof pricePerPersonMap] || 119.99
-    const fallbackTotal = pricePerPerson * chefEvent.partySize
     const storedTotal = Number(chefEvent.totalPrice)
-    const totalPrice = Number.isFinite(storedTotal) && storedTotal > 0 ? storedTotal : fallbackTotal
+    const totalPrice = Number.isFinite(storedTotal) && storedTotal > 0
+      ? storedTotal
+      : fallbackPricePerPersonFromStrings(String(chefEvent.eventType), null) * chefEvent.partySize
 
     const eventTypeLabel = await resolveChefEventTypeEmailLabel(container, chefEvent as Record<string, unknown>)
 

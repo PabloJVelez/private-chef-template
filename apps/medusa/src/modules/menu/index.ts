@@ -4,6 +4,7 @@ import { Menu } from "./models/menu"
 import { Course } from "./models/course"
 import { Dish } from "./models/dish"
 import { Ingredient } from "./models/ingredient"
+import { MenuExperiencePrice } from "./models/menu-experience-price"
 
 export const MENU_MODULE = "menuModuleService"
 
