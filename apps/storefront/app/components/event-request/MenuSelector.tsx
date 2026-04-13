@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image } from '@app/components/common/images/Image';
 import { Button } from '@app/components/common/buttons/Button';
 import type { StoreMenuDTO } from '@app/../types/menus';
@@ -10,9 +10,20 @@ import { ScrollArrowButtons } from '@app/components/common/buttons/ScrollArrowBu
 import { useScrollArrows } from '@app/hooks/useScrollArrows';
 import { MenuGridSkeleton } from '@app/components/menu/MenuGridSkeleton';
 import { Modal } from '@app/components/common/modals/Modal';
+import { isCustomMenuTemplate } from './menu-template';
 
 export interface MenuSelectorProps {
   menus: StoreMenuDTO[];
+}
+
+function sortMenusWithCustomFirst(menus: StoreMenuDTO[]): StoreMenuDTO[] {
+  const copy = [...menus];
+  const i = copy.findIndex((m) => isCustomMenuTemplate(m));
+  if (i > 0) {
+    const [item] = copy.splice(i, 1);
+    copy.unshift(item);
+  }
+  return copy;
 }
 
 interface MenuCardProps {
@@ -23,8 +34,9 @@ interface MenuCardProps {
 }
 
 const MenuCard: FC<MenuCardProps> = ({ menu, isSelected, onSelect, onPreview }) => {
+  const isCustom = isCustomMenuTemplate(menu);
   const courseCount = menu.courses?.length || 0;
-  const estimatedTime = '3-4 hours'; // Default estimate
+  const estimatedTime = isCustom ? 'Flexible' : '3-4 hours';
   const courseNames = (menu.courses || [])
     .map((c) => c.name)
     .filter((n): n is string => !!n && n.length > 0)
@@ -73,11 +85,13 @@ const MenuCard: FC<MenuCardProps> = ({ menu, isSelected, onSelect, onPreview }) 
           <div>
             <h4 className="text-xl font-semibold text-primary-900 leading-tight line-clamp-2">{menu.name}</h4>
             <p className="text-sm text-primary-600 mt-1">
-              {courseCount} courses • {estimatedTime}
+              {isCustom
+                ? 'Chef-designed menu • no fixed template'
+                : `${courseCount} courses • ${estimatedTime}`}
             </p>
           </div>
 
-          {courseNames.length > 0 && (
+          {!isCustom && courseNames.length > 0 && (
             <ul className="text-sm text-primary-700 space-y-1">
               {courseNames.map((n, idx) => (
                 <li key={idx} className="flex items-center text-sm text-primary-700">
@@ -93,27 +107,33 @@ const MenuCard: FC<MenuCardProps> = ({ menu, isSelected, onSelect, onPreview }) 
         <div className="h-16 flex items-end">
           <div className="w-full">
             <div className="border-t border-gray-100 pt-3">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPreview(menu);
-                }}
-                className="w-full text-left group hover:bg-gray-50 rounded-lg p-3 transition-all duration-200"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-accent-500"></div>
-                    <span className="text-sm font-medium text-primary-900">View full menu</span>
+              {isCustom ? (
+                <p className="px-3 py-2 text-sm text-primary-600">
+                  Share preferences in the next steps—the chef will propose a menu after you submit.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPreview(menu);
+                  }}
+                  className="w-full text-left group hover:bg-gray-50 rounded-lg p-3 transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-accent-500"></div>
+                      <span className="text-sm font-medium text-primary-900">View full menu</span>
+                    </div>
+                    <div className="text-accent-500 group-hover:text-accent-600 transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
                   </div>
-                  <div className="text-accent-500 group-hover:text-accent-600 transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1 ml-4">See complete menu details</p>
-              </button>
+                  <p className="text-xs text-gray-500 mt-1 ml-4">See complete menu details</p>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -127,16 +147,18 @@ export const MenuSelector: FC<MenuSelectorProps> = ({ menus }) => {
   const selectedMenuId = watch('menuId');
   const [preview, setPreview] = useState<StoreMenuDTO | null>(null);
 
-  // Ensure there is always a selected menu (first by default)
+  const displayMenus = useMemo(() => sortMenusWithCustomFirst(menus ?? []), [menus]);
+
+  // Default selection: Custom first when seeded, else first menu
   useEffect(() => {
-    if (!selectedMenuId && menus?.length) {
-      setValue('menuId', menus[0].id, { shouldValidate: true });
+    if (!selectedMenuId && displayMenus.length) {
+      setValue('menuId', displayMenus[0].id, { shouldValidate: true });
     }
-  }, [menus, selectedMenuId, setValue]);
+  }, [displayMenus, selectedMenuId, setValue]);
 
   const { scrollableDivRef, ...scrollArrowProps } = useScrollArrows({
     buffer: 100,
-    resetOnDepChange: [menus],
+    resetOnDepChange: [displayMenus],
   });
 
   if (!menus) return <MenuGridSkeleton />;
@@ -147,8 +169,11 @@ export const MenuSelector: FC<MenuSelectorProps> = ({ menus }) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-primary-900 mb-2">Select a Menu Template</h3>
-        <p className="text-primary-600">Scroll horizontally or use the arrows to choose a menu.</p>
+        <h3 className="text-lg font-semibold text-primary-900 mb-2">Choose your menu</h3>
+        <p className="text-primary-600">
+          Pick a template or <span className="font-medium text-primary-800">Custom</span> if you want the chef to design
+          the menu after you submit.
+        </p>
       </div>
 
       {/* Carousel */}
@@ -157,7 +182,7 @@ export const MenuSelector: FC<MenuSelectorProps> = ({ menus }) => {
           ref={scrollableDivRef}
           className="w-full snap-both snap-mandatory overflow-x-auto whitespace-nowrap pb-2 sm:snap-proximity"
         >
-          {menus.map((menu) => (
+          {displayMenus.map((menu) => (
             <div
               key={menu.id}
               className="xs:w-[65%] xs:snap-start mr-6 inline-block w-[100%] snap-center last:mr-0 sm:mr-6 sm:snap-start md:w-[55%] xl:mr-8 xl:w-[42%] align-top"
@@ -177,7 +202,7 @@ export const MenuSelector: FC<MenuSelectorProps> = ({ menus }) => {
       {/* Selected indicator */}
       {selectedMenuId && (
         <div className="text-center text-sm text-accent-700">
-          Selected menu: {menus.find((m) => m.id === selectedMenuId)?.name}
+          Selected: {displayMenus.find((m) => m.id === selectedMenuId)?.name}
         </div>
       )}
 

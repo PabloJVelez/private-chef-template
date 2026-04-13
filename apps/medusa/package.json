@@ -45,7 +45,7 @@
     "init": "medusa exec ./src/scripts/init.ts && yarn add-user",
     "init:prod": "medusa exec ./src/scripts/init.js && npm run add-user:prod",
     "medusa:init": "yarn run nukedb && medusa db:create --db chef-template && yarn run migrate && yarn run sync && yarn run init",
-    "reset:prod": "medusa db:drop && medusa db:create --db chefVelez && yarn run migrate && yarn run sync && yarn run init && yarn run add-user:prod",
+    "reset:prod": "medusa db:drop && medusa db:create --db chef-template && yarn run migrate && yarn run sync && yarn run init && yarn run add-user:prod",
     "medusa:init:prod": "npm run migrate:prod && npm run sync && npm run init:prod",
     "create:medusadb": "medusa db:create --db chef-template",
     "add-user": "medusa user --email pmltechpile@gmail.com --password \"password!\"",

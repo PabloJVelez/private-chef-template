@@ -96,15 +96,41 @@ const defaultExperienceTypes: ExperienceTypeSeedRow[] = [
     min_party_size: 2,
     max_party_size: 16,
   },
+  {
+    name: 'Meal Prep',
+    slug: 'meal-prep',
+    description:
+      'Batch-prepared meals for your household—portioning, labeling, and reheating guidance so you can eat well all week without daily cooking.',
+    short_description: 'Weekly meals, chef-prepared',
+    icon: '🥗',
+    image_url: '/assets/images/meal_prep.jpg',
+    highlights: [
+      'Menus aligned to dietary preferences',
+      'Portioned and ready to refrigerate or freeze',
+      'Reheat and storage notes included',
+      'Flexible pickup or delivery timing',
+    ],
+    ideal_for: 'Busy families, fitness goals, postpartum, weekly meal planning',
+    pricing_type: 'per_person',
+    price_per_unit: null,
+    duration_minutes: 120,
+    duration_display: '~2 hours',
+    is_active: true,
+    is_featured: false,
+    sort_order: 3,
+    min_party_size: 2,
+    max_party_size: 50,
+  },
 ];
 
 export async function seedExperienceTypes(
   svc: ExperienceTypeModuleService,
 ): Promise<void> {
   const existing = await svc.listExperienceTypes({});
-  if (existing.length > 0) return;
+  const existingSlugs = new Set(existing.map((e: { slug: string }) => e.slug));
 
   for (const row of defaultExperienceTypes) {
+    if (existingSlugs.has(row.slug)) continue;
     await svc.createExperienceTypes(row as any);
   }
 }

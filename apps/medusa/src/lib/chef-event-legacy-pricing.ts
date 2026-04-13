@@ -6,12 +6,18 @@ export const LEGACY_FALLBACK_PRICE_PER_PERSON = {
   buffet_style: 99.99,
   cooking_class: 119.99,
   plated_dinner: 149.99,
+  meal_prep: 89.99,
 } as const;
 
 export type LegacyEventTypeKey = keyof typeof LEGACY_FALLBACK_PRICE_PER_PERSON;
 
 export function isLegacyEventTypeKey(value: string): value is LegacyEventTypeKey {
-  return value === 'buffet_style' || value === 'cooking_class' || value === 'plated_dinner';
+  return (
+    value === 'buffet_style' ||
+    value === 'cooking_class' ||
+    value === 'plated_dinner' ||
+    value === 'meal_prep'
+  );
 }
 
 /**
@@ -35,6 +41,7 @@ const DEFAULT_DURATIONS_MINUTES: Record<LegacyEventTypeKey, number> = {
   cooking_class: 180,
   plated_dinner: 240,
   buffet_style: 150,
+  meal_prep: 120,
 };
 
 export function defaultEstimatedDurationMinutes(eventType: string, experienceSlug?: string | null): number {

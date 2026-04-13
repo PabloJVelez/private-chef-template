@@ -6,6 +6,7 @@ export const PRICING_STRUCTURE = {
   buffet_style: 99.99,
   cooking_class: 119.99,
   plated_dinner: 149.99,
+  meal_prep: 89.99,
 } as const;
 
 export type EventType = keyof typeof PRICING_STRUCTURE;
@@ -18,7 +19,12 @@ export function legacyPricingKeyFromSlug(slug: string): EventType | null {
 }
 
 export function isLegacyEventTypeKey(value: string): value is EventType {
-  return value === 'buffet_style' || value === 'cooking_class' || value === 'plated_dinner';
+  return (
+    value === 'buffet_style' ||
+    value === 'cooking_class' ||
+    value === 'plated_dinner' ||
+    value === 'meal_prep'
+  );
 }
 
 export const getEventTypeDisplayName = (eventType: string): string => {
@@ -30,6 +36,8 @@ export const getEventTypeDisplayName = (eventType: string): string => {
         return 'Plated Dinner';
       case 'buffet_style':
         return 'Buffet Style';
+      case 'meal_prep':
+        return 'Meal Prep';
     }
   }
   return eventType || 'Experience';
@@ -44,6 +52,8 @@ export const getEventTypeEstimatedDuration = (eventType: string): number => {
         return 4;
       case 'buffet_style':
         return 2.5;
+      case 'meal_prep':
+        return 2;
     }
   }
   return 3;

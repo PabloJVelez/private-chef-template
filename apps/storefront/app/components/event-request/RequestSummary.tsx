@@ -1,4 +1,5 @@
 import { Button } from '@app/components/common/buttons/Button';
+import { isCustomMenuTemplate } from '@app/components/event-request/menu-template';
 import { useFormContext } from 'react-hook-form';
 import type { EventRequestFormData } from '@app/routes/request._index';
 import {
@@ -120,6 +121,12 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
             <div className="space-y-3">
               <div>
                 <h5 className="font-medium text-primary-800">{selectedMenu.name}</h5>
+                {isCustomMenuTemplate(selectedMenu) && (
+                  <p className="text-sm text-primary-600 mt-2">
+                    No fixed template—the chef will propose a menu after your request, based on your preferences and
+                    dietary needs.
+                  </p>
+                )}
               </div>
               {selectedMenu.courses && selectedMenu.courses.length > 0 && (
                 <div>

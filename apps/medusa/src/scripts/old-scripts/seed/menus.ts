@@ -17,6 +17,10 @@ export interface MenuSeedData {
       }[];
     }[];
   }[];
+  /** When true, menu pricing can be saved with no positive matrix rows (TBD / quote flow). */
+  allow_tbd_pricing?: boolean;
+  /** Optional hero image for storefront cards (menu module thumbnail). */
+  thumbnail?: string | null;
 }
 
 // Product data for menu tickets
@@ -589,7 +593,26 @@ export const menuDefinitions: MenuSeedData[] = [
         ]
       }
     ]
-  }
+  },
+  {
+    name: 'Custom',
+    allow_tbd_pricing: true,
+    thumbnail:
+      'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800&q=80',
+    courses: [
+      {
+        name: 'Your menu',
+        dishes: [
+          {
+            name: 'Designed with your chef',
+            description:
+              'No fixed template—dishes, dietary needs, and style are finalized after you submit your request.',
+            ingredients: [],
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // Product data for menu experience tickets (legacy USD+CAD; see chef-experiences.ts for USD-only seed)
@@ -790,6 +813,19 @@ export const seedMenuEntities = async (menuModuleService: any): Promise<{ id: st
             console.log(`      Created ${ingredientData.length} ingredients for ${dishDefinition.name}`);
           }
         }
+      }
+
+      const menuPatch: { id: string; thumbnail?: string | null; allow_tbd_pricing?: boolean } = {
+        id: createdMenu.id,
+      };
+      if (menuDefinition.thumbnail != null) {
+        menuPatch.thumbnail = menuDefinition.thumbnail;
+      }
+      if (menuDefinition.allow_tbd_pricing === true) {
+        menuPatch.allow_tbd_pricing = true;
+      }
+      if (menuPatch.thumbnail !== undefined || menuPatch.allow_tbd_pricing !== undefined) {
+        await menuModuleService.updateMenus(menuPatch);
       }
 
       createdMenus.push({
