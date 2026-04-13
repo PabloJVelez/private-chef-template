@@ -13,6 +13,7 @@ type CreateChefEventWorkflowInput = {
   requestedTime: string
   partySize: number
   eventType: 'cooking_class' | 'plated_dinner' | 'buffet_style'
+  experience_type_id?: string | null
   templateProductId?: string
   locationType: 'customer_location' | 'chef_location'
   locationAddress: string

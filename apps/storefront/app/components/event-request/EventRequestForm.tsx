@@ -22,8 +22,11 @@ import { ContactDetails } from './ContactDetails';
 import { SpecialRequests } from './SpecialRequests';
 import { RequestSummary } from './RequestSummary';
 
+import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
+
 export interface EventRequestFormProps {
   menus: StoreMenuDTO[];
+  experienceTypes?: StoreExperienceTypeDTO[];
   initialValues?: Partial<EventRequestFormData>;
 }
 
@@ -43,8 +46,43 @@ const STEPS = [
   { id: 4, title: 'Review & Submit', subtitle: 'Confirm your event details' },
 ];
 
+/** Aligns eventType + experienceTypeId for defaults and URL prefill (no effects in child selectors). */
+function mergeExperienceDefaults(
+  experienceTypes: StoreExperienceTypeDTO[],
+  initialValues: Partial<EventRequestFormData>,
+): Pick<EventRequestFormData, 'eventType' | 'experienceTypeId'> {
+  const active = experienceTypes.filter((t) => t.is_active);
+  const initialId = initialValues.experienceTypeId?.trim();
+
+  if (initialId && active.some((t) => t.id === initialId)) {
+    const row = active.find((t) => t.id === initialId)!;
+    return { eventType: row.workflow_event_type, experienceTypeId: row.id };
+  }
+
+  if (initialValues.eventType && active.length > 0) {
+    const sameWorkflow = active.filter((t) => t.workflow_event_type === initialValues.eventType);
+    const row =
+      sameWorkflow.find((t) => t.is_featured) ||
+      sameWorkflow[0] ||
+      active.find((t) => t.is_featured) ||
+      active[0];
+    return { eventType: row.workflow_event_type, experienceTypeId: row.id };
+  }
+
+  if (active.length > 0) {
+    const row = active.find((t) => t.is_featured) || active[0];
+    return { eventType: row.workflow_event_type, experienceTypeId: row.id };
+  }
+
+  return {
+    eventType: initialValues.eventType ?? 'plated_dinner',
+    experienceTypeId: initialValues.experienceTypeId ?? '',
+  };
+}
+
 export const EventRequestForm: FC<EventRequestFormProps> = ({ 
-  menus, 
+  menus,
+  experienceTypes = [],
   initialValues = {} 
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -54,8 +92,9 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
     resolver: zodResolver(eventRequestSchema),
     defaultValues: {
       currentStep: 1,
-      partySize: 4, // Default party size
+      partySize: 4,
       ...initialValues,
+      ...mergeExperienceDefaults(experienceTypes, initialValues),
     },
     mode: 'onChange', // Validate on change for better UX
   });
@@ -211,7 +250,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
                     key: `step1-experience-${currentStep}`,
                     defaultOpen: false,
                     header: renderSectionHeader('Experience Type', { complete: isEventTypeComplete }),
-                    children: <EventTypeSelector />,
+                    children: <EventTypeSelector experienceTypes={experienceTypes} />,
                   })}
 
                   {renderDisclosure({
@@ -387,6 +426,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
           {/* Hidden inputs to ensure form data is properly submitted */}
           <input type="hidden" name="menuId" value={form.watch('menuId') || ''} />
           <input type="hidden" name="eventType" value={form.watch('eventType') || ''} />
+          <input type="hidden" name="experienceTypeId" value={form.watch('experienceTypeId' as any) || ''} />
           <input type="hidden" name="requestedDate" value={form.watch('requestedDate') || ''} />
           <input type="hidden" name="requestedTime" value={form.watch('requestedTime') || ''} />
           <input type="hidden" name="partySize" value={form.watch('partySize') || ''} />

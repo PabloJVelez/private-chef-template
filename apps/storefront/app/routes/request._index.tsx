@@ -4,6 +4,7 @@ import type { LoaderFunctionArgs, MetaFunction, ActionFunctionArgs } from 'react
 import { useLoaderData, useSearchParams, redirect } from 'react-router';
 import { fetchMenus } from '@libs/util/server/data/menus.server';
 import { createChefEventRequest } from '@libs/util/server/data/chef-events.server';
+import { fetchExperienceTypes } from '@libs/util/server/data/experience-types.server';
 import { getValidatedFormData } from 'remix-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,6 +19,7 @@ export const eventRequestSchema = z.object({
   eventType: z.enum(['cooking_class', 'plated_dinner', 'buffet_style'], {
     required_error: 'Please select an experience type',
   }),
+  experienceTypeId: z.string().optional(),
 
   // Step 3: Date & Time
   requestedDate: z
@@ -100,16 +102,20 @@ export type EventRequestFormData = z.infer<typeof eventRequestSchema>;
 
 export const loader = async (args: LoaderFunctionArgs) => {
   try {
-    // Fetch menus for menu selector step
-    const menusData = await fetchMenus({ limit: 20 });
+    const [menusData, experienceTypesData] = await Promise.all([
+      fetchMenus({ limit: 20 }),
+      fetchExperienceTypes(),
+    ]);
     return {
       menus: menusData.menus || [],
+      experienceTypes: experienceTypesData.experience_types || [],
       success: true,
     };
   } catch (error) {
-    console.error('Failed to load menus for request page:', error);
+    console.error('Failed to load request page data:', error);
     return {
       menus: [],
+      experienceTypes: [],
       success: false,
     };
   }
@@ -126,14 +132,14 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
       return { errors, status: 400 };
     }
 
-    // Create the chef event request
     const response = await createChefEventRequest({
       requestedDate: data.requestedDate,
       requestedTime: data.requestedTime,
       partySize: data.partySize,
       eventType: data.eventType,
+      experience_type_id: data.experienceTypeId,
       templateProductId: data.menuId,
-      locationType: 'customer_location', // Default to customer location since we removed the selection
+      locationType: 'customer_location',
       locationAddress: data.locationAddress,
       firstName: data.firstName,
       lastName: data.lastName,
@@ -183,13 +189,13 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 };
 
 export default function RequestPage() {
-  const { menus } = useLoaderData<typeof loader>();
+  const { menus, experienceTypes } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
 
-  // Get initial values from URL params (e.g., pre-selected menu or event type)
   const initialValues = {
     menuId: searchParams.get('menu') || undefined,
     eventType: (searchParams.get('type') as EventRequestFormData['eventType']) || undefined,
+    experienceTypeId: searchParams.get('experienceTypeId') || undefined,
   };
 
   return (
@@ -201,7 +207,7 @@ export default function RequestPage() {
         </p>
       </div>
 
-      <EventRequestForm menus={menus} initialValues={initialValues} />
+      <EventRequestForm menus={menus} experienceTypes={experienceTypes} initialValues={initialValues} />
     </Container>
   );
 }

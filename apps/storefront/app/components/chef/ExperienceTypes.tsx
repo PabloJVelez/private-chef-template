@@ -6,10 +6,13 @@ import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import type { FC } from 'react';
 
+import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
+
 export interface ExperienceTypesProps {
   className?: string;
   title?: string;
   description?: string;
+  apiExperienceTypes?: StoreExperienceTypeDTO[];
 }
 
 interface ExperienceType {
@@ -297,11 +300,31 @@ const ExperienceAccordionItem: FC<ExperienceAccordionItemProps> = ({
   );
 };
 
+function mapApiToLocal(apiTypes: StoreExperienceTypeDTO[]): ExperienceType[] {
+  return apiTypes
+    .filter((t) => t.is_active)
+    .map((t) => ({
+      id: t.workflow_event_type ?? t.slug,
+      name: t.name,
+      price: t.price_per_unit ? `$${(Number(t.price_per_unit) / 100).toFixed(2)}` : '',
+      description: t.description ?? '',
+      highlights: t.highlights ?? [],
+      icon: t.image_url ?? '',
+      idealFor: t.ideal_for ?? '',
+      duration: t.duration_display ?? '',
+    }));
+}
+
 export const ExperienceTypes: FC<ExperienceTypesProps> = ({ 
   className,
+  apiExperienceTypes = [],
   title = "Culinary Experiences",
   description = "Each experience is carefully crafted to match the occasion. All prices are per person with no hidden fees or deposits required."
 }) => {
+  const displayTypes = apiExperienceTypes.length > 0
+    ? mapApiToLocal(apiExperienceTypes)
+    : experienceTypes;
+
   return (
     <Container className={clsx('py-12 lg:py-16', className)}>
       <div className="text-center mb-8 lg:mb-12">
@@ -320,11 +343,11 @@ export const ExperienceTypes: FC<ExperienceTypesProps> = ({
 
       {/* Desktop Grid Layout */}
       <div className="hidden lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
-        {experienceTypes.map((experience, index) => (
+        {displayTypes.map((experience, index) => (
           <ExperienceCard 
             key={experience.id} 
             experience={experience}
-            featured={index === 1} // Make cooking class featured (middle option)
+            featured={index === 1}
           />
         ))}
       </div>
@@ -336,11 +359,11 @@ export const ExperienceTypes: FC<ExperienceTypesProps> = ({
           collapsible
           className="space-y-6"
         >
-          {experienceTypes.map((experience, index) => (
+          {displayTypes.map((experience, index) => (
             <ExperienceAccordionItem
               key={experience.id}
               experience={experience}
-              featured={index === 1} // Make cooking class featured (middle option)
+              featured={index === 1}
             />
           ))}
         </Accordion.Root>

@@ -19,6 +19,7 @@ export const ChefEvent = model.define("chef_event", {
     'plated_dinner',
     'buffet_style'
   ]),
+  experience_type_id: model.text().nullable(),
   templateProductId: model.text(),
   
   // Location details
@@ -72,6 +73,7 @@ export type ChefEventType = {
   requestedTime: string
   partySize: number
   eventType: 'cooking_class' | 'plated_dinner' | 'buffet_style'
+  experience_type_id?: string | null
   locationType: 'customer_location' | 'chef_location'
   locationAddress?: string
   firstName: string

@@ -5,13 +5,12 @@ import type {
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { CreateNotificationDTO } from "@medusajs/types"
 import { DateTime } from "luxon"
+import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
 
 type EventData = {
   chefEventId: string
   rejectionReason: string
 }
-
-type ChefEventType = 'cooking_class' | 'plated_dinner' | 'buffet_style'
 
 export default async function chefEventRejectedHandler({
   event: { data },
@@ -38,12 +37,7 @@ export default async function chefEventRejectedHandler({
     const formattedDate = DateTime.fromJSDate(requestedDate).toFormat('LLL d, yyyy')
     const formattedTime = DateTime.fromFormat(chefEvent.requestedTime, 'HH:mm').toFormat('h:mm a')
 
-    // Get event type label
-    const eventTypeMap: Record<ChefEventType, string> = {
-      cooking_class: "Chef's Cooking Class",
-      plated_dinner: "Plated Dinner Service",
-      buffet_style: "Buffet Style Service"
-    }
+    const eventTypeLabel = await resolveChefEventTypeEmailLabel(container, chefEvent as Record<string, unknown>)
 
     // Get location type label
     const locationTypeMap: Record<string, string> = {
@@ -62,7 +56,7 @@ export default async function chefEventRejectedHandler({
       booking: {
         date: formattedDate,
         time: formattedTime,
-        event_type: eventTypeMap[chefEvent.eventType as ChefEventType] || chefEvent.eventType,
+        event_type: eventTypeLabel,
         location_type: locationTypeMap[chefEvent.locationType] || chefEvent.locationType,
         location_address: chefEvent.locationAddress || "Not provided",
         party_size: chefEvent.partySize,
