@@ -2,6 +2,8 @@ import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
 import { CHEF_EVENT_MODULE } from "../modules/chef-event"
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { DateTime } from "luxon"
+import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
+import { fallbackPricePerPersonFromStrings } from "../lib/chef-event-legacy-pricing"
 
 type EventData = {
   chefEventId: string
@@ -40,26 +42,18 @@ export default async function chefEventEmailResendHandler({
     const formattedDate = DateTime.fromJSDate(chefEvent.requestedDate).toFormat('LLL d, yyyy')
     const formattedTime = chefEvent.requestedTime
 
-    const eventTypeMap: Record<string, string> = {
-      cooking_class: "Cooking Class",
-      plated_dinner: "Plated Dinner",
-      buffet_style: "Buffet Style"
-    }
+    const eventTypeLabel = await resolveChefEventTypeEmailLabel(container, chefEvent as Record<string, unknown>)
 
     const locationTypeMap: Record<string, string> = {
       customer_location: "at Customer's Location",
       chef_location: "at Chef's Location"
     }
 
-    // Calculate pricing
-    const PRICING_STRUCTURE = {
-      buffet_style: 99.99,
-      cooking_class: 119.99,
-      plated_dinner: 149.99
-    }
-    
-    const pricePerPerson = PRICING_STRUCTURE[chefEvent.eventType as keyof typeof PRICING_STRUCTURE]
-    const totalPrice = pricePerPerson * chefEvent.partySize
+    const storedTotal = Number(chefEvent.totalPrice)
+    const totalPrice = Number.isFinite(storedTotal) && storedTotal > 0
+      ? storedTotal
+      : fallbackPricePerPersonFromStrings(String(chefEvent.eventType), null) * chefEvent.partySize
+    const pricePerPerson = chefEvent.partySize > 0 ? totalPrice / chefEvent.partySize : 0
 
     // Common email data
     const emailData = {
@@ -72,7 +66,7 @@ export default async function chefEventEmailResendHandler({
       booking: {
         date: formattedDate,
         time: formattedTime,
-        event_type: eventTypeMap[chefEvent.eventType] || chefEvent.eventType,
+        event_type: eventTypeLabel,
         location_type: locationTypeMap[chefEvent.locationType] || chefEvent.locationType,
         location_address: chefEvent.locationAddress || "Not provided",
         party_size: chefEvent.partySize,

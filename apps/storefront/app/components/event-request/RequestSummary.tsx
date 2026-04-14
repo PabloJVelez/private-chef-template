@@ -1,26 +1,41 @@
 import { Button } from '@app/components/common/buttons/Button';
+import { isCustomMenuTemplate } from '@app/components/event-request/menu-template';
 import { useFormContext } from 'react-hook-form';
 import type { EventRequestFormData } from '@app/routes/request._index';
-import { PRICING_STRUCTURE, getEventTypeDisplayName } from '@libs/constants/pricing';
+import {
+  estimatePricePerPersonForRequest,
+  getEventTypeDisplayName,
+  MENU_EXPERIENCE_TBD_PRICING_MESSAGE,
+} from '@libs/constants/pricing';
 import type { StoreMenuDTO } from '@libs/util/server/data/menus.server';
+import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
 import clsx from 'clsx';
 import type { FC } from 'react';
 
 export interface RequestSummaryProps {
   className?: string;
   menus: StoreMenuDTO[];
+  experienceTypes?: StoreExperienceTypeDTO[];
   onEditStep: (step: number, section?: string) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
 }
 
-export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEditStep, onSubmit, isSubmitting }) => {
+export const RequestSummary: FC<RequestSummaryProps> = ({
+  className,
+  menus,
+  experienceTypes = [],
+  onEditStep,
+  onSubmit,
+  isSubmitting,
+}) => {
   const { watch } = useFormContext<EventRequestFormData>();
 
   // Get all form data
   const formData = {
     menuId: watch('menuId'),
     eventType: watch('eventType'),
+    experienceTypeId: watch('experienceTypeId'),
     partySize: watch('partySize'),
     requestedDate: watch('requestedDate'),
     requestedTime: watch('requestedTime'),
@@ -36,9 +51,26 @@ export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEd
   // Get selected menu
   const selectedMenu = formData.menuId ? menus.find((menu) => menu.id === formData.menuId) : null;
 
-  // Calculate pricing
-  const pricePerPerson = formData.eventType ? PRICING_STRUCTURE[formData.eventType] : 0;
-  const totalPrice = pricePerPerson * (formData.partySize || 0);
+  const catalogRow = formData.experienceTypeId
+    ? experienceTypes.find((t) => t.id === formData.experienceTypeId)
+    : undefined;
+  const experienceTypeLabel = catalogRow?.name ?? getEventTypeDisplayName(formData.eventType || '');
+
+  const pricePerPerson =
+    formData.eventType || formData.experienceTypeId
+      ? estimatePricePerPersonForRequest({
+          eventType: formData.eventType || '',
+          experienceTypeId: formData.experienceTypeId,
+          experienceTypes,
+          menus,
+          menuId: formData.menuId,
+        })
+      : null;
+  const totalPrice =
+    pricePerPerson != null ? pricePerPerson * (formData.partySize || 0) : null;
+  const showTbdPricingCopy =
+    !!(formData.menuId && formData.experienceTypeId && formData.eventType && formData.partySize) &&
+    pricePerPerson === null;
 
   // Format date (parse YYYY-MM-DD as local to avoid UTC offset issues)
   const formatDateForDisplay = (dateString: string) => {
@@ -89,6 +121,12 @@ export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEd
             <div className="space-y-3">
               <div>
                 <h5 className="font-medium text-primary-800">{selectedMenu.name}</h5>
+                {isCustomMenuTemplate(selectedMenu) && (
+                  <p className="text-sm text-primary-600 mt-2">
+                    No fixed template—the chef will propose a menu after your request, based on your preferences and
+                    dietary needs.
+                  </p>
+                )}
               </div>
               {selectedMenu.courses && selectedMenu.courses.length > 0 && (
                 <div>
@@ -125,7 +163,7 @@ export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEd
             <div>
               <p className="text-sm font-medium text-primary-700">Experience Type</p>
               <p className="text-primary-900">
-                {formData.eventType ? getEventTypeDisplayName(formData.eventType) : 'Not selected'}
+                {formData.eventType || formData.experienceTypeId ? experienceTypeLabel : 'Not selected'}
               </p>
             </div>
             <div>
@@ -258,13 +296,20 @@ export const RequestSummary: FC<RequestSummaryProps> = ({ className, menus, onEd
         )}
 
         {/* Pricing Summary */}
-        {formData.eventType && formData.partySize && (
+        {formData.eventType && formData.partySize && showTbdPricingCopy && (
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
+            <h4 className="text-lg font-semibold text-primary-900 mb-2">Pricing to be confirmed</h4>
+            <p className="text-sm text-primary-800">{MENU_EXPERIENCE_TBD_PRICING_MESSAGE}</p>
+          </div>
+        )}
+
+        {formData.eventType && formData.partySize && pricePerPerson != null && totalPrice != null && (
           <div className="bg-accent-50 border border-accent-200 rounded-lg p-6">
             <h4 className="text-lg font-semibold text-accent-700 mb-4">Pricing Estimate</h4>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-accent-600">
-                  {getEventTypeDisplayName(formData.eventType)} × {formData.partySize} guests
+                  {experienceTypeLabel} × {formData.partySize} guests
                 </span>
                 <span className="font-medium text-accent-800">
                   ${pricePerPerson.toFixed(2)} × {formData.partySize}

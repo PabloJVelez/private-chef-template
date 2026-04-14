@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
@@ -21,6 +21,7 @@ import {
   validateStatusTransition
 } from "../schemas"
 import { useAdminListMenus } from "../../../hooks/menus"
+import { useAdminListExperienceTypes } from "../../../hooks/experience-types"
 import type { AdminCreateChefEventDTO, AdminUpdateChefEventDTO } from "../../../../sdk/admin/admin-chef-events"
 
 // Helper function to render error messages
@@ -29,32 +30,33 @@ const ErrorMessage = ({ error }: { error: any }) => {
   return <p className="text-red-500 text-sm mt-1">{String(error.message || error)}</p>
 }
 
-// Helper function to transform API data to form format
+// Normalize API payloads (camelCase vs snake_case) for react-hook-form
 const transformDataForForm = (data: any) => {
   if (!data) return null
-  
-  // Transform ISO date to YYYY-MM-DD format for date input
+
   const requestedDate = data.requestedDate ? new Date(data.requestedDate).toISOString().split('T')[0] : ''
-  
+
+  const eventType = String(data.eventType ?? data.event_type ?? "plated_dinner")
+  const experience_type_id = String(data.experience_type_id ?? data.experienceTypeId ?? "").trim()
+
   return {
     ...data,
     requestedDate,
-    // Ensure numeric fields are properly typed
+    eventType,
+    experience_type_id,
     partySize: Number(data.partySize) || 1,
     estimatedDuration: Number(data.estimatedDuration) || 120,
     totalPrice: Number(data.totalPrice) || 0,
-    // Ensure boolean fields are properly typed
     depositPaid: Boolean(data.depositPaid),
-    // Ensure string fields are not null/undefined
-    templateProductId: data.templateProductId || '',
-    locationAddress: data.locationAddress || '',
-    firstName: data.firstName || '',
-    lastName: data.lastName || '',
-    email: data.email || '',
-    phone: data.phone || '',
-    notes: data.notes || '',
-    specialRequirements: data.specialRequirements || '',
-    status: data.status || 'pending'
+    templateProductId: data.templateProductId ?? data.template_product_id ?? "",
+    locationAddress: data.locationAddress ?? data.location_address ?? "",
+    firstName: data.firstName ?? data.first_name ?? "",
+    lastName: data.lastName ?? data.last_name ?? "",
+    email: data.email ?? "",
+    phone: data.phone ?? "",
+    notes: data.notes ?? "",
+    specialRequirements: data.specialRequirements ?? data.special_requirements ?? "",
+    status: data.status || "pending",
   }
 }
 
@@ -76,9 +78,9 @@ export const ChefEventForm = ({
   
   const { data: menusData, isLoading: menusLoading, error: menusError } = useAdminListMenus({ limit: 100 })
   const menus = menusData?.menus || []
-  
-  // Debug logging
-  console.log("Menu loading state:", { menusLoading, menusError, menusData, menus })
+
+  const { data: experienceTypesResponse } = useAdminListExperienceTypes({ limit: 100 })
+  const catalogExperiences = experienceTypesResponse?.experience_types ?? []
 
   const {
     register,
@@ -103,6 +105,39 @@ export const ChefEventForm = ({
   const watchedStatus = watch("status")
   const currentStatus = initialData?.status
 
+  const eventTypeWatched = watch("eventType")
+  const experienceTypeIdWatched = watch("experience_type_id") || ""
+
+  const experienceSelectValue = useMemo(() => {
+    if (
+      experienceTypeIdWatched &&
+      catalogExperiences.some((e) => e.id === experienceTypeIdWatched)
+    ) {
+      return `et:${experienceTypeIdWatched}`
+    }
+    const wf = eventTypeWatched || "plated_dinner"
+    if (eventTypeOptions.some((o) => o.value === wf)) {
+      return `wf:${wf}`
+    }
+    return `wf:plated_dinner`
+  }, [experienceTypeIdWatched, eventTypeWatched, catalogExperiences])
+
+  const handleExperienceSelect = (v: string) => {
+    if (v.startsWith("et:")) {
+      const id = v.slice(3)
+      const et = catalogExperiences.find((e) => e.id === id)
+      if (et) {
+        setValue("experience_type_id", id, { shouldDirty: true, shouldValidate: true })
+        setValue("eventType", et.name, { shouldDirty: true, shouldValidate: true })
+      }
+      return
+    }
+    if (v.startsWith("wf:")) {
+      setValue("experience_type_id", "", { shouldDirty: true, shouldValidate: true })
+      setValue("eventType", v.slice(3) as any, { shouldDirty: true, shouldValidate: true })
+    }
+  }
+
   const handleFormSubmit = async (data: any) => {
     // Validate status transition if editing
     if (isEditing && currentStatus && data.status !== currentStatus) {
@@ -116,7 +151,11 @@ export const ChefEventForm = ({
     }
 
     try {
-      await onSubmit(data)
+      const experienceId = typeof data.experience_type_id === "string" ? data.experience_type_id.trim() : ""
+      await onSubmit({
+        ...data,
+        experience_type_id: experienceId ? experienceId : null,
+      })
     } catch (error) {
       console.error("Form submission error:", error)
     }
@@ -189,18 +228,26 @@ export const ChefEventForm = ({
               )}
             </div>
             <div>
-              <Label htmlFor="eventType">Event Type *</Label>
-              <Select
-                value={watch("eventType")}
-                onValueChange={(value) => setValue("eventType", value as any)}
-              >
-                <Select.Trigger>
-                  <Select.Value placeholder="Select event type" />
+              <Label htmlFor="experience-event-type">Experience / Event Type *</Label>
+              <Select value={experienceSelectValue} onValueChange={handleExperienceSelect}>
+                <Select.Trigger id="experience-event-type">
+                  <Select.Value placeholder="Select experience or workflow type" />
                 </Select.Trigger>
                 <Select.Content>
-                  {eventTypeOptions.map(option => (
-                    <Select.Item key={option.value} value={option.value}>
-                      {option.label}
+                  {catalogExperiences.filter((e) => e.is_active !== false).length > 0 && (
+                    <>
+                      {catalogExperiences
+                        .filter((e) => e.is_active !== false)
+                        .map((et) => (
+                          <Select.Item key={et.id} value={`et:${et.id}`}>
+                            {et.name}
+                          </Select.Item>
+                        ))}
+                    </>
+                  )}
+                  {eventTypeOptions.map((option) => (
+                    <Select.Item key={`wf:${option.value}`} value={`wf:${option.value}`}>
+                      {option.label} (workflow only)
                     </Select.Item>
                   ))}
                 </Select.Content>

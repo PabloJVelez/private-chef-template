@@ -1,33 +1,50 @@
 import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { EventRequestFormData } from '@app/routes/request._index';
-import { PRICING_STRUCTURE, getEventTypeDisplayName } from '@libs/constants/pricing';
+import {
+  estimatePricePerPersonForRequest,
+  getEventTypeDisplayName,
+  MENU_EXPERIENCE_TBD_PRICING_MESSAGE,
+} from '@libs/constants/pricing';
+import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
+import type { StoreMenuDTO } from '@libs/util/server/data/menus.server';
 import clsx from 'clsx';
 import type { FC } from 'react';
 
 export interface PartySizeSelectorProps {
   className?: string;
+  experienceTypes?: StoreExperienceTypeDTO[];
+  menus?: StoreMenuDTO[];
 }
 
 const PARTY_SIZE_PRESETS = [2, 4, 6, 8, 10, 12];
 const MIN_PARTY_SIZE = 2;
 const MAX_PARTY_SIZE = 50;
 
-export const PartySizeSelector: FC<PartySizeSelectorProps> = ({ className }) => {
+export const PartySizeSelector: FC<PartySizeSelectorProps> = ({ className, experienceTypes = [], menus = [] }) => {
   const { watch, setValue, formState: { errors } } = useFormContext<EventRequestFormData>();
   const partySize = watch('partySize') || 4;
   const eventType = watch('eventType');
+  const experienceTypeId = watch('experienceTypeId');
+  const menuId = watch('menuId');
   
   const [inputValue, setInputValue] = useState(partySize.toString());
 
-  // Calculate pricing based on selected event type
-  const getPrice = () => {
-    if (!eventType) return null;
-    return PRICING_STRUCTURE[eventType];
+  const getPrice = (): number | null => {
+    if (!eventType && !experienceTypeId) return null;
+    return estimatePricePerPersonForRequest({
+      eventType: eventType || '',
+      experienceTypeId,
+      experienceTypes,
+      menus,
+      menuId,
+    });
   };
 
   const price = getPrice();
-  const totalPrice = price ? price * partySize : 0;
+  const totalPrice = price != null ? price * partySize : 0;
+  const menuAndExperienceSelected = !!(menuId && experienceTypeId);
+  const showTbdPricingCopy = menuAndExperienceSelected && price === null;
 
   const handlePartySizeChange = (newSize: number) => {
     if (newSize >= MIN_PARTY_SIZE && newSize <= MAX_PARTY_SIZE) {
@@ -152,8 +169,17 @@ export const PartySizeSelector: FC<PartySizeSelectorProps> = ({ className }) => 
         </div>
       </div>
 
+      {showTbdPricingCopy && (
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <div className="text-center space-y-2">
+            <h4 className="text-sm font-semibold text-primary-900">Pricing to be confirmed</h4>
+            <p className="text-sm text-primary-800">{MENU_EXPERIENCE_TBD_PRICING_MESSAGE}</p>
+          </div>
+        </div>
+      )}
+
       {/* Pricing display */}
-      {eventType && price && (
+      {eventType && price != null && (
         <div className="bg-accent-50 border border-accent-200 rounded-lg p-4">
           <div className="text-center">
             <h4 className="text-sm font-semibold text-accent-700 mb-2">

@@ -1,0 +1,71 @@
+import { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
+import { z } from 'zod';
+import { EXPERIENCE_TYPE_MODULE } from '../../../../modules/experience-type';
+import type ExperienceTypeModuleService from '../../../../modules/experience-type/service';
+
+const updateSchema = z.object({
+  name: z.string().optional(),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  short_description: z.string().optional().nullable(),
+  icon: z.string().optional().nullable(),
+  image_url: z.string().optional().nullable(),
+  highlights: z.array(z.string()).optional(),
+  ideal_for: z.string().optional().nullable(),
+  pricing_type: z.enum(['per_person', 'per_item', 'product_based']).optional(),
+  price_per_unit: z.number().optional().nullable(),
+  duration_minutes: z.number().optional().nullable(),
+  duration_display: z.string().optional().nullable(),
+  is_product_based: z.boolean().optional(),
+  location_type: z.enum(['customer', 'fixed']).optional(),
+  fixed_location_address: z.string().optional().nullable(),
+  requires_advance_notice: z.boolean().optional(),
+  advance_notice_days: z.number().optional(),
+  available_time_slots: z.array(z.string()).optional(),
+  time_slot_start: z.string().optional().nullable(),
+  time_slot_end: z.string().optional().nullable(),
+  time_slot_interval_minutes: z.number().optional(),
+  min_party_size: z.number().optional(),
+  max_party_size: z.number().optional().nullable(),
+  is_active: z.boolean().optional(),
+  is_featured: z.boolean().optional(),
+  sort_order: z.number().optional(),
+});
+
+export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  const svc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService;
+  const id = req.params.id;
+
+  try {
+    const experienceType = await svc.retrieveExperienceType(id);
+    res.status(200).json({ experience_type: experienceType });
+  } catch {
+    res.status(404).json({ message: 'Experience type not found' });
+  }
+}
+
+export async function PUT(req: MedusaRequest, res: MedusaResponse) {
+  const svc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService;
+  const id = req.params.id;
+
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Validation error', errors: parsed.error.issues });
+  }
+
+  const experienceType = await svc.updateExperienceTypes({
+    id,
+    ...(parsed.data as any),
+  });
+
+  res.status(200).json({ experience_type: experienceType });
+}
+
+export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
+  const svc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService;
+  const id = req.params.id;
+
+  await svc.deleteExperienceTypes(id);
+
+  res.status(200).json({ id, deleted: true });
+}

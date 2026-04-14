@@ -13,6 +13,7 @@ Outstanding discovery threads for research or follow-up input. Use the Open Foll
 |------------|--------------------|-------|--------|
 | 2026-03-08 | Document the full set of templatized values (branding, copy, products, env, etc.) and where they live in the repo | Session owner / implementer | Open |
 | 2026-03-08 | Define “plug in the chef” checklist or runbook to hit 2-week demo and ~1-month first mock order | Session owner / implementer | Open |
+| 2026-04-11 | Experience types port: enum and pickup scope for v1 | Session owner | **Resolved** — v1 = three `eventType` values (no `pickup` in schema); pickup phase 2. See `tasks/active/2026-04-11_port-experience-types-sdoa/clarification/2026-04-11_initial-clarification.md` |
 
 ## Session notes
 - 2026-03-08: Mission and workspace bootstrapped from repo; placeholders left for validation.

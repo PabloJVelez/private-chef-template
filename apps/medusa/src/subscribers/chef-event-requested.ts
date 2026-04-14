@@ -5,7 +5,8 @@ import type {
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { CreateNotificationDTO } from "@medusajs/types"
 import { DateTime } from "luxon"
-import type { ChefEventType } from "../modules/chef-event/models/chef-event"
+import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
+import { fallbackPricePerPersonFromStrings } from "../lib/chef-event-legacy-pricing"
 
 type EventData = {
   chefEventId: string
@@ -29,14 +30,12 @@ export default async function chefEventRequestedHandler({
       throw new Error(`Chef event not found: ${data.chefEventId}`)
     }
     
-    // Calculate price per person based on event type
-    const pricePerPersonMap = {
-      'cooking_class': 119.99,
-      'plated_dinner': 149.99,
-      'buffet_style': 99.99
-    }
-    const pricePerPerson = pricePerPersonMap[chefEvent.eventType as keyof typeof pricePerPersonMap] || 119.99
-    const totalPrice = pricePerPerson * chefEvent.partySize
+    const storedTotal = Number(chefEvent.totalPrice)
+    const totalPrice = Number.isFinite(storedTotal) && storedTotal > 0
+      ? storedTotal
+      : fallbackPricePerPersonFromStrings(String(chefEvent.eventType), null) * chefEvent.partySize
+
+    const eventTypeLabel = await resolveChefEventTypeEmailLabel(container, chefEvent as Record<string, unknown>)
 
     // Format the date and time for display
     const requestedDate = typeof chefEvent.requestedDate === 'string' 
@@ -44,13 +43,6 @@ export default async function chefEventRequestedHandler({
       : chefEvent.requestedDate
     const formattedDate = DateTime.fromJSDate(requestedDate).toFormat('LLL d, yyyy')
     const formattedTime = DateTime.fromFormat(chefEvent.requestedTime, 'HH:mm').toFormat('h:mm a')
-
-    // Get event type label
-    const eventTypeMap: Record<string, string> = {
-      cooking_class: "Chef's Cooking Class",
-      plated_dinner: "Plated Dinner Service",
-      buffet_style: "Buffet Style Service"
-    }
 
     // Get location type label
     const locationTypeMap: Record<string, string> = {
@@ -76,7 +68,7 @@ export default async function chefEventRequestedHandler({
         date: formattedDate,
         time: formattedTime,
         menu: templateProduct.title,
-        event_type: eventTypeMap[chefEvent.eventType] || chefEvent.eventType,
+        event_type: eventTypeLabel,
         location_type: locationTypeMap[chefEvent.locationType] || chefEvent.locationType,
         location_address: chefEvent.locationAddress || "Not provided",
         party_size: chefEvent.partySize,

@@ -5,13 +5,13 @@ import type {
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { CreateNotificationDTO } from "@medusajs/types"
 import { DateTime } from "luxon"
+import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
+import { fallbackPricePerPersonFromStrings } from "../lib/chef-event-legacy-pricing"
 
 type EventData = {
   chefEventId: string
   productId: string
 }
-
-type ChefEventType = 'cooking_class' | 'plated_dinner' | 'buffet_style'
 
 export default async function chefEventAcceptedHandler({
   event: { data },
@@ -40,14 +40,11 @@ export default async function chefEventAcceptedHandler({
       throw new Error(`Product not found: ${data.productId}`)
     }
     
-    // Calculate price per person based on event type
-    const pricePerPersonMap: Record<ChefEventType, number> = {
-      'cooking_class': 119.99,
-      'plated_dinner': 149.99,
-      'buffet_style': 99.99
-    }
-    const pricePerPerson = pricePerPersonMap[chefEvent.eventType as ChefEventType] || 119.99
-    const totalPrice = pricePerPerson * chefEvent.partySize
+    const storedTotal = Number(chefEvent.totalPrice)
+    const totalPrice = Number.isFinite(storedTotal) && storedTotal > 0
+      ? storedTotal
+      : fallbackPricePerPersonFromStrings(String(chefEvent.eventType), null) * chefEvent.partySize
+    const pricePerPerson = chefEvent.partySize > 0 ? totalPrice / chefEvent.partySize : 0
 
     // Calculate deposit requirement
     // Rules:
@@ -67,12 +64,7 @@ export default async function chefEventAcceptedHandler({
     const formattedDate = DateTime.fromJSDate(requestedDate).toFormat('LLL d, yyyy')
     const formattedTime = DateTime.fromFormat(chefEvent.requestedTime, 'HH:mm').toFormat('h:mm a')
 
-    // Get event type label
-    const eventTypeMap: Record<ChefEventType, string> = {
-      cooking_class: "Chef's Cooking Class",
-      plated_dinner: "Plated Dinner Service",
-      buffet_style: "Buffet Style Service"
-    }
+    const eventTypeLabel = await resolveChefEventTypeEmailLabel(container, chefEvent as Record<string, unknown>)
 
     // Get location type label
     const locationTypeMap: Record<string, string> = {
@@ -91,7 +83,7 @@ export default async function chefEventAcceptedHandler({
       booking: {
         date: formattedDate,
         time: formattedTime,
-        event_type: eventTypeMap[chefEvent.eventType as ChefEventType] || chefEvent.eventType,
+        event_type: eventTypeLabel,
         location_type: locationTypeMap[chefEvent.locationType] || chefEvent.locationType,
         location_address: chefEvent.locationAddress || "Not provided",
         party_size: chefEvent.partySize,

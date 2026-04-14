@@ -4,13 +4,15 @@ import { Course } from "./models/course"
 import { Dish } from "./models/dish"
 import { Ingredient } from "./models/ingredient"
 import { MenuImage } from "./models/menu-image"
+import { MenuExperiencePrice } from "./models/menu-experience-price"
 
 class MenuModuleService extends MedusaService({
   Menu,
   Course,
   Dish,
   Ingredient,
-  MenuImage
+  MenuImage,
+  MenuExperiencePrice,
 }){
   async replaceMenuImages(
     menuId: string,

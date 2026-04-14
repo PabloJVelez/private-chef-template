@@ -39,6 +39,7 @@ export interface AdminMenuDTO {
   courses: AdminCourseDTO[]
   images: AdminMenuImageDTO[]
   thumbnail?: string | null
+  allow_tbd_pricing?: boolean
   created_at: string
   updated_at: string
 }
@@ -80,6 +81,28 @@ export interface AdminUpdateMenuDTO {
   images?: string[]
   thumbnail?: string | null
   image_files?: { url: string; file_id?: string }[]
+}
+
+export interface AdminMenuExperiencePriceDTO {
+  id: string
+  menu_id: string
+  experience_type_id: string
+  price_per_person: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminUpsertMenuPricingDTO {
+  prices: Array<{
+    experience_type_id: string
+    price_per_person: number
+  }>
+  allow_tbd_pricing?: boolean
+}
+
+export interface AdminMenuPricingResponse {
+  prices: AdminMenuExperiencePriceDTO[]
+  allow_tbd_pricing: boolean
 }
 
 export interface AdminListMenusQuery {
@@ -154,6 +177,19 @@ export class AdminMenusResource {
   async delete(id: string) {
     return this.client.fetch<void>(`/admin/menus/${id}`, {
       method: 'DELETE',
+    })
+  }
+
+  async listPricing(menuId: string) {
+    return this.client.fetch<AdminMenuPricingResponse>(`/admin/menus/${menuId}/pricing`, {
+      method: 'GET',
+    })
+  }
+
+  async upsertPricing(menuId: string, data: AdminUpsertMenuPricingDTO) {
+    return this.client.fetch<AdminMenuPricingResponse>(`/admin/menus/${menuId}/pricing`, {
+      method: 'POST',
+      body: data,
     })
   }
 } 

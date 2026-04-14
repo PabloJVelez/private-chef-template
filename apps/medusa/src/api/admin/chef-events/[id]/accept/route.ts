@@ -28,11 +28,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       data: result
     })
   } catch (error) {
-    logger.error(`Error accepting chef event: ${error instanceof Error ? error.message : String(error)}`)
+    const errorMsg = error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null
+        ? JSON.stringify(error, null, 2)
+        : String(error)
+    logger.error(`Error accepting chef event: ${errorMsg}`)
     res.status(500).json({
       success: false,
       message: "Failed to accept chef event",
-      error: error instanceof Error ? error.message : "Unknown error"
+      error: errorMsg
     })
   }
 } 

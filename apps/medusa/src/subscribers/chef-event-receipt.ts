@@ -2,6 +2,8 @@ import type { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import type { CreateNotificationDTO } from "@medusajs/types"
 import { DateTime } from "luxon"
+import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
+import { fallbackPricePerPersonFromStrings } from "../lib/chef-event-legacy-pricing"
 
 type EventData = {
   chefEventId: string
@@ -11,23 +13,9 @@ type EventData = {
   tipMethod?: string
 }
 
-type ChefEventType = "cooking_class" | "plated_dinner" | "buffet_style"
-
-const EVENT_TYPE_LABELS: Record<string, string> = {
-  cooking_class: "Chef's Cooking Class",
-  plated_dinner: "Plated Dinner Service",
-  buffet_style: "Buffet Style Service",
-}
-
 const LOCATION_TYPE_LABELS: Record<string, string> = {
   customer_location: "at Customer's Location",
   chef_location: "at Chef's Location",
-}
-
-const PRICING: Record<ChefEventType, number> = {
-  buffet_style: 99.99,
-  cooking_class: 119.99,
-  plated_dinner: 149.99,
 }
 
 export default async function chefEventReceiptHandler({
@@ -61,10 +49,13 @@ export default async function chefEventReceiptHandler({
       throw new Error(`Product not found: ${productId}`)
     }
 
-    const eventType = chefEvent.eventType as ChefEventType
-    const pricePerPerson = PRICING[eventType] ?? 119.99
     const partySize = Number(chefEvent.partySize ?? 0)
-    const totalPrice = pricePerPerson * partySize
+    const storedTotal = Number(chefEvent.totalPrice)
+    const totalPrice = Number.isFinite(storedTotal) && storedTotal > 0
+      ? storedTotal
+      : fallbackPricePerPersonFromStrings(String(chefEvent.eventType), null) * partySize
+    const pricePerPerson = partySize > 0 ? totalPrice / partySize : 0
+    const eventTypeLabel = await resolveChefEventTypeEmailLabel(container, chefEvent)
 
     const requestedDate =
       typeof chefEvent.requestedDate === "string"
@@ -86,7 +77,7 @@ export default async function chefEventReceiptHandler({
       booking: {
         date: formattedDate,
         time: formattedTime,
-        event_type: EVENT_TYPE_LABELS[String(chefEvent.eventType)] || String(chefEvent.eventType),
+        event_type: eventTypeLabel,
         location_type:
           LOCATION_TYPE_LABELS[String(chefEvent.locationType)] || String(chefEvent.locationType),
         location_address: String(chefEvent.locationAddress || "Not provided"),

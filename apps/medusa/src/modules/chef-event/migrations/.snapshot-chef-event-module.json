@@ -66,12 +66,7 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "enumItems": [
-            "cooking_class",
-            "plated_dinner",
-            "buffet_style"
-          ],
-          "mappedType": "enum"
+          "mappedType": "text"
         },
         "templateProductId": {
           "name": "templateProductId",

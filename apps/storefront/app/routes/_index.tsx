@@ -11,6 +11,7 @@ import { FeaturedMenus } from '@app/components/chef/FeaturedMenus';
 import { ExperienceTypes } from '@app/components/chef/ExperienceTypes';
 import { ActionList } from '@app/components/common/actions-list/ActionList';
 import { fetchMenus, type StoreMenuDTO } from '@libs/util/server/data/menus.server';
+import { fetchExperienceTypes } from '@libs/util/server/data/experience-types.server';
 import { getMergedPageMeta } from '@libs/util/page';
 import { getChefConfig } from '@libs/config/chef/chef-config';
 
@@ -18,14 +19,19 @@ const chefConfig = getChefConfig();
 
 export const loader = async (_args: LoaderFunctionArgs) => {
   let menus: any[] = [];
+  let experienceTypes: any[] = [];
 
   try {
-    // Add timeout to prevent hanging requests
     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 10000));
 
     const menusPromise = fetchMenus({ limit: 3 });
+    const experienceTypesPromise = fetchExperienceTypes().then((r) => r.experience_types ?? []);
 
-    const menusData: any = await Promise.race([menusPromise, timeoutPromise]);
+    const [menusData, etData]: any[] = await Promise.race([
+      Promise.all([menusPromise, experienceTypesPromise]),
+      timeoutPromise,
+    ]) as [any, any[]];
+    experienceTypes = etData ?? [];
 
     // Trim to a safe, serializable snapshot to avoid circular/BigInt/etc.
     menus = (menusData?.menus ?? []).map((m: any) => {
@@ -100,11 +106,10 @@ export const loader = async (_args: LoaderFunctionArgs) => {
   }
 
   return data(
-    { menus },
+    { menus, experienceTypes },
     {
       headers: {
-        // cheap way to confirm what the route delivered (visible in browser devtools)
-        'X-Index-Debug': `menus=${menus.length}`,
+        'X-Index-Debug': `menus=${menus.length},et=${experienceTypes.length}`,
       },
     },
   );
@@ -136,7 +141,7 @@ function FeaturedMenusSection({ menus }: { menus: StoreMenuDTO[] }) {
 }
 
 export default function IndexRoute() {
-  const { menus } = useLoaderData<typeof loader>();
+  const { menus, experienceTypes } = useLoaderData<typeof loader>();
 
   return (
     <>
@@ -146,7 +151,7 @@ export default function IndexRoute() {
 
       <FeaturedMenusSection menus={menus} />
 
-      <ExperienceTypes />
+      <ExperienceTypes apiExperienceTypes={experienceTypes} />
 
       <Container className="py-12 lg:py-24">
         {/* Mobile: show section title above the image with subtle underline */}

@@ -19,11 +19,21 @@ export interface StoreCourseDTO {
   dishes: StoreDishDTO[]
 }
 
+export interface StoreMenuExperiencePriceDTO {
+  id: string
+  menu_id: string
+  experience_type_id: string
+  price_per_person: number
+  created_at: string
+  updated_at: string
+}
+
 export interface StoreMenuDTO {
   id: string
   name: string
   courses: StoreCourseDTO[]
   images: { id: string; url: string; rank: number }[]
+  menu_experience_prices?: StoreMenuExperiencePriceDTO[]
   thumbnail?: string | null
   created_at: string
   updated_at: string

@@ -6,7 +6,7 @@ export interface StoreChefEventDTO {
   requestedDate: string;
   requestedTime: string;
   partySize: number;
-  eventType: 'cooking_class' | 'plated_dinner' | 'buffet_style';
+  eventType: string;
   templateProductId?: string;
   locationType: 'customer_location' | 'chef_location';
   locationAddress: string;
@@ -25,7 +25,8 @@ export interface StoreCreateChefEventDTO {
   requestedDate: string;
   requestedTime: string;
   partySize: number;
-  eventType: 'cooking_class' | 'plated_dinner' | 'buffet_style';
+  eventType: string;
+  experience_type_id?: string;
   templateProductId?: string;
   locationType: 'customer_location' | 'chef_location';
   locationAddress: string;
@@ -56,11 +57,13 @@ import { PRICING_STRUCTURE } from '@libs/constants/pricing';
 export { PRICING_STRUCTURE };
 
 // Calculate total price for an event
-export const calculateEventPrice = (
-  eventType: keyof typeof PRICING_STRUCTURE,
-  partySize: number
-): number => {
-  return PRICING_STRUCTURE[eventType] * partySize;
+export const calculateEventPrice = (eventType: string, partySize: number): number => {
+  const key = eventType.replace(/-/g, '_');
+  const per =
+    key in PRICING_STRUCTURE
+      ? PRICING_STRUCTURE[key as keyof typeof PRICING_STRUCTURE]
+      : PRICING_STRUCTURE.plated_dinner;
+  return per * partySize;
 };
 
 // Create a chef event request

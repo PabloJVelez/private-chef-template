@@ -30,7 +30,7 @@ export async function GET(
       {
         take: query.limit,
         skip: query.offset,
-        relations: ["courses", "courses.dishes", "courses.dishes.ingredients", "images"]
+        relations: ["courses", "courses.dishes", "courses.dishes.ingredients", "images", "menu_experience_prices"]
       }
     )
 

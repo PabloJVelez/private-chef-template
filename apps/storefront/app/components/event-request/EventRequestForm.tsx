@@ -22,8 +22,11 @@ import { ContactDetails } from './ContactDetails';
 import { SpecialRequests } from './SpecialRequests';
 import { RequestSummary } from './RequestSummary';
 
+import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
+
 export interface EventRequestFormProps {
   menus: StoreMenuDTO[];
+  experienceTypes?: StoreExperienceTypeDTO[];
   initialValues?: Partial<EventRequestFormData>;
 }
 
@@ -43,8 +46,48 @@ const STEPS = [
   { id: 4, title: 'Review & Submit', subtitle: 'Confirm your event details' },
 ];
 
+/** Aligns eventType (display name or legacy key) + experienceTypeId for defaults and URL prefill. */
+function mergeExperienceDefaults(
+  experienceTypes: StoreExperienceTypeDTO[],
+  initialValues: Partial<EventRequestFormData>,
+): Pick<EventRequestFormData, 'eventType' | 'experienceTypeId'> {
+  const active = experienceTypes.filter((t) => t.is_active);
+  const initialId = initialValues.experienceTypeId?.trim();
+
+  if (initialId && active.some((t) => t.id === initialId)) {
+    const row = active.find((t) => t.id === initialId)!;
+    return { eventType: row.name, experienceTypeId: row.id };
+  }
+
+  if (initialValues.eventType && active.length > 0) {
+    const legacy = initialValues.eventType;
+    const slugish = legacy.replace(/_/g, '-');
+    const bySlug = active.find((t) => t.slug === slugish || t.slug === legacy);
+    if (bySlug) {
+      return { eventType: bySlug.name, experienceTypeId: bySlug.id };
+    }
+    const byName = active.find((t) => t.name === legacy);
+    if (byName) {
+      return { eventType: byName.name, experienceTypeId: byName.id };
+    }
+    const row = active.find((t) => t.is_featured) || active[0];
+    return { eventType: row.name, experienceTypeId: row.id };
+  }
+
+  if (active.length > 0) {
+    const row = active.find((t) => t.is_featured) || active[0];
+    return { eventType: row.name, experienceTypeId: row.id };
+  }
+
+  return {
+    eventType: initialValues.eventType ?? 'plated_dinner',
+    experienceTypeId: initialValues.experienceTypeId ?? '',
+  };
+}
+
 export const EventRequestForm: FC<EventRequestFormProps> = ({ 
-  menus, 
+  menus,
+  experienceTypes = [],
   initialValues = {} 
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -54,8 +97,9 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
     resolver: zodResolver(eventRequestSchema),
     defaultValues: {
       currentStep: 1,
-      partySize: 4, // Default party size
+      partySize: 4,
       ...initialValues,
+      ...mergeExperienceDefaults(experienceTypes, initialValues),
     },
     mode: 'onChange', // Validate on change for better UX
   });
@@ -119,7 +163,6 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
         // Special requests optional but must be valid if provided
         return !errors.specialRequirements && !errors.notes;
       case 4:
-        // No validation errors on final step
         return Object.keys(errors).length === 0;
       default:
         return false;
@@ -129,7 +172,13 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
   const isAllComplete = () => {
     const v = form.getValues();
     const e = form.formState.errors;
-    const step1 = !!v.menuId && !!v.eventType && !e.eventType && v.partySize >= 2 && v.partySize <= 50 && !e.partySize;
+    const step1 =
+      !!v.menuId &&
+      !!v.eventType &&
+      !e.eventType &&
+      v.partySize >= 2 &&
+      v.partySize <= 50 &&
+      !e.partySize;
     const step2Date = !!v.requestedDate && !!v.requestedTime && !e.requestedDate && !e.requestedTime;
     const step2Contact = !!v.firstName && !!v.lastName && !!v.email && !e.firstName && !e.lastName && !e.email && (!v.phone || !e.phone);
     const step2Location = !!v.locationAddress && v.locationAddress.length >= 10 && !e.locationAddress;
@@ -211,14 +260,14 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
                     key: `step1-experience-${currentStep}`,
                     defaultOpen: false,
                     header: renderSectionHeader('Experience Type', { complete: isEventTypeComplete }),
-                    children: <EventTypeSelector />,
+                    children: <EventTypeSelector experienceTypes={experienceTypes} />,
                   })}
 
                   {renderDisclosure({
                     key: `step1-guests-${currentStep}`,
                     defaultOpen: false,
                     header: renderSectionHeader('Number of Guests', { complete: isPartySizeComplete }),
-                    children: <PartySizeSelector />,
+                    children: <PartySizeSelector experienceTypes={experienceTypes} menus={menus} />,
                   })}
                 </>
               );
@@ -267,7 +316,8 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
       case 4:
         return (
           <RequestSummary 
-            menus={menus} 
+            menus={menus}
+            experienceTypes={experienceTypes}
             onEditStep={(step: number, section?: string) => {
               setCurrentStep(step);
               // brief timeout to allow render then expand intended section
@@ -387,6 +437,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
           {/* Hidden inputs to ensure form data is properly submitted */}
           <input type="hidden" name="menuId" value={form.watch('menuId') || ''} />
           <input type="hidden" name="eventType" value={form.watch('eventType') || ''} />
+          <input type="hidden" name="experienceTypeId" value={form.watch('experienceTypeId' as any) || ''} />
           <input type="hidden" name="requestedDate" value={form.watch('requestedDate') || ''} />
           <input type="hidden" name="requestedTime" value={form.watch('requestedTime') || ''} />
           <input type="hidden" name="partySize" value={form.watch('partySize') || ''} />

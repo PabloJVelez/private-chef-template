@@ -10,6 +10,7 @@ import { useCart } from '@app/hooks/useCart';
 import { useRegion } from '@app/hooks/useRegion';
 import { FetcherKeys } from '@libs/util/fetcher-keys';
 import { formatPrice, getVariantPrices } from '@libs/util/prices';
+import { getEventTypeDisplayName } from '@libs/constants/pricing';
 import { isEventProduct, parseEventSku, getEventVariant } from '@libs/util/products';
 import { StoreProduct } from '@medusajs/types';
 import { useCallback, useRef } from 'react';
@@ -234,11 +235,7 @@ export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDe
                   <div className="space-y-6">
                     <div className="flex justify-between items-center py-3 border-b border-gray-100">
                       <span className="text-gray-600 font-medium">Event Type</span>
-                      <span className="font-bold text-gray-900">
-                        {eventInfo.type === 'cooking_class' && "Chef's Cooking Class"}
-                        {eventInfo.type === 'plated_dinner' && 'Plated Dinner Service'}
-                        {eventInfo.type === 'buffet_style' && 'Buffet Style Service'}
-                      </span>
+                      <span className="font-bold text-gray-900">{getEventTypeDisplayName(eventInfo.type)}</span>
                     </div>
 
                     <div className="flex justify-between items-center py-3">

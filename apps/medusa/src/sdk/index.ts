@@ -4,6 +4,7 @@ import { AdminMenusResource } from './admin/admin-menus'
 import { AdminChefEventsResource } from './admin/admin-chef-events'
 import { AdminUploadsResource } from './admin/admin-uploads'
 import { AdminStripeConnectResource } from './admin/admin-stripe-connect'
+import { AdminExperienceTypesResource } from './admin/admin-experience-types'
 import { ExtendedStoreSDK } from './store'
 
 // Vite will inline this at build time for browser bundles.
@@ -15,6 +16,7 @@ class ExtendedAdminSDK extends Admin {
   public chefEvents: AdminChefEventsResource
   public uploads: AdminUploadsResource
   public stripeConnect: AdminStripeConnectResource
+  public experienceTypes: AdminExperienceTypesResource
 
   constructor(client: Client) {
     super(client)
@@ -22,6 +24,7 @@ class ExtendedAdminSDK extends Admin {
     this.chefEvents = new AdminChefEventsResource(client)
     this.uploads = new AdminUploadsResource(client)
     this.stripeConnect = new AdminStripeConnectResource(client)
+    this.experienceTypes = new AdminExperienceTypesResource(client)
   }
 }
 

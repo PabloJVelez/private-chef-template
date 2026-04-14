@@ -40,13 +40,14 @@ type AcceptChefEventWorkflowInput = {
 
 type ChefEventData = {
   id: string;
-  eventType: 'cooking_class' | 'plated_dinner' | 'buffet_style';
+  eventType: string;
   requestedDate: Date;
   requestedTime: string;
   partySize: number;
   firstName: string;
   lastName: string;
   locationAddress: string;
+  totalPrice?: number | string;
 };
 
 const acceptChefEventStep = createStep(
@@ -246,32 +247,41 @@ const createEventProductStep = createStep(
     const logger = container.resolve('logger');
     const chefEvent = input.originalChefEvent;
 
-    function getEventTypeLabel(eventType: ChefEventData['eventType']): string {
-      const eventTypeLabels: Record<ChefEventData['eventType'], string> = {
+    function getEventTypeLabel(eventType: string): string {
+      const eventTypeLabels: Record<string, string> = {
         cooking_class: 'Cooking Class',
         plated_dinner: 'Plated Dinner',
         buffet_style: 'Buffet Style',
       };
-      return eventTypeLabels[eventType];
+      return eventTypeLabels[eventType] || eventType;
     }
 
     function calculatePricePerPerson(chefEvent: ChefEventData): number {
-      const pricing: Record<ChefEventData['eventType'], number> = {
+      const total = Number(chefEvent.totalPrice);
+      if (Number.isFinite(total) && total > 0 && chefEvent.partySize > 0) {
+        return total / chefEvent.partySize;
+      }
+      const pricing: Record<string, number> = {
         cooking_class: 119.99,
         plated_dinner: 149.99,
         buffet_style: 99.99,
       };
-      return pricing[chefEvent.eventType];
+      return pricing[chefEvent.eventType] ?? pricing.plated_dinner;
     }
 
     function createUrlSafeHandle(chefEvent: ChefEventData): string {
-      const eventType = chefEvent.eventType.replace('_', '-');
+      const eventType = chefEvent.eventType.replace(/[^a-zA-Z0-9]+/g, '-').replace(/-+/g, '-').toLowerCase();
       const date = new Date(chefEvent.requestedDate).toISOString().split('T')[0];
       const customerName = `${chefEvent.firstName}-${chefEvent.lastName}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
       return `event-${eventType}-${customerName}-${date}`;
     }
 
     const pricePerPerson = calculatePricePerPerson(chefEvent);
+    const eventTypeSkuPart = chefEvent.eventType
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .toLowerCase()
+      .slice(0, 40);
 
     const { result } = await createProductsWorkflow(container).run({
       input: {
@@ -292,7 +302,7 @@ const createEventProductStep = createStep(
             variants: [
               {
                 title: 'Event Ticket',
-                sku: `EVENT-${chefEvent.id}-${new Date(chefEvent.requestedDate).toISOString().split('T')[0]}-${chefEvent.eventType}`,
+                sku: `EVENT-${chefEvent.id}-${new Date(chefEvent.requestedDate).toISOString().split('T')[0]}-${eventTypeSkuPart}`,
                 manage_inventory: true,
                 options: {
                   'Ticket Type': 'Event Ticket',

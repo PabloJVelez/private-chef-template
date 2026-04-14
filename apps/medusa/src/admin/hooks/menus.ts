@@ -5,7 +5,9 @@ import type {
   AdminCreateMenuDTO, 
   AdminUpdateMenuDTO,
   AdminMenuDTO,
-  AdminMenusResponse
+  AdminMenusResponse,
+  AdminMenuPricingResponse,
+  AdminUpsertMenuPricingDTO,
 } from '../../sdk/admin/admin-menus'
 
 const QUERY_KEY = ['menus']
@@ -63,6 +65,31 @@ export const useAdminDeleteMenuMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+    },
+  })
+}
+
+const PRICING_QUERY_KEY = ['menu-pricing']
+
+export const useAdminListMenuPricing = (menuId: string, options?: { enabled?: boolean }) => {
+  return useQuery<AdminMenuPricingResponse>({
+    queryKey: [...PRICING_QUERY_KEY, menuId],
+    enabled: options?.enabled !== false && !!menuId,
+    queryFn: async () => {
+      return sdk.admin.menus.listPricing(menuId)
+    },
+  })
+}
+
+export const useAdminUpsertMenuPricingMutation = (menuId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: AdminUpsertMenuPricingDTO) => {
+      return await sdk.admin.menus.upsertPricing(menuId, data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...PRICING_QUERY_KEY, menuId] })
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, menuId] })
     },
   })
 } 
