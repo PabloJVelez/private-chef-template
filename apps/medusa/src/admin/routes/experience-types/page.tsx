@@ -59,4 +59,8 @@ export const config = defineRouteConfig({
   label: 'Experiences',
 });
 
+export const handle = {
+  breadcrumb: () => 'Experiences',
+};
+
 export default ExperienceTypesPage;
