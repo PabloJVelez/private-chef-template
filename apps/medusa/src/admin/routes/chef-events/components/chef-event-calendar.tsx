@@ -5,7 +5,6 @@ import { Calendar, Views, type View } from "react-big-calendar"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 import "../../../styles/rbc-overrides.css"
 
-// no local buttons in this component; toolbar is RBC
 import { useNavigate } from "react-router-dom"
 import { DateTime } from "luxon"
 
@@ -14,17 +13,50 @@ import { useAdminListChefEvents } from "../../../hooks/chef-events"
 import { chefEventToRbc, type RBCEvent } from "./event-adapter"
 import { eventTypeOptions } from "../schemas"
 
-interface ChefEventCalendarProps {
-  onCreateEvent: () => void
+const MOBILE_MEDIA_QUERY = "(max-width: 767px)"
+
+function getInitialCalendarView(): View {
+  if (typeof window === "undefined") {
+    return Views.MONTH
+  }
+  return window.matchMedia(MOBILE_MEDIA_QUERY).matches ? Views.AGENDA : Views.MONTH
 }
 
-// no MonthPicker; we'll use RBC's default toolbar
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia(MOBILE_MEDIA_QUERY).matches
+  })
 
-export const ChefEventCalendar = ({ onCreateEvent }: ChefEventCalendarProps) => {
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mql = window.matchMedia(MOBILE_MEDIA_QUERY)
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mql.addEventListener?.("change", onChange)
+    return () => mql.removeEventListener?.("change", onChange)
+  }, [])
+
+  return isMobile
+}
+
+function getStatusColor(status?: string): string {
+  switch (status) {
+    case "confirmed":
+      return "#16a34a"
+    case "cancelled":
+      return "#ef4444"
+    case "completed":
+      return "#3b82f6"
+    default:
+      return "#ea580c"
+  }
+}
+
+export const ChefEventCalendar = () => {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
-  // RBC state
-  const [view, setView] = useState<View>(Views.MONTH)
+  const [view, setView] = useState<View>(getInitialCalendarView)
   const [date, setDate] = useState<Date>(new Date())
 
   // Keep your existing filters; add range later if/when supported
@@ -59,23 +91,45 @@ export const ChefEventCalendar = ({ onCreateEvent }: ChefEventCalendarProps) => 
 
   const components = useMemo(
     () => ({
-      // Custom month event: dot + time/name + type subtitle
+      // Single-letter weekday headers on mobile (S M T W T F S), full on larger.
+      header: ({ date: headerDate, label }: { date: Date; label: string }) => {
+        const dt = DateTime.fromJSDate(headerDate)
+        return (
+          <>
+            <span className="inline sm:hidden">{dt.toFormat("ccccc")}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </>
+        )
+      },
       month: {
         event: ({ event }: { event: RBCEvent }) => {
           const typeLabel = event.resource
-            ? eventTypeOptions.find((o) => o.value === (event.resource as any).eventType)?.label
+            ? eventTypeOptions.find(
+                (o) => o.value === (event.resource as any).eventType
+              )?.label
             : undefined
           const status = (event.resource as any)?.status as string | undefined
-          const color = status === "confirmed"
-            ? "#16a34a" // green-600
-            : status === "cancelled"
-            ? "#ef4444" // red-500
-            : status === "completed"
-            ? "#3b82f6" // blue-500
-            : "#ea580c" // pending / default - orange-600
+          const color = getStatusColor(status)
+          if (isMobile) {
+            return (
+              <div
+                className="flex items-center justify-center"
+                title={event.title}
+                aria-label={event.title}
+              >
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+              </div>
+            )
+          }
           return (
             <div className="flex items-start gap-1">
-              <span className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+              <span
+                className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: color }}
+              />
               <div className="min-w-0 leading-tight">
                 <div className="truncate text-xs text-[var(--fg-base)]">{event.title}</div>
                 {typeLabel && (
@@ -85,57 +139,77 @@ export const ChefEventCalendar = ({ onCreateEvent }: ChefEventCalendarProps) => 
             </div>
           )
         },
-        dateHeader: ({ date }: { date: Date }) => {
-          const dt = DateTime.fromJSDate(date)
-          const isToday = dt.hasSame(DateTime.now(), "day")
+        dateHeader: ({ date: cellDate, isOffRange }: { date: Date; isOffRange?: boolean }) => {
+          const dt = DateTime.fromJSDate(cellDate)
+          const now = DateTime.now()
+          const isToday = dt.hasSame(now, "day")
+          // Show the "MMM d" prefix ONLY for off-range days that are on the
+          // first row (previous month padding) or last row (next month padding)
+          // AND only on viewports wide enough to read it. On mobile we rely on
+          // the muted color from `.rbc-off-range` to distinguish padding days
+          // so that cell widths stay usable on narrow screens.
+          const numericLabel = dt.toFormat("d")
+          const extendedLabel = isOffRange ? dt.toFormat("MMM d") : numericLabel
           return (
             <div className="flex justify-end">
               <span
                 className={[
-                  "text-xs px-2 py-[2px] rounded-full",
-                  isToday ? "bg-[var(--accent-base)] text-white" : "text-[var(--fg-muted)]",
+                  "rounded-full px-1.5 py-[1px] text-[11px] leading-5 sm:px-2 sm:text-xs",
+                  isToday
+                    ? "bg-[var(--accent-base)] text-white"
+                    : "text-[var(--fg-muted)]",
+                  isOffRange && !isToday ? "opacity-75" : "",
                 ].join(" ")}
                 title={dt.toFormat("EEEE, MMMM d, yyyy")}
               >
-                {dt.toFormat("d")}
+                <span className="sm:hidden">{numericLabel}</span>
+                <span className="hidden sm:inline">{extendedLabel}</span>
               </span>
             </div>
           )
         },
       },
-      // Agenda row: show colored dot with title
       agenda: {
         event: ({ event }: { event: RBCEvent }) => {
           const status = (event.resource as any)?.status as string | undefined
-          const color = status === "confirmed"
-            ? "#16a34a"
-            : status === "cancelled"
-            ? "#ef4444"
-            : status === "completed"
-            ? "#3b82f6"
-            : "#ea580c"
+          const color = getStatusColor(status)
           return (
             <div className="flex items-center gap-2">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: color }}
+              />
               <span className="truncate">{event.title}</span>
             </div>
           )
         },
       },
-      // Default event renderer (fallback)
-      event: ({ title }: { title: string }) => <div className="truncate text-xs leading-tight">{title}</div>,
-      // keep RBC's default toolbar
+      event: ({ title }: { title: string }) => (
+        <div className="truncate text-xs leading-tight">{title}</div>
+      ),
     }),
-    []
+    [isMobile]
   )
 
   // Work around TSX typing friction by casting Calendar
   const RBCalendar = Calendar as any
 
+  const isMonth = view === Views.MONTH
+  // Month needs a fixed-height grid so each week row has breathing room.
+  // Agenda should grow to its content so we don't show a giant empty pane
+  // after the last event.
+  const hostHeightClasses = isMonth
+    ? "h-[calc(100dvh-13rem)] min-h-[360px] overflow-x-hidden sm:h-[calc(100dvh-12.5rem)] sm:min-h-[420px] md:h-[calc(100dvh-11rem)] md:min-h-[520px]"
+    : "h-auto max-h-[calc(100dvh-11rem)] overflow-y-auto overflow-x-hidden md:max-h-[calc(100dvh-9rem)]"
+
   return (
-    <>
-      {/* Calendar */}
-      <div className="p-3">
+    <div className="w-full min-w-0 px-2 pb-4 pt-2 sm:px-4 md:px-6">
+      <div
+        className={[
+          "chef-events-calendar-rbc-host w-full min-w-0",
+          hostHeightClasses,
+        ].join(" ")}
+      >
         <RBCalendar
           localizer={localizer}
           events={events}
@@ -146,9 +220,22 @@ export const ChefEventCalendar = ({ onCreateEvent }: ChefEventCalendarProps) => 
           date={date}
           onNavigate={setDate}
           formats={{
-            dateFormat: "d", // 1..31 without leading zero
-            weekdayFormat: "ccc", // Sun..Sat
+            dateFormat: "d",
+            weekdayFormat: "ccc",
             monthHeaderFormat: "MMMM yyyy",
+            // Shorter agenda header like "Apr 19 – May 19" so the toolbar
+            // label fits on one row on mobile.
+            agendaHeaderFormat: ({ start, end }: { start: Date; end: Date }) => {
+              const s = DateTime.fromJSDate(start)
+              const e = DateTime.fromJSDate(end)
+              const sameYear = s.year === e.year
+              const startLabel = s.toFormat(sameYear ? "MMM d" : "MMM d, yyyy")
+              const endLabel = e.toFormat("MMM d, yyyy")
+              return `${startLabel} – ${endLabel}`
+            },
+            agendaDateFormat: "MMM d",
+            agendaTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
+              `${DateTime.fromJSDate(start).toFormat("h:mm a")} – ${DateTime.fromJSDate(end).toFormat("h:mm a")}`,
           }}
           views={[Views.MONTH, Views.AGENDA]}
           popup
@@ -156,20 +243,24 @@ export const ChefEventCalendar = ({ onCreateEvent }: ChefEventCalendarProps) => 
           tooltipAccessor={(e: RBCEvent) => e.title}
           components={components}
           onSelectEvent={(evt: RBCEvent) => navigate(`/chef-events/${evt.id}`)}
+          onDrillDown={(next: Date) => {
+            // Month date-number click — switch to agenda focused on that day.
+            setDate(next)
+            setView(Views.AGENDA)
+          }}
           culture="en-US"
           step={30}
           timeslots={2}
-          // Use CSS for visual theming; keep propGetters default
-          style={{ height: "calc(100vh - 260px)", minHeight: 520 }}
+          style={{ height: isMonth ? "100%" : "auto" }}
         />
-
-        {isLoading && (
-          <div className="py-6 text-center text-sm text-[var(--fg-muted)]">
-            Loading events…
-          </div>
-        )}
       </div>
-    </>
+
+      {isLoading && (
+        <div className="py-4 text-center text-sm text-[var(--fg-muted)] sm:py-6">
+          Loading events…
+        </div>
+      )}
+    </div>
   )
 }
 

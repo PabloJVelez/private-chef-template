@@ -30,21 +30,23 @@ const ChefEventsPage = () => {
   return (
     <>
       <Container className="divide-y p-0">
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Heading level="h1">Chef Events</Heading>
-          <Button onClick={() => setShowCreateModal(true)}>Create</Button>
+          <Button className="w-full shrink-0 sm:w-auto" onClick={() => setShowCreateModal(true)}>
+            Create
+          </Button>
         </div>
 
-        <ChefEventCalendar onCreateEvent={() => setShowCreateModal(true)} />
+        <ChefEventCalendar />
       </Container>
 
       {showCreateModal && (
         <FocusModal open onOpenChange={setShowCreateModal}>
-          <FocusModal.Content className="z-50">
+          <FocusModal.Content className="z-50 max-h-[90dvh]">
             <FocusModal.Header>
               <FocusModal.Title>Create Chef Event</FocusModal.Title>
             </FocusModal.Header>
-            <FocusModal.Body>
+            <FocusModal.Body className="max-h-[min(80dvh,720px)] overflow-y-auto">
               <ChefEventForm
                 onSubmit={handleCreateChefEvent}
                 isLoading={createChefEvent.isPending}
