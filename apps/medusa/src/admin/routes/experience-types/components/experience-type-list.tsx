@@ -1,6 +1,7 @@
 import { useAdminDeleteExperienceTypeMutation, useAdminListExperienceTypes } from '../../../hooks/experience-types';
 import { DataTable, createDataTableColumnHelper, useDataTable, Button, Badge, toast } from '@medusajs/ui';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { AdminExperienceTypeDTO } from '../../../../sdk/admin/admin-experience-types';
 
 const columnHelper = createDataTableColumnHelper<AdminExperienceTypeDTO>();
@@ -10,6 +11,7 @@ interface ExperienceTypeListProps {
 }
 
 export const ExperienceTypeList = ({ onCreate }: ExperienceTypeListProps) => {
+  const navigate = useNavigate();
   const [query, setQuery] = useState({ limit: 20, offset: 0, q: '' });
   const { data, isLoading } = useAdminListExperienceTypes(query);
   const deleteExperienceType = useAdminDeleteExperienceTypeMutation();
@@ -19,7 +21,8 @@ export const ExperienceTypeList = ({ onCreate }: ExperienceTypeListProps) => {
       header: 'Name',
       cell: ({ row }) => (
         <button
-          onClick={() => (window.location.href = `/app/experience-types/${row.original.id}`)}
+          type="button"
+          onClick={() => navigate(`/experience-types/${row.original.id}`)}
           className="hover:underline text-blue-600 text-left"
         >
           {row.original.name}
@@ -53,7 +56,7 @@ export const ExperienceTypeList = ({ onCreate }: ExperienceTypeListProps) => {
         {
           icon: 'PencilSquare',
           label: 'Edit',
-          onClick: () => (window.location.href = `/app/experience-types/${row.original.id}`),
+          onClick: () => navigate(`/experience-types/${row.original.id}`),
         },
         {
           icon: 'Trash',

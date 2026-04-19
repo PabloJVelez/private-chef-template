@@ -1,6 +1,7 @@
 import { useAdminListMenus, useAdminDeleteMenuMutation } from "../../../hooks/menus"
 import { DataTable, createDataTableColumnHelper, useDataTable, Button, toast } from "@medusajs/ui"
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import type { AdminMenuDTO } from "../../../../sdk/admin/admin-menus"
 
 const columnHelper = createDataTableColumnHelper<AdminMenuDTO>()
@@ -10,6 +11,7 @@ interface MenuListProps {
 }
 
 export const MenuList = ({ onCreateMenu }: MenuListProps) => {
+  const navigate = useNavigate()
   const [query, setQuery] = useState({ limit: 10, offset: 0, q: "" })
   const { data, isLoading, error } = useAdminListMenus(query)
   const deleteMenu = useAdminDeleteMenuMutation()
@@ -19,7 +21,8 @@ export const MenuList = ({ onCreateMenu }: MenuListProps) => {
       header: "Name",
       cell: ({ row }) => (
         <button
-          onClick={() => (window.location.href = `/app/menus/${row.original.id}`)}
+          type="button"
+          onClick={() => navigate(`/menus/${row.original.id}`)}
           className="hover:underline text-blue-600 text-left"
         >
           {row.original.name}
@@ -39,7 +42,7 @@ export const MenuList = ({ onCreateMenu }: MenuListProps) => {
         {
           icon: "PencilSquare",
           label: "Edit",
-          onClick: () => (window.location.href = `/app/menus/${row.original.id}`),
+          onClick: () => navigate(`/menus/${row.original.id}`),
         },
         {
           icon: "Trash",
