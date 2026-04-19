@@ -64,4 +64,8 @@ export const config = defineRouteConfig({
   label: "Chef Events",
 })
 
+export const handle = {
+  breadcrumb: () => "Chef Events",
+}
+
 export default ChefEventsPage

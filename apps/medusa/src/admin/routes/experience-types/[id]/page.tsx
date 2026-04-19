@@ -2,7 +2,7 @@ import { defineRouteConfig } from '@medusajs/admin-sdk';
 import { Container, Heading, toast } from '@medusajs/ui';
 import { useAdminRetrieveExperienceType, useAdminUpdateExperienceTypeMutation } from '../../../hooks/experience-types';
 import { ExperienceTypeForm } from '../components/experience-type-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, type UIMatch } from 'react-router-dom';
 import type { AdminUpdateExperienceTypeDTO } from '../../../../sdk/admin/admin-experience-types';
 
 const ExperienceTypeDetailsPage = () => {
@@ -74,5 +74,20 @@ const ExperienceTypeDetailsPage = () => {
 export const config = defineRouteConfig({
   label: 'Edit Experience Type',
 });
+
+const ExperienceTypeDetailBreadcrumb = (props: UIMatch<unknown>) => {
+  const id = props.params?.id as string | undefined;
+  const { data: experienceType } = useAdminRetrieveExperienceType(id ?? '', {
+    enabled: Boolean(id),
+  });
+  if (!experienceType?.name) {
+    return null;
+  }
+  return <span>{experienceType.name}</span>;
+};
+
+export const handle = {
+  breadcrumb: (match: UIMatch<unknown>) => <ExperienceTypeDetailBreadcrumb {...match} />,
+};
 
 export default ExperienceTypeDetailsPage;

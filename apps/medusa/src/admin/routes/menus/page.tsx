@@ -59,4 +59,8 @@ export const config = defineRouteConfig({
   label: "Menus",
 })
 
+export const handle = {
+  breadcrumb: () => "Menus",
+}
+
 export default MenusPage 

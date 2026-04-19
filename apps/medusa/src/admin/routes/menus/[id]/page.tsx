@@ -2,7 +2,7 @@ import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Container, Heading, toast } from "@medusajs/ui"
 import { useAdminRetrieveMenu, useAdminUpdateMenuMutation } from "../../../hooks/menus"
 import { MenuForm } from "../components/menu-form"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, type UIMatch } from "react-router-dom"
 import type { AdminUpdateMenuDTO } from "../../../../sdk/admin/admin-menus"
 
 interface MenuDetailsPageProps {
@@ -79,5 +79,18 @@ const MenuDetailsPage = ({ params }: MenuDetailsPageProps) => {
 export const config = defineRouteConfig({
   label: "Edit Menu",
 })
+
+const MenuDetailBreadcrumb = (props: UIMatch<unknown>) => {
+  const id = props.params?.id as string | undefined
+  const { data: menu } = useAdminRetrieveMenu(id ?? "", { enabled: Boolean(id) })
+  if (!menu?.name) {
+    return null
+  }
+  return <span>{menu.name}</span>
+}
+
+export const handle = {
+  breadcrumb: (match: UIMatch<unknown>) => <MenuDetailBreadcrumb {...match} />,
+}
 
 export default MenuDetailsPage 

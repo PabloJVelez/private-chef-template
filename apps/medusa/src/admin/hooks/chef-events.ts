@@ -24,9 +24,10 @@ export const useAdminListChefEvents = (query: AdminListChefEventsQuery = {}) => 
   })
 }
 
-export const useAdminRetrieveChefEvent = (id: string) => {
+export const useAdminRetrieveChefEvent = (id: string, options?: { enabled?: boolean }) => {
   return useQuery<AdminChefEventDTO>({
     queryKey: [...QUERY_KEY, id],
+    enabled: options?.enabled !== false && !!id,
     queryFn: async () => {
       return sdk.admin.chefEvents.retrieve(id)
     },

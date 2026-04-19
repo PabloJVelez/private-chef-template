@@ -1,6 +1,6 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Container, Heading, toast, Button, FocusModal, Textarea, Label, Checkbox, Input, Text } from "@medusajs/ui"
-import { useParams } from "react-router-dom"
+import { useParams, type UIMatch } from "react-router-dom"
 import { useState } from "react"
 import { DateTime } from "luxon"
 import { ChefEventForm } from "../components/chef-event-form"
@@ -13,6 +13,22 @@ import {
   useAdminRejectChefEventMutation,
   useAdminSendReceiptMutation,
 } from "../../../hooks/chef-events"
+import type { AdminChefEventDTO } from "../../../../sdk/admin/admin-chef-events"
+
+const chefEventDisplayName = (event: AdminChefEventDTO) => {
+  const parts = [event.firstName, event.lastName].filter(Boolean)
+  const name = parts.join(" ").trim()
+  return name.length > 0 ? name : event.email
+}
+
+const ChefEventDetailBreadcrumb = (props: UIMatch<unknown>) => {
+  const id = props.params?.id as string | undefined
+  const { data: chefEvent } = useAdminRetrieveChefEvent(id ?? "", { enabled: Boolean(id) })
+  if (!chefEvent) {
+    return null
+  }
+  return <span>{chefEventDisplayName(chefEvent)}</span>
+}
 
 const ChefEventDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -493,5 +509,9 @@ const ChefEventDetailPage = () => {
 export const config = defineRouteConfig({
   label: "Chef Event Details",
 })
+
+export const handle = {
+  breadcrumb: (match: UIMatch<unknown>) => <ChefEventDetailBreadcrumb {...match} />,
+}
 
 export default ChefEventDetailPage 
