@@ -38,6 +38,7 @@ export const ChefEvent = model.define("chef_event", {
   depositPaid: model.boolean().default(false),
   specialRequirements: model.text(),
   estimatedDuration: model.number().nullable(), // Duration in minutes
+  timeZone: model.text().default("America/Chicago"),
   
   // Acceptance/Rejection tracking fields
   productId: model.text().nullable(), // Link to created product for ticket sales
@@ -85,6 +86,7 @@ export type ChefEventType = {
   depositPaid: boolean
   specialRequirements?: string
   estimatedDuration?: number
+  timeZone?: string
   assignedChefId?: string
   // New fields for acceptance workflow
   productId?: string

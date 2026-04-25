@@ -7,11 +7,17 @@ import "../../../styles/rbc-overrides.css"
 
 import { useNavigate } from "react-router-dom"
 import { DateTime } from "luxon"
+import { Button, toast } from "@medusajs/ui"
 
 import { localizer } from "../../../lib/calendar-localizer"
 import { useAdminListChefEvents } from "../../../hooks/chef-events"
+import {
+  useGoogleCalendarResyncMutation,
+  useGoogleCalendarStatus,
+} from "../../../hooks/google-calendar"
 import { chefEventToRbc, type RBCEvent } from "./event-adapter"
 import { eventTypeOptions } from "../schemas"
+import { chefEventStatusToDisplayHex } from "../../../../lib/chef-event-google-calendar-colors"
 
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)"
 
@@ -39,22 +45,11 @@ function useIsMobile() {
   return isMobile
 }
 
-function getStatusColor(status?: string): string {
-  switch (status) {
-    case "confirmed":
-      return "#16a34a"
-    case "cancelled":
-      return "#ef4444"
-    case "completed":
-      return "#3b82f6"
-    default:
-      return "#ea580c"
-  }
-}
-
 export const ChefEventCalendar = () => {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
+  const { data: googleCalendarStatus } = useGoogleCalendarStatus()
+  const resyncMutation = useGoogleCalendarResyncMutation()
 
   const [view, setView] = useState<View>(getInitialCalendarView)
   const [date, setDate] = useState<Date>(new Date())
@@ -109,7 +104,7 @@ export const ChefEventCalendar = () => {
               )?.label
             : undefined
           const status = (event.resource as any)?.status as string | undefined
-          const color = getStatusColor(status)
+          const color = chefEventStatusToDisplayHex(status)
           if (isMobile) {
             return (
               <div
@@ -172,7 +167,7 @@ export const ChefEventCalendar = () => {
       agenda: {
         event: ({ event }: { event: RBCEvent }) => {
           const status = (event.resource as any)?.status as string | undefined
-          const color = getStatusColor(status)
+          const color = chefEventStatusToDisplayHex(status)
           return (
             <div className="flex items-center gap-2">
               <span
@@ -202,8 +197,45 @@ export const ChefEventCalendar = () => {
     ? "h-[calc(100dvh-13rem)] min-h-[360px] overflow-x-hidden sm:h-[calc(100dvh-12.5rem)] sm:min-h-[420px] md:h-[calc(100dvh-11rem)] md:min-h-[520px]"
     : "h-auto max-h-[calc(100dvh-11rem)] overflow-y-auto overflow-x-hidden md:max-h-[calc(100dvh-9rem)]"
 
+  const handleResync = async () => {
+    try {
+      await resyncMutation.mutateAsync()
+      toast.success("Google Calendar resync started")
+    } catch (error) {
+      toast.error("Could not start resync", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        duration: 5000,
+      })
+    }
+  }
+
   return (
     <div className="w-full min-w-0 px-2 pb-4 pt-2 sm:px-4 md:px-6">
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 py-2 text-xs text-ui-fg-subtle">
+        <div>
+          Google Calendar sync:{" "}
+          <span className="font-medium text-ui-fg-base">
+            {googleCalendarStatus?.status === "active"
+              ? "Connected"
+              : googleCalendarStatus?.status === "sync_error"
+                ? "Sync error"
+                : googleCalendarStatus?.status === "reauthorization_required"
+                  ? "Reauthorization required"
+                  : "Not connected"}
+          </span>
+        </div>
+        {googleCalendarStatus?.status === "active" ? (
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={handleResync}
+            isLoading={resyncMutation.isPending}
+            disabled={resyncMutation.isPending}
+          >
+            Resync
+          </Button>
+        ) : null}
+      </div>
       <div
         className={[
           "chef-events-calendar-rbc-host w-full min-w-0",

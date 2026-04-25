@@ -23,6 +23,7 @@ import {
 import { useAdminListMenus } from "../../../hooks/menus"
 import { useAdminListExperienceTypes } from "../../../hooks/experience-types"
 import type { AdminCreateChefEventDTO, AdminUpdateChefEventDTO } from "../../../../sdk/admin/admin-chef-events"
+import { formDateAndTimeFromRequestedInstant } from "../../../../lib/chef-event-datetime-display"
 
 // Helper function to render error messages
 const ErrorMessage = ({ error }: { error: any }) => {
@@ -34,14 +35,17 @@ const ErrorMessage = ({ error }: { error: any }) => {
 const transformDataForForm = (data: any) => {
   if (!data) return null
 
-  const requestedDate = data.requestedDate ? new Date(data.requestedDate).toISOString().split('T')[0] : ''
+  const { requestedDate, requestedTime } = formDateAndTimeFromRequestedInstant(
+    data,
+  )
 
   const eventType = String(data.eventType ?? data.event_type ?? "plated_dinner")
   const experience_type_id = String(data.experience_type_id ?? data.experienceTypeId ?? "").trim()
 
   return {
     ...data,
-    requestedDate,
+    requestedDate: requestedDate || "",
+    requestedTime: requestedTime || data.requestedTime || "",
     eventType,
     experience_type_id,
     partySize: Number(data.partySize) || 1,
