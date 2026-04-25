@@ -77,9 +77,17 @@ async function applyGoogleEventToChefEvent(
   googleSvc: GoogleCalendarConnectionModuleService,
   chefEventService: any,
   event: GoogleEvent,
+  logger?: { info: (msg: string) => void; warn: (msg: string) => void },
 ) {
   const privateProps = event.extendedProperties?.private || {};
-  const chefEventId = privateProps.chefEventId;
+  let chefEventId = privateProps.chefEventId;
+  if (!chefEventId && event.id) {
+    const byGoogleId = await googleSvc.getSyncMapForGoogleEventId(event.id);
+    const fromMap = byGoogleId?.chefEventId ?? byGoogleId?.chef_event_id;
+    if (typeof fromMap === "string" && fromMap.length > 0) {
+      chefEventId = fromMap;
+    }
+  }
   if (!chefEventId) {
     return;
   }
@@ -136,6 +144,23 @@ async function applyGoogleEventToChefEvent(
     syncState: event.status === "cancelled" ? "cancelled_in_google" : "linked",
   });
 
+  if (event.status === "cancelled") {
+    await googleSvc.createOrUpdatePendingCancellationIncident({
+      chefEventId,
+      googleEventId: event.id,
+      googleUpdatedAt: googleUpdated,
+      payload: {
+        summary: event.summary ?? null,
+        status: event.status ?? null,
+        updated: event.updated ?? null,
+      },
+    });
+    logger?.warn(
+      `Ignored Google cancellation for chef event ${chefEventId}; pending admin review.`,
+    );
+    return;
+  }
+
   if (!googleWins) {
     return;
   }
@@ -186,15 +211,6 @@ async function applyGoogleEventToChefEvent(
   if (typeof estimatedDuration === "number") {
     updatePayload.estimatedDuration = estimatedDuration;
   }
-  if (typeof event.location === "string") {
-    updatePayload.locationAddress = event.location;
-  }
-  if (typeof event.description === "string") {
-    updatePayload.notes = event.description;
-  }
-  if (event.status === "cancelled") {
-    updatePayload.status = "cancelled";
-  }
 
   await chefEventService.updateChefEvents(updatePayload);
 }
@@ -202,6 +218,7 @@ async function applyGoogleEventToChefEvent(
 export async function runIncrementalSync(
   googleSvc: GoogleCalendarConnectionModuleService,
   chefEventService: any,
+  logger?: { info: (msg: string) => void; warn: (msg: string) => void },
 ) {
   const connection = await googleSvc.getPrimaryConnection();
   if (!connection?.id) {
@@ -268,7 +285,7 @@ export async function runIncrementalSync(
     const items = json.items || [];
 
     for (const event of items) {
-      await applyGoogleEventToChefEvent(googleSvc, chefEventService, event);
+      await applyGoogleEventToChefEvent(googleSvc, chefEventService, event, logger);
     }
 
     pageToken = json.nextPageToken;

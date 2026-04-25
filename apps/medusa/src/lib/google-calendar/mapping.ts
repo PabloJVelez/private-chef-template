@@ -66,10 +66,16 @@ export function toGoogleEventBody(event: ChefEventShape, connectionId: string) {
       ? `${event.eventType || "Chef Event"} - ${fullName || "Customer"}`
       : "Chef Event";
 
+  const googleStatus =
+    String(event.status || "").toLowerCase() === "cancelled"
+      ? "cancelled"
+      : "confirmed";
+
   return {
     summary,
     location: event.locationAddress || "",
     description: event.notes || "",
+    status: googleStatus,
     colorId: chefEventStatusToGoogleColorId(event.status),
     ...toGoogleDateTimes(event),
     extendedProperties: {

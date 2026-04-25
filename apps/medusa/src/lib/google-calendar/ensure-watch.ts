@@ -84,7 +84,7 @@ export async function ensureGoogleCalendarWatchAndBootstrapSync(
 
   const chefEventService = req.scope.resolve(CHEF_EVENT_MODULE) as any;
   try {
-    await runIncrementalSync(googleSvc, chefEventService);
+    await runIncrementalSync(googleSvc, chefEventService, logger);
     logger.info(
       "Google Calendar watch registered and incremental sync completed.",
     );

@@ -41,3 +41,23 @@ export const useGoogleCalendarResyncMutation = () => {
     },
   });
 };
+
+export const useGoogleCalendarApproveIncidentMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => sdk.admin.googleCalendar.approveIncident(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+};
+
+export const useGoogleCalendarDenyIncidentMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => sdk.admin.googleCalendar.denyIncident(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+};

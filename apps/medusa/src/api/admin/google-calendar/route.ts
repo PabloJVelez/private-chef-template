@@ -20,6 +20,7 @@ export async function GET(
       watchExpiresAt: null,
       lastSyncedAt: null,
       lastSyncError: null,
+      pendingIncidents: [],
     });
     return;
   }
@@ -34,6 +35,7 @@ export async function GET(
   }
 
   const refreshed = await svc.getPrimaryConnection();
+  const incidents = await svc.listPendingCancellationIncidents(20);
 
   res.status(200).json({
     connected: true,
@@ -42,6 +44,19 @@ export async function GET(
     watchExpiresAt: refreshed?.watchExpiresAt ?? connection.watchExpiresAt ?? null,
     lastSyncedAt: refreshed?.lastSyncedAt ?? connection.lastSyncedAt ?? null,
     lastSyncError: refreshed?.lastSyncError ?? connection.lastSyncError ?? null,
+    pendingIncidents: incidents.map((incident) => ({
+      id: String(incident.id),
+      chefEventId: String(incident.chefEventId ?? incident.chef_event_id ?? ""),
+      googleEventId: String(
+        incident.googleEventId ?? incident.google_event_id ?? "",
+      ),
+      incidentType: String(
+        incident.incidentType ?? incident.incident_type ?? "google_cancelled_ignored",
+      ),
+      createdAt: incident.created_at ?? incident.createdAt ?? null,
+      googleUpdatedAt: incident.googleUpdatedAt ?? incident.google_updated_at ?? null,
+      payload: (incident.payload as Record<string, unknown> | null) ?? null,
+    })),
   });
 }
 

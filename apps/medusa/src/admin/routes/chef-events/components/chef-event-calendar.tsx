@@ -7,21 +7,25 @@ import "../../../styles/rbc-overrides.css"
 
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { DateTime } from "luxon"
-import { Button, toast } from "@medusajs/ui"
+import { Button, Drawer, Text, toast } from "@medusajs/ui"
 
 import { localizer } from "../../../lib/calendar-localizer"
 import { useAdminListChefEvents } from "../../../hooks/chef-events"
 import {
+  useGoogleCalendarApproveIncidentMutation,
+  useGoogleCalendarDenyIncidentMutation,
   useGoogleCalendarResyncMutation,
   useGoogleCalendarStatus,
 } from "../../../hooks/google-calendar"
 import { chefEventToRbc, type RBCEvent } from "./event-adapter"
 import { eventTypeOptions } from "../schemas"
 import { chefEventStatusToDisplayHex } from "../../../../lib/chef-event-google-calendar-colors"
+import { requestedStartInEventZone } from "../../../../lib/chef-event-datetime-display"
 
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)"
 const CALENDAR_DATE_PARAM = "date"
 const CALENDAR_VIEW_PARAM = "view"
+const CALENDAR_INCIDENT_PARAM = "incident"
 
 const isSupportedView = (value: string | null): value is View => {
   return value === Views.MONTH || value === Views.AGENDA
@@ -50,6 +54,8 @@ export const ChefEventCalendar = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: googleCalendarStatus } = useGoogleCalendarStatus()
   const resyncMutation = useGoogleCalendarResyncMutation()
+  const approveIncidentMutation = useGoogleCalendarApproveIncidentMutation()
+  const denyIncidentMutation = useGoogleCalendarDenyIncidentMutation()
 
   const queryView = searchParams.get(CALENDAR_VIEW_PARAM)
   const view: View = isSupportedView(queryView) ? queryView : getInitialCalendarView()
@@ -81,6 +87,25 @@ export const ChefEventCalendar = () => {
     [date, updateCalendarParams]
   )
 
+  const openIncidentDrawer = useCallback(
+    (id: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.set(CALENDAR_INCIDENT_PARAM, id)
+        return next
+      })
+    },
+    [setSearchParams]
+  )
+
+  const closeIncidentDrawer = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete(CALENDAR_INCIDENT_PARAM)
+      return next
+    })
+  }, [setSearchParams])
+
   // Keep your existing filters; add range later if/when supported
   const { data, isLoading } = useAdminListChefEvents({
     q: "",
@@ -95,6 +120,26 @@ export const ChefEventCalendar = () => {
     () => (data?.chefEvents ?? []).map(chefEventToRbc),
     [data?.chefEvents]
   )
+
+  const selectedIncidentId = searchParams.get(CALENDAR_INCIDENT_PARAM)
+  const selectedIncident = useMemo(() => {
+    const incidents = googleCalendarStatus?.pendingIncidents ?? []
+    if (!selectedIncidentId) {
+      return null
+    }
+    return incidents.find((incident) => incident.id === selectedIncidentId) ?? null
+  }, [googleCalendarStatus?.pendingIncidents, selectedIncidentId])
+
+  const selectedChefEvent = useMemo(() => {
+    if (!selectedIncident) {
+      return null
+    }
+    const chefEvents = data?.chefEvents ?? []
+    return (
+      chefEvents.find((evt) => String(evt.id) === String(selectedIncident.chefEventId)) ??
+      null
+    )
+  }, [data?.chefEvents, selectedIncident])
 
   const components = useMemo(
     () => ({
@@ -207,6 +252,52 @@ export const ChefEventCalendar = () => {
     }
   }
 
+  const handleApproveIncident = async (id: string) => {
+    try {
+      await approveIncidentMutation.mutateAsync(id)
+      toast.success("Cancellation approved")
+      closeIncidentDrawer()
+    } catch (error) {
+      toast.error("Could not approve cancellation", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        duration: 5000,
+      })
+    }
+  }
+
+  const handleDenyIncident = async (id: string) => {
+    try {
+      await denyIncidentMutation.mutateAsync(id)
+      toast.success("Cancellation denied and event restored in Google")
+      closeIncidentDrawer()
+    } catch (error) {
+      toast.error("Could not deny cancellation", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        duration: 5000,
+      })
+    }
+  }
+
+  const selectedEventStart = selectedChefEvent
+    ? requestedStartInEventZone(selectedChefEvent)
+    : null
+  const selectedEventDateLabel =
+    selectedEventStart && selectedEventStart.isValid
+      ? selectedEventStart.toFormat("LLL d, yyyy")
+      : "Unknown date"
+  const selectedEventTimeLabel =
+    selectedEventStart && selectedEventStart.isValid
+      ? selectedEventStart.toFormat("h:mm a")
+      : "Unknown time"
+  const selectedHostLabel = selectedChefEvent
+    ? [selectedChefEvent.firstName, selectedChefEvent.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "Host not set"
+    : "Host not found"
+  const pendingCount = googleCalendarStatus?.pendingIncidents?.length ?? 0
+  const firstPendingIncidentId = googleCalendarStatus?.pendingIncidents?.[0]?.id
+
   return (
     <div className="w-full min-w-0 px-2 pb-4 pt-2 sm:px-4 md:px-6">
       <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 py-2 text-xs text-ui-fg-subtle">
@@ -234,6 +325,30 @@ export const ChefEventCalendar = () => {
           </Button>
         ) : null}
       </div>
+
+      {pendingCount > 0 ? (
+        <div className="mb-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-ui-fg-base">
+                Events cancelled through Google Calendar
+              </div>
+              <div className="text-xs text-ui-fg-subtle">
+                {pendingCount} pending review
+              </div>
+            </div>
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={() => firstPendingIncidentId && openIncidentDrawer(firstPendingIncidentId)}
+              disabled={!firstPendingIncidentId}
+            >
+              Review
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div
         className={[
           "chef-events-calendar-rbc-host w-full min-w-0",
@@ -290,6 +405,80 @@ export const ChefEventCalendar = () => {
           Loading events…
         </div>
       )}
+
+      <Drawer
+        open={Boolean(selectedIncident)}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeIncidentDrawer()
+          }
+        }}
+      >
+        <Drawer.Content className="max-w-xl bg-ui-bg-base sm:inset-y-0 sm:right-0 sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l">
+          <Drawer.Header>
+            <Drawer.Title>Review Google cancellation request</Drawer.Title>
+          </Drawer.Header>
+          <Drawer.Body>
+            {selectedIncident ? (
+              <div className="space-y-4">
+                <Text className="text-ui-fg-subtle">
+                  Google attempted to cancel this event. Decide whether to apply that
+                  cancellation in the app or keep the app event and restore it in Google.
+                </Text>
+
+                <div className="space-y-2 rounded-md border border-ui-border-base p-3">
+                  <div>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Event
+                    </Text>
+                    <Text weight="plus">
+                      {String(selectedIncident.payload?.summary || "Chef event")}
+                    </Text>
+                  </div>
+                  <div>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Host
+                    </Text>
+                    <Text>{selectedHostLabel}</Text>
+                  </div>
+                  <div>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Scheduled for
+                    </Text>
+                    <Text>
+                      {selectedEventDateLabel} at {selectedEventTimeLabel}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </Drawer.Body>
+          <Drawer.Footer>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={closeIncidentDrawer}>
+                Close
+              </Button>
+              {selectedIncident ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleDenyIncident(selectedIncident.id)}
+                    disabled={denyIncidentMutation.isPending}
+                  >
+                    Deny & restore in Google
+                  </Button>
+                  <Button
+                    onClick={() => handleApproveIncident(selectedIncident.id)}
+                    disabled={approveIncidentMutation.isPending}
+                  >
+                    Approve cancellation
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          </Drawer.Footer>
+        </Drawer.Content>
+      </Drawer>
     </div>
   )
 }

@@ -20,6 +20,7 @@ export async function POST(
   const connection = await svc.getPrimaryConnection();
   const logger = req.scope.resolve("logger") as {
     info: (msg: string) => void;
+    warn: (msg: string) => void;
     error: (msg: string) => void;
   };
 
@@ -76,7 +77,7 @@ export async function POST(
 
   try {
     const chefEventService = req.scope.resolve(CHEF_EVENT_MODULE) as any;
-    await runIncrementalSync(svc, chefEventService);
+    await runIncrementalSync(svc, chefEventService, logger);
     logger.info(`Google webhook processed successfully (state=${resourceState})`);
     res.status(202).json({
       received: true,

@@ -6,6 +6,16 @@ export type GoogleCalendarStatus =
   | "reauthorization_required"
   | "sync_error";
 
+export type GoogleCalendarIncident = {
+  id: string;
+  chefEventId: string;
+  googleEventId: string;
+  incidentType: "google_cancelled_ignored";
+  createdAt: string | null;
+  googleUpdatedAt: string | null;
+  payload: Record<string, unknown> | null;
+};
+
 export interface GoogleCalendarStatusResponse {
   connected: boolean;
   status: GoogleCalendarStatus;
@@ -13,6 +23,7 @@ export interface GoogleCalendarStatusResponse {
   watchExpiresAt: string | null;
   lastSyncedAt: string | null;
   lastSyncError: string | null;
+  pendingIncidents: GoogleCalendarIncident[];
 }
 
 export class AdminGoogleCalendarResource {
@@ -41,5 +52,23 @@ export class AdminGoogleCalendarResource {
     return this.client.fetch<{ started: boolean }>("/admin/google-calendar/resync", {
       method: "POST",
     });
+  }
+
+  async approveIncident(id: string) {
+    return this.client.fetch<{ resolved: boolean; action: "approved" }>(
+      `/admin/google-calendar/incidents/${id}/approve`,
+      {
+        method: "POST",
+      },
+    );
+  }
+
+  async denyIncident(id: string) {
+    return this.client.fetch<{ resolved: boolean; action: "denied" }>(
+      `/admin/google-calendar/incidents/${id}/deny`,
+      {
+        method: "POST",
+      },
+    );
   }
 }

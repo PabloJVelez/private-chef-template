@@ -1,7 +1,7 @@
 # Admin Google Calendar Integration Plan
 
 - Owner: PabloJVelez
-- Last Updated: 2026-04-23
+- Last Updated: 2026-04-25
 - Status: Draft
 - Related Task Hub: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/`
 - Stakeholders: PabloJVelez (Requestor, Decision Maker)
@@ -26,6 +26,7 @@ Primary source artifacts:
 - Deliver Google Calendar connection and sync support for one chef/admin account.
 - Ensure linked-event bidirectional synchronization with conflict policy `last-write-wins`.
 - Ensure cancellation in app maps to Google `status=cancelled`.
+- Ensure Google-originated cancellation/deletion events are ignored by default and routed to an explicit admin approve/deny decision flow.
 - Ensure timezone is explicit and used in sync mapping.
 - Preserve existing behavior when Google is not connected.
 - MVP acceptance is completion of manual QA checklist defined in this plan.
@@ -60,8 +61,8 @@ Primary source artifacts:
 
 #### Flow 3: Google linked-event changes sync back to app
 - Trigger: Google push notification on watched resource.
-- Experience narrative: webhook enqueues incremental sync and applies mapped field updates into app using last-write-wins policy.
-- Acceptance criteria: mapped fields in linked app events reflect newest timestamped write source.
+- Experience narrative: webhook enqueues incremental sync and applies only date/time field updates into app using last-write-wins policy; Google cancellations/deletions create a pending admin review item instead of auto-cancelling app records.
+- Acceptance criteria: date/time edits from Google update linked app events, while Google cancellation/deletion remains blocked until admin approves or denies via review UI.
 
 ### Technical Notes & Dependencies
 - Requires Google Cloud OAuth app configuration and approved redirect/webhook URLs.
@@ -131,7 +132,7 @@ Primary source artifacts:
 - **Validation Plan:** execute API integration tests and verify JSON response contracts.
 
 #### Task 3: Sync pipeline, webhook handling, and conflict behavior
-- **Objective:** Implement linked-event bidirectional sync orchestration, incremental sync, and last-write-wins conflict policy.
+- **Objective:** Implement linked-event bidirectional sync orchestration, incremental sync, last-write-wins conflict policy, and guarded handling for Google cancellations/deletions.
 - **Impacted Modules/Files:**
   - `apps/medusa/src/lib/google-calendar/mapping.ts` (new)
   - `apps/medusa/src/lib/google-calendar/events.ts` (new)
@@ -148,7 +149,9 @@ Primary source artifacts:
   - App lifecycle triggers (create/update/cancel/complete) enqueue sync operations.
   - Cancellation maps to Google event `status=cancelled`.
   - Webhook path processes `syncToken` incremental updates and handles `410` by full resync.
-  - Conflict strategy follows last-write-wins for mapped fields.
+  - Conflict strategy follows last-write-wins for mapped date/time fields.
+  - Google-side cancellation/deletion is ignored and recorded as a pending admin incident.
+  - Admin resync performs reconciliation after pull sync so app events missing in Google are upserted/cancel-synced back to Google.
 - **Testing Criteria:**
   - Integration tests for webhook and incremental sync branches.
   - Unit tests for mapping and conflict-resolution helpers.
@@ -169,6 +172,7 @@ Primary source artifacts:
 - **Dependencies:** Task 2.
 - **Acceptance Criteria:**
   - Widget supports connect, status visibility, resync, and disconnect actions.
+  - Widget surfaces ignored Google cancellation/deletion incidents and provides approve/deny controls.
   - Chef event calendar UI remains functional and can surface sync state safely.
   - No behavior regression for stores without Google connection.
 - **Testing Criteria:**

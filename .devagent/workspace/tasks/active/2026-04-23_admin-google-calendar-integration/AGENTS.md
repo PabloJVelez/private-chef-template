@@ -1,7 +1,7 @@
 # Admin Google Calendar Integration Progress Tracker
 
 - Owner: PabloJVelez
-- Last Updated: 2026-04-23
+- Last Updated: 2026-04-25
 - Status: Draft
 - Task Hub: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/`
 
@@ -18,6 +18,9 @@ Implement a Google Calendar integration so app events are reflected in a connect
 
 ## Key Decisions
 - [2026-04-23] Decision: Initial scope is single-chef/single-admin Google account integration only; multi-admin support is intentionally deferred.
+- [2026-04-25] Decision: Google-originated changes are now policy-limited to date/time updates; Google cancellations/deletions are ignored and routed to an admin approval queue before any app cancellation is applied.
+- [2026-04-25] Decision: Admin "Resync" now includes app-to-Google reconciliation after Google pull sync so missing linked events are restored in Google.
+- [2026-04-25] Decision: Resync reconciliation scope is limited to events with `requestedDate` between sync trigger time and +60 days to avoid full historical scans.
 
 ## Progress Log
 - [2026-04-23] Event: Task hub scaffolded via `new-task` workflow and initialized with summary/context.
@@ -35,6 +38,10 @@ Implement a Google Calendar integration so app events are reflected in a connect
 - [2026-04-23] Event: Extended Task 4 with chef-event calendar sync visibility banner in `apps/medusa/src/admin/routes/chef-events/components/chef-event-calendar.tsx`.
 - [2026-04-23] Event: Completed Task 5 manual QA/ops handoff by adding checklist artifact at `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/qa/2026-04-23_manual-qa-checklist.md`.
 - [2026-04-23] Event: Completed missing app-to-Google write path by adding real Google Calendar `insert/update/cancel` API calls with sync-map ID/etag persistence in `apps/medusa/src/lib/google-calendar/events.ts` and sync-map lookup helper in `apps/medusa/src/modules/google-calendar-connection/service.ts`.
+- [2026-04-25] Event: Implemented calendar UX follow-ups: moved resync action to chef-events page, removed last-synced from store settings widget, aligned calendar state persistence with URL query params, and removed local state/effects from `chef-event-calendar.tsx`.
+- [2026-04-25] Event: Implemented guarded Google cancellation handling with admin review queue (incident model/service methods, webhook incremental-sync ignore-and-log behavior, approve/deny admin endpoints, SDK/hooks/widget actions) in `apps/medusa/src/modules/google-calendar-connection/**`, `apps/medusa/src/lib/google-calendar/{incremental-sync,events}.ts`, and `apps/medusa/src/{api,admin,sdk}/**`.
+- [2026-04-25] Event: Extended admin resync route to run an app-to-Google reconciliation pass (upsert/cancel per chef-event status) after incremental pull sync so Google recovers missing linked events in `apps/medusa/src/api/admin/google-calendar/resync/route.ts`.
+- [2026-04-25] Event: Scoped resync reconciliation window to `requestedDate` in `[sync_triggered_at, sync_triggered_at + 60 days]` and returned window metadata from `apps/medusa/src/api/admin/google-calendar/resync/route.ts`.
 
 ## Implementation Checklist
 - [ ] Define exact feature scope and acceptance criteria from the attached integration report.
@@ -46,6 +53,7 @@ Implement a Google Calendar integration so app events are reflected in a connect
 - [x] Task 3: Sync pipeline, webhook handling, and conflict behavior.
 - [x] Task 4: Admin SDK/hooks/widget and event UI integration.
 - [x] Task 5: Verification checklist, observability, and implementation handoff.
+- [x] Post-MVP policy update: Google delete/cancel events require explicit admin approve/deny decisions before app lifecycle changes.
 
 ## Open Questions
 - How should implementation resolve any contradictions between clarification decisions and earlier research recommendations?

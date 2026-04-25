@@ -49,7 +49,7 @@ async function updateGoogleEvent(
   calendarId: string,
   googleEventId: string,
   payload: Record<string, unknown>,
-): Promise<GoogleEventResponse> {
+): Promise<GoogleEventResponse | null> {
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(googleEventId)}?sendUpdates=none`,
     {
@@ -61,6 +61,11 @@ async function updateGoogleEvent(
       body: JSON.stringify(payload),
     },
   );
+
+  // Deleted or permanently removed events; cancelled-only shells may still PATCH.
+  if (response.status === 404 || response.status === 410) {
+    return null;
+  }
 
   if (!response.ok) {
     throw new Error(`Google event update failed: ${await response.text()}`);
@@ -171,12 +176,19 @@ export async function syncChefEventRecord(
 
   let googleEvent: GoogleEventResponse;
   if (isUsableGoogleEventId(mappedGoogleEventId)) {
-    googleEvent = await updateGoogleEvent(
+    const updated = await updateGoogleEvent(
       accessToken,
       calendarId,
       mappedGoogleEventId,
       body as Record<string, unknown>,
     );
+    googleEvent =
+      updated ??
+      (await createGoogleEvent(
+        accessToken,
+        calendarId,
+        body as Record<string, unknown>,
+      ));
   } else {
     googleEvent = await createGoogleEvent(
       accessToken,
