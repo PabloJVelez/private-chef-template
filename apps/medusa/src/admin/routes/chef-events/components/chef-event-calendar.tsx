@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo } from "react"
 import { Calendar, Views, type View } from "react-big-calendar"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 import "../../../styles/rbc-overrides.css"
 
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { DateTime } from "luxon"
 import { Button, toast } from "@medusajs/ui"
 
@@ -20,6 +20,23 @@ import { eventTypeOptions } from "../schemas"
 import { chefEventStatusToDisplayHex } from "../../../../lib/chef-event-google-calendar-colors"
 
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)"
+const CALENDAR_DATE_PARAM = "date"
+const CALENDAR_VIEW_PARAM = "view"
+
+const isSupportedView = (value: string | null): value is View => {
+  return value === Views.MONTH || value === Views.AGENDA
+}
+
+const parseQueryDate = (value: string | null): Date | null => {
+  if (!value) {
+    return null
+  }
+  const dt = DateTime.fromISO(value)
+  if (!dt.isValid) {
+    return null
+  }
+  return dt.startOf("day").toJSDate()
+}
 
 function getInitialCalendarView(): View {
   if (typeof window === "undefined") {
@@ -28,31 +45,41 @@ function getInitialCalendarView(): View {
   return window.matchMedia(MOBILE_MEDIA_QUERY).matches ? Views.AGENDA : Views.MONTH
 }
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === "undefined") return false
-    return window.matchMedia(MOBILE_MEDIA_QUERY).matches
-  })
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const mql = window.matchMedia(MOBILE_MEDIA_QUERY)
-    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-    mql.addEventListener?.("change", onChange)
-    return () => mql.removeEventListener?.("change", onChange)
-  }, [])
-
-  return isMobile
-}
-
 export const ChefEventCalendar = () => {
   const navigate = useNavigate()
-  const isMobile = useIsMobile()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data: googleCalendarStatus } = useGoogleCalendarStatus()
   const resyncMutation = useGoogleCalendarResyncMutation()
 
-  const [view, setView] = useState<View>(getInitialCalendarView)
-  const [date, setDate] = useState<Date>(new Date())
+  const queryView = searchParams.get(CALENDAR_VIEW_PARAM)
+  const view: View = isSupportedView(queryView) ? queryView : getInitialCalendarView()
+  const date = parseQueryDate(searchParams.get(CALENDAR_DATE_PARAM)) ?? new Date()
+
+  const updateCalendarParams = useCallback(
+    (nextDate: Date, nextView: View) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.set(CALENDAR_DATE_PARAM, DateTime.fromJSDate(nextDate).toISODate() ?? "")
+        next.set(CALENDAR_VIEW_PARAM, nextView)
+        return next
+      })
+    },
+    [setSearchParams]
+  )
+
+  const setCalendarDate = useCallback(
+    (nextDate: Date) => {
+      updateCalendarParams(nextDate, view)
+    },
+    [updateCalendarParams, view]
+  )
+
+  const setCalendarView = useCallback(
+    (nextView: View) => {
+      updateCalendarParams(date, nextView)
+    },
+    [date, updateCalendarParams]
+  )
 
   // Keep your existing filters; add range later if/when supported
   const { data, isLoading } = useAdminListChefEvents({
@@ -68,21 +95,6 @@ export const ChefEventCalendar = () => {
     () => (data?.chefEvents ?? []).map(chefEventToRbc),
     [data?.chefEvents]
   )
-
-  // keyboard shortcuts parity
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft" || e.key === "PageUp") {
-        setDate((d) => DateTime.fromJSDate(d).plus({ months: -1 }).toJSDate())
-      } else if (e.key === "ArrowRight" || e.key === "PageDown") {
-        setDate((d) => DateTime.fromJSDate(d).plus({ months: 1 }).toJSDate())
-      } else if (e.key.toLowerCase() === "t") {
-        setDate(new Date())
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [])
 
   const components = useMemo(
     () => ({
@@ -105,27 +117,13 @@ export const ChefEventCalendar = () => {
             : undefined
           const status = (event.resource as any)?.status as string | undefined
           const color = chefEventStatusToDisplayHex(status)
-          if (isMobile) {
-            return (
-              <div
-                className="flex items-center justify-center"
-                title={event.title}
-                aria-label={event.title}
-              >
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-              </div>
-            )
-          }
           return (
-            <div className="flex items-start gap-1">
+            <div className="flex items-center justify-center sm:items-start sm:justify-start sm:gap-1">
               <span
-                className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full"
+                className="inline-block h-1.5 w-1.5 rounded-full sm:mt-[6px]"
                 style={{ backgroundColor: color }}
               />
-              <div className="min-w-0 leading-tight">
+              <div className="hidden min-w-0 leading-tight sm:block">
                 <div className="truncate text-xs text-[var(--fg-base)]">{event.title}</div>
                 {typeLabel && (
                   <div className="truncate text-[11px] text-[var(--fg-muted)]">{typeLabel}</div>
@@ -183,7 +181,7 @@ export const ChefEventCalendar = () => {
         <div className="truncate text-xs leading-tight">{title}</div>
       ),
     }),
-    [isMobile]
+    []
   )
 
   // Work around TSX typing friction by casting Calendar
@@ -248,9 +246,9 @@ export const ChefEventCalendar = () => {
           startAccessor="start"
           endAccessor="end"
           view={view}
-          onView={setView}
+          onView={setCalendarView}
           date={date}
-          onNavigate={setDate}
+          onNavigate={setCalendarDate}
           formats={{
             dateFormat: "d",
             weekdayFormat: "ccc",
@@ -277,8 +275,8 @@ export const ChefEventCalendar = () => {
           onSelectEvent={(evt: RBCEvent) => navigate(`/chef-events/${evt.id}`)}
           onDrillDown={(next: Date) => {
             // Month date-number click — switch to agenda focused on that day.
-            setDate(next)
-            setView(Views.AGENDA)
+            setCalendarDate(next)
+            setCalendarView(Views.AGENDA)
           }}
           culture="en-US"
           step={30}
