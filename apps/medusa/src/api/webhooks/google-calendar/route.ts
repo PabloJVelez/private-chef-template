@@ -34,9 +34,6 @@ export async function POST(
   const resourceState = String(req.headers["x-goog-resource-state"] || "");
   const channelToken = String(req.headers["x-goog-channel-token"] || "");
   const resourceId = String(req.headers["x-goog-resource-id"] || "");
-  const channelExpiration = String(
-    req.headers["x-goog-channel-expiration"] || "",
-  );
 
   const svc = req.scope.resolve(
     GOOGLE_CALENDAR_CONNECTION_MODULE,
@@ -55,28 +52,20 @@ export async function POST(
     return;
   }
 
+  // Watch lifecycle (channelId/resourceId/expiresAt) is owned by
+  // `ensureGoogleCalendarWatchAndBootstrapSync` (called from connect, resync,
+  // and the scheduled renewal job). The webhook stays a thin auth + dispatch
+  // handler so it doesn't mutate channel state from header strings whose
+  // format can drift (e.g. RFC date vs. epoch ms).
   if (
     connection.watchChannelId &&
+    channelId &&
     connection.watchChannelId !== channelId &&
     resourceState !== "sync"
   ) {
-    await svc.updateGoogleCalendarConnections({
-      id: connection.id,
-      watchChannelId: channelId || connection.watchChannelId,
-      watchResourceId: resourceId || connection.watchResourceId,
-      watchExpiresAt: channelExpiration
-        ? new Date(Number(channelExpiration))
-        : connection.watchExpiresAt,
-    });
-  } else if (!connection.watchChannelId && channelId) {
-    await svc.updateGoogleCalendarConnections({
-      id: connection.id,
-      watchChannelId: channelId,
-      watchResourceId: resourceId || connection.watchResourceId,
-      watchExpiresAt: channelExpiration
-        ? new Date(Number(channelExpiration))
-        : connection.watchExpiresAt,
-    });
+    logger.warn(
+      `Google webhook received unexpected channel id "${channelId}" (expected "${connection.watchChannelId}"); ignoring channel metadata. Renewal job will reconcile.`,
+    );
   }
 
   await svc.updateGoogleCalendarConnections({
