@@ -3,7 +3,7 @@
 - Mode: Task Clarification
 - Requested By: PabloJVelez
 - Last Updated: 2026-04-26
-- Task Hub: `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/`
+- Task Hub: `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/`
 - Scope: Gap-filling for plan readiness
 - Stakeholders / Decision Makers: PabloJVelez (requestor and decision maker)
 

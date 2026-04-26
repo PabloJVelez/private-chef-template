@@ -5,7 +5,7 @@
 - Last Updated: 2026-04-26
 - Related Plan: [NEEDS CLARIFICATION: plan artifact not created yet]
 - Related Task Plan (Optional): [NEEDS CLARIFICATION]
-- Storage Path: `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/research/2026-04-26_menu-status-parity-research.md`
+- Storage Path: `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/research/2026-04-26_menu-status-parity-research.md`
 - Stakeholders: PabloJVelez (Owner)
 - Notes: Focused on status-driven storefront visibility for menus, mirroring Medusa product behavior.
 
@@ -16,7 +16,7 @@ Investigate how to refactor menu publication so menus are not auto-published on 
 - Classification: Implementation design research (task-scoped).
 - Inferred Problem Statement: Define a status model and route/service behavior for menus that reuses Medusa product-style statuses (`draft`, `proposed`, `published`, `rejected`) so storefront exposure is controlled by status rather than implicit auto-publish behavior.
 - Assumptions:
-  - [INFERRED] This research applies to `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/`.
+  - [INFERRED] This research applies to `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/`.
   - [INFERRED] Current custom menu module has no status field and all menus are currently eligible for store retrieval.
   - [INFERRED] "Reuse the same statuses that products use" means both value set parity and storefront gating semantics.
   - [NEEDS CLARIFICATION] Whether `proposed` and `rejected` must be selectable in admin UI for v1, or only supported in backend/domain model.
@@ -137,7 +137,7 @@ Adopt Option A (full product-status parity) with a compatibility-safe rollout:
 ## Sources
 | Reference | Type | Freshness | Access Notes |
 | --- | --- | --- | --- |
-| `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/AGENTS.md` | Internal task context | 2026-04-26 | Active task summary and goals |
+| `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/AGENTS.md` | Internal task context | 2026-04-26 | Active task summary and goals |
 | `apps/medusa/src/modules/menu/models/menu.ts` | Internal code | 2026-04-26 | Confirms no status field currently |
 | `apps/medusa/src/api/store/menus/route.ts` | Internal code | 2026-04-26 | Confirms no status filtering on list route |
 | `apps/medusa/src/api/store/menus/[id]/route.ts` | Internal code | 2026-04-26 | Confirms no status guard on detail route |

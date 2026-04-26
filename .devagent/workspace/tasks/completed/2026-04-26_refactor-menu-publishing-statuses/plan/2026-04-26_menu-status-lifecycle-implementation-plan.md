@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-04-26
 - Status: Draft
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/`
 - Stakeholders: PabloJVelez (Requestor, Decision Maker)
 - Notes: Clarification decisions override earlier parity assumptions from research; implement custom status lifecycle (`draft`, `active`, `inactive`) as the source of truth.
 
@@ -18,8 +18,8 @@ Refactor menu publication so storefront visibility is status-driven rather than 
 Menus currently have no explicit publication status and store routes return menu data without visibility gating. This creates implicit publication behavior and removes draft/review control for newly created menus. Clarification finalized a custom lifecycle model and explicit behavior: default new menus to `draft`, backfill legacy visible menus to `active`, and expose only `active` menus in storefront responses.
 
 Primary source artifacts:
-- `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/research/2026-04-26_menu-status-parity-research.md`
-- `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
+- `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/research/2026-04-26_menu-status-parity-research.md`
+- `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
 
 ### Objectives & Success Metrics
 - Introduce menu status lifecycle with current contract values: `draft`, `active`, `inactive`.
@@ -95,7 +95,7 @@ Primary source artifacts:
   - `apps/medusa/src/modules/menu/migrations/*` (new migration for status column and backfill)
   - `apps/medusa/src/modules/menu/service.ts` (optional helper for status defaults/guards)
 - **References:**
-  - `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
+  - `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
   - `.cursor/rules/medusa-development.mdc`
 - **Dependencies:** None.
 - **Acceptance Criteria:**
@@ -116,7 +116,7 @@ Primary source artifacts:
   - `apps/medusa/src/workflows/update-menu.ts`
   - `apps/medusa/src/modules/menu/service.ts` (if shared validation helper is added)
 - **References:**
-  - `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
+  - `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
   - `.cursor/rules/typescript-patterns.mdc`
 - **Dependencies:** Task 1.
 - **Acceptance Criteria:**
@@ -135,7 +135,7 @@ Primary source artifacts:
   - `apps/medusa/src/api/store/menus/[id]/route.ts`
   - `apps/medusa/src/modules/menu/service.ts` (if shared query helper introduced)
 - **References:**
-  - `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
+  - `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
   - `apps/medusa/src/api/store/menus/route.ts` (current baseline behavior)
 - **Dependencies:** Task 1.
 - **Acceptance Criteria:**
@@ -216,14 +216,14 @@ Primary source artifacts:
 ---
 
 ## Progress Tracking
-Refer to `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/AGENTS.md` for implementation tracking updates.
+Refer to `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/AGENTS.md` for implementation tracking updates.
 
 ---
 
 ## Appendices & References
-- Task hub: `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/AGENTS.md`
-- Clarification packet: `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
-- Research packet: `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/research/2026-04-26_menu-status-parity-research.md`
+- Task hub: `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/AGENTS.md`
+- Clarification packet: `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`
+- Research packet: `.devagent/workspace/tasks/completed/2026-04-26_refactor-menu-publishing-statuses/research/2026-04-26_menu-status-parity-research.md`
 - Product mission: `.devagent/workspace/product/mission.md`
 - Constitution: `.devagent/workspace/memory/constitution.md`
 - Implementation standards: `.cursor/rules/medusa-development.mdc`, `.cursor/rules/typescript-patterns.mdc`, `.cursor/rules/testing-patterns-unit.mdc`, `.cursor/rules/testing-patterns-integration.mdc`
