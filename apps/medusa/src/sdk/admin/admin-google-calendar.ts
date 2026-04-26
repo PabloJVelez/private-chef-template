@@ -49,7 +49,13 @@ export class AdminGoogleCalendarResource {
   }
 
   async resync() {
-    return this.client.fetch<{ started: boolean }>("/admin/google-calendar/resync", {
+    return this.client.fetch<{
+      started: boolean;
+      scheduled: number;
+      totalChefEvents: number;
+      windowStart: string;
+      windowEnd: string;
+    }>("/admin/google-calendar/resync", {
       method: "POST",
     });
   }

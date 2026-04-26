@@ -1,27 +1,35 @@
 import { randomUUID } from "node:crypto";
+import type { MedusaContainer } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
-import type { MedusaRequest } from "@medusajs/framework/http";
 import { CHEF_EVENT_MODULE } from "../../modules/chef-event";
 import type GoogleCalendarConnectionModuleService from "../../modules/google-calendar-connection/service";
+import type ChefEventModuleService from "../../modules/chef-event/service";
 import { ensureValidAccessToken } from "./tokens";
 import { startOrRenewCalendarWatch, stopCalendarWatch } from "./watch";
 import { runIncrementalSync } from "./incremental-sync";
 
+type Logger = {
+  info: (msg: string) => void;
+  warn: (msg: string) => void;
+  error: (msg: string) => void;
+};
+
+/**
+ * Idempotently registers (or renews) the Google Calendar push channel and
+ * optionally bootstraps an incremental sync. Accepts a Medusa container so
+ * it can be called from HTTP routes, jobs, or subscribers.
+ */
 export async function ensureGoogleCalendarWatchAndBootstrapSync(
-  req: MedusaRequest,
+  container: MedusaContainer,
   googleSvc: GoogleCalendarConnectionModuleService,
   options?: { skipIncrementalSync?: boolean },
 ): Promise<void> {
-  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as {
-    warn: (msg: string) => void;
-    info: (msg: string) => void;
-    error: (msg: string) => void;
-  };
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
 
   const config = googleSvc.getConfig();
   if (!config.webhookUrl) {
     logger.warn(
-      "GOOGLE_CALENDAR_WEBHOOK_URL is not set; Google→app sync will not receive push notifications.",
+      "GOOGLE_CALENDAR_WEBHOOK_URL is not set; Google->app sync will not receive push notifications.",
     );
     return;
   }
@@ -61,7 +69,7 @@ export async function ensureGoogleCalendarWatchAndBootstrapSync(
     calendarId: connection.calendarId || "primary",
     webhookUrl: config.webhookUrl,
     channelId,
-    channelToken: config.signingSecret || "",
+    channelToken: config.channelToken || "",
   });
 
   const expirationMs = watch.expiration ? Number(watch.expiration) : NaN;
@@ -82,7 +90,9 @@ export async function ensureGoogleCalendarWatchAndBootstrapSync(
     return;
   }
 
-  const chefEventService = req.scope.resolve(CHEF_EVENT_MODULE) as any;
+  const chefEventService = container.resolve(
+    CHEF_EVENT_MODULE,
+  ) as ChefEventModuleService;
   try {
     await runIncrementalSync(googleSvc, chefEventService, logger);
     logger.info(

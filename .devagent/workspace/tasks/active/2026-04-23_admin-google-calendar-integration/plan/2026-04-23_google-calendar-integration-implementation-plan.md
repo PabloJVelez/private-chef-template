@@ -146,12 +146,13 @@ Primary source artifacts:
   - `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
 - **Dependencies:** Tasks 1-2.
 - **Acceptance Criteria:**
-  - App lifecycle triggers (create/update/cancel/complete) enqueue sync operations.
+  - App lifecycle triggers (create/update/cancel/complete/delete) enqueue sync operations; delete also synchronously cancels the Google event and purges the sync map / incidents.
   - Cancellation maps to Google event `status=cancelled`.
-  - Webhook path processes `syncToken` incremental updates and handles `410` by full resync.
-  - Conflict strategy follows last-write-wins for mapped date/time fields.
+  - Webhook returns 202 immediately and dispatches `google-calendar.incremental-sync-requested` on the event bus; the dedicated subscriber holds a cache-backed lock and processes incremental updates, handling `410` by full resync.
+  - Push channel renewal is owned by the `renew-google-calendar-watch` cron (every 6h, renews when the watch expires within 24h); the admin status route stays read-only.
+  - Conflict strategy follows last-write-wins for mapped date/time fields; the lib comment explains why we bypass the update workflow when applying Google-originated changes.
   - Google-side cancellation/deletion is ignored and recorded as a pending admin incident.
-  - Admin resync performs reconciliation after pull sync so app events missing in Google are upserted/cancel-synced back to Google.
+  - Admin resync enqueues per-event `google-calendar.sync-requested` events for events with `requestedDate` in `[trigger, trigger+60d]` so app changes propagate to Google asynchronously; the route returns 202 with the count of scheduled jobs.
 - **Testing Criteria:**
   - Integration tests for webhook and incremental sync branches.
   - Unit tests for mapping and conflict-resolution helpers.

@@ -32,6 +32,11 @@ class GoogleCalendarConnectionModuleService extends MedusaService({
       signingSecret:
         this.options_.signingSecret ??
         process.env.GOOGLE_CALENDAR_SIGNING_SECRET,
+      channelToken:
+        this.options_.channelToken ??
+        process.env.GOOGLE_CALENDAR_CHANNEL_TOKEN ??
+        this.options_.signingSecret ??
+        process.env.GOOGLE_CALENDAR_SIGNING_SECRET,
       tokenEncryptionKey:
         this.options_.tokenEncryptionKey ??
         process.env.GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY,
@@ -241,6 +246,37 @@ class GoogleCalendarConnectionModuleService extends MedusaService({
     return Array.isArray(updated)
       ? (updated[0] as Record<string, unknown>)
       : (updated as Record<string, unknown>);
+  }
+
+  /**
+   * Removes sync map and any pending incidents for a chef event. Used by the
+   * delete-chef-event workflow after Google has been notified, so we don't
+   * leave orphan rows pointing at a deleted chef event.
+   */
+  async purgeChefEventArtifacts(chefEventId: string): Promise<void> {
+    if (!chefEventId) {
+      return;
+    }
+
+    const syncMaps = await this.listGoogleCalendarSyncMaps(
+      { chefEventId },
+      { take: 100 },
+    );
+    for (const map of syncMaps) {
+      if (map?.id) {
+        await this.deleteGoogleCalendarSyncMaps(map.id as string);
+      }
+    }
+
+    const incidents = await this.listGoogleCalendarSyncIncidents(
+      { chefEventId },
+      { take: 100 },
+    );
+    for (const incident of incidents) {
+      if (incident?.id) {
+        await this.deleteGoogleCalendarSyncIncidents(incident.id as string);
+      }
+    }
   }
 }
 

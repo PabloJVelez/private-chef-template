@@ -75,7 +75,7 @@ export async function GET(
   }
 
   await svc.upsertPrimaryConnection(payload);
-  await ensureGoogleCalendarWatchAndBootstrapSync(req, svc);
+  await ensureGoogleCalendarWatchAndBootstrapSync(req.scope, svc);
 
   res.redirect("/app/settings/store");
 }

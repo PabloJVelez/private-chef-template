@@ -1,11 +1,17 @@
 import { DateTime } from "luxon";
 import type GoogleCalendarConnectionModuleService from "../../modules/google-calendar-connection/service";
+import type ChefEventModuleService from "../../modules/chef-event/service";
 import {
   isValidIanaZone,
   resolveEventZone,
   wallClockToUtcJsDate,
 } from "../chef-event-wall-clock";
 import { ensureValidAccessToken } from "./tokens";
+
+type Logger = {
+  info: (msg: string) => void;
+  warn: (msg: string) => void;
+};
 
 type GoogleEvent = {
   id: string;
@@ -73,11 +79,25 @@ function toEstimatedDurationMinutes(start?: string, end?: string) {
   return diff > 0 ? diff : undefined;
 }
 
+/**
+ * Applies a Google event payload onto its linked chef event.
+ *
+ * IMPORTANT: This intentionally bypasses `updateChefEventWorkflow` and writes
+ * directly via the chef event module service. Going through the workflow
+ * would re-emit `google-calendar.sync-requested`, triggering the
+ * `google-calendar-sync-requested` subscriber and pushing the same change
+ * back to Google in a loop. By updating directly and bumping
+ * `lastPulledAt`/`googleUpdatedAt` on the sync map, we record the Google
+ * origin so the next push can use last-write-wins correctly.
+ *
+ * Cancellations from Google are NEVER auto-applied here: they create a
+ * pending incident for admin review (see `createOrUpdatePendingCancellationIncident`).
+ */
 async function applyGoogleEventToChefEvent(
   googleSvc: GoogleCalendarConnectionModuleService,
-  chefEventService: any,
+  chefEventService: ChefEventModuleService,
   event: GoogleEvent,
-  logger?: { info: (msg: string) => void; warn: (msg: string) => void },
+  logger?: Logger,
 ) {
   const privateProps = event.extendedProperties?.private || {};
   let chefEventId = privateProps.chefEventId;
@@ -100,9 +120,7 @@ async function applyGoogleEventToChefEvent(
   const googleUpdated = parseGoogleUpdatedAt(event.updated);
   const appUpdated = chefEvent.updated_at
     ? new Date(chefEvent.updated_at)
-    : chefEvent.updatedAt
-      ? new Date(chefEvent.updatedAt)
-      : null;
+    : null;
 
   const syncMap = (await googleSvc.getSyncMapForChefEvent(chefEventId)) as
     | Record<string, unknown>
@@ -217,8 +235,8 @@ async function applyGoogleEventToChefEvent(
 
 export async function runIncrementalSync(
   googleSvc: GoogleCalendarConnectionModuleService,
-  chefEventService: any,
-  logger?: { info: (msg: string) => void; warn: (msg: string) => void },
+  chefEventService: ChefEventModuleService,
+  logger?: Logger,
 ) {
   const connection = await googleSvc.getPrimaryConnection();
   if (!connection?.id) {

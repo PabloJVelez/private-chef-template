@@ -4,6 +4,7 @@ import type {
 } from "@medusajs/medusa";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 import { CHEF_EVENT_MODULE } from "../modules/chef-event";
+import type ChefEventModuleService from "../modules/chef-event/service";
 import { GOOGLE_CALENDAR_CONNECTION_MODULE } from "../modules/google-calendar-connection";
 import type GoogleCalendarConnectionModuleService from "../modules/google-calendar-connection/service";
 import { syncChefEventRecord } from "../lib/google-calendar/events";
@@ -18,7 +19,9 @@ export default async function googleCalendarSyncRequestedHandler({
   container,
 }: SubscriberArgs<EventData>) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-  const chefEventService = container.resolve(CHEF_EVENT_MODULE) as any;
+  const chefEventService = container.resolve(
+    CHEF_EVENT_MODULE,
+  ) as ChefEventModuleService;
   const googleSvc = container.resolve(
     GOOGLE_CALENDAR_CONNECTION_MODULE,
   ) as GoogleCalendarConnectionModuleService;

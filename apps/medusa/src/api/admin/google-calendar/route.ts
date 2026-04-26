@@ -1,7 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { GOOGLE_CALENDAR_CONNECTION_MODULE } from "../../../modules/google-calendar-connection";
 import type GoogleCalendarConnectionModuleService from "../../../modules/google-calendar-connection/service";
-import { ensureGoogleCalendarWatchAndBootstrapSync } from "../../../lib/google-calendar/ensure-watch";
 
 export async function GET(
   req: MedusaRequest,
@@ -25,25 +24,18 @@ export async function GET(
     return;
   }
 
-  const config = svc.getConfig();
-  if (
-    config.webhookUrl &&
-    connection.status === "active" &&
-    !connection.watchChannelId
-  ) {
-    await ensureGoogleCalendarWatchAndBootstrapSync(req, svc);
-  }
-
-  const refreshed = await svc.getPrimaryConnection();
+  // Watch registration / renewal happens out-of-band via the
+  // `renew-google-calendar-watch` cron job. The status endpoint stays
+  // idempotent and read-only.
   const incidents = await svc.listPendingCancellationIncidents(20);
 
   res.status(200).json({
     connected: true,
-    status: refreshed?.status ?? connection.status,
-    calendarId: refreshed?.calendarId ?? connection.calendarId ?? "primary",
-    watchExpiresAt: refreshed?.watchExpiresAt ?? connection.watchExpiresAt ?? null,
-    lastSyncedAt: refreshed?.lastSyncedAt ?? connection.lastSyncedAt ?? null,
-    lastSyncError: refreshed?.lastSyncError ?? connection.lastSyncError ?? null,
+    status: connection.status,
+    calendarId: connection.calendarId ?? "primary",
+    watchExpiresAt: connection.watchExpiresAt ?? null,
+    lastSyncedAt: connection.lastSyncedAt ?? null,
+    lastSyncError: connection.lastSyncError ?? null,
     pendingIncidents: incidents.map((incident) => ({
       id: String(incident.id),
       chefEventId: String(incident.chefEventId ?? incident.chef_event_id ?? ""),

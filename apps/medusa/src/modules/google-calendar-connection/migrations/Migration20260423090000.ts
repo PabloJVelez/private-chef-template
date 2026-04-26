@@ -48,7 +48,7 @@ export class Migration20260423090000 extends Migration {
         "deleted_at" timestamptz null,
         constraint "google_calendar_sync_map_pkey" primary key ("id"),
         constraint "google_calendar_sync_map_connectionId_foreign" foreign key ("connectionId") references "google_calendar_connection" ("id") on update cascade on delete cascade,
-        constraint "google_calendar_sync_map_chefEventId_foreign" foreign key ("chefEventId") references "chef_event" ("id") on update cascade on delete cascade
+        constraint "google_calendar_sync_map_chefEventId_foreign" foreign key ("chefEventId") references "chef_event" ("id") on update cascade on delete no action
       );
     `);
 
@@ -64,33 +64,6 @@ export class Migration20260423090000 extends Migration {
       where "deleted_at" is null;
     `);
 
-    this.addSql(`
-      create table if not exists "google_calendar_sync_incident" (
-        "id" text not null,
-        "connectionId" text not null,
-        "chefEventId" text not null,
-        "googleEventId" text not null,
-        "incidentType" text check ("incidentType" in ('google_cancelled_ignored')) not null default 'google_cancelled_ignored',
-        "status" text check ("status" in ('pending','approved','denied')) not null default 'pending',
-        "googleUpdatedAt" timestamptz null,
-        "payload" jsonb null,
-        "resolvedAt" timestamptz null,
-        "resolvedBy" text null,
-        "created_at" timestamptz not null default now(),
-        "updated_at" timestamptz not null default now(),
-        "deleted_at" timestamptz null,
-        constraint "google_calendar_sync_incident_pkey" primary key ("id"),
-        constraint "google_calendar_sync_incident_connectionId_foreign" foreign key ("connectionId") references "google_calendar_connection" ("id") on update cascade on delete cascade,
-        constraint "google_calendar_sync_incident_chefEventId_foreign" foreign key ("chefEventId") references "chef_event" ("id") on update cascade on delete cascade
-      );
-    `);
-
-    this.addSql(`
-      create index if not exists "IDX_google_incident_connection_status"
-      on "google_calendar_sync_incident" ("connectionId", "status")
-      where "deleted_at" is null;
-    `);
-
     this.addSql(
       `alter table if exists "chef_event" add column if not exists "timeZone" text not null default 'America/Chicago';`,
     );
@@ -100,7 +73,6 @@ export class Migration20260423090000 extends Migration {
     this.addSql(
       `alter table if exists "chef_event" drop column if exists "timeZone";`,
     );
-    this.addSql(`drop table if exists "google_calendar_sync_incident" cascade;`);
     this.addSql(`drop table if exists "google_calendar_sync_map" cascade;`);
     this.addSql(`drop table if exists "google_calendar_connection" cascade;`);
   }

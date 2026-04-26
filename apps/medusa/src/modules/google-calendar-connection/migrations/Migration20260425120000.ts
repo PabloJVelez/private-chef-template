@@ -19,7 +19,7 @@ export class Migration20260425120000 extends Migration {
         "deleted_at" timestamptz null,
         constraint "google_calendar_sync_incident_pkey" primary key ("id"),
         constraint "google_calendar_sync_incident_connectionId_foreign" foreign key ("connectionId") references "google_calendar_connection" ("id") on update cascade on delete cascade,
-        constraint "google_calendar_sync_incident_chefEventId_foreign" foreign key ("chefEventId") references "chef_event" ("id") on update cascade on delete cascade
+        constraint "google_calendar_sync_incident_chefEventId_foreign" foreign key ("chefEventId") references "chef_event" ("id") on update cascade on delete no action
       );
     `);
 

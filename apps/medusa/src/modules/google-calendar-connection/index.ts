@@ -10,7 +10,14 @@ export type GoogleCalendarConnectionModuleOptions = {
   redirectUri?: string;
   webhookUrl?: string;
   scope?: string;
+  /** Used to sign and verify the OAuth `state` parameter. */
   signingSecret?: string;
+  /**
+   * Channel token sent on Google's push notifications. Defaults to the
+   * `signingSecret` for backward compatibility but should be rotated
+   * independently in production.
+   */
+  channelToken?: string;
   tokenEncryptionKey?: string;
   defaultTimezone?: string;
 };

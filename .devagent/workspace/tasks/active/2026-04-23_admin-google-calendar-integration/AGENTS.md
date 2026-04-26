@@ -21,6 +21,11 @@ Implement a Google Calendar integration so app events are reflected in a connect
 - [2026-04-25] Decision: Google-originated changes are now policy-limited to date/time updates; Google cancellations/deletions are ignored and routed to an admin approval queue before any app cancellation is applied.
 - [2026-04-25] Decision: Admin "Resync" now includes app-to-Google reconciliation after Google pull sync so missing linked events are restored in Google.
 - [2026-04-25] Decision: Resync reconciliation scope is limited to events with `requestedDate` between sync trigger time and +60 days to avoid full historical scans.
+- [2026-04-25] Decision: Push channel renewal is owned by a dedicated cron job (`renew-google-calendar-watch`, every 6h, renews when the watch expires within 24h) rather than the admin status route; the GET status endpoint stays read-only and idempotent.
+- [2026-04-25] Decision: Webhook handler returns 202 immediately and dispatches the pull sync via `google-calendar.incremental-sync-requested` on the event bus; the subscriber holds a Redis-backed lock to coalesce overlapping pushes.
+- [2026-04-25] Decision: Admin resync enqueues per-event `google-calendar.sync-requested` events for the 60-day window instead of running the upsert loop inline; the route returns 202 + `scheduled` count.
+- [2026-04-25] Decision: Chef-event deletion explicitly cancels the linked Google event and purges sync map / pending incidents synchronously inside the workflow; FK ON DELETE was relaxed to `NO ACTION` to make the order of operations explicit.
+- [2026-04-25] Decision: Channel token used to authenticate Google push notifications now reads from `GOOGLE_CALENDAR_CHANNEL_TOKEN` with a fallback to `GOOGLE_CALENDAR_SIGNING_SECRET` for backward compatibility.
 
 ## Progress Log
 - [2026-04-23] Event: Task hub scaffolded via `new-task` workflow and initialized with summary/context.
@@ -42,6 +47,7 @@ Implement a Google Calendar integration so app events are reflected in a connect
 - [2026-04-25] Event: Implemented guarded Google cancellation handling with admin review queue (incident model/service methods, webhook incremental-sync ignore-and-log behavior, approve/deny admin endpoints, SDK/hooks/widget actions) in `apps/medusa/src/modules/google-calendar-connection/**`, `apps/medusa/src/lib/google-calendar/{incremental-sync,events}.ts`, and `apps/medusa/src/{api,admin,sdk}/**`.
 - [2026-04-25] Event: Extended admin resync route to run an app-to-Google reconciliation pass (upsert/cancel per chef-event status) after incremental pull sync so Google recovers missing linked events in `apps/medusa/src/api/admin/google-calendar/resync/route.ts`.
 - [2026-04-25] Event: Scoped resync reconciliation window to `requestedDate` in `[sync_triggered_at, sync_triggered_at + 60 days]` and returned window metadata from `apps/medusa/src/api/admin/google-calendar/resync/route.ts`.
+- [2026-04-25] Event: Applied review hardening pass: added `apps/medusa/src/jobs/renew-google-calendar-watch.ts` cron, refactored `apps/medusa/src/lib/google-calendar/ensure-watch.ts` to take a `MedusaContainer`, made `apps/medusa/src/api/webhooks/google-calendar/route.ts` async via `Modules.EVENT_BUS` + new `apps/medusa/src/subscribers/google-calendar-incremental-sync.ts` (with cache-backed lock), refactored admin resync to enqueue per-event sync events, taught `apps/medusa/src/workflows/delete-chef-event.ts` to cancel on Google + purge artifacts, removed FK cascade via new `Migration20260425130000.ts`, hardened `apps/medusa/src/api/admin/google-calendar/incidents/[id]/{approve,deny}/route.ts` with `MedusaError` + Zod, dropped `any` and added rationale comments in `apps/medusa/src/lib/google-calendar/incremental-sync.ts`, added retry/jitter to `apps/medusa/src/lib/google-calendar/tokens.ts`, and split the channel token to its own env var (`GOOGLE_CALENDAR_CHANNEL_TOKEN`).
 
 ## Implementation Checklist
 - [ ] Define exact feature scope and acceptance criteria from the attached integration report.
@@ -54,12 +60,11 @@ Implement a Google Calendar integration so app events are reflected in a connect
 - [x] Task 4: Admin SDK/hooks/widget and event UI integration.
 - [x] Task 5: Verification checklist, observability, and implementation handoff.
 - [x] Post-MVP policy update: Google delete/cancel events require explicit admin approve/deny decisions before app lifecycle changes.
+- [x] Post-MVP review hardening: cron-based watch renewal, async webhook + dedup lock, per-event resync enqueue, delete-chef-event Google cancel, FK cascade removal, MedusaError+Zod in admin routes, refresh-token retry, dedicated channel-token env var.
 
 ## Open Questions
-- How should implementation resolve any contradictions between clarification decisions and earlier research recommendations?
-- Should additional automated tests be added beyond the manual QA MVP gate for high-risk sync paths?
-- Blocker: `yarn typecheck` currently fails in `apps/storefront` with existing unrelated errors (e.g. `app/components/event-request/EventTypeSelector.tsx`, `app/components/layout/footer/Footer.tsx`, `app/components/layout/header/Header.tsx`, `app/components/reviews/ProductReviewForm.tsx`, `app/components/reviews/ProductReviewSection.tsx`, `app/routes/products.$productHandle.tsx`, `app/templates/ProductTemplate.tsx`).
-- Blocker: `apps/medusa` typecheck also currently fails for unrelated existing issues (`src/admin/root.tsx` import resolution for `@remix-run/react`, and `src/admin/routes/chef-events/components/EmailManagementSection.tsx` Badge `variant` prop typing).
+- Drawer transparency on the chef-events review panel is parked; revisit once `@medusajs/ui` ships a stable Drawer or replace with a custom side panel.
+- Add automated tests for crypto, token refresh, mapping, color helpers, and the conflict / incident policy (deferred from review hardening pass).
 
 ## References
 - Attached implementation report: `/Users/pablo/Downloads/deep-research-report (1).md` (freshness: 2026-04-23)
