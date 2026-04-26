@@ -5,9 +5,11 @@ import {
   WorkflowResponse
 } from "@medusajs/workflows-sdk"
 import { MENU_MODULE } from "../modules/menu"
+import { DEFAULT_MENU_STATUS, type MenuStatus } from "../modules/menu/constants"
 
 type CreateMenuWorkflowInput = {
   name: string
+  status?: MenuStatus
   courses?: Array<{
     name: string
     dishes: Array<{
@@ -31,7 +33,8 @@ const createMenuStep = createStep(
     
     // Create the menu first
     const menu = await menuModuleService.createMenus({
-      name: input.name
+      name: input.name,
+      status: input.status ?? DEFAULT_MENU_STATUS,
     })
     
     const courses = []

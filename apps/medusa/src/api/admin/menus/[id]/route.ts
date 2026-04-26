@@ -3,6 +3,7 @@ import { z } from "zod"
 import { MENU_MODULE } from "../../../../modules/menu"
 import { updateMenuWorkflow } from "../../../../workflows/update-menu"
 import { deleteMenuWorkflow } from "../../../../workflows/delete-menu"
+import { MENU_STATUS_VALUES } from "../../../../modules/menu/constants"
 
 // Validation schemas
 const imageUrlsSchema = z.array(z.string().url()).optional()
@@ -13,6 +14,7 @@ const imageFilesSchema = z.array(z.object({
 
 const updateMenuSchema = z.object({
   name: z.string().min(1, "Menu name is required").optional(),
+  status: z.enum(MENU_STATUS_VALUES).optional(),
   courses: z.array(z.object({
     id: z.string().optional(),
     name: z.string().min(1, "Course name is required"),
@@ -115,6 +117,19 @@ export async function DELETE(
   res: MedusaResponse
 ): Promise<void> {
   const logger = req.scope.resolve("logger")
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+      return error.message
+    }
+    if (typeof error === "object" && error && "message" in error) {
+      return String((error as { message?: unknown }).message)
+    }
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return String(error)
+    }
+  }
   
   try {
     const { id } = req.params
@@ -123,11 +138,15 @@ export async function DELETE(
       input: { id }
     })
 
-    res.status(204).send()
+    res.status(200).json({
+      id,
+      deleted: true,
+    })
   } catch (error) {
-    logger.error(`Error deleting menu: ${error instanceof Error ? error.message : String(error)}`)
+    const errorMessage = getErrorMessage(error)
+    logger.error(`Error deleting menu: ${errorMessage}`)
     
-    if (error instanceof Error && error.message.includes("not found")) {
+    if (errorMessage.includes("not found")) {
       res.status(404).json({
         message: "Menu not found"
       })

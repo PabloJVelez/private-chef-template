@@ -2,7 +2,7 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-04-26
-- Status: Draft
+- Status: In Review
 - Task Hub: `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/`
 
 ## Summary
@@ -27,16 +27,24 @@ Refactor how menus are exposed on the storefront so they no longer auto-publish 
 - [2026-04-26] Event: Completed interactive clarification; finalized lifecycle decisions, migration policy, and API/store constraints. `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/clarification/2026-04-26_initial-clarification.md`.
 - [2026-04-26] Event: Created implementation plan with execution tasks, acceptance criteria, and risk mapping. `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/plan/2026-04-26_menu-status-lifecycle-implementation-plan.md`.
 - [2026-04-26] Event: Expanded scope to include menu duplication and updated implementation plan tasks/risks accordingly. `.devagent/workspace/tasks/active/2026-04-26_refactor-menu-publishing-statuses/plan/2026-04-26_menu-status-lifecycle-implementation-plan.md`.
+- [2026-04-26] Event: Implemented menu status lifecycle in model/migration/routes/workflows, added active-only store filtering, and added menu duplication workflow + admin endpoint + SDK updates. Validation: lint executed with no medusa lint tasks; file-level lints clean; workspace typecheck currently blocked by pre-existing errors in `src/admin/root.tsx` and `src/admin/routes/chef-events/components/EmailManagementSection.tsx`.
+- [2026-04-26] Event: Resolved pre-existing Medusa typecheck blockers in admin (`root.tsx` import target and `EmailManagementSection` badge prop), then reran `yarn workspace medusa typecheck` successfully.
+- [2026-04-26] Event: Attempted HTTP integration suite (`yarn workspace medusa test:integration:http`) for additional validation; run failed in environment setup with PostgreSQL auth error `SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string` (existing test environment config issue, not menu-flow assertion failures).
+- [2026-04-26] Event: Added admin UI controls for menu status and duplication (status selector in form, status column in list, duplicate actions in list row actions and edit page header) and reran `yarn workspace medusa typecheck` successfully.
+- [2026-04-26] Event: Replaced browser `confirm` with Medusa `usePrompt` confirmation for menu delete, improved delete API error extraction/logging, and fixed delete workflow to pass IDs as array to `deleteMenus`; typecheck passes.
+- [2026-04-26] Event: Fixed false-negative delete toast by changing menu DELETE endpoint from `204` to `200` with JSON payload (`{ id, deleted: true }`) so the SDK client no longer attempts to parse empty response bodies; typecheck passes.
+- [2026-04-26] Event: Reviewed plan + implementation against Medusa v2 conventions. Refinements: (1) tightened `MenuModuleService.duplicateMenu` typing/JSDoc, batched nested writes (`createIngredients`, `createMenuImages`, `createMenuExperiencePrices`) into single bulk calls, and folded `thumbnail` into the initial `createMenus` call to remove an extra `updateMenus` round trip; (2) removed redundant `retrieveMenu` from `duplicateMenuStep` since the service already throws when the source is missing; (3) clarified `Migration20260426100000_add_menu_status` backfill SQL with explicit comments and a single unconditional `update` for legacy rows; (4) replaced inline status enum in `apps/medusa/src/admin/routes/menus/schemas.ts` with the shared `MENU_STATUS_VALUES`/`DEFAULT_MENU_STATUS` constants so the admin form uses the same allowlist as the API/store. Validation: `yarn workspace medusa typecheck` passes; touched files have no lint warnings.
 
 ## Implementation Checklist
 - [x] Define exact menu lifecycle and affected transitions (`draft`, `active`, `inactive`), including default/backfill behavior.
 - [x] Identify backend and storefront touchpoints where menu visibility currently depends on auto-publish behavior.
-- [ ] Implement status-driven menu publication flow and validate active-only storefront visibility plus admin allowlist enforcement.
-- [ ] Implement menu duplication flow (API + workflow/service) that creates draft duplicates with expected nested content.
+- [x] Implement status-driven menu publication flow and validate active-only storefront visibility plus admin allowlist enforcement.
+- [x] Implement menu duplication flow (API + workflow/service) that creates draft duplicates with expected nested content.
 
 ## Open Questions
 - None blocking for planning. Future enhancement: configurable status catalog beyond `draft|active|inactive`.
 - Duplication naming/content-copy conventions should be finalized during implementation (e.g., title suffix and metadata handling).
+- Integration test environment currently lacks valid DB auth configuration for `test:integration:http`; decide whether to fix test env now or treat as external infra follow-up.
 
 ## References
 - `.devagent/workspace/product/mission.md` — Mission emphasizes reusable template patterns and scalable client delivery. (freshness: 2026-04-26)

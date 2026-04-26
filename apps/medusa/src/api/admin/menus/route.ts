@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
 import { MENU_MODULE } from "../../../modules/menu"
 import { createMenuWorkflow } from "../../../workflows/create-menu"
+import { MENU_STATUS_VALUES } from "../../../modules/menu/constants"
 
 // Validation schemas
 const imageUrlsSchema = z.array(z.string().url()).optional().default([])
@@ -12,6 +13,7 @@ const imageFilesSchema = z.array(z.object({
 
 const createMenuSchema = z.object({
   name: z.string().min(1, "Menu name is required"),
+  status: z.enum(MENU_STATUS_VALUES).optional(),
   courses: z.array(z.object({
     name: z.string().min(1, "Course name is required"),
     dishes: z.array(z.object({
@@ -31,7 +33,8 @@ const createMenuSchema = z.object({
 const listMenusSchema = z.object({
   limit: z.string().transform(val => parseInt(val)).optional(),
   offset: z.string().transform(val => parseInt(val)).optional(),
-  q: z.string().optional()
+  q: z.string().optional(),
+  status: z.enum(MENU_STATUS_VALUES).optional(),
 })
 
 export async function GET(
@@ -50,7 +53,8 @@ export async function GET(
           name: {
             $ilike: `%${query.q}%`
           }
-        } : {})
+        } : {}),
+        ...(query.status ? { status: query.status } : {}),
       },
       {
         take: query.limit || 10,

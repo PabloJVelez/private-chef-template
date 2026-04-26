@@ -1,6 +1,6 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { Container, Heading, toast } from "@medusajs/ui"
-import { useAdminRetrieveMenu, useAdminUpdateMenuMutation } from "../../../hooks/menus"
+import { Container, Heading, Button, toast } from "@medusajs/ui"
+import { useAdminDuplicateMenuMutation, useAdminRetrieveMenu, useAdminUpdateMenuMutation } from "../../../hooks/menus"
 import { MenuForm } from "../components/menu-form"
 import { useParams, useNavigate, type UIMatch } from "react-router-dom"
 import type { AdminUpdateMenuDTO } from "../../../../sdk/admin/admin-menus"
@@ -15,6 +15,7 @@ const MenuDetailsPage = ({ params }: MenuDetailsPageProps) => {
   const { id } = useParams()
   const { data: menu, isLoading, refetch } = useAdminRetrieveMenu(id as string)
   const updateMenu = useAdminUpdateMenuMutation(id as string)
+  const duplicateMenu = useAdminDuplicateMenuMutation()
   const navigate = useNavigate()
 
   const handleSubmit = async (data: AdminUpdateMenuDTO) => {
@@ -64,6 +65,30 @@ const MenuDetailsPage = ({ params }: MenuDetailsPageProps) => {
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
         <Heading level="h1">Edit Menu</Heading>
+        <Button
+          type="button"
+          variant="secondary"
+          size="small"
+          onClick={async () => {
+            try {
+              const duplicated = await duplicateMenu.mutateAsync({ id: menu.id })
+              toast.success("Menu Duplicated", {
+                description: "A draft copy was created successfully.",
+                duration: 3000,
+              })
+              navigate(`/menus/${duplicated.id}`)
+            } catch (error) {
+              console.error("Error duplicating menu:", error)
+              toast.error("Duplicate Failed", {
+                description: "There was an error duplicating the menu. Please try again.",
+                duration: 5000,
+              })
+            }
+          }}
+          disabled={duplicateMenu.isPending}
+        >
+          {duplicateMenu.isPending ? "Duplicating..." : "Duplicate Menu"}
+        </Button>
       </div>
       
       <MenuForm

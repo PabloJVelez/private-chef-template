@@ -36,6 +36,7 @@ export interface AdminMenuImageDTO {
 export interface AdminMenuDTO {
   id: string
   name: string
+  status: string
   courses: AdminCourseDTO[]
   images: AdminMenuImageDTO[]
   thumbnail?: string | null
@@ -46,6 +47,7 @@ export interface AdminMenuDTO {
 
 export interface AdminCreateMenuDTO {
   name: string
+  status?: "draft" | "active" | "inactive"
   courses?: Array<{
     name: string
     dishes: Array<{
@@ -64,6 +66,7 @@ export interface AdminCreateMenuDTO {
 
 export interface AdminUpdateMenuDTO {
   name?: string
+  status?: "draft" | "active" | "inactive"
   courses?: Array<{
     id?: string
     name: string
@@ -109,6 +112,7 @@ export interface AdminListMenusQuery {
   limit?: number
   offset?: number
   q?: string
+  status?: "draft" | "active" | "inactive"
 }
 
 export interface AdminMenusResponse {
@@ -189,6 +193,13 @@ export class AdminMenusResource {
   async upsertPricing(menuId: string, data: AdminUpsertMenuPricingDTO) {
     return this.client.fetch<AdminMenuPricingResponse>(`/admin/menus/${menuId}/pricing`, {
       method: 'POST',
+      body: data,
+    })
+  }
+
+  async duplicate(id: string, data?: { name?: string }) {
+    return this.client.fetch<AdminMenuDTO>(`/admin/menus/${id}/duplicate`, {
+      method: "POST",
       body: data,
     })
   }
