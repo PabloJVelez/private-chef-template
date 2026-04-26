@@ -73,7 +73,7 @@ export const EmailManagementSection = ({ chefEvent, onEmailSent }: EmailManageme
                       to {email.recipients.join(", ")}
                     </span>
                   </div>
-                  <Badge variant="secondary">
+                  <Badge color="grey">
                     {new Date(email.sentAt).toLocaleDateString()}
                   </Badge>
                 </div>

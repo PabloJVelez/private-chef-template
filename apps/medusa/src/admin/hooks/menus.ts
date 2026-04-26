@@ -69,6 +69,18 @@ export const useAdminDeleteMenuMutation = () => {
   })
 }
 
+export const useAdminDuplicateMenuMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name?: string }) => {
+      return await sdk.admin.menus.duplicate(id, name ? { name } : undefined)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+    },
+  })
+}
+
 const PRICING_QUERY_KEY = ['menu-pricing']
 
 export const useAdminListMenuPricing = (menuId: string, options?: { enabled?: boolean }) => {

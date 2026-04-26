@@ -6,10 +6,12 @@ import {
 } from "@medusajs/workflows-sdk"
 import { MENU_MODULE } from "../modules/menu"
 import MenuModuleService from "src/modules/menu/service"
+import type { MenuStatus } from "../modules/menu/constants"
 
 type UpdateMenuWorkflowInput = {
   id: string
   name?: string
+  status?: MenuStatus
   images?: string[]
   thumbnail?: string | null
   image_files?: { url: string; file_id?: string }[]
@@ -34,11 +36,20 @@ const updateMenuStep = createStep(
   async (input: UpdateMenuWorkflowInput, { container }: { container: any }) => {
     const menuModuleService: MenuModuleService = container.resolve(MENU_MODULE)
     
-    // Update the menu
-    const menu = await menuModuleService.updateMenus({
+    const menuUpdateData: Record<string, unknown> = {
       id: input.id,
-      name: input.name
-    })
+    }
+
+    if (input.name !== undefined) {
+      menuUpdateData.name = input.name
+    }
+
+    if (input.status !== undefined) {
+      menuUpdateData.status = input.status
+    }
+
+    // Update the menu
+    const menu = await menuModuleService.updateMenus(menuUpdateData)
     
     // If courses are provided, handle the full replacement
     if (input.courses !== undefined) {

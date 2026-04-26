@@ -23,7 +23,7 @@ const deleteMenuStep = createStep(
     }
     
     // Delete the menu (this will cascade to courses, dishes, and ingredients)
-    await menuModuleService.deleteMenus(input.id)
+    await menuModuleService.deleteMenus([input.id])
     
     return new StepResponse({ 
       id: input.id,

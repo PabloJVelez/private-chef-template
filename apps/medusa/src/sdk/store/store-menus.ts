@@ -31,6 +31,7 @@ export interface StoreMenuExperiencePriceDTO {
 export interface StoreMenuDTO {
   id: string
   name: string
+  status: string
   courses: StoreCourseDTO[]
   images: { id: string; url: string; rank: number }[]
   menu_experience_prices?: StoreMenuExperiencePriceDTO[]

@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MENU_MODULE } from "../../../../modules/menu"
+import { STOREFRONT_VISIBLE_MENU_STATUSES } from "../../../../modules/menu/constants"
 
 export async function GET(
   req: MedusaRequest,
@@ -15,7 +16,12 @@ export async function GET(
       relations: ["courses", "courses.dishes", "courses.dishes.ingredients", "images", "menu_experience_prices"]
     })
 
-    if (!menu) {
+    if (
+      !menu ||
+      !STOREFRONT_VISIBLE_MENU_STATUSES.includes(
+        (menu as { status?: string }).status as any
+      )
+    ) {
       res.status(404).json({
         message: "Menu not found"
       })

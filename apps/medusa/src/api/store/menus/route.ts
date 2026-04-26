@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
 import { MENU_MODULE } from "../../../modules/menu"
+import { STOREFRONT_VISIBLE_MENU_STATUSES } from "../../../modules/menu/constants"
 
 // Validation schema for store menu listing
 const listStoreMenusSchema = z.object({
@@ -21,6 +22,9 @@ export async function GET(
     
     const [menus, count] = await menuModuleService.listAndCountMenus(
       {
+        status: {
+          $in: STOREFRONT_VISIBLE_MENU_STATUSES,
+        },
         ...(query.q ? {
           name: {
             $ilike: `%${query.q}%`
