@@ -25,7 +25,7 @@
     "@medusajs/js-sdk": "2.7.0",
     "@medusajs/types": "2.7.0",
     "@medusajs/icons": "2.13.5",
-    "@medusajs/ui": "4.0.14",
+    "@medusajs/ui": "4.1.8-preview-20260424141248",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "remix-hook-form": "7.0.1"
@@ -38,7 +38,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.1.0",
     "@medusajs/icons": "2.13.5",
-    "@medusajs/ui": "^4.0.14",
+    "@medusajs/ui": "4.1.8-preview-20260424141248",
     "@tanstack/react-query": "^5.80.6",
     "radix-ui": "^1.4.3",
     "react": "^18.2.0",

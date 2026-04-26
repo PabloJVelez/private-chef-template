@@ -3,6 +3,7 @@ import { Container, Heading, toast, Button, FocusModal, Textarea, Label, Checkbo
 import { useParams, type UIMatch } from "react-router-dom"
 import { useState } from "react"
 import { DateTime } from "luxon"
+import { requestedStartInEventZone } from "../../../../lib/chef-event-datetime-display"
 import { ChefEventForm } from "../components/chef-event-form"
 import { MenuDetails } from "../components/menu-details"
 import { EmailManagementSection } from "../components/EmailManagementSection"
@@ -144,14 +145,19 @@ const ChefEventDetailPage = () => {
   const isConfirmed = chefEvent.status === 'confirmed'
 
   const requestedDateRaw = chefEvent.requestedDate as string | Date | undefined
-  const eventDay =
+  const eventStart =
     requestedDateRaw == null
       ? null
-      : typeof requestedDateRaw === "string"
-        ? DateTime.fromISO(requestedDateRaw.split("T")[0]!, { zone: "utc" })
-        : DateTime.fromJSDate(requestedDateRaw)
+      : requestedStartInEventZone({
+          requestedDate: requestedDateRaw,
+          timeZone: chefEvent.timeZone,
+        })
+  const eventDay =
+    eventStart && eventStart.isValid ? eventStart.startOf("day") : null
+  const eventTz = eventDay?.zoneName ?? chefEvent.timeZone ?? "America/Chicago"
   const hasEventTakenPlace =
-    eventDay != null && eventDay.startOf("day") < DateTime.now().startOf("day")
+    eventDay != null &&
+    eventDay < DateTime.now().setZone(eventTz).startOf("day")
 
   const availableTickets =
     typeof chefEvent.availableTickets === "number" ? chefEvent.availableTickets : undefined

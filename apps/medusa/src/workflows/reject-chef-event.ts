@@ -28,13 +28,14 @@ const rejectChefEventStep = createStep(
     }
     
     // Update the chef event to cancelled status
-    const updatedChefEvent = await chefEventModuleService.updateChefEvents({
+    const updated = await chefEventModuleService.updateChefEvents({
       id: input.chefEventId,
       status: 'cancelled',
       rejectionReason: input.rejectionReason,
       chefNotes: input.chefNotes
     })
-    
+    const updatedChefEvent = Array.isArray(updated) ? updated[0] : updated
+
     return new StepResponse(updatedChefEvent)
   }
 )
@@ -51,7 +52,15 @@ export const rejectChefEventWorkflow = createWorkflow(
         chefEventId: chefEvent.id,
         rejectionReason: input.rejectionReason
       }
-    })
+    }).config({ name: "emit-chef-event-rejected" })
+
+    emitEventStep({
+      eventName: "google-calendar.sync-requested",
+      data: {
+        chefEventId: input.chefEventId,
+        operation: "cancel",
+      },
+    }).config({ name: "emit-google-calendar-sync-on-chef-event-reject" })
     
     return new WorkflowResponse({
       chefEvent

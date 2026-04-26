@@ -434,8 +434,17 @@ export const acceptChefEventWorkflow = createWorkflow(
           chefEventId: linkedChefEvent.id,
           productId: productAndInventory.product.id,
         },
-      });
+      }).config({ name: "emit-chef-event-accepted" });
     }
+
+    // Always sync acceptance updates (status/color/details) to Google Calendar.
+    emitEventStep({
+      eventName: "google-calendar.sync-requested",
+      data: {
+        chefEventId: linkedChefEvent.id,
+        operation: "upsert",
+      },
+    }).config({ name: "emit-google-calendar-sync-on-chef-event-accept" });
 
     return new WorkflowResponse({
       success: true,

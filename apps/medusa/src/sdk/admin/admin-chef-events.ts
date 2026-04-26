@@ -21,6 +21,8 @@ export interface AdminChefEventDTO {
   depositPaid: boolean
   specialRequirements?: string
   estimatedDuration?: number
+  /** IANA zone for interpreting `requestedDate` / Google sync (model default: America/Chicago) */
+  timeZone?: string
   // New acceptance/rejection fields
   productId?: string
   acceptedAt?: Date

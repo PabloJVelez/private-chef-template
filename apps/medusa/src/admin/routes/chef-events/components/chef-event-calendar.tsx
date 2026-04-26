@@ -1,19 +1,46 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo } from "react"
 import { Calendar, Views, type View } from "react-big-calendar"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 import "../../../styles/rbc-overrides.css"
 
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { DateTime } from "luxon"
+import { Button, Drawer, Text, toast } from "@medusajs/ui"
 
 import { localizer } from "../../../lib/calendar-localizer"
 import { useAdminListChefEvents } from "../../../hooks/chef-events"
+import {
+  useGoogleCalendarApproveIncidentMutation,
+  useGoogleCalendarDenyIncidentMutation,
+  useGoogleCalendarResyncMutation,
+  useGoogleCalendarStatus,
+} from "../../../hooks/google-calendar"
 import { chefEventToRbc, type RBCEvent } from "./event-adapter"
 import { eventTypeOptions } from "../schemas"
+import { chefEventStatusToDisplayHex } from "../../../../lib/chef-event-google-calendar-colors"
+import { requestedStartInEventZone } from "../../../../lib/chef-event-datetime-display"
 
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)"
+const CALENDAR_DATE_PARAM = "date"
+const CALENDAR_VIEW_PARAM = "view"
+const CALENDAR_INCIDENT_PARAM = "incident"
+
+const isSupportedView = (value: string | null): value is View => {
+  return value === Views.MONTH || value === Views.AGENDA
+}
+
+const parseQueryDate = (value: string | null): Date | null => {
+  if (!value) {
+    return null
+  }
+  const dt = DateTime.fromISO(value)
+  if (!dt.isValid) {
+    return null
+  }
+  return dt.startOf("day").toJSDate()
+}
 
 function getInitialCalendarView(): View {
   if (typeof window === "undefined") {
@@ -22,42 +49,62 @@ function getInitialCalendarView(): View {
   return window.matchMedia(MOBILE_MEDIA_QUERY).matches ? Views.AGENDA : Views.MONTH
 }
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === "undefined") return false
-    return window.matchMedia(MOBILE_MEDIA_QUERY).matches
-  })
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const mql = window.matchMedia(MOBILE_MEDIA_QUERY)
-    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-    mql.addEventListener?.("change", onChange)
-    return () => mql.removeEventListener?.("change", onChange)
-  }, [])
-
-  return isMobile
-}
-
-function getStatusColor(status?: string): string {
-  switch (status) {
-    case "confirmed":
-      return "#16a34a"
-    case "cancelled":
-      return "#ef4444"
-    case "completed":
-      return "#3b82f6"
-    default:
-      return "#ea580c"
-  }
-}
-
 export const ChefEventCalendar = () => {
   const navigate = useNavigate()
-  const isMobile = useIsMobile()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { data: googleCalendarStatus } = useGoogleCalendarStatus()
+  const resyncMutation = useGoogleCalendarResyncMutation()
+  const approveIncidentMutation = useGoogleCalendarApproveIncidentMutation()
+  const denyIncidentMutation = useGoogleCalendarDenyIncidentMutation()
 
-  const [view, setView] = useState<View>(getInitialCalendarView)
-  const [date, setDate] = useState<Date>(new Date())
+  const queryView = searchParams.get(CALENDAR_VIEW_PARAM)
+  const view: View = isSupportedView(queryView) ? queryView : getInitialCalendarView()
+  const date = parseQueryDate(searchParams.get(CALENDAR_DATE_PARAM)) ?? new Date()
+
+  const updateCalendarParams = useCallback(
+    (nextDate: Date, nextView: View) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.set(CALENDAR_DATE_PARAM, DateTime.fromJSDate(nextDate).toISODate() ?? "")
+        next.set(CALENDAR_VIEW_PARAM, nextView)
+        return next
+      })
+    },
+    [setSearchParams]
+  )
+
+  const setCalendarDate = useCallback(
+    (nextDate: Date) => {
+      updateCalendarParams(nextDate, view)
+    },
+    [updateCalendarParams, view]
+  )
+
+  const setCalendarView = useCallback(
+    (nextView: View) => {
+      updateCalendarParams(date, nextView)
+    },
+    [date, updateCalendarParams]
+  )
+
+  const openIncidentDrawer = useCallback(
+    (id: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.set(CALENDAR_INCIDENT_PARAM, id)
+        return next
+      })
+    },
+    [setSearchParams]
+  )
+
+  const closeIncidentDrawer = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete(CALENDAR_INCIDENT_PARAM)
+      return next
+    })
+  }, [setSearchParams])
 
   // Keep your existing filters; add range later if/when supported
   const { data, isLoading } = useAdminListChefEvents({
@@ -74,20 +121,25 @@ export const ChefEventCalendar = () => {
     [data?.chefEvents]
   )
 
-  // keyboard shortcuts parity
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft" || e.key === "PageUp") {
-        setDate((d) => DateTime.fromJSDate(d).plus({ months: -1 }).toJSDate())
-      } else if (e.key === "ArrowRight" || e.key === "PageDown") {
-        setDate((d) => DateTime.fromJSDate(d).plus({ months: 1 }).toJSDate())
-      } else if (e.key.toLowerCase() === "t") {
-        setDate(new Date())
-      }
+  const selectedIncidentId = searchParams.get(CALENDAR_INCIDENT_PARAM)
+  const selectedIncident = useMemo(() => {
+    const incidents = googleCalendarStatus?.pendingIncidents ?? []
+    if (!selectedIncidentId) {
+      return null
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [])
+    return incidents.find((incident) => incident.id === selectedIncidentId) ?? null
+  }, [googleCalendarStatus?.pendingIncidents, selectedIncidentId])
+
+  const selectedChefEvent = useMemo(() => {
+    if (!selectedIncident) {
+      return null
+    }
+    const chefEvents = data?.chefEvents ?? []
+    return (
+      chefEvents.find((evt) => String(evt.id) === String(selectedIncident.chefEventId)) ??
+      null
+    )
+  }, [data?.chefEvents, selectedIncident])
 
   const components = useMemo(
     () => ({
@@ -109,28 +161,14 @@ export const ChefEventCalendar = () => {
               )?.label
             : undefined
           const status = (event.resource as any)?.status as string | undefined
-          const color = getStatusColor(status)
-          if (isMobile) {
-            return (
-              <div
-                className="flex items-center justify-center"
-                title={event.title}
-                aria-label={event.title}
-              >
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-              </div>
-            )
-          }
+          const color = chefEventStatusToDisplayHex(status)
           return (
-            <div className="flex items-start gap-1">
+            <div className="flex items-center justify-center sm:items-start sm:justify-start sm:gap-1">
               <span
-                className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full"
+                className="inline-block h-1.5 w-1.5 rounded-full sm:mt-[6px]"
                 style={{ backgroundColor: color }}
               />
-              <div className="min-w-0 leading-tight">
+              <div className="hidden min-w-0 leading-tight sm:block">
                 <div className="truncate text-xs text-[var(--fg-base)]">{event.title}</div>
                 {typeLabel && (
                   <div className="truncate text-[11px] text-[var(--fg-muted)]">{typeLabel}</div>
@@ -172,7 +210,7 @@ export const ChefEventCalendar = () => {
       agenda: {
         event: ({ event }: { event: RBCEvent }) => {
           const status = (event.resource as any)?.status as string | undefined
-          const color = getStatusColor(status)
+          const color = chefEventStatusToDisplayHex(status)
           return (
             <div className="flex items-center gap-2">
               <span
@@ -188,7 +226,7 @@ export const ChefEventCalendar = () => {
         <div className="truncate text-xs leading-tight">{title}</div>
       ),
     }),
-    [isMobile]
+    []
   )
 
   // Work around TSX typing friction by casting Calendar
@@ -202,8 +240,115 @@ export const ChefEventCalendar = () => {
     ? "h-[calc(100dvh-13rem)] min-h-[360px] overflow-x-hidden sm:h-[calc(100dvh-12.5rem)] sm:min-h-[420px] md:h-[calc(100dvh-11rem)] md:min-h-[520px]"
     : "h-auto max-h-[calc(100dvh-11rem)] overflow-y-auto overflow-x-hidden md:max-h-[calc(100dvh-9rem)]"
 
+  const handleResync = async () => {
+    try {
+      await resyncMutation.mutateAsync()
+      toast.success("Google Calendar resync started")
+    } catch (error) {
+      toast.error("Could not start resync", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        duration: 5000,
+      })
+    }
+  }
+
+  const handleApproveIncident = async (id: string) => {
+    try {
+      await approveIncidentMutation.mutateAsync(id)
+      toast.success("Cancellation approved")
+      closeIncidentDrawer()
+    } catch (error) {
+      toast.error("Could not approve cancellation", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        duration: 5000,
+      })
+    }
+  }
+
+  const handleDenyIncident = async (id: string) => {
+    try {
+      await denyIncidentMutation.mutateAsync(id)
+      toast.success("Cancellation denied and event restored in Google")
+      closeIncidentDrawer()
+    } catch (error) {
+      toast.error("Could not deny cancellation", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        duration: 5000,
+      })
+    }
+  }
+
+  const selectedEventStart = selectedChefEvent
+    ? requestedStartInEventZone(selectedChefEvent)
+    : null
+  const selectedEventDateLabel =
+    selectedEventStart && selectedEventStart.isValid
+      ? selectedEventStart.toFormat("LLL d, yyyy")
+      : "Unknown date"
+  const selectedEventTimeLabel =
+    selectedEventStart && selectedEventStart.isValid
+      ? selectedEventStart.toFormat("h:mm a")
+      : "Unknown time"
+  const selectedHostLabel = selectedChefEvent
+    ? [selectedChefEvent.firstName, selectedChefEvent.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "Host not set"
+    : "Host not found"
+  const pendingCount = googleCalendarStatus?.pendingIncidents?.length ?? 0
+  const firstPendingIncidentId = googleCalendarStatus?.pendingIncidents?.[0]?.id
+
   return (
     <div className="w-full min-w-0 px-2 pb-4 pt-2 sm:px-4 md:px-6">
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 py-2 text-xs text-ui-fg-subtle">
+        <div>
+          Google Calendar sync:{" "}
+          <span className="font-medium text-ui-fg-base">
+            {googleCalendarStatus?.status === "active"
+              ? "Connected"
+              : googleCalendarStatus?.status === "sync_error"
+                ? "Sync error"
+                : googleCalendarStatus?.status === "reauthorization_required"
+                  ? "Reauthorization required"
+                  : "Not connected"}
+          </span>
+        </div>
+        {googleCalendarStatus?.status === "active" ? (
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={handleResync}
+            isLoading={resyncMutation.isPending}
+            disabled={resyncMutation.isPending}
+          >
+            Resync
+          </Button>
+        ) : null}
+      </div>
+
+      {pendingCount > 0 ? (
+        <div className="mb-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-ui-fg-base">
+                Events cancelled through Google Calendar
+              </div>
+              <div className="text-xs text-ui-fg-subtle">
+                {pendingCount} pending review
+              </div>
+            </div>
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={() => firstPendingIncidentId && openIncidentDrawer(firstPendingIncidentId)}
+              disabled={!firstPendingIncidentId}
+            >
+              Review
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div
         className={[
           "chef-events-calendar-rbc-host w-full min-w-0",
@@ -216,9 +361,9 @@ export const ChefEventCalendar = () => {
           startAccessor="start"
           endAccessor="end"
           view={view}
-          onView={setView}
+          onView={setCalendarView}
           date={date}
-          onNavigate={setDate}
+          onNavigate={setCalendarDate}
           formats={{
             dateFormat: "d",
             weekdayFormat: "ccc",
@@ -245,8 +390,8 @@ export const ChefEventCalendar = () => {
           onSelectEvent={(evt: RBCEvent) => navigate(`/chef-events/${evt.id}`)}
           onDrillDown={(next: Date) => {
             // Month date-number click — switch to agenda focused on that day.
-            setDate(next)
-            setView(Views.AGENDA)
+            setCalendarDate(next)
+            setCalendarView(Views.AGENDA)
           }}
           culture="en-US"
           step={30}
@@ -260,6 +405,80 @@ export const ChefEventCalendar = () => {
           Loading events…
         </div>
       )}
+
+      <Drawer
+        open={Boolean(selectedIncident)}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeIncidentDrawer()
+          }
+        }}
+      >
+        <Drawer.Content className="max-w-xl bg-ui-bg-base sm:inset-y-0 sm:right-0 sm:rounded-none sm:border-y-0 sm:border-r-0 sm:border-l">
+          <Drawer.Header>
+            <Drawer.Title>Review Google cancellation request</Drawer.Title>
+          </Drawer.Header>
+          <Drawer.Body>
+            {selectedIncident ? (
+              <div className="space-y-4">
+                <Text className="text-ui-fg-subtle">
+                  Google attempted to cancel this event. Decide whether to apply that
+                  cancellation in the app or keep the app event and restore it in Google.
+                </Text>
+
+                <div className="space-y-2 rounded-md border border-ui-border-base p-3">
+                  <div>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Event
+                    </Text>
+                    <Text weight="plus">
+                      {String(selectedIncident.payload?.summary || "Chef event")}
+                    </Text>
+                  </div>
+                  <div>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Host
+                    </Text>
+                    <Text>{selectedHostLabel}</Text>
+                  </div>
+                  <div>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Scheduled for
+                    </Text>
+                    <Text>
+                      {selectedEventDateLabel} at {selectedEventTimeLabel}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </Drawer.Body>
+          <Drawer.Footer>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={closeIncidentDrawer}>
+                Close
+              </Button>
+              {selectedIncident ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleDenyIncident(selectedIncident.id)}
+                    disabled={denyIncidentMutation.isPending}
+                  >
+                    Deny & restore in Google
+                  </Button>
+                  <Button
+                    onClick={() => handleApproveIncident(selectedIncident.id)}
+                    disabled={approveIncidentMutation.isPending}
+                  >
+                    Approve cancellation
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          </Drawer.Footer>
+        </Drawer.Content>
+      </Drawer>
     </div>
   )
 }

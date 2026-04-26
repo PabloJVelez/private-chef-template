@@ -1,5 +1,6 @@
 import { DateTime } from "luxon"
 import type { AdminChefEventDTO } from "../../../../sdk/admin/admin-chef-events"
+import { requestedStartInEventZone } from "../../../../lib/chef-event-datetime-display"
 
 export type RBCEvent = {
   id: string | number
@@ -23,9 +24,6 @@ const toDateTime = (value: unknown) => {
 
 export const chefEventToRbc = (e: AdminChefEventDTO): RBCEvent => {
   const fullName = [e.firstName, e.lastName].filter(Boolean).join(" ").trim()
-  const title = [formatTime12Hour(e.requestedTime) || "", fullName || "Untitled"]
-    .filter(Boolean)
-    .join(" ")
 
   // Prefer explicit start/end from API if available
   const startAt = (e as any).startAt as string | undefined
@@ -37,11 +35,17 @@ export const chefEventToRbc = (e: AdminChefEventDTO): RBCEvent => {
   if (startAt) {
     startDT = DateTime.fromISO(startAt)
   } else {
-    // Combine requestedDate + requestedTime
-    const base = toDateTime((e as any).requestedDate)
-    const [h, m] = (e.requestedTime || "00:00").split(":").map(Number)
-    startDT = base.set({ hour: h || 0, minute: m || 0, second: 0, millisecond: 0 })
+    // Stored `requestedDate` is a UTC instant for the wall time in `e.timeZone`
+    startDT = requestedStartInEventZone(e)
+    if (!startDT.isValid) {
+      const base = toDateTime((e as any).requestedDate)
+      const [h, m] = (e.requestedTime || "00:00").split(":").map(Number)
+      startDT = base.set({ hour: h || 0, minute: m || 0, second: 0, millisecond: 0 })
+    }
   }
+
+  const timeLabel = formatTime12Hour(startDT.toFormat("HH:mm"))
+  const title = [timeLabel || "", fullName || "Untitled"].filter(Boolean).join(" ")
 
   if (endAt) {
     endDT = DateTime.fromISO(endAt)
