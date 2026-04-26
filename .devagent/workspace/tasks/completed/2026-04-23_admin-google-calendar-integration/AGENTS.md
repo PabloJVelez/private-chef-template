@@ -2,8 +2,8 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-04-25
-- Status: Draft
-- Task Hub: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/`
+- Status: Complete
+- Task Hub: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/`
 
 ## Summary
 Implement a Google Calendar integration so app events are reflected in a connected Google account calendar, following the attached implementation research document as the primary reference. Scope for this task is explicitly single-chef/single-admin-account support only: the project currently supports one chef, so the integration should target that chef's Google account and does not need multi-admin or multi-chef connection logic at this stage.
@@ -29,9 +29,9 @@ Implement a Google Calendar integration so app events are reflected in a connect
 
 ## Progress Log
 - [2026-04-23] Event: Task hub scaffolded via `new-task` workflow and initialized with summary/context.
-- [2026-04-23] Event: Completed task-scoped research packet at `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`.
-- [2026-04-23] Event: Completed clarification session and saved packet at `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`.
-- [2026-04-23] Event: Created implementation plan at `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/plan/2026-04-23_google-calendar-integration-implementation-plan.md`.
+- [2026-04-23] Event: Completed task-scoped research packet at `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`.
+- [2026-04-23] Event: Completed clarification session and saved packet at `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`.
+- [2026-04-23] Event: Created implementation plan at `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/plan/2026-04-23_google-calendar-integration-implementation-plan.md`.
 - [2026-04-23] Event: Implemented Plan Task 1 foundation (Google calendar module, models, migration, config wiring, chef-event timezone) in `apps/medusa/src/modules/google-calendar-connection/**`, `apps/medusa/src/modules/chef-event/models/chef-event.ts`, and `apps/medusa/medusa-config.ts`.
 - [2026-04-23] Event: Execution blocked after Task 1 by pre-existing workspace typecheck failures in `apps/storefront` during `yarn typecheck`; implement-plan paused per workflow.
 - [2026-04-23] Event: Implemented most of Plan Task 2 API surface (admin Google Calendar status/connect/callback/resync routes and OAuth/token utility libs) in `apps/medusa/src/api/admin/google-calendar/**` and `apps/medusa/src/lib/google-calendar/**`.
@@ -41,13 +41,14 @@ Implement a Google Calendar integration so app events are reflected in a connect
 - [2026-04-23] Event: Re-ran `apps/medusa` typecheck; same pre-existing unrelated blockers remain (`src/admin/root.tsx`, `src/admin/routes/chef-events/components/EmailManagementSection.tsx`).
 - [2026-04-23] Event: Extended Task 3 with incremental Google pull + `410` recovery and last-write-wins update application in `apps/medusa/src/lib/google-calendar/incremental-sync.ts` and webhook route integration.
 - [2026-04-23] Event: Extended Task 4 with chef-event calendar sync visibility banner in `apps/medusa/src/admin/routes/chef-events/components/chef-event-calendar.tsx`.
-- [2026-04-23] Event: Completed Task 5 manual QA/ops handoff by adding checklist artifact at `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/qa/2026-04-23_manual-qa-checklist.md`.
+- [2026-04-23] Event: Completed Task 5 manual QA/ops handoff by adding checklist artifact at `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/qa/2026-04-23_manual-qa-checklist.md`.
 - [2026-04-23] Event: Completed missing app-to-Google write path by adding real Google Calendar `insert/update/cancel` API calls with sync-map ID/etag persistence in `apps/medusa/src/lib/google-calendar/events.ts` and sync-map lookup helper in `apps/medusa/src/modules/google-calendar-connection/service.ts`.
 - [2026-04-25] Event: Implemented calendar UX follow-ups: moved resync action to chef-events page, removed last-synced from store settings widget, aligned calendar state persistence with URL query params, and removed local state/effects from `chef-event-calendar.tsx`.
 - [2026-04-25] Event: Implemented guarded Google cancellation handling with admin review queue (incident model/service methods, webhook incremental-sync ignore-and-log behavior, approve/deny admin endpoints, SDK/hooks/widget actions) in `apps/medusa/src/modules/google-calendar-connection/**`, `apps/medusa/src/lib/google-calendar/{incremental-sync,events}.ts`, and `apps/medusa/src/{api,admin,sdk}/**`.
 - [2026-04-25] Event: Extended admin resync route to run an app-to-Google reconciliation pass (upsert/cancel per chef-event status) after incremental pull sync so Google recovers missing linked events in `apps/medusa/src/api/admin/google-calendar/resync/route.ts`.
 - [2026-04-25] Event: Scoped resync reconciliation window to `requestedDate` in `[sync_triggered_at, sync_triggered_at + 60 days]` and returned window metadata from `apps/medusa/src/api/admin/google-calendar/resync/route.ts`.
 - [2026-04-25] Event: Applied review hardening pass: added `apps/medusa/src/jobs/renew-google-calendar-watch.ts` cron, refactored `apps/medusa/src/lib/google-calendar/ensure-watch.ts` to take a `MedusaContainer`, made `apps/medusa/src/api/webhooks/google-calendar/route.ts` async via `Modules.EVENT_BUS` + new `apps/medusa/src/subscribers/google-calendar-incremental-sync.ts` (with cache-backed lock), refactored admin resync to enqueue per-event sync events, taught `apps/medusa/src/workflows/delete-chef-event.ts` to cancel on Google + purge artifacts, removed FK cascade via new `Migration20260425130000.ts`, hardened `apps/medusa/src/api/admin/google-calendar/incidents/[id]/{approve,deny}/route.ts` with `MedusaError` + Zod, dropped `any` and added rationale comments in `apps/medusa/src/lib/google-calendar/incremental-sync.ts`, added retry/jitter to `apps/medusa/src/lib/google-calendar/tokens.ts`, and split the channel token to its own env var (`GOOGLE_CALENDAR_CHANNEL_TOKEN`).
+- [2026-04-25] Event: Task moved to completed. Updated all status references and file paths from active/ to completed/ throughout task directory.
 
 ## Implementation Checklist
 - [ ] Define exact feature scope and acceptance criteria from the attached integration report.
@@ -70,10 +71,10 @@ Implement a Google Calendar integration so app events are reflected in a connect
 - Attached implementation report: `/Users/pablo/Downloads/deep-research-report (1).md` (freshness: 2026-04-23)
 - Internal context search result: No direct matches found in `.devagent/workspace/product/**` for `google|calendar|chef events|scheduling` as of 2026-04-23.
 - Internal context search result: No direct matches found in `.devagent/workspace/memory/**` for `google|calendar|chef events|scheduling` as of 2026-04-23.
-- Research packet: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md` (freshness: 2026-04-23)
-- Clarification packet: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md` (freshness: 2026-04-23)
-- Plan: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/plan/2026-04-23_google-calendar-integration-implementation-plan.md` (freshness: 2026-04-23)
-- QA checklist: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/qa/2026-04-23_manual-qa-checklist.md` (freshness: 2026-04-23)
+- Research packet: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md` (freshness: 2026-04-23)
+- Clarification packet: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md` (freshness: 2026-04-23)
+- Plan: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/plan/2026-04-23_google-calendar-integration-implementation-plan.md` (freshness: 2026-04-23)
+- QA checklist: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/qa/2026-04-23_manual-qa-checklist.md` (freshness: 2026-04-23)
 
 ## Next Steps
 - Run manual QA checklist and validate OAuth/webhook environment configuration.

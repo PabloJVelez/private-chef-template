@@ -4,7 +4,7 @@
 - Classification: Implementation design research (task-scoped).
 - Inferred Problem Statement: Define an MVP integration for syncing app `chef_event` records to Google Calendar for the single supported chef/admin account, aligned to current Medusa admin patterns and Google API best practices.
 - Assumptions:
-  - [INFERRED] The active task is `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/`.
+  - [INFERRED] The active task is `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/`.
   - [INFERRED] MVP must support one connected Google account only (no multi-admin connection logic yet).
   - [INFERRED] The attached report at `/Users/pablo/Downloads/deep-research-report (1).md` is the primary product/technical intent source.
 
@@ -17,7 +17,7 @@
 
 ## Sources (With Links and Versions)
 ### Internal
-- Task context: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/AGENTS.md` (accessed 2026-04-23).
+- Task context: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/AGENTS.md` (accessed 2026-04-23).
 - Product mission: `.devagent/workspace/product/mission.md` (accessed 2026-04-23).
 - Constitution: `.devagent/workspace/memory/constitution.md` (accessed 2026-04-23).
 - Existing connection widget pattern: `apps/medusa/src/admin/widgets/stripe-connect-store-widget.tsx` (accessed 2026-04-23).

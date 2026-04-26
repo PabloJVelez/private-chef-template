@@ -5,7 +5,7 @@
 - Date: 2026-04-23
 - Mode: Task Clarification
 - Status: Complete
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/`
 - Notes: Session started with inferred context due empty invocation input.
 
 ## Task Overview
@@ -15,8 +15,8 @@
 - **Business context:** Add Google Calendar integration so app events sync to the chef's connected Google account calendar.
 - **Stakeholders:** PabloJVelez (requestor, decision maker).
 - **Prior work:** 
-  - `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/AGENTS.md`
-  - `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`
+  - `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/AGENTS.md`
+  - `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`
   - `/Users/pablo/Downloads/deep-research-report (1).md`
 
 ### Clarification Sessions

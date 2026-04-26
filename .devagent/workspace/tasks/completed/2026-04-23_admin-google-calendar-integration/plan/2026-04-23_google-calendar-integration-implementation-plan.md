@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-04-25
 - Status: Draft
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/`
 - Stakeholders: PabloJVelez (Requestor, Decision Maker)
 - Notes: Clarification decisions are authoritative; research packet is supporting context where it does not conflict.
 
@@ -18,8 +18,8 @@ Implement a single-chef/single-admin Google Calendar integration for `chef_event
 The current system has strong Chef Event CRUD and calendar display capability but no Google account integration. Existing patterns for third-party account connection and admin UX already exist via Stripe Connect and should be reused. Current Chef Event scheduling data lacks explicit timezone semantics for robust Google datetime interoperability.
 
 Primary source artifacts:
-- `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`
-- `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
+- `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`
+- `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
 - `/Users/pablo/Downloads/deep-research-report (1).md`
 
 ### Objectives & Success Metrics
@@ -95,7 +95,7 @@ Primary source artifacts:
   - `apps/medusa/medusa-config.ts` (module registration + env wiring)
   - `apps/medusa/src/modules/**/migrations/*` (new migration(s))
 - **References:**
-  - `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
+  - `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
   - `.cursor/rules/medusa-development.mdc`
 - **Dependencies:** None.
 - **Acceptance Criteria:**
@@ -119,7 +119,7 @@ Primary source artifacts:
   - `apps/medusa/src/lib/google-calendar/client.ts` (new helper(s))
 - **References:**
   - `apps/medusa/src/api/admin/stripe-connect/route.ts`
-  - `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`
+  - `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`
 - **Dependencies:** Task 1.
 - **Acceptance Criteria:**
   - Admin can initiate OAuth and complete callback successfully.
@@ -143,7 +143,7 @@ Primary source artifacts:
   - `apps/medusa/src/workflows/accept-chef-event.ts` or relevant status workflows (completion/cancel triggers)
 - **References:**
   - `apps/medusa/src/subscribers/chef-event-requested.ts`
-  - `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
+  - `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
 - **Dependencies:** Tasks 1-2.
 - **Acceptance Criteria:**
   - App lifecycle triggers (create/update/cancel/complete/delete) enqueue sync operations; delete also synchronously cancels the Google event and purges the sync map / incidents.
@@ -184,8 +184,8 @@ Primary source artifacts:
 #### Task 5: Verification checklist, observability, and implementation handoff
 - **Objective:** Finalize MVP verification protocol and ensure operational signals are visible for sync errors.
 - **Impacted Modules/Files:**
-  - `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/AGENTS.md` (implementation checklist updates during execution)
-  - `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/plan/2026-04-23_google-calendar-integration-implementation-plan.md` (manual QA checklist maintenance)
+  - `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/AGENTS.md` (implementation checklist updates during execution)
+  - `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/plan/2026-04-23_google-calendar-integration-implementation-plan.md` (manual QA checklist maintenance)
   - `apps/medusa/src/api/middlewares.ts` (if needed for error capture consistency)
   - `apps/medusa/instrumentation.ts` (if needed for structured telemetry tags)
 - **References:**
@@ -228,14 +228,14 @@ Primary source artifacts:
 ---
 
 ## Progress Tracking
-Refer to `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/AGENTS.md` for implementation tracking updates.
+Refer to `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/AGENTS.md` for implementation tracking updates.
 
 ---
 
 ## Appendices & References
-- Task hub: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/AGENTS.md`
-- Clarification packet: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
-- Research packet: `.devagent/workspace/tasks/active/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`
+- Task hub: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/AGENTS.md`
+- Clarification packet: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/clarification/2026-04-23_initial-clarification.md`
+- Research packet: `.devagent/workspace/tasks/completed/2026-04-23_admin-google-calendar-integration/research/2026-04-23_google-calendar-integration-mvp.md`
 - Product mission: `.devagent/workspace/product/mission.md`
 - Constitution: `.devagent/workspace/memory/constitution.md`
 - Implementation standards: `.cursor/rules/medusa-development.mdc`, `.cursor/rules/typescript-patterns.mdc`, `.cursor/rules/testing-patterns-unit.mdc`, `.cursor/rules/testing-patterns-integration.mdc`, `.cursor/rules/testing-patterns-e2e.mdc`
