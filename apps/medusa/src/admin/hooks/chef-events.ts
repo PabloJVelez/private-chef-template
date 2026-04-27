@@ -129,6 +129,40 @@ export const useAdminSendReceiptMutation = () => {
   })
 }
 
+export const useAdminDeriveChefEventMenuMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (chefEventId: string) => {
+      return await sdk.admin.chefEvents.deriveMenu(chefEventId)
+    },
+    onSuccess: (_data, chefEventId) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, chefEventId] })
+      queryClient.invalidateQueries({ queryKey: ["menus"] })
+    },
+  })
+}
+
+export const useAdminRevertChefEventMenuMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      chefEventId,
+      deleteDerivedMenu = false,
+    }: {
+      chefEventId: string
+      deleteDerivedMenu?: boolean
+    }) => {
+      return await sdk.admin.chefEvents.revertMenu(chefEventId, { deleteDerivedMenu })
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, variables.chefEventId] })
+      queryClient.invalidateQueries({ queryKey: ["menus"] })
+    },
+  })
+}
+
 export const useAdminGetMenuProducts = () => {
   return useQuery({
     queryKey: [...QUERY_KEY, 'menu-products'],

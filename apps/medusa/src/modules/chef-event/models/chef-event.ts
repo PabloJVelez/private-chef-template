@@ -18,6 +18,8 @@ export const ChefEvent = model.define("chef_event", {
   eventType: model.text(),
   experience_type_id: model.text().nullable(),
   templateProductId: model.text(),
+  /** Event-owned editable menu created from templateProductId. */
+  eventMenuId: model.text().nullable(),
   
   // Location details
   locationType: model.enum([
@@ -72,6 +74,7 @@ export type ChefEventType = {
   partySize: number
   eventType: string
   experience_type_id?: string | null
+  eventMenuId?: string | null
   locationType: 'customer_location' | 'chef_location'
   locationAddress?: string
   firstName: string

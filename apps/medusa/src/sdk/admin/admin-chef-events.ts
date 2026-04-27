@@ -10,6 +10,7 @@ export interface AdminChefEventDTO {
   eventType: string
   experience_type_id?: string | null
   templateProductId?: string
+  eventMenuId?: string | null
   locationType: 'customer_location' | 'chef_location'
   locationAddress: string
   firstName: string
@@ -260,6 +261,32 @@ export class AdminChefEventsResource {
       }
     )
     return response
+  }
+
+  /**
+   * Create or retrieve an event-specific menu derived from template.
+   */
+  async deriveMenu(id: string) {
+    return this.client.fetch<{ chefEvent: AdminChefEventDTO; menu: any; created: boolean }>(
+      `/admin/chef-events/${id}/derive-menu`,
+      {
+        method: "POST",
+      }
+    )
+  }
+
+  /**
+   * Revert event to initially selected menu and optionally delete derived menu.
+   */
+  async revertMenu(id: string, data?: { deleteDerivedMenu?: boolean }) {
+    return this.client.fetch<{
+      chefEvent: AdminChefEventDTO
+      deletedDerivedMenu: boolean
+      derivedMenuId: string
+    }>(`/admin/chef-events/${id}/revert-menu`, {
+      method: "POST",
+      body: data,
+    })
   }
 
   /**

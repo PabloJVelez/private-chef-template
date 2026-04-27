@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import type { ReactNode } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
@@ -20,16 +20,10 @@ import {
   getDefaultChefEventValues,
   validateStatusTransition
 } from "../schemas"
-import { useAdminListMenus } from "../../../hooks/menus"
+import { useAdminListMenus, useAdminRetrieveMenu } from "../../../hooks/menus"
 import { useAdminListExperienceTypes } from "../../../hooks/experience-types"
 import type { AdminCreateChefEventDTO, AdminUpdateChefEventDTO } from "../../../../sdk/admin/admin-chef-events"
 import { formDateAndTimeFromRequestedInstant } from "../../../../lib/chef-event-datetime-display"
-
-// Helper function to render error messages
-const ErrorMessage = ({ error }: { error: any }) => {
-  if (!error) return null
-  return <p className="text-red-500 text-sm mt-1">{String(error.message || error)}</p>
-}
 
 // Normalize API payloads (camelCase vs snake_case) for react-hook-form
 const transformDataForForm = (data: any) => {
@@ -48,6 +42,7 @@ const transformDataForForm = (data: any) => {
     requestedTime: requestedTime || data.requestedTime || "",
     eventType,
     experience_type_id,
+    eventMenuId: data.eventMenuId ?? data.event_menu_id ?? null,
     partySize: Number(data.partySize) || 1,
     estimatedDuration: Number(data.estimatedDuration) || 120,
     totalPrice: Number(data.totalPrice) || 0,
@@ -69,16 +64,22 @@ interface ChefEventFormProps {
   onSubmit: (data: AdminCreateChefEventDTO | AdminUpdateChefEventDTO) => Promise<void>
   isLoading?: boolean
   onCancel?: () => void
+  detailsTabExtra?: ReactNode
+  menuTabExtra?: ReactNode
 }
 
 export const ChefEventForm = ({ 
   initialData, 
   onSubmit, 
   isLoading = false, 
-  onCancel 
+  onCancel,
+  detailsTabExtra,
+  menuTabExtra,
 }: ChefEventFormProps) => {
-  const [activeTab, setActiveTab] = useState("general")
   const isEditing = !!initialData
+  const formDefaultValues = isEditing
+    ? transformDataForForm(initialData) ?? getDefaultChefEventValues()
+    : getDefaultChefEventValues()
   
   const { data: menusData, isLoading: menusLoading, error: menusError } = useAdminListMenus({ limit: 100 })
   const menus = menusData?.menus || []
@@ -92,39 +93,34 @@ export const ChefEventForm = ({
     watch,
     setValue,
     reset,
-    formState: { errors }
+    formState: { errors, isDirty }
   } = useForm({
     resolver: zodResolver(isEditing ? chefEventUpdateSchema : chefEventSchema),
-    defaultValues: getDefaultChefEventValues()
+    defaultValues: formDefaultValues,
   })
-
-  // Reset form when initialData changes
-  useEffect(() => {
-    if (initialData) {
-      const formData = transformDataForForm(initialData)
-      reset(formData)
-    }
-  }, [initialData, reset])
 
   const watchedStatus = watch("status")
   const currentStatus = initialData?.status
+  const derivedEventMenuId = (
+    initialData?.eventMenuId ??
+    initialData?.event_menu_id ??
+    ""
+  ) as string
+  const hasDerivedEventMenu = Boolean(derivedEventMenuId)
+  const { data: derivedEventMenu } = useAdminRetrieveMenu(derivedEventMenuId, {
+    enabled: !!derivedEventMenuId,
+  })
 
   const eventTypeWatched = watch("eventType")
   const experienceTypeIdWatched = watch("experience_type_id") || ""
 
-  const experienceSelectValue = useMemo(() => {
-    if (
-      experienceTypeIdWatched &&
-      catalogExperiences.some((e) => e.id === experienceTypeIdWatched)
-    ) {
-      return `et:${experienceTypeIdWatched}`
-    }
-    const wf = eventTypeWatched || "plated_dinner"
-    if (eventTypeOptions.some((o) => o.value === wf)) {
-      return `wf:${wf}`
-    }
-    return `wf:plated_dinner`
-  }, [experienceTypeIdWatched, eventTypeWatched, catalogExperiences])
+  const experienceSelectValue =
+    experienceTypeIdWatched &&
+    catalogExperiences.some((e) => e.id === experienceTypeIdWatched)
+      ? `et:${experienceTypeIdWatched}`
+      : eventTypeOptions.some((o) => o.value === (eventTypeWatched || "plated_dinner"))
+        ? `wf:${eventTypeWatched || "plated_dinner"}`
+        : `wf:plated_dinner`
 
   const handleExperienceSelect = (v: string) => {
     if (v.startsWith("et:")) {
@@ -180,14 +176,25 @@ export const ChefEventForm = ({
     return statusOptions.filter(option => allowedStatuses.includes(option.value))
   }
 
+  const handleCancelClick = () => {
+    if (isEditing) {
+      reset(formDefaultValues)
+      return
+    }
+    onCancel?.()
+  }
+
+  const showFormActions = !isEditing || isDirty || isLoading
+
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="general">
         <Tabs.List className="border-b">
           <Tabs.Trigger value="general">General Info</Tabs.Trigger>
           <Tabs.Trigger value="contact">Contact</Tabs.Trigger>
           <Tabs.Trigger value="location">Location</Tabs.Trigger>
           <Tabs.Trigger value="details">Details</Tabs.Trigger>
+          {menuTabExtra ? <Tabs.Trigger value="menu">Selected Menu</Tabs.Trigger> : null}
         </Tabs.List>
 
         {/* General Info Tab */}
@@ -228,7 +235,7 @@ export const ChefEventForm = ({
                 {...register("partySize", { valueAsNumber: true })}
               />
               {errors.partySize && (
-                <p className="text-red-500 text-sm mt-1">{errors.partySize.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.partySize.message)}</p>
               )}
             </div>
             <div>
@@ -257,17 +264,18 @@ export const ChefEventForm = ({
                 </Select.Content>
               </Select>
               {errors.eventType && (
-                <p className="text-red-500 text-sm mt-1">{errors.eventType.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.eventType.message)}</p>
               )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="templateProductId">Menu Template</Label>
+              <Label htmlFor="templateProductId">Initially Selected Menu</Label>
               <Select
                 value={watch("templateProductId") || undefined}
                 onValueChange={(value) => setValue("templateProductId", value === "none" ? "" : value)}
+                disabled={hasDerivedEventMenu}
               >
                 <Select.Trigger>
                   <Select.Value placeholder={menusLoading ? "Loading menus..." : "Select menu template"} />
@@ -289,6 +297,16 @@ export const ChefEventForm = ({
                   )}
                 </Select.Content>
               </Select>
+              {hasDerivedEventMenu && (
+                <div className="mt-1 space-y-1">
+                  <p className="text-xs text-gray-500">
+                    Initial menu is locked after an event menu is derived.
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Derived menu: {derivedEventMenu?.name || "Loading..."}
+                  </p>
+                </div>
+              )}
             </div>
             <div>
               <Label htmlFor="estimatedDuration">Duration (minutes)</Label>
@@ -299,7 +317,7 @@ export const ChefEventForm = ({
                 {...register("estimatedDuration", { valueAsNumber: true })}
               />
               {errors.estimatedDuration && (
-                <p className="text-red-500 text-sm mt-1">{errors.estimatedDuration.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.estimatedDuration.message)}</p>
               )}
             </div>
           </div>
@@ -315,7 +333,7 @@ export const ChefEventForm = ({
                 {...register("firstName")}
               />
               {errors.firstName && (
-                <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.firstName.message)}</p>
               )}
             </div>
             <div>
@@ -325,7 +343,7 @@ export const ChefEventForm = ({
                 {...register("lastName")}
               />
               {errors.lastName && (
-                <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.lastName.message)}</p>
               )}
             </div>
           </div>
@@ -339,7 +357,7 @@ export const ChefEventForm = ({
                 {...register("email")}
               />
               {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.email.message)}</p>
               )}
             </div>
             <div>
@@ -350,7 +368,7 @@ export const ChefEventForm = ({
                 {...register("phone")}
               />
               {errors.phone && (
-                <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.phone.message)}</p>
               )}
             </div>
           </div>
@@ -376,7 +394,7 @@ export const ChefEventForm = ({
               </Select.Content>
             </Select>
             {errors.locationType && (
-              <p className="text-red-500 text-sm mt-1">{errors.locationType.message}</p>
+              <p className="text-red-500 text-sm mt-1">{String(errors.locationType.message)}</p>
             )}
           </div>
 
@@ -388,7 +406,7 @@ export const ChefEventForm = ({
               rows={3}
             />
             {errors.locationAddress && (
-              <p className="text-red-500 text-sm mt-1">{errors.locationAddress.message}</p>
+              <p className="text-red-500 text-sm mt-1">{String(errors.locationAddress.message)}</p>
             )}
           </div>
         </Tabs.Content>
@@ -403,7 +421,7 @@ export const ChefEventForm = ({
               rows={3}
             />
             {errors.notes && (
-              <p className="text-red-500 text-sm mt-1">{errors.notes.message}</p>
+              <p className="text-red-500 text-sm mt-1">{String(errors.notes.message)}</p>
             )}
           </div>
 
@@ -415,7 +433,7 @@ export const ChefEventForm = ({
               rows={3}
             />
             {errors.specialRequirements && (
-              <p className="text-red-500 text-sm mt-1">{errors.specialRequirements.message}</p>
+              <p className="text-red-500 text-sm mt-1">{String(errors.specialRequirements.message)}</p>
             )}
           </div>
 
@@ -430,7 +448,7 @@ export const ChefEventForm = ({
                 {...register("totalPrice", { valueAsNumber: true })}
               />
               {errors.totalPrice && (
-                <p className="text-red-500 text-sm mt-1">{errors.totalPrice.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.totalPrice.message)}</p>
               )}
             </div>
             <div className="flex items-center space-x-2">
@@ -462,33 +480,47 @@ export const ChefEventForm = ({
                 </Select.Content>
               </Select>
               {errors.status && (
-                <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>
+                <p className="text-red-500 text-sm mt-1">{String(errors.status.message)}</p>
               )}
             </div>
           )}
+
+          {detailsTabExtra ? (
+            <div className="pt-4 border-t">
+              {detailsTabExtra}
+            </div>
+          ) : null}
         </Tabs.Content>
+
+        {menuTabExtra ? (
+          <Tabs.Content value="menu" className="space-y-4 pt-6">
+            {menuTabExtra}
+          </Tabs.Content>
+        ) : null}
       </Tabs>
 
       {/* Form Actions */}
-      <div className="flex justify-end space-x-2 pt-6 border-t">
-        {onCancel && (
+      {showFormActions ? (
+        <div className="flex justify-end space-x-2 pt-6 border-t">
+          {onCancel && (
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={handleCancelClick}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+          )}
           <Button 
-            type="button" 
-            variant="secondary" 
-            onClick={onCancel}
+            type="submit" 
+            isLoading={isLoading}
             disabled={isLoading}
           >
-            Cancel
+            {isEditing ? "Update Event" : "Create Event"}
           </Button>
-        )}
-        <Button 
-          type="submit" 
-          isLoading={isLoading}
-          disabled={isLoading}
-        >
-          {isEditing ? "Update Event" : "Create Event"}
-        </Button>
-      </div>
+        </div>
+      ) : null}
     </form>
   )
 } 

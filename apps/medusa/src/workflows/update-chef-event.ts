@@ -4,6 +4,7 @@ import {
   StepResponse,
   WorkflowResponse
 } from "@medusajs/workflows-sdk"
+import { MedusaError } from "@medusajs/framework/utils"
 import { emitEventStep } from "@medusajs/medusa/core-flows"
 import { CHEF_EVENT_MODULE } from "../modules/chef-event"
 import {
@@ -40,10 +41,23 @@ const updateChefEventStep = createStep(
 
     const existing = await chefEventModuleService.retrieveChefEvent(input.id)
     if (!existing) {
-      throw new Error(`Chef event with id ${input.id} not found`)
+      throw new MedusaError(
+        MedusaError.Types.NOT_FOUND,
+        `Chef event with id ${input.id} not found`
+      )
     }
 
     const updateData: any = { ...input }
+    if (
+      existing.eventMenuId &&
+      typeof input.templateProductId === "string" &&
+      input.templateProductId !== existing.templateProductId
+    ) {
+      throw new MedusaError(
+        MedusaError.Types.NOT_ALLOWED,
+        "Template menu cannot be changed after deriving an event menu"
+      )
+    }
     if (input.requestedDate) {
       const raw = String(input.requestedDate)
       const datePart = raw.includes("T") ? raw.split("T")[0]! : raw.slice(0, 10)

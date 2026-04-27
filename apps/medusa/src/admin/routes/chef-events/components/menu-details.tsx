@@ -1,21 +1,38 @@
-import { Badge, Button, Container } from '@medusajs/ui';
+import { Button, Container } from '@medusajs/ui';
 import { Link } from 'react-router-dom';
 import { useAdminRetrieveMenu } from '../../../hooks/menus';
 
 interface MenuDetailsProps {
   templateProductId?: string;
+  eventMenuId?: string | null;
+  onCustomizeForEvent?: () => void;
+  onRevertToInitialMenu?: () => void;
+  isCustomizingForEvent?: boolean;
+  isRevertingToInitialMenu?: boolean;
 }
 
-export const MenuDetails = ({ templateProductId }: MenuDetailsProps) => {
-  const { data: menu, isLoading } = useAdminRetrieveMenu(templateProductId || '', {
+export const MenuDetails = ({
+  templateProductId,
+  eventMenuId,
+  onCustomizeForEvent,
+  onRevertToInitialMenu,
+  isCustomizingForEvent = false,
+  isRevertingToInitialMenu = false,
+}: MenuDetailsProps) => {
+  const selectedMenuId = eventMenuId || templateProductId || '';
+
+  const { data: selectedMenu, isLoading } = useAdminRetrieveMenu(selectedMenuId, {
+    enabled: !!selectedMenuId,
+  });
+  const { data: initialMenu } = useAdminRetrieveMenu(templateProductId || '', {
     enabled: !!templateProductId,
   });
 
-  if (!templateProductId) {
+  if (!selectedMenuId) {
     return (
       <Container className="border rounded-lg p-4">
-        <h3 className="text-lg font-semibold mb-4">Menu Template</h3>
-        <p className="text-gray-500">No menu template selected</p>
+        <h3 className="text-lg font-semibold mb-4">Selected Menu</h3>
+        <p className="text-gray-500">No menu selected for this event</p>
       </Container>
     );
   }
@@ -23,17 +40,17 @@ export const MenuDetails = ({ templateProductId }: MenuDetailsProps) => {
   if (isLoading) {
     return (
       <Container className="border rounded-lg p-4">
-        <h3 className="text-lg font-semibold mb-4">Menu Template</h3>
+        <h3 className="text-lg font-semibold mb-4">Selected Menu</h3>
         <p>Loading menu details...</p>
       </Container>
     );
   }
 
-  if (!menu) {
+  if (!selectedMenu) {
     return (
       <Container className="border rounded-lg p-4">
-        <h3 className="text-lg font-semibold mb-4">Menu Template</h3>
-        <p className="text-red-500">Menu template not found</p>
+        <h3 className="text-lg font-semibold mb-4">Selected Menu</h3>
+        <p className="text-red-500">Selected menu not found</p>
       </Container>
     );
   }
@@ -41,38 +58,67 @@ export const MenuDetails = ({ templateProductId }: MenuDetailsProps) => {
   return (
     <Container className="border rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Menu Template</h3>
-        <Button asChild variant="secondary" size="small">
-          <Link to={`/menus/${menu.id}`}>View Menu</Link>
-        </Button>
+        <h3 className="text-lg font-semibold">Selected Menu</h3>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="secondary" size="small">
+            <Link to={`/menus/${selectedMenu.id}`}>View Menu</Link>
+          </Button>
+          {eventMenuId ? (
+            <>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={onRevertToInitialMenu}
+                isLoading={isRevertingToInitialMenu}
+                disabled={!onRevertToInitialMenu || isRevertingToInitialMenu}
+              >
+                Revert to Initial Menu
+              </Button>
+              <Button asChild variant="primary" size="small">
+                <Link to={`/menus/${eventMenuId}`}>Edit Event Menu</Link>
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="primary"
+              size="small"
+              onClick={onCustomizeForEvent}
+              isLoading={isCustomizingForEvent}
+              disabled={!templateProductId || !onCustomizeForEvent || isCustomizingForEvent}
+            >
+              Create custom menu
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">
         <div>
-          <h4 className="font-medium">{menu.name}</h4>
-          {(menu as any).description && <p className="text-sm text-gray-600 mt-1">{(menu as any).description}</p>}
+          <h4 className="font-medium">{selectedMenu.name}</h4>
+          {(selectedMenu as any).description && (
+            <p className="text-sm text-gray-600 mt-1">{(selectedMenu as any).description}</p>
+          )}
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Badge>{(menu as any).status || 'Active'}</Badge>
-          {(menu as any).cuisine && <Badge>{(menu as any).cuisine}</Badge>}
-        </div>
-
-        {(menu as any).courses && (menu as any).courses.length > 0 && (
+        {(selectedMenu as any).courses && (selectedMenu as any).courses.length > 0 && (
           <div>
-            <h5 className="font-medium text-sm">Courses ({(menu as any).courses.length})</h5>
+            <h5 className="font-medium text-sm">Courses ({(selectedMenu as any).courses.length})</h5>
             <ul className="mt-1 text-sm text-gray-600">
-              {(menu as any).courses.slice(0, 3).map((course: any) => (
+              {(selectedMenu as any).courses.slice(0, 3).map((course: any) => (
                 <li key={course.id} className="truncate">
                   • {course.name}
                 </li>
               ))}
-              {(menu as any).courses.length > 3 && (
-                <li className="text-gray-400">... and {(menu as any).courses.length - 3} more</li>
+              {(selectedMenu as any).courses.length > 3 && (
+                <li className="text-gray-400">... and {(selectedMenu as any).courses.length - 3} more</li>
               )}
             </ul>
           </div>
         )}
+        {eventMenuId && templateProductId && initialMenu && initialMenu.id !== selectedMenu.id ? (
+          <p className="text-sm text-gray-600">Initially selected menu: {initialMenu.name}</p>
+        ) : null}
+        {eventMenuId ? <p className="text-sm text-gray-600">Event menu: {selectedMenu.name}</p> : null}
       </div>
     </Container>
   );

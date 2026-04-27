@@ -1,4 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "zod"
 import { updateChefEventWorkflow } from "../../../../workflows/update-chef-event"
 import { deleteChefEventWorkflow } from "../../../../workflows/delete-chef-event"
@@ -47,15 +48,27 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { id } = req.params
   const validatedBody = updateChefEventSchema.parse(req.body)
-  
-  const { result } = await updateChefEventWorkflow(req.scope).run({
-    input: {
-      id,
-      ...validatedBody
+
+  try {
+    const { result } = await updateChefEventWorkflow(req.scope).run({
+      input: {
+        id,
+        ...validatedBody
+      }
+    })
+
+    res.json({ chefEvent: result.chefEvent })
+  } catch (error) {
+    if (
+      error instanceof MedusaError &&
+      error.type === MedusaError.Types.NOT_ALLOWED
+    ) {
+      res.status(400).json({ message: error.message })
+      return
     }
-  })
-  
-  res.json({ chefEvent: result.chefEvent })
+
+    throw error
+  }
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
