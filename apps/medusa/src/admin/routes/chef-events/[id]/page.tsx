@@ -1,6 +1,6 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Container, Heading, toast, Button, FocusModal, Textarea, Label, Checkbox, Input, Text } from "@medusajs/ui"
-import { useParams, type UIMatch } from "react-router-dom"
+import { useNavigate, useParams, type UIMatch } from "react-router-dom"
 import { useState } from "react"
 import { DateTime } from "luxon"
 import { requestedStartInEventZone } from "../../../../lib/chef-event-datetime-display"
@@ -13,6 +13,8 @@ import {
   useAdminAcceptChefEventMutation,
   useAdminRejectChefEventMutation,
   useAdminSendReceiptMutation,
+  useAdminDeriveChefEventMenuMutation,
+  useAdminRevertChefEventMenuMutation,
 } from "../../../hooks/chef-events"
 import type { AdminChefEventDTO } from "../../../../sdk/admin/admin-chef-events"
 
@@ -32,12 +34,15 @@ const ChefEventDetailBreadcrumb = (props: UIMatch<unknown>) => {
 }
 
 const ChefEventDetailPage = () => {
+  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { data: chefEvent, isLoading } = useAdminRetrieveChefEvent(id!)
   const updateChefEvent = useAdminUpdateChefEventMutation(id!)
   const acceptChefEvent = useAdminAcceptChefEventMutation()
   const rejectChefEvent = useAdminRejectChefEventMutation()
   const sendReceipt = useAdminSendReceiptMutation()
+  const deriveChefEventMenu = useAdminDeriveChefEventMenuMutation()
+  const revertChefEventMenu = useAdminRevertChefEventMenuMutation()
   
   const [showAcceptModal, setShowAcceptModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
@@ -50,6 +55,8 @@ const ChefEventDetailPage = () => {
   const [receiptTipMethodOther, setReceiptTipMethodOther] = useState("")
   const [receiptNotes, setReceiptNotes] = useState("")
   const [receiptDuplicateConfirmed, setReceiptDuplicateConfirmed] = useState(false)
+  const [showRevertMenuModal, setShowRevertMenuModal] = useState(false)
+  const [deleteDerivedMenuOnRevert, setDeleteDerivedMenuOnRevert] = useState(false)
 
   const handleUpdateChefEvent = async (data: any) => {
     try {
@@ -120,6 +127,53 @@ const ChefEventDetailPage = () => {
       console.error("Error rejecting chef event:", error)
       toast.error("Rejection Failed", {
         description: "There was an error rejecting the chef event. Please try again.",
+        duration: 5000,
+      })
+    }
+  }
+
+  const handleCustomizeEventMenu = async () => {
+    try {
+      const result = await deriveChefEventMenu.mutateAsync(id!)
+      toast.success(
+        result.created ? "Event Menu Created" : "Event Menu Loaded",
+        {
+          description: result.created
+            ? "A draft menu was created from the template for this event."
+            : "Using the existing event menu draft.",
+          duration: 3000,
+        }
+      )
+      if (result.menu?.id) {
+        navigate(`/menus/${result.menu.id}`)
+      }
+    } catch (error) {
+      console.error("Error deriving event menu:", error)
+      toast.error("Menu Derivation Failed", {
+        description: "There was an error preparing the event menu. Please try again.",
+        duration: 5000,
+      })
+    }
+  }
+
+  const handleRevertEventMenu = async () => {
+    try {
+      const result = await revertChefEventMenu.mutateAsync({
+        chefEventId: id!,
+        deleteDerivedMenu: deleteDerivedMenuOnRevert,
+      })
+      toast.success("Event Menu Reverted", {
+        description: result.deletedDerivedMenu
+          ? "Reverted to the initial menu and deleted the derived menu."
+          : "Reverted to the initial menu. Derived menu was kept.",
+        duration: 3000,
+      })
+      setShowRevertMenuModal(false)
+      setDeleteDerivedMenuOnRevert(false)
+    } catch (error) {
+      console.error("Error reverting event menu:", error)
+      toast.error("Revert Failed", {
+        description: "There was an error reverting the menu. Please try again.",
         duration: 5000,
       })
     }
@@ -278,28 +332,35 @@ const ChefEventDetailPage = () => {
       
       <div className="p-6 space-y-6">
         <ChefEventForm 
+          key={`${chefEvent.id}-${(chefEvent as any).updatedAt ?? (chefEvent as any).updated_at ?? ""}-${(chefEvent as any).eventMenuId ?? ""}`}
           initialData={chefEvent}
           onSubmit={handleUpdateChefEvent}
           isLoading={updateChefEvent.isPending}
           onCancel={() => window.history.back()}
+          detailsTabExtra={
+            isConfirmed ? (
+              <EmailManagementSection 
+                chefEvent={chefEvent}
+                onEmailSent={() => {
+                  toast.success("Email Sent", {
+                    description: `Event details sent successfully`,
+                    duration: 3000,
+                  })
+                }}
+              />
+            ) : null
+          }
+          menuTabExtra={
+            <MenuDetails
+              templateProductId={(chefEvent as any).templateProductId}
+              eventMenuId={(chefEvent as any).eventMenuId}
+              onCustomizeForEvent={handleCustomizeEventMenu}
+              onRevertToInitialMenu={() => setShowRevertMenuModal(true)}
+              isCustomizingForEvent={deriveChefEventMenu.isPending}
+              isRevertingToInitialMenu={revertChefEventMenu.isPending}
+            />
+          }
         />
-        
-        {/* Email Management Section for confirmed events */}
-        {isConfirmed && (
-          <EmailManagementSection 
-            chefEvent={chefEvent}
-            onEmailSent={(emailData) => {
-              // Refresh event data to show updated email history
-              // refetch() - will be available once we update the hooks
-              toast.success("Email Sent", {
-                description: `Event details sent successfully`,
-                duration: 3000,
-              })
-            }}
-          />
-        )}
-        
-        <MenuDetails templateProductId={(chefEvent as any).templateProductId} />
       </div>
 
       {/* Accept Event Modal */}
@@ -501,6 +562,60 @@ const ChefEventDetailPage = () => {
                     disabled={rejectChefEvent.isPending}
                   >
                     {rejectChefEvent.isPending ? "Rejecting..." : "Reject Event"}
+                  </Button>
+                </div>
+              </div>
+            </FocusModal.Body>
+          </FocusModal.Content>
+        </FocusModal>
+      )}
+
+      {/* Revert menu modal */}
+      {showRevertMenuModal && (
+        <FocusModal
+          open
+          onOpenChange={(open) => {
+            setShowRevertMenuModal(open)
+            if (!open) {
+              setDeleteDerivedMenuOnRevert(false)
+            }
+          }}
+        >
+          <FocusModal.Content>
+            <FocusModal.Header>
+              <FocusModal.Title>Revert to initially selected menu</FocusModal.Title>
+            </FocusModal.Header>
+            <FocusModal.Body>
+              <div className="space-y-4">
+                <p>
+                  This will make the initially selected menu the active selected menu for this event again.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="delete-derived-menu-on-revert"
+                    checked={deleteDerivedMenuOnRevert}
+                    onCheckedChange={(v) => setDeleteDerivedMenuOnRevert(v === true)}
+                  />
+                  <Label htmlFor="delete-derived-menu-on-revert">
+                    Also delete the derived event menu
+                  </Label>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setShowRevertMenuModal(false)
+                      setDeleteDerivedMenuOnRevert(false)
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleRevertEventMenu}
+                    disabled={revertChefEventMenu.isPending}
+                  >
+                    {revertChefEventMenu.isPending ? "Reverting..." : "Revert Menu"}
                   </Button>
                 </div>
               </div>

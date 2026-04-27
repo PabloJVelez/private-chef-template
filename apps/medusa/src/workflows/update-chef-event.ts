@@ -20,6 +20,7 @@ type UpdateChefEventWorkflowInput = {
   eventType?: string
   experience_type_id?: string | null
   templateProductId?: string
+  eventMenuId?: string | null
   locationType?: 'customer_location' | 'chef_location'
   locationAddress?: string
   firstName?: string
@@ -44,6 +45,15 @@ const updateChefEventStep = createStep(
     }
 
     const updateData: any = { ...input }
+    if (
+      existing.eventMenuId &&
+      typeof input.templateProductId === "string" &&
+      input.templateProductId !== existing.templateProductId
+    ) {
+      throw new Error(
+        "Template menu cannot be changed after deriving an event menu"
+      )
+    }
     if (input.requestedDate) {
       const raw = String(input.requestedDate)
       const datePart = raw.includes("T") ? raw.split("T")[0]! : raw.slice(0, 10)

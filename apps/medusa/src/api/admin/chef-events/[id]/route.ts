@@ -47,15 +47,27 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { id } = req.params
   const validatedBody = updateChefEventSchema.parse(req.body)
-  
-  const { result } = await updateChefEventWorkflow(req.scope).run({
-    input: {
-      id,
-      ...validatedBody
+
+  try {
+    const { result } = await updateChefEventWorkflow(req.scope).run({
+      input: {
+        id,
+        ...validatedBody
+      }
+    })
+
+    res.json({ chefEvent: result.chefEvent })
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Template menu cannot be changed after deriving an event menu")
+    ) {
+      res.status(400).json({ message: error.message })
+      return
     }
-  })
-  
-  res.json({ chefEvent: result.chefEvent })
+
+    throw error
+  }
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {

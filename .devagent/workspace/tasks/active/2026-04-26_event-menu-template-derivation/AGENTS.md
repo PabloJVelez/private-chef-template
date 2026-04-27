@@ -25,15 +25,16 @@ This task implements a new event-specific menu editing flow so chef events can s
 - [2026-04-26] Event: Completed research workflow and produced implementation-design packet at `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/research/2026-04-26_event-menu-template-derivation-research.md`.
 - [2026-04-26] Event: Completed clarification workflow and finalized requirements packet at `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/clarification/2026-04-26_initial-clarification.md`; marked ready for `devagent create-plan`.
 - [2026-04-26] Event: Completed create-plan workflow and generated implementation plan at `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/plan/2026-04-26_event-menu-template-derivation-implementation-plan.md`.
+- [2026-04-26] Event: Implemented event-menu derivation flow (model field + migration, derive workflow/API, admin SDK/hooks/UI wiring, template lock enforcement) across `apps/medusa/src/modules/chef-event/**`, `apps/medusa/src/workflows/**`, `apps/medusa/src/api/admin/chef-events/**`, `apps/medusa/src/admin/routes/chef-events/**`, and `apps/medusa/src/sdk/admin/admin-chef-events.ts`; validation run: `yarn typecheck` (apps/medusa) passed, root `yarn lint` reported no lint tasks configured.
 (Append new entries here, preserving historical entries to maintain a progress timeline.)
 
 ## Implementation Checklist
-- [ ] Build event-level menu edit flow that creates a draft derivative rather than mutating template menus.
-- [ ] Ensure template menu edits remain restricted to admin menus page editing flow.
-- [ ] Validate publish/draft behavior after menu derivation to avoid unintended storefront publication.
+- [x] Build event-level menu edit flow that creates a draft derivative rather than mutating template menus.
+- [x] Ensure template menu edits remain restricted to admin menus page editing flow.
+- [~] Validate publish/draft behavior after menu derivation to avoid unintended storefront publication. (Behavior enforced by existing draft-default lifecycle and derivation flow; dedicated automated regression tests are still pending.)
 
 ## Open Questions
-- Question: Confirm whether auto-publish behavior should be fully removed for event-derived menus or only gated by status defaults.
+- Question: Add dedicated automated regression coverage for derivation idempotency + draft visibility before final sign-off.
 
 ## References
 - Product mission: `.devagent/workspace/product/mission.md` (freshness: 2026-04-26) — Defines this repo as a reusable private-chef template where client-specific customizations are expected.
