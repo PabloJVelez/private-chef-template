@@ -27,9 +27,6 @@ export const MenuDetails = ({
   const { data: initialMenu } = useAdminRetrieveMenu(templateProductId || '', {
     enabled: !!templateProductId,
   });
-  const { data: eventMenu, isLoading: eventMenuLoading } = useAdminRetrieveMenu(eventMenuId || '', {
-    enabled: !!eventMenuId,
-  });
 
   if (!selectedMenuId) {
     return (
@@ -89,7 +86,7 @@ export const MenuDetails = ({
               isLoading={isCustomizingForEvent}
               disabled={!templateProductId || !onCustomizeForEvent || isCustomizingForEvent}
             >
-              Create Customized Menu
+              Create custom menu
             </Button>
           )}
         </div>
@@ -118,13 +115,10 @@ export const MenuDetails = ({
             </ul>
           </div>
         )}
-        {templateProductId && initialMenu ? (
+        {eventMenuId && templateProductId && initialMenu && initialMenu.id !== selectedMenu.id ? (
           <p className="text-sm text-gray-600">Initially selected menu: {initialMenu.name}</p>
         ) : null}
-        {eventMenuId && eventMenuLoading ? (
-          <p className="text-sm text-gray-500">Loading event menu details...</p>
-        ) : null}
-        {eventMenuId && eventMenu ? <p className="text-sm text-gray-600">Event menu: {eventMenu.name}</p> : null}
+        {eventMenuId ? <p className="text-sm text-gray-600">Event menu: {selectedMenu.name}</p> : null}
       </div>
     </Container>
   );

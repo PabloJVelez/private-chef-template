@@ -1,4 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "zod"
 import { updateChefEventWorkflow } from "../../../../workflows/update-chef-event"
 import { deleteChefEventWorkflow } from "../../../../workflows/delete-chef-event"
@@ -59,8 +60,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     res.json({ chefEvent: result.chefEvent })
   } catch (error) {
     if (
-      error instanceof Error &&
-      error.message.includes("Template menu cannot be changed after deriving an event menu")
+      error instanceof MedusaError &&
+      error.type === MedusaError.Types.NOT_ALLOWED
     ) {
       res.status(400).json({ message: error.message })
       return

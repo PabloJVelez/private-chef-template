@@ -136,11 +136,11 @@ const ChefEventDetailPage = () => {
     try {
       const result = await deriveChefEventMenu.mutateAsync(id!)
       toast.success(
-        result.created ? "Event Menu Created" : "Event Menu Loaded",
+        result.created ? "Event Menu Created" : "Opening existing event menu",
         {
           description: result.created
             ? "A draft menu was created from the template for this event."
-            : "Using the existing event menu draft.",
+            : "This event already has a custom menu draft.",
           duration: 3000,
         }
       )
@@ -293,7 +293,7 @@ const ChefEventDetailPage = () => {
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
         <Heading level="h1">
-          Edit Chef Event - {(chefEvent as any).firstName} {(chefEvent as any).lastName}
+          Edit Chef Event - {chefEvent.firstName} {chefEvent.lastName}
         </Heading>
         
         {isPending && (
@@ -332,11 +332,10 @@ const ChefEventDetailPage = () => {
       
       <div className="p-6 space-y-6">
         <ChefEventForm 
-          key={`${chefEvent.id}-${(chefEvent as any).updatedAt ?? (chefEvent as any).updated_at ?? ""}-${(chefEvent as any).eventMenuId ?? ""}`}
+          key={`${chefEvent.id}-${chefEvent.updatedAt}-${chefEvent.eventMenuId ?? ""}`}
           initialData={chefEvent}
           onSubmit={handleUpdateChefEvent}
           isLoading={updateChefEvent.isPending}
-          onCancel={() => window.history.back()}
           detailsTabExtra={
             isConfirmed ? (
               <EmailManagementSection 
@@ -352,8 +351,8 @@ const ChefEventDetailPage = () => {
           }
           menuTabExtra={
             <MenuDetails
-              templateProductId={(chefEvent as any).templateProductId}
-              eventMenuId={(chefEvent as any).eventMenuId}
+              templateProductId={chefEvent.templateProductId}
+              eventMenuId={chefEvent.eventMenuId}
               onCustomizeForEvent={handleCustomizeEventMenu}
               onRevertToInitialMenu={() => setShowRevertMenuModal(true)}
               isCustomizingForEvent={deriveChefEventMenu.isPending}

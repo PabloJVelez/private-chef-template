@@ -1,4 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { MedusaError } from "@medusajs/framework/utils"
 import { createOrGetChefEventMenuWorkflow } from "../../../../../workflows/create-or-get-chef-event-menu"
 
 export async function POST(req: MedusaRequest, res: MedusaResponse): Promise<void> {
@@ -18,15 +19,23 @@ export async function POST(req: MedusaRequest, res: MedusaResponse): Promise<voi
       `Error deriving chef-event menu: ${error instanceof Error ? error.message : String(error)}`
     )
 
-    if (error instanceof Error && error.message.includes("not found")) {
-      res.status(404).json({ message: "Chef event not found" })
-      return
-    }
-
-    if (
-      error instanceof Error &&
-      error.message.includes("does not have a template menu selected")
-    ) {
+    if (error instanceof MedusaError) {
+      if (error.type === MedusaError.Types.NOT_FOUND) {
+        res.status(404).json({ message: "Chef event not found" })
+        return
+      }
+      if (error.type === MedusaError.Types.INVALID_DATA) {
+        res.status(400).json({ message: error.message })
+        return
+      }
+      if (error.type === MedusaError.Types.NOT_ALLOWED) {
+        res.status(409).json({ message: error.message })
+        return
+      }
+      if (error.type === MedusaError.Types.UNEXPECTED_STATE) {
+        res.status(500).json({ message: error.message })
+        return
+      }
       res.status(400).json({ message: error.message })
       return
     }

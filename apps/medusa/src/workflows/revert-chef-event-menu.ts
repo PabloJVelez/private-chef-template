@@ -4,31 +4,45 @@ import {
   StepResponse,
   WorkflowResponse,
 } from "@medusajs/workflows-sdk"
+import { MedusaError } from "@medusajs/framework/utils"
 import { CHEF_EVENT_MODULE } from "../modules/chef-event"
 import { MENU_MODULE } from "../modules/menu"
+import ChefEventModuleService from "../modules/chef-event/service"
+import MenuModuleService from "../modules/menu/service"
 
 type RevertChefEventMenuInput = {
   chefEventId: string
   deleteDerivedMenu?: boolean
 }
 
+/**
+ * Reverts event context back to the initial template pointer by clearing
+ * eventMenuId, with optional cleanup of the derived event-owned menu.
+ */
 const revertChefEventMenuStep = createStep(
   "revert-chef-event-menu-step",
   async (
     input: RevertChefEventMenuInput,
     { container }: { container: any }
   ) => {
-    const chefEventModuleService = container.resolve(CHEF_EVENT_MODULE)
-    const menuModuleService = container.resolve(MENU_MODULE)
+    const chefEventModuleService: ChefEventModuleService =
+      container.resolve(CHEF_EVENT_MODULE)
+    const menuModuleService: MenuModuleService = container.resolve(MENU_MODULE)
 
     const chefEvent = await chefEventModuleService.retrieveChefEvent(input.chefEventId)
 
     if (!chefEvent) {
-      throw new Error(`Chef event with id ${input.chefEventId} not found`)
+      throw new MedusaError(
+        MedusaError.Types.NOT_FOUND,
+        `Chef event with id ${input.chefEventId} not found`
+      )
     }
 
     if (!chefEvent.eventMenuId) {
-      throw new Error("Chef event does not have a derived menu")
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Chef event does not have a derived menu"
+      )
     }
 
     const derivedMenuId = chefEvent.eventMenuId

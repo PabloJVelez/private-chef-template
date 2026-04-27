@@ -20,7 +20,7 @@ import {
   getDefaultChefEventValues,
   validateStatusTransition
 } from "../schemas"
-import { useAdminListMenus } from "../../../hooks/menus"
+import { useAdminListMenus, useAdminRetrieveMenu } from "../../../hooks/menus"
 import { useAdminListExperienceTypes } from "../../../hooks/experience-types"
 import type { AdminCreateChefEventDTO, AdminUpdateChefEventDTO } from "../../../../sdk/admin/admin-chef-events"
 import { formDateAndTimeFromRequestedInstant } from "../../../../lib/chef-event-datetime-display"
@@ -101,15 +101,15 @@ export const ChefEventForm = ({
 
   const watchedStatus = watch("status")
   const currentStatus = initialData?.status
-  const watchedDerivedMenuId = (watch("eventMenuId") as string | undefined) || ""
-  const hasDerivedEventMenu = Boolean(
-    watchedDerivedMenuId || initialData?.eventMenuId || initialData?.event_menu_id
-  )
-  const derivedEventMenuId = watchedDerivedMenuId || (initialData?.eventMenuId ?? initialData?.event_menu_id ?? "") as string
-  const derivedEventMenuName =
-    derivedEventMenuId && menus.length > 0
-      ? menus.find((m) => m.id === derivedEventMenuId)?.name
-      : undefined
+  const derivedEventMenuId = (
+    initialData?.eventMenuId ??
+    initialData?.event_menu_id ??
+    ""
+  ) as string
+  const hasDerivedEventMenu = Boolean(derivedEventMenuId)
+  const { data: derivedEventMenu } = useAdminRetrieveMenu(derivedEventMenuId, {
+    enabled: !!derivedEventMenuId,
+  })
 
   const eventTypeWatched = watch("eventType")
   const experienceTypeIdWatched = watch("experience_type_id") || ""
@@ -188,7 +188,6 @@ export const ChefEventForm = ({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      <input type="hidden" {...register("eventMenuId")} />
       <Tabs defaultValue="general">
         <Tabs.List className="border-b">
           <Tabs.Trigger value="general">General Info</Tabs.Trigger>
@@ -304,7 +303,7 @@ export const ChefEventForm = ({
                     Initial menu is locked after an event menu is derived.
                   </p>
                   <p className="text-xs text-gray-500">
-                    Derived menu: {derivedEventMenuName || "Loading..."}
+                    Derived menu: {derivedEventMenu?.name || "Loading..."}
                   </p>
                 </div>
               )}
