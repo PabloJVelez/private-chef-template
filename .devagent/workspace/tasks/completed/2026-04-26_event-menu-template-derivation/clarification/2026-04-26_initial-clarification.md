@@ -5,7 +5,7 @@
 - Date: 2026-04-26
 - Mode: Task Clarification
 - Status: Complete
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/`
 - Notes: Initialized from inferred context because `/clarify-task` was invoked without explicit input context.
 
 ## Task Overview
@@ -15,8 +15,8 @@
 - **Business context:** Event-linked menu editing currently risks modifying template menus; requirement is event-specific customization while preserving template integrity.
 - **Stakeholders:** PabloJVelez (Requestor + Decision Maker) [INFERRED]
 - **Prior work:**
-  - `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/AGENTS.md`
-  - `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/research/2026-04-26_event-menu-template-derivation-research.md`
+  - `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/AGENTS.md`
+  - `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/research/2026-04-26_event-menu-template-derivation-research.md`
 
 ### Inferred Task Concept
 Enable chef events to branch from template menus into event-specific draft menus so chefs can customize per event without changing template menus.

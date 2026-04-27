@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-04-26
 - Status: Draft
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/`
 - Stakeholders: PabloJVelez (Requestor, Decision Maker)
 - Notes: Built from completed research + clarification artifacts; implementation starts only after explicit execution approval.
 
@@ -193,14 +193,14 @@ Current chef-event flows reference a template menu id directly and expose templa
 ---
 
 ## Progress Tracking
-Refer to `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/AGENTS.md` for progress and decision updates during implementation.
+Refer to `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/AGENTS.md` for progress and decision updates during implementation.
 
 ---
 
 ## Appendices & References
-- Task hub: `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/AGENTS.md`
-- Research packet: `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/research/2026-04-26_event-menu-template-derivation-research.md`
-- Clarification packet: `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/clarification/2026-04-26_initial-clarification.md`
+- Task hub: `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/AGENTS.md`
+- Research packet: `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/research/2026-04-26_event-menu-template-derivation-research.md`
+- Clarification packet: `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/clarification/2026-04-26_initial-clarification.md`
 - Product mission: `.devagent/workspace/product/mission.md`
 - Product roadmap: `.devagent/workspace/product/roadmap.md`
 - Constitution: `.devagent/workspace/memory/constitution.md`

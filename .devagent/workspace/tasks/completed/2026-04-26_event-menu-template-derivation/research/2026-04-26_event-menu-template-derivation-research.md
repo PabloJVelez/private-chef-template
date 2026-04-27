@@ -4,7 +4,7 @@
 - Classification: Implementation design research (admin event/menu workflow behavior and data modeling).
 - Inferred Problem Statement: Enable chefs to customize a menu from an event without mutating the original template by creating an event-specific draft derivative, while keeping template editing restricted to the admin menus page.
 - Assumptions:
-  - [INFERRED] This research run is for task `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/`.
+  - [INFERRED] This research run is for task `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/`.
   - [INFERRED] Event-specific menu customization should be initiated from the chef-event detail/edit experience.
   - [INFERRED] Existing menu lifecycle (`draft` / `active` / `inactive`) should remain authoritative for storefront visibility.
   - [INFERRED] Existing menu duplication behavior is acceptable as a base primitive if association semantics are added for chef events.
@@ -98,7 +98,7 @@ This approach directly satisfies the requirement ("event edits should not alter 
 - Open Question: Do we need audit metadata (`derived_from_menu_id`, `derived_for_chef_event_id`) on menu records for traceability?
 
 ## Sources
-- Internal: `.devagent/workspace/tasks/active/2026-04-26_event-menu-template-derivation/AGENTS.md` (freshness: 2026-04-26)
+- Internal: `.devagent/workspace/tasks/completed/2026-04-26_event-menu-template-derivation/AGENTS.md` (freshness: 2026-04-26)
 - Internal: `apps/medusa/src/modules/chef-event/models/chef-event.ts` (freshness: 2026-04-26)
 - Internal: `apps/medusa/src/modules/menu/service.ts` (freshness: 2026-04-26)
 - Internal: `apps/medusa/src/workflows/duplicate-menu.ts` (freshness: 2026-04-26)
