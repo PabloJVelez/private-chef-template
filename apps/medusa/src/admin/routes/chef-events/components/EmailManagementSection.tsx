@@ -7,6 +7,41 @@ interface EmailManagementSectionProps {
   onEmailSent: (emailData: any) => void
 }
 
+const getFriendlyEmailType = (type?: string) => {
+  if (!type) return "Email update"
+
+  const typeMap: Record<string, string> = {
+    event_details_resend: "Event details resent",
+    event_details: "Event details sent",
+    acceptance: "Event accepted email",
+    rejection: "Event rejected email",
+    receipt: "Receipt sent",
+  }
+
+  if (typeMap[type]) return typeMap[type]
+
+  return type
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+}
+
+const formatSentAt = (sentAt?: string | Date) => {
+  if (!sentAt) return "Time unavailable"
+
+  const date = new Date(sentAt)
+  if (Number.isNaN(date.getTime())) return "Time unavailable"
+
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
 export const EmailManagementSection = ({ chefEvent, onEmailSent }: EmailManagementSectionProps) => {
   const [showResendModal, setShowResendModal] = useState(false)
   const [customEmails, setCustomEmails] = useState("")
@@ -54,6 +89,7 @@ export const EmailManagementSection = ({ chefEvent, onEmailSent }: EmailManageme
           <Button 
             variant="secondary" 
             size="small"
+            type="button"
             onClick={() => setShowResendModal(true)}
           >
             Resend Event Details
@@ -66,15 +102,20 @@ export const EmailManagementSection = ({ chefEvent, onEmailSent }: EmailManageme
             <Label>Recent Email Activity</Label>
             <div className="mt-2 space-y-2">
               {chefEvent.emailHistory.slice(-3).map((email: any, index: number) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <div>
-                    <span className="text-sm font-medium">{email.type}</span>
-                    <span className="text-xs text-gray-500 ml-2">
+                <div
+                  key={index}
+                  className="flex items-center justify-between rounded-md border border-ui-border-base bg-ui-bg-field p-2"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-ui-fg-base">
+                      {getFriendlyEmailType(email.type)}
+                    </span>
+                    <span className="text-xs text-ui-fg-subtle">
                       to {email.recipients.join(", ")}
                     </span>
                   </div>
                   <Badge color="grey">
-                    {new Date(email.sentAt).toLocaleDateString()}
+                    {formatSentAt(email.sentAt)}
                   </Badge>
                 </div>
               ))}
@@ -153,11 +194,12 @@ export const EmailManagementSection = ({ chefEvent, onEmailSent }: EmailManageme
                   
                   {/* Action Buttons */}
                   <div className="flex justify-end space-x-2">
-                    <Button variant="secondary" onClick={() => setShowResendModal(false)}>
+                    <Button variant="secondary" type="button" onClick={() => setShowResendModal(false)}>
                       Cancel
                     </Button>
                     <Button 
                       variant="primary"
+                      type="button"
                       onClick={handleResendEmail}
                       disabled={resendEmail.isPending || (emailType === "custom" && !customEmails.trim())}
                     >
