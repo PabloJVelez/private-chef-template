@@ -22,18 +22,11 @@ const config: MenuConfig = {
     },
     {
       icon: Calendar,
-      label: 'Chef Events',
+      label: 'Events',
       to: '/chef-events',
     },
   ],
-  order: [
-    '/chef-events',
-    '/orders',
-    '/menus',
-    '/experience-types',
-    '/customers',
-    '/promotions',
-  ],
+  order: ['/chef-events', '/orders', '/menus', '/experience-types', '/customers', '/promotions'],
 };
 
 export default config;
