@@ -31,14 +31,15 @@ The Chef Events admin calendar currently loads every event, including completed 
 - [2026-04-29] Event: Started `clarify-task` session — Round 1 questions posted; clarification packet at `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/clarification/2026-04-29_initial-clarification.md`.
 - [2026-04-29] Event: Completed `clarify-task` Session 1 — answers B / E / A recorded; packet status Complete; ready for `devagent create-plan`.
 - [2026-04-29] Event: Created implementation plan at `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/plan/2026-04-29_chef-events-calendar-filters-implementation-plan.md`.
+- [2026-04-29] Event: Implemented plan Tasks 1–4: `GET /admin/chef-events` multi-status (`statuses` + `$in`), SDK `list()` query shaping, `chef-event-calendar-status-params` lib + unit tests, calendar toolbar + URL wiring in `apps/medusa/src/admin/routes/chef-events/components/chef-event-calendar.tsx`. Ran `yarn typecheck` and unit tests for status params.
 
 ## Implementation Checklist
 
 - [x] Run `devagent research` (or equivalent) to map chef-event model fields, list/calendar data sources, and Medusa admin filter patterns used on Orders.
 - [x] Run `devagent clarify-task` if product choices are ambiguous (default status set, URL vs local state for filters).
 - [x] Run `devagent create-plan` for UI, API/query, and persistence (e.g. query params) tasks.
-- [ ] Implement status multi-select filtering per plan (v1); defer non-status filters unless plan explicitly re-scopes.
-- [ ] Verify calendar month/agenda views and any Google Calendar sync banner remain coherent with new filter bar placement.
+- [x] Implement status multi-select filtering per plan (v1); defer non-status filters unless plan explicitly re-scopes.
+- [~] Verify calendar month/agenda views and any Google Calendar sync banner remain coherent with new filter bar placement — layout implemented below sync/incident blocks; full manual QA in running admin recommended.
 
 ## Open Questions
 
@@ -57,4 +58,5 @@ The Chef Events admin calendar currently loads every event, including completed 
 
 ## Next Steps
 
-- `devagent implement-plan` (or explicit implementation request) using `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/plan/2026-04-29_chef-events-calendar-filters-implementation-plan.md`.
+- Manual QA in Medusa admin: default load, toggle statuses, URL copy, month vs agenda, incident drawer when filtered.
+- Optional: `devagent mark-task-complete` when verified and ready to archive.

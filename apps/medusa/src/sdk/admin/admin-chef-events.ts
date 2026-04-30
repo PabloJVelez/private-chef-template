@@ -1,5 +1,10 @@
 import type { Client } from '@medusajs/js-sdk'
 
+import {
+  sortCalendarStatuses,
+  type ChefEventCalendarStatus,
+} from '../../lib/chef-event-calendar-status-params'
+
 // Define the types for our chef events
 export interface AdminChefEventDTO {
   id: string
@@ -101,7 +106,13 @@ export interface AdminListChefEventsQuery {
   limit?: number
   offset?: number
   q?: string
+  /** Legacy single status (equality). Ignored when `statuses` is set. */
   status?: string
+  /**
+   * Multi-status filter (server `statuses` query, comma-separated).
+   * When set, takes precedence over `status`.
+   */
+  statuses?: ChefEventCalendarStatus[]
   eventType?: string
   locationType?: string
 }
@@ -147,9 +158,22 @@ export class AdminChefEventsResource {
    * @returns List of chef events
    */
   async list(query: AdminListChefEventsQuery = {}) {
+    const { statuses, ...rest } = query
+    const queryParams: Record<string, string | number> = {}
+    if (rest.limit !== undefined) queryParams.limit = rest.limit
+    if (rest.offset !== undefined) queryParams.offset = rest.offset
+    if (rest.q) queryParams.q = rest.q
+    if (rest.status && rest.status !== 'all') queryParams.status = rest.status
+    if (rest.eventType && rest.eventType !== 'all') queryParams.eventType = rest.eventType
+    if (rest.locationType && rest.locationType !== 'all') {
+      queryParams.locationType = rest.locationType
+    }
+    if (statuses !== undefined && statuses.length > 0) {
+      queryParams.statuses = sortCalendarStatuses(statuses).join(',')
+    }
     return this.client.fetch<AdminChefEventsResponse>(`/admin/chef-events`, {
       method: 'GET',
-      query,
+      query: queryParams,
     })
   }
 
