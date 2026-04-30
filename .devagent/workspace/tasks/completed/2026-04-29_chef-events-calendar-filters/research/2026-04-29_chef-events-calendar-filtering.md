@@ -2,8 +2,8 @@
 
 - **Classification:** Implementation design (admin UX + API query shape)
 - **Last updated:** 2026-04-29
-- **Storage path:** `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`
-- **Related task hub:** `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/AGENTS.md`
+- **Storage path:** `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`
+- **Related task hub:** `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/AGENTS.md`
 
 ## Inferred problem statement
 

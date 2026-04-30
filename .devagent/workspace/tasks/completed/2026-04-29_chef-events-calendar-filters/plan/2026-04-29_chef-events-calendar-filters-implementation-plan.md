@@ -3,7 +3,7 @@
 - **Owner:** PabloJVelez
 - **Last Updated:** 2026-04-29
 - **Status:** Draft
-- **Related Task Hub:** `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/`
+- **Related Task Hub:** `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/`
 - **Stakeholders:** PabloJVelez (decision maker)
 
 ---
@@ -16,8 +16,8 @@ The Chef Events admin calendar loads a large unfiltered list (`limit: 1000`), so
 
 ### Context & Problem
 
-- Current behavior and file anchors are documented in `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`.
-- Product decisions (defaults, v1 scope, persistence) are locked in `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/clarification/2026-04-29_initial-clarification.md`.
+- Current behavior and file anchors are documented in `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`.
+- Product decisions (defaults, v1 scope, persistence) are locked in `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/clarification/2026-04-29_initial-clarification.md`.
 
 ### Objectives & Success Metrics
 
@@ -140,7 +140,7 @@ The Chef Events admin calendar loads a large unfiltered list (`limit: 1000`), so
 
 - **From `.cursor/rules/medusa-development.mdc`:** Validate admin `GET` inputs with **Zod**; use **`MedusaError`** for predictable 4xx responses when rejecting bad `statuses` (see medusa-development.mdc § API Route Patterns / Error Handling).
 - **From `.cursor/rules/testing-patterns-unit.mdc`:** Prefer **AAA** unit tests for pure URL/status helpers; behavior-focused names; isolation without brittle DOM coupling.
-- **From `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`:** Do not rely on client-side filtering alone for status; avoid changing global list default without explicit query from calendar.
+- **From `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`:** Do not rely on client-side filtering alone for status; avoid changing global list default without explicit query from calendar.
 
 ---
 
@@ -157,14 +157,14 @@ The Chef Events admin calendar loads a large unfiltered list (`limit: 1000`), so
 
 ## Progress Tracking
 
-Use `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/AGENTS.md` — Implementation Checklist and Progress Log during `implement-plan`.
+Use `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/AGENTS.md` — Implementation Checklist and Progress Log during `implement-plan`.
 
 ---
 
 ## Appendices & References
 
-- Clarification: `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/clarification/2026-04-29_initial-clarification.md`
-- Research: `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`
+- Clarification: `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/clarification/2026-04-29_initial-clarification.md`
+- Research: `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`
 - Code: `apps/medusa/src/admin/routes/chef-events/components/chef-event-calendar.tsx`, `apps/medusa/src/api/admin/chef-events/route.ts`, `apps/medusa/src/sdk/admin/admin-chef-events.ts`, `apps/medusa/src/modules/chef-event/models/chef-event.ts`
 - External: [Medusa Admin Data Table / filtering patterns](https://docs.medusajs.com/resources/admin-components/components/data-table#example-datatable-with-data-fetching) (UI inspiration)
 

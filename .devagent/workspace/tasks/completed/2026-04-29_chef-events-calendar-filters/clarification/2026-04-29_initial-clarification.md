@@ -5,7 +5,7 @@
 - **Date:** 2026-04-29
 - **Mode:** Task Clarification
 - **Status:** Complete
-- **Related Task Hub:** `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/`
+- **Related Task Hub:** `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/`
 
 ## Task Overview
 
@@ -14,7 +14,7 @@
 - **Task name/slug:** `2026-04-29_chef-events-calendar-filters` — Chef Events admin calendar filtering (status multi-select + Medusa-style UX).
 - **Business context:** Calendar shows all events including completed/cancelled; chefs need to focus on actionable statuses. Orders page is the visual/UX reference.
 - **Stakeholders:** PabloJVelez (owner / decision maker) [INFERRED]
-- **Prior work:** Research packet `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md` (2026-04-29).
+- **Prior work:** Research packet `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md` (2026-04-29).
 
 ### Clarification Sessions
 
@@ -142,7 +142,7 @@
 
 **Handoff**
 
-- [ ] Run **`devagent create-plan`** using this packet + `.devagent/workspace/tasks/active/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`.
+- [ ] Run **`devagent create-plan`** using this packet + `.devagent/workspace/tasks/completed/2026-04-29_chef-events-calendar-filters/research/2026-04-29_chef-events-calendar-filtering.md`.
 
 ### Change log
 
