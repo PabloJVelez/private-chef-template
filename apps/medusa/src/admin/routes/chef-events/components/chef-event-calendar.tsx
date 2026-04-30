@@ -1,13 +1,13 @@
 "use client"
 
-import { useCallback, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Calendar, Views, type View } from "react-big-calendar"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 import "../../../styles/rbc-overrides.css"
 
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams, type SetURLSearchParams } from "react-router-dom"
 import { DateTime } from "luxon"
-import { Button, Drawer, Text, toast } from "@medusajs/ui"
+import { Button, Drawer, Text, toast, useDataTable } from "@medusajs/ui"
 
 import { localizer } from "../../../lib/calendar-localizer"
 import { useAdminListChefEvents } from "../../../hooks/chef-events"
@@ -19,6 +19,22 @@ import {
 } from "../../../hooks/google-calendar"
 import { chefEventToRbc, type RBCEvent } from "./event-adapter"
 import { eventTypeOptions } from "../schemas"
+import {
+  CALENDAR_STATUSES_URL_PARAM,
+  type ChefEventCalendarStatus,
+  calendarStatusSetsEqual,
+  DEFAULT_CALENDAR_STATUSES,
+  parseCalendarStatusesUrlParam,
+  serializeCalendarStatusesUrlParam,
+  sortCalendarStatuses,
+} from "../../../../lib/chef-event-calendar-status-params"
+import { ChefEventCalendarFilterBar } from "./chef-event-calendar-filter-bar"
+import {
+  CHEF_CALENDAR_FILTER_TABLE_DATA,
+  chefCalendarFilterColumns,
+  chefCalendarFilterDefinitions,
+  getChefCalendarFilterRowId,
+} from "./chef-event-calendar-filter-table"
 import { chefEventStatusToDisplayHex } from "../../../../lib/chef-event-google-calendar-colors"
 import { requestedStartInEventZone } from "../../../../lib/chef-event-datetime-display"
 
@@ -47,6 +63,69 @@ function getInitialCalendarView(): View {
     return Views.MONTH
   }
   return window.matchMedia(MOBILE_MEDIA_QUERY).matches ? Views.AGENDA : Views.MONTH
+}
+
+function isChefEventCalendarStatus(v: unknown): v is ChefEventCalendarStatus {
+  return (
+    v === "pending" ||
+    v === "confirmed" ||
+    v === "cancelled" ||
+    v === "completed"
+  )
+}
+
+/**
+ * Collapse default status selection so the Status chip hides (Medusa orders pattern).
+ * Preserves `{ _rid: [] }` while the chef is configuring a newly added filter.
+ */
+function normalizeCalendarFilteringState(next: Record<string, unknown>): Record<string, unknown> {
+  if (!("_rid" in next)) {
+    return {}
+  }
+  const rid = next._rid
+  if (!Array.isArray(rid)) {
+    return {}
+  }
+  if (rid.length === 0) {
+    return { _rid: [] }
+  }
+  const sorted = sortCalendarStatuses(rid.filter(isChefEventCalendarStatus))
+  if (sorted.length === 0) {
+    return { _rid: [] }
+  }
+  if (calendarStatusSetsEqual(sorted, DEFAULT_CALENDAR_STATUSES)) {
+    return {}
+  }
+  return { _rid: sorted }
+}
+
+function syncStatusesUrlFromFiltering(
+  normalized: Record<string, unknown>,
+  setSearchParams: SetURLSearchParams
+) {
+  if (!("_rid" in normalized)) {
+    setSearchParams((prev) => {
+      const n = new URLSearchParams(prev)
+      n.delete(CALENDAR_STATUSES_URL_PARAM)
+      return n
+    })
+    return
+  }
+  const rid = normalized._rid
+  if (!Array.isArray(rid) || rid.length === 0) {
+    return
+  }
+  const sorted = sortCalendarStatuses(rid.filter(isChefEventCalendarStatus))
+  setSearchParams((prev) => {
+    const n = new URLSearchParams(prev)
+    const serialized = serializeCalendarStatusesUrlParam(sorted)
+    if (serialized === null) {
+      n.delete(CALENDAR_STATUSES_URL_PARAM)
+    } else {
+      n.set(CALENDAR_STATUSES_URL_PARAM, serialized)
+    }
+    return n
+  })
 }
 
 export const ChefEventCalendar = () => {
@@ -106,12 +185,64 @@ export const ChefEventCalendar = () => {
     })
   }, [setSearchParams])
 
-  // Keep your existing filters; add range later if/when supported
+  const statusesQuery = searchParams.get(CALENDAR_STATUSES_URL_PARAM) ?? ""
+  const [filtering, setFiltering] = useState<Record<string, unknown>>({})
+
+  useEffect(() => {
+    if (!statusesQuery.trim()) {
+      setFiltering((prev) => (Object.keys(prev).length === 0 ? prev : {}))
+      return
+    }
+    const parsed = parseCalendarStatusesUrlParam(statusesQuery)
+    setFiltering((prev) => {
+      const prevRid = prev._rid
+      if (Array.isArray(prevRid) && JSON.stringify(prevRid) === JSON.stringify(parsed)) {
+        return prev
+      }
+      return { _rid: parsed }
+    })
+  }, [statusesQuery])
+
+  const handleFilteringChange = useCallback(
+    (next: Record<string, unknown>) => {
+      const normalized = normalizeCalendarFilteringState(next)
+      setFiltering(normalized)
+      syncStatusesUrlFromFiltering(normalized, setSearchParams)
+    },
+    [setSearchParams]
+  )
+
+  const filterTable = useDataTable({
+    columns: chefCalendarFilterColumns,
+    data: CHEF_CALENDAR_FILTER_TABLE_DATA,
+    getRowId: getChefCalendarFilterRowId,
+    rowCount: 1,
+    filters: chefCalendarFilterDefinitions,
+    filtering: {
+      state: filtering,
+      onFilteringChange: handleFilteringChange,
+    },
+    pagination: {
+      state: { pageIndex: 0, pageSize: 10 },
+      onPaginationChange: () => {},
+    },
+  })
+
+  const handleClearCalendarFilters = useCallback(() => {
+    filterTable.clearFilters()
+  }, [filterTable])
+
+  const effectiveStatuses = useMemo((): ChefEventCalendarStatus[] => {
+    const rid = filtering._rid
+    if (!Array.isArray(rid) || rid.length === 0) {
+      return [...DEFAULT_CALENDAR_STATUSES]
+    }
+    const sorted = sortCalendarStatuses(rid.filter(isChefEventCalendarStatus))
+    return sorted.length > 0 ? sorted : [...DEFAULT_CALENDAR_STATUSES]
+  }, [filtering])
+
   const { data, isLoading } = useAdminListChefEvents({
-    q: "",
-    status: "",
-    eventType: "",
-    locationType: "",
+    statuses: effectiveStatuses,
     limit: 1000,
     offset: 0,
   })
@@ -299,8 +430,8 @@ export const ChefEventCalendar = () => {
   const firstPendingIncidentId = googleCalendarStatus?.pendingIncidents?.[0]?.id
 
   return (
-    <div className="w-full min-w-0 px-2 pb-4 pt-2 sm:px-4 md:px-6">
-      <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 py-2 text-xs text-ui-fg-subtle">
+    <div className="flex w-full min-w-0 flex-col divide-y">
+      <div className="flex flex-col gap-2 px-4 py-3 text-xs text-ui-fg-subtle sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           Google Calendar sync:{" "}
           <span className="font-medium text-ui-fg-base">
@@ -320,6 +451,7 @@ export const ChefEventCalendar = () => {
             onClick={handleResync}
             isLoading={resyncMutation.isPending}
             disabled={resyncMutation.isPending}
+            className="self-start sm:self-auto"
           >
             Resync
           </Button>
@@ -327,31 +459,35 @@ export const ChefEventCalendar = () => {
       </div>
 
       {pendingCount > 0 ? (
-        <div className="mb-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-ui-fg-base">
-                Events cancelled through Google Calendar
-              </div>
-              <div className="text-xs text-ui-fg-subtle">
-                {pendingCount} pending review
-              </div>
+        <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-ui-fg-base">
+              Events cancelled through Google Calendar
             </div>
-            <Button
-              size="small"
-              variant="secondary"
-              onClick={() => firstPendingIncidentId && openIncidentDrawer(firstPendingIncidentId)}
-              disabled={!firstPendingIncidentId}
-            >
-              Review
-            </Button>
+            <div className="text-xs text-ui-fg-subtle">
+              {pendingCount} pending review
+            </div>
           </div>
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={() => firstPendingIncidentId && openIncidentDrawer(firstPendingIncidentId)}
+            disabled={!firstPendingIncidentId}
+            className="self-start sm:self-auto"
+          >
+            Review
+          </Button>
         </div>
       ) : null}
 
+      <ChefEventCalendarFilterBar
+        instance={filterTable}
+        onClearAll={handleClearCalendarFilters}
+      />
+
       <div
         className={[
-          "chef-events-calendar-rbc-host w-full min-w-0",
+          "chef-events-calendar-rbc-host w-full min-w-0 px-2 py-3 sm:px-4 md:px-6",
           hostHeightClasses,
         ].join(" ")}
       >
