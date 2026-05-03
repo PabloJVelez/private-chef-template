@@ -24,7 +24,17 @@ const updateChefEventSchema = z.object({
   totalPrice: z.number().optional(),
   depositPaid: z.boolean().optional(),
   specialRequirements: z.string().optional(),
-  estimatedDuration: z.number().optional()
+  estimatedDuration: z.number().optional(),
+  additionalCharges: z.array(
+    z.object({
+      id: z.string().min(1).optional(),
+      name: z.string().min(1),
+      amount: z.number().int().min(0),
+      status: z.enum(["pending", "paid", "void"]).default("pending"),
+      notes: z.string().optional().nullable(),
+      sort_order: z.number().int().optional().nullable(),
+    })
+  ).optional().nullable(),
 })
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {

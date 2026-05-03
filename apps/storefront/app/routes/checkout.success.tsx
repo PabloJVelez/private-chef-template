@@ -56,35 +56,49 @@ export default function CheckoutSuccessRoute() {
               role="list"
               className="mt-8 divide-y divide-gray-200 border-t border-gray-200 text-sm font-bold text-gray-500"
             >
-              {order.items?.map((item) => (
-                <li key={item.id} className="flex space-x-6 py-6">
-                  {item.thumbnail && (
-                    <Image
-                      src={item.thumbnail}
-                      alt={item.title}
-                      className="h-24 w-24 flex-none rounded-md bg-gray-100 object-cover object-center"
-                    />
-                  )}
-                  <div className="flex flex-auto flex-col space-y-1">
-                    <div>
-                      <h3 className="text-base text-gray-900">
-                        <Link to={`/products/${item.product_handle}`}>{item.product_title}</Link>
-                      </h3>
-                      <p className="text-sm font-normal text-gray-500">{item.variant_title}</p>
+              {order.items?.map((item) => {
+                const metadata = (item.metadata ?? {}) as Record<string, unknown>;
+                const isAdditionalCharge = metadata.kind === "chef_event_additional_charge";
+                const displayTitle =
+                  isAdditionalCharge && typeof metadata.charge_name === "string"
+                    ? metadata.charge_name
+                    : item.product_title;
+                const displayVariantTitle = isAdditionalCharge ? "One-time event charge" : item.variant_title;
+
+                return (
+                  <li key={item.id} className="flex space-x-6 py-6">
+                    {item.thumbnail && !isAdditionalCharge && (
+                      <Image
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="h-24 w-24 flex-none rounded-md bg-gray-100 object-cover object-center"
+                      />
+                    )}
+                    <div className="flex flex-auto flex-col space-y-1">
+                      <div>
+                        <h3 className="text-base text-gray-900">
+                          {item.product_handle ? (
+                            <Link to={`/products/${item.product_handle}`}>{displayTitle}</Link>
+                          ) : (
+                            <span>{displayTitle}</span>
+                          )}
+                        </h3>
+                        <p className="text-sm font-normal text-gray-500">{displayVariantTitle}</p>
+                      </div>
+                      <div className="flex flex-1 items-end">
+                        <span className="font-normal backdrop:text-gray-500">
+                          {isDigitalOnly ? `${item.quantity} ${item.quantity === 1 ? 'Ticket' : 'Tickets'}` : `Qty ${item.quantity}`}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-1 items-end">
-                      <span className="font-normal backdrop:text-gray-500">
-                        {isDigitalOnly ? `${item.quantity} ${item.quantity === 1 ? 'Ticket' : 'Tickets'}` : `Qty ${item.quantity}`}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="flex-none font-bold text-gray-900">
-                    {formatPrice((item.unit_price || 0), {
-                      currency: order.currency_code,
-                    })}
-                  </p>
-                </li>
-              ))}
+                    <p className="flex-none font-bold text-gray-900">
+                      {formatPrice((item.unit_price || 0), {
+                        currency: order.currency_code,
+                      })}
+                    </p>
+                  </li>
+                );
+              })}
             </ul>
 
             <dl className="space-y-6 border-t border-gray-200 pt-6 text-sm font-bold text-gray-500">

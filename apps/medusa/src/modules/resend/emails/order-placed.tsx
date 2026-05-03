@@ -37,6 +37,31 @@ function OrderPlacedEmailComponent({ order, email_banner }: OrderPlacedEmailProp
     return price?.toString() ?? ""
   }
 
+  const resolveLineItemTitle = (item: Record<string, unknown>) => {
+    const metadata =
+      typeof item.metadata === "object" && item.metadata !== null
+        ? (item.metadata as Record<string, unknown>)
+        : null
+    if (
+      metadata?.kind === "chef_event_additional_charge" &&
+      typeof metadata.charge_name === "string"
+    ) {
+      return metadata.charge_name
+    }
+    return String(item.product_title ?? "")
+  }
+
+  const resolveLineItemVariant = (item: Record<string, unknown>) => {
+    const metadata =
+      typeof item.metadata === "object" && item.metadata !== null
+        ? (item.metadata as Record<string, unknown>)
+        : null
+    if (metadata?.kind === "chef_event_additional_charge") {
+      return "One-time event charge"
+    }
+    return String(item.variant_title ?? "")
+  }
+
   const firstName =
     order.customer?.first_name || order.shipping_address?.first_name || "there"
 
@@ -96,8 +121,12 @@ function OrderPlacedEmailComponent({ order, email_banner }: OrderPlacedEmailProp
                 </Column>
               ) : null}
               <Column style={{ width: item.thumbnail ? "72%" : "100%", paddingLeft: item.thumbnail ? "12px" : 0 }}>
-                <Text style={layoutStyles.lineItemDescription}>{item.product_title}</Text>
-                <Text style={layoutStyles.lineItemSubtext}>{item.variant_title}</Text>
+                <Text style={layoutStyles.lineItemDescription}>
+                  {resolveLineItemTitle(item as unknown as Record<string, unknown>)}
+                </Text>
+                <Text style={layoutStyles.lineItemSubtext}>
+                  {resolveLineItemVariant(item as unknown as Record<string, unknown>)}
+                </Text>
                 <Text style={{ ...layoutStyles.lineItemDescription, marginTop: "0.25rem" }}>
                   {formatPrice(item.total)}
                 </Text>

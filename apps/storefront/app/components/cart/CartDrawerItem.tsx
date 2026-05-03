@@ -15,6 +15,14 @@ export interface CartDrawerItemProps {
 export const CartDrawerItem: FC<CartDrawerItemProps> = ({ item, currencyCode, isRemoving }) => {
   const removeCartItem = useRemoveCartItem();
   const handleRemoveFromCart = () => removeCartItem.submit(item);
+  const metadata = (item.metadata ?? {}) as Record<string, unknown>
+  const isAdditionalCharge = metadata.kind === "chef_event_additional_charge"
+  const displayTitle =
+    isAdditionalCharge && typeof metadata.charge_name === "string"
+      ? metadata.charge_name
+      : item.product_title
+  const displayVariantTitle =
+    isAdditionalCharge ? "One-time event charge" : item.variant_title
 
   return (
     <li
@@ -35,12 +43,14 @@ export const CartDrawerItem: FC<CartDrawerItemProps> = ({ item, currencyCode, is
         <div>
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-base font-bold text-gray-900">{item.product_title}</h3>
-              <p className="mt-0.5 text-sm text-gray-500">{item.variant_title}</p>
+              <h3 className="text-base font-bold text-gray-900">{displayTitle}</h3>
+              <p className="mt-0.5 text-sm text-gray-500">{displayVariantTitle}</p>
             </div>
-            <Button variant="link" onClick={handleRemoveFromCart} disabled={isRemoving} className="text-sm">
-              {isRemoving ? 'Removing' : 'Remove'}
-            </Button>
+            {!isAdditionalCharge ? (
+              <Button variant="link" onClick={handleRemoveFromCart} disabled={isRemoving} className="text-sm">
+                {isRemoving ? 'Removing' : 'Remove'}
+              </Button>
+            ) : null}
           </div>
         </div>
         <div className="flex-1" />

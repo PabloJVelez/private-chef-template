@@ -5,6 +5,22 @@ import {
   type ChefEventCalendarStatus,
 } from '../../lib/chef-event-calendar-status-params'
 
+export type AdminChefEventAdditionalCharge = {
+  id: string
+  name: string
+  /**
+   * Amount in cents.
+   */
+  amount: number
+  status: "pending" | "paid" | "void"
+  paid_at?: string | null
+  paid_order_id?: string | null
+  notes?: string | null
+  sort_order?: number | null
+  created_at: string
+  updated_at: string
+}
+
 // Define the types for our chef events
 export interface AdminChefEventDTO {
   id: string
@@ -46,6 +62,7 @@ export interface AdminChefEventDTO {
   }>
   lastEmailSentAt?: Date
   customEmailRecipients?: string[]
+  additionalCharges?: AdminChefEventAdditionalCharge[] | null
   /** Present on GET detail when productId is set (tickets remaining) */
   availableTickets?: number
   tipAmount?: number | null
@@ -73,6 +90,7 @@ export interface AdminCreateChefEventDTO {
   depositPaid?: boolean
   specialRequirements?: string
   estimatedDuration?: number
+  additionalCharges?: AdminChefEventAdditionalCharge[] | null
 }
 
 export interface AdminUpdateChefEventDTO {
@@ -100,6 +118,7 @@ export interface AdminUpdateChefEventDTO {
   acceptedBy?: string
   rejectionReason?: string
   chefNotes?: string
+  additionalCharges?: AdminChefEventAdditionalCharge[] | null
 }
 
 export interface AdminListChefEventsQuery {

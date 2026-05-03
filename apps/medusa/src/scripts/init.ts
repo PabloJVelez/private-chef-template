@@ -30,6 +30,7 @@ import { MENU_MODULE } from '../modules/menu';
 import { EXPERIENCE_TYPE_MODULE } from '../modules/experience-type';
 import type MenuModuleService from '../modules/menu/service';
 import type ExperienceTypeModuleService from '../modules/experience-type/service';
+import ensureSystemChargeProduct from './ensure-system-charge-product';
 
 export default async function init({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
@@ -307,6 +308,8 @@ export default async function init({ container }: ExecArgs) {
   await linkSalesChannelsToApiKeyWorkflow(container).run({
     input: { id: publishableApiKey.id, add: [defaultSalesChannel.id] },
   });
+
+  await ensureSystemChargeProduct({ container });
 
   logger.info('Init complete.');
   logger.info(`PUBLISHABLE API KEY: ${publishableApiKey.token}`);

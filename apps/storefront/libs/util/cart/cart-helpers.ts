@@ -19,6 +19,11 @@ export function hasOnlyDigitalItems(cart: StoreCart | null): boolean {
   return cart.items.every((item) => {
     const lineItem = item as unknown as Record<string, unknown>;
     if (lineItem.requires_shipping === false) return true;
+    const metadata =
+      typeof lineItem.metadata === "object" && lineItem.metadata !== null
+        ? (lineItem.metadata as Record<string, unknown>)
+        : null;
+    if (metadata?.kind === "chef_event_additional_charge") return true;
     const sku = lineItem.variant_sku;
     return typeof sku === 'string' && sku.startsWith('EVENT-');
   });

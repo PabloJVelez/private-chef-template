@@ -25,6 +25,20 @@ import { useAdminListExperienceTypes } from "../../../hooks/experience-types"
 import type { AdminCreateChefEventDTO, AdminUpdateChefEventDTO } from "../../../../sdk/admin/admin-chef-events"
 import { formDateAndTimeFromRequestedInstant } from "../../../../lib/chef-event-datetime-display"
 
+const centsToDollars = (cents: number | null | undefined): number => {
+  if (cents == null || !Number.isFinite(cents)) {
+    return 0
+  }
+  return cents / 100
+}
+
+const dollarsToCents = (dollars: number | null | undefined): number => {
+  if (dollars == null || !Number.isFinite(dollars)) {
+    return 0
+  }
+  return Math.round(dollars * 100)
+}
+
 // Normalize API payloads (camelCase vs snake_case) for react-hook-form
 const transformDataForForm = (data: any) => {
   if (!data) return null
@@ -35,6 +49,20 @@ const transformDataForForm = (data: any) => {
 
   const eventType = String(data.eventType ?? data.event_type ?? "plated_dinner")
   const experience_type_id = String(data.experience_type_id ?? data.experienceTypeId ?? "").trim()
+
+  const additionalCharges = Array.isArray(data.additionalCharges)
+    ? data.additionalCharges.map((row: any) => ({
+        id: String(row?.id ?? ""),
+        name: String(row?.name ?? ""),
+        amount: Number(row?.amount ?? 0),
+        status: row?.status === "paid" || row?.status === "void" ? row.status : "pending",
+        notes: row?.notes ? String(row.notes) : "",
+        sort_order:
+          row?.sort_order == null || Number.isNaN(Number(row.sort_order))
+            ? null
+            : Number(row.sort_order),
+      }))
+    : []
 
   return {
     ...data,
@@ -56,6 +84,7 @@ const transformDataForForm = (data: any) => {
     notes: data.notes ?? "",
     specialRequirements: data.specialRequirements ?? data.special_requirements ?? "",
     status: data.status || "pending",
+    additionalCharges,
   }
 }
 
@@ -185,6 +214,48 @@ export const ChefEventForm = ({
   }
 
   const showFormActions = !isEditing || isDirty || isLoading
+  const additionalCharges = (watch("additionalCharges") || []) as Array<{
+    id?: string
+    name: string
+    amount: number
+    status: "pending" | "paid" | "void"
+    notes?: string | null
+    sort_order?: number | null
+  }>
+
+  const setAdditionalCharges = (next: typeof additionalCharges) => {
+    setValue("additionalCharges", next, { shouldDirty: true, shouldValidate: true })
+  }
+
+  const addChargeRow = () => {
+    setAdditionalCharges([
+      ...additionalCharges,
+      {
+        name: "",
+        amount: 0,
+        status: "pending",
+        notes: "",
+        sort_order: additionalCharges.length,
+      },
+    ])
+  }
+
+  const updateChargeRow = (
+    idx: number,
+    patch: Partial<(typeof additionalCharges)[number]>,
+  ) => {
+    const next = [...additionalCharges]
+    next[idx] = { ...next[idx], ...patch }
+    setAdditionalCharges(next)
+  }
+
+  const voidChargeRow = (idx: number) => {
+    const row = additionalCharges[idx]
+    if (!row) {
+      return
+    }
+    updateChargeRow(idx, { status: "void" })
+  }
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
@@ -490,6 +561,96 @@ export const ChefEventForm = ({
               {detailsTabExtra}
             </div>
           ) : null}
+
+          <div className="pt-4 border-t space-y-4">
+            <div className="flex items-center justify-between">
+              <Label>Additional Charges (amount in dollars)</Label>
+              <Button type="button" variant="secondary" size="small" onClick={addChargeRow}>
+                Add Charge
+              </Button>
+            </div>
+            {additionalCharges.length === 0 ? (
+              <p className="text-ui-fg-subtle text-sm">No additional charges configured.</p>
+            ) : (
+              <div className="space-y-3">
+                {additionalCharges.map((row, idx) => {
+                  const isPaid = row.status === "paid"
+                  const isVoid = row.status === "void"
+                  return (
+                    <div key={row.id || `new-${idx}`} className="rounded-md border p-3 space-y-3">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <Label>Charge name</Label>
+                          <Input
+                            value={row.name}
+                            disabled={isPaid}
+                            onChange={(e) => updateChargeRow(idx, { name: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Amount ($)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            disabled={isPaid}
+                            value={centsToDollars(row.amount)}
+                            onChange={(e) => {
+                              const nextDollars = Number.parseFloat(e.target.value || "0")
+                              updateChargeRow(idx, { amount: dollarsToCents(nextDollars) })
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label>Status</Label>
+                          <Select
+                            value={row.status}
+                            onValueChange={(value) =>
+                              updateChargeRow(idx, {
+                                status: value as "pending" | "paid" | "void",
+                              })
+                            }
+                          >
+                            <Select.Trigger disabled={isPaid}>
+                              <Select.Value />
+                            </Select.Trigger>
+                            <Select.Content>
+                              <Select.Item value="pending">Pending</Select.Item>
+                              <Select.Item value="void">Void</Select.Item>
+                              <Select.Item value="paid">Paid</Select.Item>
+                            </Select.Content>
+                          </Select>
+                        </div>
+                      </div>
+                      <div>
+                        <Label>Notes</Label>
+                        <Textarea
+                          rows={2}
+                          disabled={isPaid}
+                          value={row.notes || ""}
+                          onChange={(e) => updateChargeRow(idx, { notes: e.target.value })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-ui-fg-subtle">
+                          {isPaid
+                            ? "Paid rows are read-only. Name and amount cannot be changed."
+                            : isVoid
+                              ? "This charge is void and won't be billed on checkout."
+                              : "Pending charge will be included on event checkout."}
+                        </p>
+                        {!isPaid ? (
+                          <Button type="button" variant="transparent" size="small" onClick={() => voidChargeRow(idx)}>
+                            Mark Void
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </Tabs.Content>
 
         {menuTabExtra ? (

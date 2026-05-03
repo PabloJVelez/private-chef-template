@@ -7,13 +7,22 @@ import { useRemixFormContext } from 'remix-hook-form';
 interface QuantitySelectorProps {
   variant: StoreProductVariant | undefined;
   maxInventory?: number;
+  /** Lowest selectable quantity (default 1). Options run from this value up to available inventory. */
+  minQuantity?: number;
   className?: string;
   formId?: string;
   onChange?: (quantity: number) => void;
   customInventoryQuantity?: number; // New prop for custom inventory quantity
 }
 
-export const QuantitySelector: FC<QuantitySelectorProps> = ({ className, variant, maxInventory = 10, onChange, customInventoryQuantity }) => {
+export const QuantitySelector: FC<QuantitySelectorProps> = ({
+  className,
+  variant,
+  maxInventory = 10,
+  minQuantity = 1,
+  onChange,
+  customInventoryQuantity,
+}) => {
   const formContext = useRemixFormContext();
 
   if (!formContext) {
@@ -23,30 +32,30 @@ export const QuantitySelector: FC<QuantitySelectorProps> = ({ className, variant
 
   const { control } = formContext;
 
-  const variantInventory = customInventoryQuantity !== undefined 
-    ? customInventoryQuantity 
-    : (variant?.manage_inventory && !variant.allow_backorder ? variant.inventory_quantity || 0 : maxInventory);
+  const variantInventory =
+    customInventoryQuantity !== undefined
+      ? customInventoryQuantity
+      : variant?.manage_inventory && !variant.allow_backorder
+        ? variant.inventory_quantity || 0
+        : maxInventory;
 
-  // Debug logging for inventory calculation issues
-  if (customInventoryQuantity !== undefined && variant?.inventory_quantity === 0) {
-    console.log('🎫 QuantitySelector using custom inventory quantity:', {
-      variantId: variant?.id,
-      variantInventoryQuantity: variant?.inventory_quantity,
-      customInventoryQuantity,
-      calculatedVariantInventory: variantInventory
-    });
-  }
+  // When `customInventoryQuantity` is provided, trust it as the upper bound;
+  // otherwise fall back to the legacy `maxInventory` cap.
+  const maxOptions =
+    customInventoryQuantity !== undefined
+      ? variantInventory
+      : Math.min(variantInventory, maxInventory);
 
-  // When customInventoryQuantity is provided, use it directly without maxInventory cap
-  // Otherwise, use the maxInventory as a fallback cap for backwards compatibility
-  const maxOptions = customInventoryQuantity !== undefined 
-    ? variantInventory 
-    : Math.min(variantInventory, maxInventory);
-
-  const optionsArray = [...Array(maxOptions)].map((_, index) => ({
-    label: `${index + 1}`,
-    value: index + 1,
-  }));
+  const minQ = Math.max(1, Math.floor(minQuantity))
+  const safeMin = Math.min(minQ, Math.max(1, maxOptions))
+  const optionCount = Math.max(0, maxOptions - safeMin + 1)
+  const optionsArray = Array.from({ length: optionCount }, (_, index) => {
+    const value = safeMin + index
+    return {
+      label: `${value}`,
+      value,
+    }
+  })
 
   return (
     <Controller
@@ -62,18 +71,27 @@ export const QuantitySelector: FC<QuantitySelectorProps> = ({ className, variant
             <select
               {...field}
               className="focus:border-orange-500 focus:ring-orange-500 !h-14 !w-full rounded-xl border-2 border-gray-200 pl-20 pr-4 text-lg font-semibold bg-white shadow-sm hover:border-orange-300 transition-colors"
-              value={String(field.value ?? 1)}
+              value={String(
+                optionsArray.some((o) => o.value === Number(field.value))
+                  ? field.value
+                  : optionsArray[0]?.value ?? 1,
+              )}
               onChange={(e) => {
                 const value = parseInt(e.target.value, 10);
                 field.onChange(value);
                 onChange?.(value);
               }}
+              disabled={optionsArray.length === 0}
             >
-              {optionsArray.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label} {option.value === 1 ? 'Ticket' : 'Tickets'}
-                </option>
-              ))}
+              {optionsArray.length === 0 ? (
+                <option value="">No tickets available</option>
+              ) : (
+                optionsArray.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} {option.value === 1 ? 'Ticket' : 'Tickets'}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>

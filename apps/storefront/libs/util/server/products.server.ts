@@ -13,10 +13,17 @@ export const fetchProducts = async (request: Request, { ...query }: HttpTypes.St
     staleWhileRevalidate: MILLIS.ONE_HOUR,
     ttl: MILLIS.TEN_SECONDS,
     async getFreshValue() {
-      return await sdk.store.product.list({
+      const response = await sdk.store.product.list({
         ...query,
         region_id: region.id,
       });
+      return {
+        ...response,
+        products: (response.products ?? []).filter((product) => {
+          const metadata = product.metadata as Record<string, unknown> | null | undefined;
+          return metadata?.is_system_product !== true;
+        }),
+      };
     },
   });
 };

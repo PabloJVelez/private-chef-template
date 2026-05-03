@@ -1,38 +1,139 @@
-import { Button } from '@app/components/common/buttons/Button';
 import { Container } from '@app/components/common/container/Container';
 import { Grid } from '@app/components/common/grid/Grid';
 import { GridColumn } from '@app/components/common/grid/GridColumn';
 import { SubmitButton } from '@app/components/common/remix-hook-form/buttons/SubmitButton';
 import { QuantitySelector } from '@app/components/common/remix-hook-form/field-groups/QuantitySelector';
-import { ProductPrice } from '@app/components/product/ProductPrice';
 import { Share } from '@app/components/share';
 import { useCart } from '@app/hooks/useCart';
-import { useRegion } from '@app/hooks/useRegion';
 import { FetcherKeys } from '@libs/util/fetcher-keys';
 import { formatPrice, getVariantPrices } from '@libs/util/prices';
 import { getEventTypeDisplayName } from '@libs/constants/pricing';
 import { isEventProduct, parseEventSku, getEventVariant } from '@libs/util/products';
-import { StoreProduct } from '@medusajs/types';
-import { useCallback, useRef } from 'react';
+import type { StoreChefEventDTO } from '@libs/util/server/data/chef-events.server';
+import { StoreProduct, StoreProductVariant } from '@medusajs/types';
+import { useCallback, useMemo, useRef, type Ref } from 'react';
 import { useFetcher } from 'react-router';
 import { RemixFormProvider, useRemixForm } from 'remix-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import clsx from 'clsx';
 
-// Schema for add to cart form
-const addToCartSchema = z.object({
-  productId: z.string(),
-  options: z.record(z.string()),
-  quantity: z.number().min(1),
-});
+type InitializeEventCartFormFields = {
+  productId: string
+  options: Record<string, string>
+  quantity: number
+}
 
-type AddToCartFormData = z.infer<typeof addToCartSchema>;
+type InitializeEventCartFormProps = {
+  productId: string
+  eventVariant: StoreProductVariant | undefined
+  inventoryQuantity: number
+  defaultTicketQuantity: number
+  eventVariantOptions: Record<string, string>
+  /** True only for the first checkout wave: pending charges and no paid charge rows yet. */
+  requireMinimumTicketQuantity: boolean
+  minimumTickets: number
+  ticketMinQuantity: number
+  eventId: string
+  isSoldOut: boolean
+  isAddingToCart: boolean
+  onSubmit: () => void
+  formRef: Ref<HTMLFormElement>
+  /** Same fetcher instance as parent so submit state stays in one place */
+  fetcher: ReturnType<typeof useFetcher>
+}
+
+/**
+ * Owns remix-hook-form for initialize-cart. Remounted via `key` on parent when
+ * defaults / validation bounds change — avoids useEffect + form.reset loops.
+ */
+function InitializeEventCartForm({
+  productId,
+  eventVariant,
+  inventoryQuantity,
+  defaultTicketQuantity,
+  eventVariantOptions,
+  requireMinimumTicketQuantity,
+  minimumTickets,
+  ticketMinQuantity,
+  eventId,
+  isSoldOut,
+  isAddingToCart,
+  onSubmit,
+  formRef,
+  fetcher,
+}: InitializeEventCartFormProps) {
+  const addToCartSchema = useMemo(() => {
+    const quantityMax = Math.max(1, inventoryQuantity)
+    const quantityMin = requireMinimumTicketQuantity ? Math.max(1, minimumTickets) : 1
+    return z.object({
+      productId: z.string(),
+      options: z.record(z.string()),
+      quantity: z.number().min(quantityMin).max(quantityMax),
+    })
+  }, [requireMinimumTicketQuantity, minimumTickets, inventoryQuantity])
+
+  const form = useRemixForm<InitializeEventCartFormFields>({
+    resolver: zodResolver(addToCartSchema),
+    defaultValues: {
+      productId,
+      options: eventVariantOptions,
+      quantity: defaultTicketQuantity,
+    },
+  })
+
+  const FetcherForm = fetcher.Form
+
+  return (
+    <RemixFormProvider {...form}>
+      <FetcherForm
+        id="addToCartForm"
+        ref={formRef}
+        method="post"
+        action={`/api/events/${eventId}/initialize-cart`}
+        onSubmit={onSubmit}
+      >
+        <input type="hidden" name="productId" value={productId} />
+        {Object.entries(eventVariantOptions).map(([optionId, value]) => (
+          <input key={optionId} type="hidden" name={`options.${optionId}`} value={value} />
+        ))}
+
+        <div className="space-y-4">
+          {!isSoldOut && (
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-white font-semibold text-lg">Number of Tickets</span>
+                <span className="text-orange-200 text-sm font-medium">Max: {inventoryQuantity}</span>
+              </div>
+              <QuantitySelector
+                variant={eventVariant}
+                className="w-full"
+                customInventoryQuantity={inventoryQuantity}
+                minQuantity={ticketMinQuantity}
+              />
+            </div>
+          )}
+
+          <SubmitButton
+            disabled={isSoldOut}
+            className={clsx(
+              'w-full bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 font-bold py-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-lg',
+              isSoldOut &&
+                'opacity-50 cursor-not-allowed bg-gray-400 hover:from-gray-400 hover:to-gray-400',
+            )}
+          >
+            {isAddingToCart ? 'Adding to Cart...' : isSoldOut ? 'Sold Out' : 'Purchase Tickets'}
+          </SubmitButton>
+        </div>
+      </FetcherForm>
+    </RemixFormProvider>
+  )
+}
 
 export interface EventProductDetailsProps {
   product: StoreProduct;
-  chefEvent?: any; // Will be fetched from backend
-  menu?: any; // Will be fetched from backend
+  chefEvent?: StoreChefEventDTO | null;
+  menu?: { id: string; title?: string; courses?: Array<{ id: string }> } | null;
 }
 
 /**
@@ -42,8 +143,7 @@ export interface EventProductDetailsProps {
 export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDetailsProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const addToCartFetcher = useFetcher<any>({ key: FetcherKeys.cart.createLineItem });
-  const { toggleCartDrawer } = useCart();
-  const { region } = useRegion();
+  const { toggleCartDrawer, cart } = useCart();
 
   const eventVariant = getEventVariant(product);
   const eventInfo = eventVariant?.sku ? parseEventSku(eventVariant.sku) : null;
@@ -74,8 +174,7 @@ export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDe
   const inventoryQuantity = getInventoryQuantity();
   const isSoldOut = inventoryQuantity <= 0;
 
-  // Get the option values for the event variant
-  const getEventVariantOptions = () => {
+  const eventVariantOptions = useMemo(() => {
     if (!eventVariant?.options) return {};
 
     const options: Record<string, string> = {};
@@ -86,19 +185,89 @@ export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDe
     });
 
     return options;
-  };
+  }, [eventVariant]);
 
-  const eventVariantOptions = getEventVariantOptions();
+  const paymentSummary = chefEvent?.paymentSummary
 
-  // Setup form with remix-hook-form
-  const form = useRemixForm<AddToCartFormData>({
-    resolver: zodResolver(addToCartSchema),
-    defaultValues: {
-      productId: product.id,
-      options: eventVariantOptions,
-      quantity: 1,
-    },
-  });
+  const hasPendingCharges =
+    paymentSummary != null &&
+    Array.isArray(paymentSummary.pendingCharges) &&
+    paymentSummary.pendingCharges.length > 0
+
+  const minimumTickets = paymentSummary?.minimumInitialTicketQuantity ?? 1
+
+  const enforceMinimumTicketsForCharges = Boolean(
+    hasPendingCharges &&
+      paymentSummary != null &&
+      (paymentSummary.minimumTicketsRequiredWithPendingCharges ?? true),
+  )
+
+  const defaultTicketQuantity = useMemo(() => {
+    if (inventoryQuantity <= 0) return 1
+    if (enforceMinimumTicketsForCharges) {
+      if (minimumTickets > inventoryQuantity) {
+        return Math.max(1, inventoryQuantity)
+      }
+      return Math.min(Math.max(minimumTickets, 1), inventoryQuantity)
+    }
+    return 1
+  }, [inventoryQuantity, enforceMinimumTicketsForCharges, minimumTickets])
+
+  /** Floor for ticket select; may exceed inventory (selector shows no options — cannot satisfy checkout). */
+  const ticketMinQuantity = useMemo(() => {
+    if (!enforceMinimumTicketsForCharges) return 1
+    return Math.max(1, minimumTickets)
+  }, [enforceMinimumTicketsForCharges, minimumTickets])
+
+  const ticketsInCartForEvent = useMemo(() => {
+    if (!cart?.items?.length || !chefEvent?.id) return 0
+    for (const item of cart.items) {
+      const m = item.metadata as Record<string, unknown> | undefined
+      if (m?.chef_event_id !== chefEvent.id) continue
+      if (m?.kind === 'chef_event_ticket') {
+        return Number(item.quantity) || 0
+      }
+    }
+    return 0
+  }, [cart?.items, chefEvent?.id])
+
+  const showMinimumTicketsRow =
+    enforceMinimumTicketsForCharges &&
+    minimumTickets > 1 &&
+    ticketsInCartForEvent < minimumTickets
+
+  /** No pending one-time charges → first checkout obligation is done; hide minimum/due rows for return visits. */
+  const showPaymentSummaryExtras = hasPendingCharges || showMinimumTicketsRow
+
+  /** Remount initialize-cart form when server-driven bounds / defaults change (no useEffect reset). */
+  const initializeCartFormKey = useMemo(
+    () =>
+      [
+        product.id,
+        chefEvent?.id ?? '',
+        String(inventoryQuantity),
+        String(defaultTicketQuantity),
+        hasPendingCharges ? '1' : '0',
+        enforceMinimumTicketsForCharges ? '1' : '0',
+        String(minimumTickets),
+        String(ticketMinQuantity),
+        Object.keys(eventVariantOptions)
+          .sort()
+          .map((k) => `${k}:${eventVariantOptions[k]}`)
+          .join(','),
+      ].join('|'),
+    [
+      product.id,
+      chefEvent?.id,
+      inventoryQuantity,
+      defaultTicketQuantity,
+      hasPendingCharges,
+      enforceMinimumTicketsForCharges,
+      minimumTickets,
+      ticketMinQuantity,
+      eventVariantOptions,
+    ],
+  )
 
   // Format event date and time from product description
   const formatEventDateTime = () => {
@@ -352,49 +521,65 @@ export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDe
                             {formatPrice(pricePerPerson, { currency: 'usd' })}
                           </span>
                         </div>
+
+                        {paymentSummary && showPaymentSummaryExtras ? (
+                          <>
+                            {showMinimumTicketsRow ? (
+                              <div className="flex justify-between items-center py-3 bg-white/80 backdrop-blur-sm rounded-xl px-4">
+                                <span className="text-gray-600 font-medium">Minimum Tickets Due Now</span>
+                                <span className="font-bold text-lg text-gray-900">
+                                  {paymentSummary.minimumInitialTicketQuantity}
+                                </span>
+                              </div>
+                            ) : null}
+                            {hasPendingCharges && paymentSummary.pendingCharges.length > 0 ? (
+                              <div className="rounded-xl bg-white/80 backdrop-blur-sm px-4 py-3 space-y-2">
+                                <p className="text-sm font-semibold text-gray-700">One-time event charges</p>
+                                {paymentSummary.pendingCharges.map((charge) => (
+                                  <div key={charge.id} className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">{charge.name}</span>
+                                    <span className="font-semibold text-gray-900">
+                                      {formatPrice(charge.amount / 100, { currency: "usd" })}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                            {hasPendingCharges ? (
+                              <div className="flex justify-between items-center py-3 bg-white/80 backdrop-blur-sm rounded-xl px-4">
+                                <span className="text-gray-700 font-semibold">
+                                  {enforceMinimumTicketsForCharges
+                                    ? "Due Now (minimum)"
+                                    : "Due now (additional charges)"}
+                                </span>
+                                <span className="font-bold text-xl text-gray-900">
+                                  {formatPrice((paymentSummary.dueNowMinimumTotal ?? 0) / 100, {
+                                    currency: "usd",
+                                  })}
+                                </span>
+                              </div>
+                            ) : null}
+                          </>
+                        ) : null}
                       </div>
 
-                      <RemixFormProvider {...form}>
-                        <addToCartFetcher.Form
-                          id="addToCartForm"
-                          ref={formRef}
-                          method="post"
-                          action="/api/cart/line-items/create"
-                          onSubmit={handleAddToCart}
-                        >
-                          <input type="hidden" name="productId" value={product.id} />
-                          {Object.entries(eventVariantOptions).map(([optionId, value]) => (
-                            <input key={optionId} type="hidden" name={`options.${optionId}`} value={value} />
-                          ))}
-
-                          <div className="space-y-4">
-                            {!isSoldOut && (
-                              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                                <div className="flex items-center justify-between mb-3">
-                                  <span className="text-white font-semibold text-lg">Number of Tickets</span>
-                                  <span className="text-orange-200 text-sm font-medium">Max: {inventoryQuantity}</span>
-                                </div>
-                                <QuantitySelector
-                                  variant={eventVariant}
-                                  className="w-full"
-                                  customInventoryQuantity={inventoryQuantity}
-                                />
-                              </div>
-                            )}
-
-                            <SubmitButton
-                              disabled={isSoldOut}
-                              className={clsx(
-                                'w-full bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 font-bold py-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-lg',
-                                isSoldOut &&
-                                  'opacity-50 cursor-not-allowed bg-gray-400 hover:from-gray-400 hover:to-gray-400',
-                              )}
-                            >
-                              {isAddingToCart ? 'Adding to Cart...' : isSoldOut ? 'Sold Out' : 'Purchase Tickets'}
-                            </SubmitButton>
-                          </div>
-                        </addToCartFetcher.Form>
-                      </RemixFormProvider>
+                      <InitializeEventCartForm
+                        key={initializeCartFormKey}
+                        productId={product.id}
+                        eventVariant={eventVariant}
+                        inventoryQuantity={inventoryQuantity}
+                        defaultTicketQuantity={defaultTicketQuantity}
+                        eventVariantOptions={eventVariantOptions}
+                        requireMinimumTicketQuantity={enforceMinimumTicketsForCharges}
+                        minimumTickets={minimumTickets}
+                        ticketMinQuantity={ticketMinQuantity}
+                        eventId={eventInfo.eventId}
+                        isSoldOut={isSoldOut}
+                        isAddingToCart={isAddingToCart}
+                        onSubmit={handleAddToCart}
+                        formRef={formRef}
+                        fetcher={addToCartFetcher}
+                      />
                     </div>
                   </div>
 

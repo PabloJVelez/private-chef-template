@@ -22,6 +22,14 @@ export const CheckoutOrderSummaryItem: FC<CheckoutOrderSummaryItemProps> = ({ it
   const removeCartItem = useRemoveCartItem();
   const handleRemoveFromCart = () => removeCartItem.submit(item);
   const isRemovingFromCart = ['loading', 'submitting'].includes(removeCartItem.state);
+  const metadata = (item.metadata ?? {}) as Record<string, unknown>
+  const isAdditionalCharge = metadata.kind === "chef_event_additional_charge"
+  const displayTitle =
+    isAdditionalCharge && typeof metadata.charge_name === "string"
+      ? metadata.charge_name
+      : item.product_title
+  const displayVariantTitle =
+    isAdditionalCharge ? "One-time event charge" : item.variant_title
 
   if (!cart) return null;
 
@@ -40,17 +48,19 @@ export const CheckoutOrderSummaryItem: FC<CheckoutOrderSummaryItemProps> = ({ it
           <div className="min-w-0 flex-1">
             <h4 className="text-base">
               <Link to={`/products/${item.product_handle}`} className="font-bold text-gray-700 hover:text-gray-800">
-                {item.product_title}
+                {displayTitle}
               </Link>
             </h4>
-            <p className="mt-0.5 text-sm text-gray-500">{item.variant_title}</p>
+            <p className="mt-0.5 text-sm text-gray-500">{displayVariantTitle}</p>
           </div>
 
-          <div className="ml-4 flow-root flex-shrink-0">
-            <Button variant="link" onClick={handleRemoveFromCart} disabled={isRemovingFromCart} className="text-sm">
-              {isRemovingFromCart ? 'Removing' : 'Remove'}
-            </Button>
-          </div>
+          {!isAdditionalCharge ? (
+            <div className="ml-4 flow-root flex-shrink-0">
+              <Button variant="link" onClick={handleRemoveFromCart} disabled={isRemovingFromCart} className="text-sm">
+                {isRemovingFromCart ? 'Removing' : 'Remove'}
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-1 items-end justify-between pt-2">

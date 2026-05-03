@@ -17,6 +17,23 @@ export interface StoreChefEventDTO {
   notes?: string;
   totalPrice: number;
   specialRequirements?: string;
+  additionalCharges?: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    status: "pending" | "paid" | "void";
+  }>;
+  paymentSummary?: {
+    minimumInitialTicketQuantity: number;
+    minimumTicketsRequiredWithPendingCharges?: boolean;
+    pendingCharges: Array<{
+      id: string;
+      name: string;
+      amount: number;
+    }>;
+    pendingChargesTotal: number;
+    dueNowMinimumTotal: number;
+  };
   createdAt: string;
   updatedAt: string;
 }
