@@ -3,7 +3,7 @@
 - Owner: PabloJVelez
 - Last Updated: 2026-04-29
 - Status: Draft (post-review)
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/`
 - Stakeholders: PabloJVelez (Requestor, Decision Maker)
 - Notes: Refined on 2026-04-29 after a Medusa v2 pattern review. Tasks renumbered; system charge product/variant promoted to a first-class task; workflow/hook/subscriber patterns made explicit; money representation pinned.
 
@@ -18,8 +18,8 @@ This task adds chef-managed, event-scoped additional charges that hosts pay once
 Current event purchases submit from storefront `EventProductDetails` into the generic `/api/cart/line-items/create` route, which resolves and adds a single variant line only. That path does not support: (a) atomically synchronizing event ticket + one-time charge rows, (b) enforcing strict event-cart rules, or (c) marking charge rows paid based on order outcomes. At the same time, the repo has event-ticket-specific fulfillment automation (`subscribers/event-ticket-payment-captured.ts`, `workflows/fulfill-event-ticket-lines.ts`) and digital-only checkout customizations (`libs/util/cart/cart-helpers.ts`) that must not regress.
 
 References:
-- Clarification packet: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/clarification/2026-04-29_initial-clarification.md`
-- Research packet: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/research/2026-04-29_chef-event-additional-charges-research.md`
+- Clarification packet: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/clarification/2026-04-29_initial-clarification.md`
+- Research packet: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/research/2026-04-29_chef-event-additional-charges-research.md`
 
 ### Objectives & Success Metrics
 - Add per-row additional charge modeling on `ChefEvent` with lifecycle `pending|paid|void`.
@@ -341,13 +341,13 @@ Success is binary and behavior-based:
 ---
 
 ## Progress Tracking
-Refer to `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/AGENTS.md` for implementation progress tracking instructions.
+Refer to `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/AGENTS.md` for implementation progress tracking instructions.
 
 ---
 
 ## Appendices & References
-- Clarification packet: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/clarification/2026-04-29_initial-clarification.md`
-- Research packet: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/research/2026-04-29_chef-event-additional-charges-research.md`
+- Clarification packet: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/clarification/2026-04-29_initial-clarification.md`
+- Research packet: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/research/2026-04-29_chef-event-additional-charges-research.md`
 - Scope brief: `/Users/pablo/Downloads/private-chef-event-additional-charges.md`
 - Related project docs:
   - `.devagent/AGENTS.md`

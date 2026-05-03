@@ -4,7 +4,7 @@
 - Requested By: PabloJVelez
 - Last Updated: 2026-04-29
 - Related Plan: (not created yet)
-- Storage Path: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/research/2026-04-29_chef-event-additional-charges-research.md`
+- Storage Path: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/research/2026-04-29_chef-event-additional-charges-research.md`
 - Stakeholders: PabloJVelez (Owner / Decision Maker)
 
 ## Request Overview
@@ -19,8 +19,8 @@ Enable chefs to add event-scoped one-time additional charges that are collected 
 
 ## Context Snapshot
 - Task summary: One-time per-row additional charges on `ChefEvent` with strict cart behavior, immutable paid rows, and `void` soft-delete.
-- Task reference: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/`
-- Existing decisions: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/clarification/2026-04-29_initial-clarification.md`
+- Task reference: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/`
+- Existing decisions: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/clarification/2026-04-29_initial-clarification.md`
 
 ## Research Questions
 | ID | Question | Status (Planned / Answered / Follow-up) | Notes |
@@ -127,7 +127,7 @@ Enable chefs to add event-scoped one-time additional charges that are collected 
 ## Sources
 | Reference | Type | Freshness | Access Notes |
 | --- | --- | --- | --- |
-| `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/clarification/2026-04-29_initial-clarification.md` | Internal artifact | 2026-04-29 | Authoritative requirement decisions |
+| `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/clarification/2026-04-29_initial-clarification.md` | Internal artifact | 2026-04-29 | Authoritative requirement decisions |
 | `/Users/pablo/Downloads/private-chef-event-additional-charges.md` | External brief (local doc) | 2026-04-29 | User-provided scope brief |
 | `apps/medusa/src/modules/chef-event/models/chef-event.ts` | Code | 2026-04-29 | Current model capabilities |
 | `apps/medusa/src/api/admin/chef-events/[id]/route.ts` | Code | 2026-04-29 | Admin update boundary |

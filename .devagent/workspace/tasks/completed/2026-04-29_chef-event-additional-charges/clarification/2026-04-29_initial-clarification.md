@@ -5,7 +5,7 @@
 - Date: 2026-04-29
 - Mode: Task Clarification
 - Status: Complete
-- Related Task Hub: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/`
+- Related Task Hub: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/`
 - Notes: Invocation had no explicit input context; this packet starts from inferred context and validates assumptions through interactive Q&A.
 
 ## Task Overview

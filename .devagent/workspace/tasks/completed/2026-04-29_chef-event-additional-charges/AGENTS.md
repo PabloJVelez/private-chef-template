@@ -2,8 +2,8 @@
 
 - Owner: PabloJVelez
 - Last Updated: 2026-05-03
-- Status: Draft
-- Task Hub: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/`
+- Status: Complete
+- Task Hub: `.devagent/workspace/tasks/completed/2026-04-29_chef-event-additional-charges/`
 
 ## Summary
 
@@ -43,6 +43,7 @@ The recommended architecture (see References) is: extend `ChefEvent` with a JSON
 - [2026-04-29] Event: Completed remaining hardening pass — initialize-cart now reconciles existing event ticket and additional-charge line items (updates existing quantities/prices/metadata instead of repeatedly adding), storefront product list filtering now excludes `metadata.is_system_product === true`, and checkout success now displays additional-charge labels from `metadata.charge_name`; validated again with `yarn workspace medusa typecheck` and `yarn workspace medusa test:unit`.
 - [2026-04-29] Event: Added stale-line cleanup and email line rendering alignment — initialize-cart now deletes charge line items that no longer map to pending rows, and order placed email rendering now prefers `metadata.charge_name` for additional-charge lines; backend validation remains green.
 - [2026-05-03] Event: Pattern review pass aligned the feature with Medusa v2 conventions — `initialize-chef-event-cart` now goes through `deleteLineItemsWorkflow` (proper `cart.updated` events + cart refresh) instead of resolving `Modules.CART` directly, removed `as any` casts on sub-workflow inputs and added explicit row-shape types around `query.graph`; store `GET /store/chef-events/:id` and the `order.placed` subscriber now resolve `ChefEventModuleService` via the `CHEF_EVENT_MODULE` constant with the typed service; `validate-add-to-cart` hook tightened to typed item shapes; storefront `EventProductDetails` typed against the shared `StoreChefEventDTO`/`paymentSummary` rather than `any`; `QuantitySelector` debug `console.log` dropped. Validated with `yarn workspace medusa typecheck` and `yarn workspace medusa test:unit` (passing); storefront typecheck only surfaces pre-existing unrelated errors.
+- [2026-05-03] Event: Task moved to completed. Updated all status references and file paths from `active/` to `completed/` throughout task directory.
 
 ## Implementation Checklist
 
