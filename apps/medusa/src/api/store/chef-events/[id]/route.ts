@@ -1,31 +1,49 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { CHEF_EVENT_MODULE } from "../../../../modules/chef-event"
+import type ChefEventModuleService from "../../../../modules/chef-event/service"
+import {
+  buildChefEventPaymentSummary,
+  normalizeAdditionalCharges,
+} from "../../../../lib/chef-event-additional-charges"
 
 export async function GET(
   req: MedusaRequest,
-  res: MedusaResponse
+  res: MedusaResponse,
 ): Promise<void> {
   const { id } = req.params
 
   try {
-    const chefEventService = req.scope.resolve("chefEventModuleService") as any
-    
+    const chefEventService = req.scope.resolve(
+      CHEF_EVENT_MODULE,
+    ) as ChefEventModuleService
+
     const chefEvent = await chefEventService.retrieveChefEvent(id)
-    
+
     if (!chefEvent) {
-      res.status(404).json({
-        message: "Chef event not found"
-      })
+      res.status(404).json({ message: "Chef event not found" })
       return
     }
 
-    // Only return confirmed events for storefront
-    if (chefEvent.status !== 'confirmed') {
-      res.status(404).json({
-        message: "Chef event not available"
-      })
+    if (chefEvent.status !== "confirmed") {
+      res.status(404).json({ message: "Chef event not available" })
       return
     }
+
+    const additionalCharges = normalizeAdditionalCharges(
+      (chefEvent as { additionalCharges?: unknown }).additionalCharges,
+    )
+    const partySize = Number(chefEvent.partySize) || 1
+    const totalPriceDollars = Number(chefEvent.totalPrice ?? 0)
+    const pricePerTicketDollars =
+      partySize > 0 && Number.isFinite(totalPriceDollars)
+        ? totalPriceDollars / partySize
+        : 0
+    const pricePerTicketCents = Math.round(pricePerTicketDollars * 100)
+    const paymentSummary = buildChefEventPaymentSummary({
+      partySize,
+      pricePerTicket: pricePerTicketCents,
+      charges: additionalCharges,
+    })
 
     res.status(200).json({
       chefEvent: {
@@ -49,14 +67,14 @@ export async function GET(
         acceptedAt: chefEvent.acceptedAt,
         acceptedBy: chefEvent.acceptedBy,
         chefNotes: chefEvent.chefNotes,
-        createdAt: chefEvent.created_at,
-        updatedAt: chefEvent.updated_at
-      }
+        additionalCharges,
+        paymentSummary,
+        createdAt: (chefEvent as { created_at?: unknown }).created_at,
+        updatedAt: (chefEvent as { updated_at?: unknown }).updated_at,
+      },
     })
   } catch (error) {
-    console.error('Error retrieving chef event:', error)
-    res.status(500).json({
-      message: "Internal server error"
-    })
+    console.error("Error retrieving chef event:", error)
+    res.status(500).json({ message: "Internal server error" })
   }
-} 
+}

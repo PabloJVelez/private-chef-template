@@ -32,6 +32,14 @@ type UpdateChefEventWorkflowInput = {
   depositPaid?: boolean
   specialRequirements?: string
   estimatedDuration?: number
+  additionalCharges?: Array<{
+    id?: string
+    name: string
+    amount: number
+    status?: "pending" | "paid" | "void"
+    notes?: string | null
+    sort_order?: number | null
+  }> | null
 }
 
 const updateChefEventStep = createStep(
@@ -48,6 +56,8 @@ const updateChefEventStep = createStep(
     }
 
     const updateData: any = { ...input }
+    const incomingAdditionalCharges = input.additionalCharges
+    delete updateData.additionalCharges
     if (
       existing.eventMenuId &&
       typeof input.templateProductId === "string" &&
@@ -79,7 +89,15 @@ const updateChefEventStep = createStep(
     }
 
     const updated = await chefEventModuleService.updateChefEvents(updateData)
-    const chefEvent = Array.isArray(updated) ? updated[0] : updated
+    let chefEvent = Array.isArray(updated) ? updated[0] : updated
+
+    if (incomingAdditionalCharges !== undefined) {
+      const appliedRows = incomingAdditionalCharges ?? []
+      chefEvent = await chefEventModuleService.setAdditionalCharges(
+        input.id,
+        appliedRows,
+      )
+    }
 
     return new StepResponse(chefEvent)
   }

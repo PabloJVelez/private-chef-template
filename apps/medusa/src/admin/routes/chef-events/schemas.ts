@@ -1,5 +1,17 @@
 import { z } from "zod"
 
+export const additionalChargeSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().min(1, "Charge name is required"),
+  /**
+   * Stored in cents.
+   */
+  amount: z.number().int().min(0, "Charge amount must be a non-negative integer in cents"),
+  status: z.enum(["pending", "paid", "void"]).default("pending"),
+  notes: z.string().optional().nullable(),
+  sort_order: z.number().int().optional().nullable(),
+})
+
 export const chefEventSchema = z.object({
   status: z.enum(['pending', 'confirmed', 'cancelled', 'completed']).default('pending'),
   requestedDate: z.string().refine(
@@ -29,7 +41,8 @@ export const chefEventSchema = z.object({
   totalPrice: z.number().min(0, "Total price cannot be negative").optional(),
   depositPaid: z.boolean().optional(),
   specialRequirements: z.string().optional(),
-  estimatedDuration: z.number().min(30, "Duration must be at least 30 minutes").optional()
+  estimatedDuration: z.number().min(30, "Duration must be at least 30 minutes").optional(),
+  additionalCharges: z.array(additionalChargeSchema).optional().nullable(),
 })
 
 export const chefEventUpdateSchema = chefEventSchema.partial()
@@ -118,7 +131,8 @@ export const getDefaultChefEventValues = () => ({
   totalPrice: 0,
   depositPaid: false,
   specialRequirements: '',
-  estimatedDuration: 120
+  estimatedDuration: 120,
+  additionalCharges: []
 })
 
 // Validation error messages

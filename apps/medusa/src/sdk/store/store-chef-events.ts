@@ -18,6 +18,23 @@ export interface StoreChefEventDTO {
   notes?: string
   totalPrice: number
   specialRequirements?: string
+  additionalCharges?: Array<{
+    id: string
+    name: string
+    amount: number
+    status: "pending" | "paid" | "void"
+  }>
+  paymentSummary?: {
+    minimumInitialTicketQuantity: number
+    minimumTicketsRequiredWithPendingCharges?: boolean
+    pendingCharges: Array<{
+      id: string
+      name: string
+      amount: number
+    }>
+    pendingChargesTotal: number
+    dueNowMinimumTotal: number
+  }
   createdAt: string
   updatedAt: string
 }
@@ -44,6 +61,11 @@ export interface StoreChefEventResponse {
   message: string
 }
 
+export interface StoreInitializeChefEventCartDTO {
+  quantity: number
+  cart_id?: string
+}
+
 export class StoreChefEventsResource {
   constructor(private client: Client) {}
 
@@ -55,6 +77,16 @@ export class StoreChefEventsResource {
   async create(data: StoreCreateChefEventDTO) {
     return this.client.fetch<StoreChefEventResponse>(`/store/chef-events`, {
       method: 'POST',
+      body: data,
+    })
+  }
+
+  async initializeCart(id: string, data: StoreInitializeChefEventCartDTO) {
+    return this.client.fetch<{
+      cart: unknown
+      paymentSummary: StoreChefEventDTO["paymentSummary"]
+    }>(`/store/chef-events/${id}/initialize-cart`, {
+      method: "POST",
       body: data,
     })
   }

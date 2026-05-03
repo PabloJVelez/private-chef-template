@@ -1,5 +1,23 @@
 import { model } from "@medusajs/framework/utils"
 
+export type ChefEventAdditionalChargeStatus = "pending" | "paid" | "void"
+
+export type ChefEventAdditionalCharge = {
+  id: string
+  name: string
+  /**
+   * Amount in cents.
+   */
+  amount: number
+  status: ChefEventAdditionalChargeStatus
+  paid_at?: string | null
+  paid_order_id?: string | null
+  notes?: string | null
+  sort_order?: number | null
+  created_at: string
+  updated_at: string
+}
+
 export const ChefEvent = model.define("chef_event", {
   // Basic fields
   id: model.id().primaryKey(),
@@ -54,6 +72,11 @@ export const ChefEvent = model.define("chef_event", {
   emailHistory: model.json().nullable(), // Track sent emails with timestamps and recipients
   lastEmailSentAt: model.dateTime().nullable(), // Last email activity timestamp
   customEmailRecipients: model.json().nullable(), // Additional email recipients for resends
+  /**
+   * Event-scoped one-time additional charges.
+   * Stored as JSON rows using cents for amount.
+   */
+  additionalCharges: model.json().nullable(),
 
   /** Optional gratuity amount (set when sending receipt to host) */
   tipAmount: model.number().nullable(),
@@ -108,6 +131,7 @@ export type ChefEventType = {
   }>
   lastEmailSentAt?: Date
   customEmailRecipients?: string[]
+  additionalCharges?: ChefEventAdditionalCharge[] | null
   tipAmount?: number | null
   tipMethod?: string | null
 }

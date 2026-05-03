@@ -1,7 +1,7 @@
 # Chef Event Additional Charges Progress Tracker
 
 - Owner: PabloJVelez
-- Last Updated: 2026-04-29
+- Last Updated: 2026-05-03
 - Status: Draft
 - Task Hub: `.devagent/workspace/tasks/active/2026-04-29_chef-event-additional-charges/`
 
@@ -29,6 +29,7 @@ The recommended architecture (see References) is: extend `ChefEvent` with a JSON
 - [2026-04-29] Decision: Charge `amount` is stored as integer cents to match Medusa core conventions (`unit_price`, `payment.amount`). Source: plan review.
 - [2026-04-29] Decision: Charge lines are identified by `metadata.kind === "chef_event_additional_charge"` plus `chef_event_id` / `chef_event_charge_id`; SKU is intentionally not `EVENT-*` to avoid ticket-automation overlap. Source: plan review.
 - [2026-04-29] Decision: `initializeChefEventCartWorkflow` composes Medusa core-flows (`createCartWorkflow`, `addToCartWorkflow`, `useQueryGraphStep`); the `addToCartWorkflow.hooks.validate(...)` hook enforces strict event-cart rules; the `OrderEvents.PLACED` subscriber reconciles paid-state transitions. Source: plan review.
+- [2026-05-03] Decision: For cart line removal during reconcile, use `deleteLineItemsWorkflow` (which wraps `acquireLockStep` → `deleteLineItemsStep` → `refreshCartItemsWorkflow` → `cart.updated` event) instead of resolving `Modules.CART` directly, so totals stay coherent and downstream subscribers are notified. Source: pattern-review pass.
 
 ## Progress Log
 
@@ -37,18 +38,23 @@ The recommended architecture (see References) is: extend `ChefEvent` with a JSON
 - [2026-04-29] Event: Research workflow completed with code-path analysis and planning recommendations in `research/2026-04-29_chef-event-additional-charges-research.md`.
 - [2026-04-29] Event: Create-plan workflow completed; implementation plan authored at `plan/2026-04-29_chef-event-additional-charges-implementation-plan.md` with 5 execution-focused task slices and validation criteria.
 - [2026-04-29] Event: Plan refined for Medusa v2 best practices — promoted system charge product/variant to its own task (now 6 tasks total), pinned money to integer cents, specified `addToCartWorkflow.hooks.validate` and `OrderEvents.PLACED` subscriber patterns, added `ChefEventModuleService` custom methods, and locked the charge-line metadata schema.
+- [2026-04-29] Event: Implement-plan execution (Tasks 1-5 partial) completed for backend + storefront wiring — added `ChefEvent.additionalCharges` model + migration + service lifecycle methods, admin schema/API/workflow/SDK updates, system charge product ensure script + resolver + init wiring, `initialize-chef-event-cart` workflow and store route, add-to-cart validate hook + `order.placed` paid-state subscriber, storefront event initialize-cart action route, and cart/checkout metadata-based charge rendering. Validation: `yarn workspace medusa typecheck` passed; root/storefront typecheck has unrelated pre-existing failures outside this task.
+- [2026-04-29] Event: Added payment-summary UI on event product page and backend unit coverage in `apps/medusa/src/lib/__tests__/chef-event-additional-charges.unit.spec.ts`; reran `yarn workspace medusa typecheck` and `yarn workspace medusa test:unit` (both passing).
+- [2026-04-29] Event: Completed remaining hardening pass — initialize-cart now reconciles existing event ticket and additional-charge line items (updates existing quantities/prices/metadata instead of repeatedly adding), storefront product list filtering now excludes `metadata.is_system_product === true`, and checkout success now displays additional-charge labels from `metadata.charge_name`; validated again with `yarn workspace medusa typecheck` and `yarn workspace medusa test:unit`.
+- [2026-04-29] Event: Added stale-line cleanup and email line rendering alignment — initialize-cart now deletes charge line items that no longer map to pending rows, and order placed email rendering now prefers `metadata.charge_name` for additional-charge lines; backend validation remains green.
+- [2026-05-03] Event: Pattern review pass aligned the feature with Medusa v2 conventions — `initialize-chef-event-cart` now goes through `deleteLineItemsWorkflow` (proper `cart.updated` events + cart refresh) instead of resolving `Modules.CART` directly, removed `as any` casts on sub-workflow inputs and added explicit row-shape types around `query.graph`; store `GET /store/chef-events/:id` and the `order.placed` subscriber now resolve `ChefEventModuleService` via the `CHEF_EVENT_MODULE` constant with the typed service; `validate-add-to-cart` hook tightened to typed item shapes; storefront `EventProductDetails` typed against the shared `StoreChefEventDTO`/`paymentSummary` rather than `any`; `QuantitySelector` debug `console.log` dropped. Validated with `yarn workspace medusa typecheck` and `yarn workspace medusa test:unit` (passing); storefront typecheck only surfaces pre-existing unrelated errors.
 
 ## Implementation Checklist
 
-- [ ] Model & migration: `ChefEvent.additionalCharges` JSON array with per-row `id`, `name`, `amount`, `status`, timestamps, `paid_order_id`, etc.; align DTOs/SDK/admin types.
-- [ ] Admin API & workflow: allow validated updates to charge rows; integrate `update-chef-event`; paid/void semantics and server-controlled fields.
-- [ ] Admin UI: “Additional charges” section on chef event detail; pending editable, paid read-only, void hidden from storefront; optional soft-delete via `void`.
-- [ ] Catalog: seed or document **system charge** product/variant (`is_system_product`, `kind: chef_event_additional_charge`); storefront filtering if needed.
-- [ ] Store API & workflow: `initialize-chef-event-cart` (or equivalent) — validate event, minimum ticket qty when pending charges, sync cart (ticket qty + one charge line per pending row with `unit_price` + metadata).
-- [ ] Hooks/subscribers: post-order (or complete-cart) path to mark matching charge rows `paid` idempotently; `addToCartWorkflow` validate hook blocking bogus charge lines.
-- [ ] Storefront: replace generic `/api/cart/line-items/create` for event purchases with event init flow; payment summary UI (“Due now”, pending charges, minimum tickets).
-- [ ] Rendering: cart drawer, checkout summary, confirmation, emails — display `metadata.charge_name` when `metadata.kind === "chef_event_additional_charge"`; digital-only cart helpers extended if needed.
-- [ ] Tests: backend (cart sync, validation, paid transitions), storefront (copy, minimum qty, labels, digital-only), regressions (fulfillment/ticket automation, shipping).
+- [x] Model & migration: `ChefEvent.additionalCharges` JSON array with per-row `id`, `name`, `amount`, `status`, timestamps, `paid_order_id`, etc.; align DTOs/SDK/admin types.
+- [x] Admin API & workflow: allow validated updates to charge rows; integrate `update-chef-event`; paid/void semantics and server-controlled fields.
+- [x] Admin UI: “Additional charges” section on chef event detail; pending editable, paid read-only, void hidden from storefront; optional soft-delete via `void`.
+- [x] Catalog: seed or document **system charge** product/variant (`is_system_product`, `kind: chef_event_additional_charge`); storefront filtering if needed.
+- [x] Store API & workflow: `initialize-chef-event-cart` (or equivalent) — validate event, minimum ticket qty when pending charges, sync cart (ticket qty + one charge line per pending row with `unit_price` + metadata).
+- [x] Hooks/subscribers: post-order (or complete-cart) path to mark matching charge rows `paid` idempotently; `addToCartWorkflow` validate hook blocking bogus charge lines.
+- [x] Storefront: replace generic `/api/cart/line-items/create` for event purchases with event init flow; payment summary UI (“Due now”, pending charges, minimum tickets).
+- [x] Rendering: cart drawer, checkout summary, confirmation, emails — display `metadata.charge_name` when `metadata.kind === "chef_event_additional_charge"`; digital-only cart helpers extended if needed.
+- [~] Tests: backend (cart sync, validation, paid transitions), storefront (copy, minimum qty, labels, digital-only), regressions (fulfillment/ticket automation, shipping). (Backend typecheck + unit tests pass, including new helper coverage; integration/subscriber/storefront regression tests still pending.)
 
 ## Open Questions
 

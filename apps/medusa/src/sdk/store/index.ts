@@ -26,5 +26,6 @@ export type {
 export type {
   StoreChefEventDTO,
   StoreCreateChefEventDTO,
-  StoreChefEventResponse
+  StoreChefEventResponse,
+  StoreInitializeChefEventCartDTO,
 } from './store-chef-events' 
