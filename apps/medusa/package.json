@@ -37,6 +37,7 @@
     "start:standalone": "cd .medusa/server && npm start",
     "seed:prod": "medusa exec ./src/scripts/init.js && npm run add-user:prod",
     "ensure-system-charge-product": "medusa exec ./src/scripts/ensure-system-charge-product.ts",
+    "ensure-system-charge-product:prod": "medusa exec ./src/scripts/ensure-system-charge-product.js",
     "add-user:prod": "medusa user --email pmltechpile@gmail.com --password passw0rd!",
     "migrate": "medusa db:migrate",
     "predeploy": "medusa db:migrate",
