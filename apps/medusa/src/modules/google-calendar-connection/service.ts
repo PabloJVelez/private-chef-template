@@ -16,7 +16,7 @@ class GoogleCalendarConnectionModuleService extends MedusaService({
     this.options_ = options ?? {};
   }
 
-  getConfig() {
+  async getConfig() {
     return {
       clientId: this.options_.clientId ?? process.env.GOOGLE_CALENDAR_CLIENT_ID,
       clientSecret:

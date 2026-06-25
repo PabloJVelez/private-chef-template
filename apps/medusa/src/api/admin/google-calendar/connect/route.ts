@@ -11,7 +11,7 @@ export async function POST(
   const svc = req.scope.resolve(
     GOOGLE_CALENDAR_CONNECTION_MODULE,
   ) as GoogleCalendarConnectionModuleService;
-  const config = svc.getConfig();
+  const config = await svc.getConfig();
 
   if (!config.clientId || !config.redirectUri) {
     res.status(400).json({

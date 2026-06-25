@@ -46,7 +46,7 @@ export async function POST(
     return;
   }
 
-  const expectedToken = svc.getConfig().channelToken;
+  const expectedToken = (await svc.getConfig()).channelToken;
   if (expectedToken && channelToken && channelToken !== expectedToken) {
     res.status(401).json({ message: "Invalid Google channel token" });
     return;

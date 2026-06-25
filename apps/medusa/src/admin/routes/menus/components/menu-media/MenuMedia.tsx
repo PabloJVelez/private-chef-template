@@ -159,7 +159,6 @@ export function MenuMedia({ value, onChange }: MenuMediaProps) {
           {images.map((url, index) => (
             <li key={url} className="border rounded-md overflow-hidden">
               <div className="aspect-square bg-gray-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="Menu" className="w-full h-full object-cover" />
               </div>
               <div className="flex items-center justify-between p-2 gap-2">
@@ -192,4 +191,3 @@ export function MenuMedia({ value, onChange }: MenuMediaProps) {
     </div>
   )
 }
-

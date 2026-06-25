@@ -24,6 +24,7 @@
     "build": "medusa build",
     "build:prod": "medusa build && mkdir -p build && cp -r .medusa/client/* build/",
     "build:standalone": "medusa build && cd .medusa/server && npm install",
+    "lint": "eslint .",
     "seed": "medusa exec ./src/scripts/old-scripts/seed.ts",
     "seed:menus": "medusa exec ./src/scripts/old-scripts/seed-menus.ts",
     "start": "medusa start",

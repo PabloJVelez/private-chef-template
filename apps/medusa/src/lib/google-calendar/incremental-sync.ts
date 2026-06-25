@@ -183,7 +183,7 @@ async function applyGoogleEventToChefEvent(
     return;
   }
 
-  const fallbackTz = googleSvc.getConfig().defaultTimezone;
+  const fallbackTz = (await googleSvc.getConfig()).defaultTimezone;
   const zone = resolveEventZone(
     event.start?.timeZone,
     chefEvent.timeZone,

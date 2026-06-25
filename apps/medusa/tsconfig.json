@@ -32,6 +32,7 @@
     ".medusa/admin",
     ".cache",
     "public",
-    "src/admin/overrides"
+    "src/admin/overrides",
+    "eslint.config.*"
   ]
 }

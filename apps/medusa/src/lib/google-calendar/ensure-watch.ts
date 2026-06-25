@@ -26,7 +26,7 @@ export async function ensureGoogleCalendarWatchAndBootstrapSync(
 ): Promise<void> {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
 
-  const config = googleSvc.getConfig();
+  const config = await googleSvc.getConfig();
   if (!config.webhookUrl) {
     logger.warn(
       "GOOGLE_CALENDAR_WEBHOOK_URL is not set; Google->app sync will not receive push notifications.",

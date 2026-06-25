@@ -19,7 +19,7 @@ export async function GET(
   const svc = req.scope.resolve(
     GOOGLE_CALENDAR_CONNECTION_MODULE,
   ) as GoogleCalendarConnectionModuleService;
-  const config = svc.getConfig();
+  const config = await svc.getConfig();
 
   const code = String(req.query.code ?? "");
   const state = String(req.query.state ?? "");
