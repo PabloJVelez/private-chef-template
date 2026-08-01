@@ -6,6 +6,24 @@ import { MENU_MODULE } from "../../../modules/menu"
 import type ExperienceTypeModuleService from "../../../modules/experience-type/service"
 import { fallbackPricePerPersonFromStrings } from "../../../lib/chef-event-legacy-pricing"
 
+const attributionTouchSchema = z.object({
+  utm_source: z.string().optional(),
+  utm_medium: z.string().optional(),
+  utm_campaign: z.string().optional(),
+  utm_content: z.string().optional(),
+  utm_term: z.string().optional(),
+  gclid: z.string().optional(),
+  fbclid: z.string().optional(),
+  landing_page: z.string(),
+  referrer: z.string().optional(),
+  seen_at: z.string(),
+}).passthrough()
+
+const attributionSchema = z.object({
+  first_touch: attributionTouchSchema.optional(),
+  last_touch: attributionTouchSchema.optional(),
+}).passthrough()
+
 const createStoreChefEventSchema = z.object({
   requestedDate: z.string().min(1, "Requested date is required"),
   requestedTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
@@ -20,7 +38,8 @@ const createStoreChefEventSchema = z.object({
   email: z.string().email("Valid email is required"),
   phone: z.string().min(1, "Phone is required"),
   notes: z.string().optional(),
-  specialRequirements: z.string().optional()
+  specialRequirements: z.string().optional(),
+  attribution: attributionSchema.optional(),
 })
 
 export async function POST(

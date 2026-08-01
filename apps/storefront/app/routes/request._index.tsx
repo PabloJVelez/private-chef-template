@@ -90,12 +90,45 @@ export const eventRequestSchema = z.object({
       if (!notes) return true;
       return notes.length <= 1000;
     }, 'Notes must be less than 1000 characters'),
+  attribution: z.string().optional(),
 
   // Hidden fields
   currentStep: z.number().optional(),
 });
 
 export type EventRequestFormData = z.infer<typeof eventRequestSchema>;
+
+const attributionTouchSchema = z
+  .object({
+    utm_source: z.string().optional(),
+    utm_medium: z.string().optional(),
+    utm_campaign: z.string().optional(),
+    utm_content: z.string().optional(),
+    utm_term: z.string().optional(),
+    gclid: z.string().optional(),
+    fbclid: z.string().optional(),
+    landing_page: z.string(),
+    referrer: z.string().optional(),
+    seen_at: z.string(),
+  })
+  .passthrough();
+
+const attributionSchema = z
+  .object({
+    first_touch: attributionTouchSchema.optional(),
+    last_touch: attributionTouchSchema.optional(),
+  })
+  .passthrough();
+
+function parseAttribution(value?: string) {
+  if (!value) return undefined;
+
+  try {
+    return attributionSchema.parse(JSON.parse(value));
+  } catch {
+    return undefined;
+  }
+}
 
 export const loader = async (args: LoaderFunctionArgs) => {
   try {
@@ -144,6 +177,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
       phone: data.phone,
       notes: data.notes,
       specialRequirements: data.specialRequirements,
+      attribution: parseAttribution(data.attribution),
     });
 
     const successUrl = `/request/success?eventId=${response.chefEvent.id}`;

@@ -1,6 +1,6 @@
 import { getCommonMeta, mergeMeta } from '@libs/util/meta';
 import { getRootLoader } from '@libs/util/server/root.server';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Links,
   Meta,
@@ -14,6 +14,7 @@ import {
 import { MetaFunction } from 'react-router';
 import { Page } from './components/layout/Page';
 import { RootProviders } from './providers/root-providers';
+import { captureMarketingAttribution } from '@libs/util/attribution';
 
 import '@app/styles/global.css';
 import { useRootLoaderData } from './hooks/useRootLoaderData';
@@ -65,6 +66,10 @@ function App() {
   const data = useRootLoaderData();
 
   const { env = {}, siteDetails } = data || {};
+
+  useEffect(() => {
+    captureMarketingAttribution();
+  }, []);
 
   return (
     <RootProviders>

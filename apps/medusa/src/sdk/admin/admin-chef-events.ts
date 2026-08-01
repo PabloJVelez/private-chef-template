@@ -21,6 +21,24 @@ export type AdminChefEventAdditionalCharge = {
   updated_at: string
 }
 
+export type MarketingAttributionTouch = {
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
+  utm_content?: string
+  utm_term?: string
+  gclid?: string
+  fbclid?: string
+  landing_page: string
+  referrer?: string
+  seen_at: string
+}
+
+export type MarketingAttributionPayload = {
+  first_touch?: MarketingAttributionTouch
+  last_touch?: MarketingAttributionTouch
+}
+
 // Define the types for our chef events
 export interface AdminChefEventDTO {
   id: string
@@ -39,6 +57,7 @@ export interface AdminChefEventDTO {
   email: string
   phone?: string
   notes?: string
+  attribution?: MarketingAttributionPayload | null
   totalPrice?: number
   depositPaid: boolean
   specialRequirements?: string
@@ -86,6 +105,7 @@ export interface AdminCreateChefEventDTO {
   email: string
   phone?: string
   notes?: string
+  attribution?: MarketingAttributionPayload | null
   totalPrice?: number
   depositPaid?: boolean
   specialRequirements?: string
@@ -108,6 +128,7 @@ export interface AdminUpdateChefEventDTO {
   email?: string
   phone?: string
   notes?: string
+  attribution?: MarketingAttributionPayload | null
   totalPrice?: number
   depositPaid?: boolean
   specialRequirements?: string

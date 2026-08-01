@@ -52,6 +52,7 @@ export const ChefEvent = model.define("chef_event", {
   email: model.text(),
   phone: model.text(),
   notes: model.text(),
+  attribution: model.json().nullable(),
   
   // Additional event-specific fields
   totalPrice: model.bigNumber(),
@@ -105,6 +106,7 @@ export type ChefEventType = {
   email: string
   phone?: string
   notes?: string
+  attribution?: Record<string, unknown> | null
   menu?: { id: string }
   createdAt: Date
   updatedAt: Date

@@ -27,6 +27,7 @@ type CreateChefEventWorkflowInput = {
   email: string
   phone?: string
   notes?: string
+  attribution?: Record<string, unknown> | null
   totalPrice?: number
   depositPaid?: boolean
   specialRequirements?: string

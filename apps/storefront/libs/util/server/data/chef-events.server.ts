@@ -1,4 +1,5 @@
 import { baseMedusaConfig } from '../client.server';
+import type { MarketingAttributionPayload } from '@libs/util/attribution';
 
 export interface StoreChefEventDTO {
   id: string;
@@ -53,6 +54,7 @@ export interface StoreCreateChefEventDTO {
   phone: string;
   notes?: string;
   specialRequirements?: string;
+  attribution?: MarketingAttributionPayload;
 }
 
 export interface StoreChefEventResponse {

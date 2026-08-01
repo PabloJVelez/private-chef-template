@@ -1,5 +1,23 @@
 import type { Client } from '@medusajs/js-sdk'
 
+export type MarketingAttributionTouch = {
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
+  utm_content?: string
+  utm_term?: string
+  gclid?: string
+  fbclid?: string
+  landing_page: string
+  referrer?: string
+  seen_at: string
+}
+
+export type MarketingAttributionPayload = {
+  first_touch?: MarketingAttributionTouch
+  last_touch?: MarketingAttributionTouch
+}
+
 export interface StoreChefEventDTO {
   id: string
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
@@ -16,6 +34,7 @@ export interface StoreChefEventDTO {
   email: string
   phone?: string
   notes?: string
+  attribution?: MarketingAttributionPayload | null
   totalPrice: number
   specialRequirements?: string
   additionalCharges?: Array<{
@@ -54,6 +73,7 @@ export interface StoreCreateChefEventDTO {
   phone?: string
   notes?: string
   specialRequirements?: string
+  attribution?: MarketingAttributionPayload | null
 }
 
 export interface StoreChefEventResponse {

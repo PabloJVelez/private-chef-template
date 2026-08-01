@@ -11,6 +11,7 @@ import clsx from 'clsx';
 import type { FC } from 'react';
 import { Disclosure } from '@headlessui/react';
 import ChevronDownIcon from '@heroicons/react/24/outline/ChevronDownIcon';
+import { captureMarketingAttribution } from '@libs/util/attribution';
 
 // Real form step components
 import { MenuSelector } from './MenuSelector';
@@ -91,6 +92,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
   initialValues = {} 
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [attributionValue, setAttributionValue] = useState('');
   const actionData = useActionData() as ActionResponse;
   
   const form = useRemixForm<EventRequestFormData>({
@@ -113,6 +115,11 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
+
+  useEffect(() => {
+    const attribution = captureMarketingAttribution();
+    setAttributionValue(attribution ? JSON.stringify(attribution) : '');
+  }, []);
 
   const nextStep = () => {
     if (currentStep < STEPS.length) {
@@ -449,6 +456,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
           <input type="hidden" name="phone" value={form.watch('phone') || ''} />
           <input type="hidden" name="specialRequirements" value={form.watch('specialRequirements') || ''} />
           <input type="hidden" name="notes" value={form.watch('notes') || ''} />
+          <input type="hidden" name="attribution" value={attributionValue} readOnly />
           
           <div className="bg-white rounded-lg shadow-md p-8">
             {renderStepContent()}
