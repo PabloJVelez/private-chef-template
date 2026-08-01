@@ -27,17 +27,11 @@ RUN yarn turbo build --filter=medusa && \
 
 FROM base AS runner
 
-COPY --chown=node:node --from=installer /app/yarn.lock .
-COPY --chown=node:node --from=installer /app/.yarnrc.yml .yarnrc.yml
-COPY --chown=node:node --from=installer /app/.yarn .yarn
-COPY --chown=node:node --from=installer /app/apps/medusa/.medusa/server /app/server
-COPY --chown=node:node --from=installer /app/yarn.lock /app/server/yarn.lock
-
-RUN cd /app/server && yarn workspaces focus --production
+COPY --chown=node:node --from=installer /app/ .
 
 USER 1000
 
-WORKDIR /app/server
+WORKDIR /app/apps/medusa/.medusa/server
 
 ENV PORT=80
 
