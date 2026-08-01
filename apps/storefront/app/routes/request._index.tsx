@@ -150,6 +150,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
 export const action = async (actionArgs: ActionFunctionArgs) => {
   try {
+    const rawFormData = await actionArgs.request.clone().formData();
+    const attributionValue = rawFormData.get('attribution');
     const { errors, data } = await getValidatedFormData<EventRequestFormData>(
       actionArgs.request,
       zodResolver(eventRequestSchema),
@@ -174,7 +176,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
       phone: data.phone,
       notes: data.notes,
       specialRequirements: data.specialRequirements,
-      attribution: parseAttribution(data.attribution),
+      attribution: parseAttribution(typeof attributionValue === 'string' ? attributionValue : undefined),
     });
 
     const successUrl = `/request/success?eventId=${response.chefEvent.id}`;
