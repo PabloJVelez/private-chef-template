@@ -7,6 +7,7 @@ import { requestedStartInEventZone } from "../../../../lib/chef-event-datetime-d
 import { ChefEventForm } from "../components/chef-event-form"
 import { MenuDetails } from "../components/menu-details"
 import { EmailManagementSection } from "../components/EmailManagementSection"
+import { AttributionDetails } from "../components/attribution-details"
 import {
   useAdminRetrieveChefEvent,
   useAdminUpdateChefEventMutation,
@@ -337,17 +338,20 @@ const ChefEventDetailPage = () => {
           onSubmit={handleUpdateChefEvent}
           isLoading={updateChefEvent.isPending}
           detailsTabExtra={
-            isConfirmed ? (
-              <EmailManagementSection 
-                chefEvent={chefEvent}
-                onEmailSent={() => {
-                  toast.success("Email Sent", {
-                    description: `Event details sent successfully`,
-                    duration: 3000,
-                  })
-                }}
-              />
-            ) : null
+            <>
+              <AttributionDetails attribution={chefEvent.attribution} />
+              {isConfirmed ? (
+                <EmailManagementSection
+                  chefEvent={chefEvent}
+                  onEmailSent={() => {
+                    toast.success("Email Sent", {
+                      description: `Event details sent successfully`,
+                      duration: 3000,
+                    })
+                  }}
+                />
+              ) : null}
+            </>
           }
           menuTabExtra={
             <MenuDetails
@@ -634,4 +638,4 @@ export const handle = {
   breadcrumb: (match: UIMatch<unknown>) => <ChefEventDetailBreadcrumb {...match} />,
 }
 
-export default ChefEventDetailPage 
+export default ChefEventDetailPage
