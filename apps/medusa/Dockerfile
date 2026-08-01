@@ -31,8 +31,8 @@ COPY --chown=node:node --from=installer /app/ .
 
 USER 1000
 
-WORKDIR /app
+WORKDIR /app/apps/medusa/.medusa/server
 
 ENV PORT=80
 
-CMD ["yarn", "workspace", "medusa", "start:prod"]
+CMD ["sh", "-c", "/app/apps/medusa/node_modules/.bin/medusa db:migrate && /app/apps/medusa/node_modules/.bin/medusa start"]
