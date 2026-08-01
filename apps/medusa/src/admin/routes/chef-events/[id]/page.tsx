@@ -337,22 +337,18 @@ const ChefEventDetailPage = () => {
           initialData={chefEvent}
           onSubmit={handleUpdateChefEvent}
           isLoading={updateChefEvent.isPending}
-          detailsTabExtra={
-            <>
-              <AttributionDetails attribution={chefEvent.attribution} />
-              {isConfirmed ? (
-                <EmailManagementSection
-                  chefEvent={chefEvent}
-                  onEmailSent={() => {
-                    toast.success("Email Sent", {
-                      description: `Event details sent successfully`,
-                      duration: 3000,
-                    })
-                  }}
-                />
-              ) : null}
-            </>
-          }
+          detailsTabExtra={isConfirmed ? (
+            <EmailManagementSection
+              chefEvent={chefEvent}
+              onEmailSent={() => {
+                toast.success("Email Sent", {
+                  description: `Event details sent successfully`,
+                  duration: 3000,
+                })
+              }}
+            />
+          ) : undefined}
+          marketingTabExtra={<AttributionDetails attribution={chefEvent.attribution} />}
           menuTabExtra={
             <MenuDetails
               templateProductId={chefEvent.templateProductId}

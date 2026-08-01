@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@app/components/common/buttons/Button';
 import { ActionList } from '@app/components/common/actions-list/ActionList';
 import type { StoreMenuDTO } from '@app/../types/menus';
@@ -6,7 +6,7 @@ import type { EventRequestFormData } from '@app/routes/request._index';
 import { RemixFormProvider, useRemixForm } from 'remix-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { eventRequestSchema } from '@app/routes/request._index';
-import { useActionData } from 'react-router';
+import { useActionData, useLocation } from 'react-router';
 import clsx from 'clsx';
 import type { FC } from 'react';
 import { Disclosure } from '@headlessui/react';
@@ -93,6 +93,8 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [attributionValue, setAttributionValue] = useState('');
+  const attributionInputRef = useRef<HTMLInputElement>(null);
+  const location = useLocation();
   const actionData = useActionData() as ActionResponse;
   
   const form = useRemixForm<EventRequestFormData>({
@@ -116,9 +118,32 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
 
-  useEffect(() => {
+  const refreshAttributionValue = () => {
     const attribution = captureMarketingAttribution();
-    setAttributionValue(attribution ? JSON.stringify(attribution) : '');
+    const serialized = attribution ? JSON.stringify(attribution) : '';
+    setAttributionValue(serialized);
+    if (attributionInputRef.current) {
+      attributionInputRef.current.value = serialized;
+    }
+    return serialized;
+  };
+
+  useEffect(() => {
+    refreshAttributionValue();
+  }, [location.pathname, location.search]);
+
+  const handleFormSubmitCapture = () => {
+    refreshAttributionValue();
+  };
+
+  useEffect(() => {
+    const formElement = attributionInputRef.current?.form;
+    if (!formElement) return;
+
+    formElement.addEventListener('submit', handleFormSubmitCapture, { capture: true });
+    return () => {
+      formElement.removeEventListener('submit', handleFormSubmitCapture, { capture: true });
+    };
   }, []);
 
   const nextStep = () => {
@@ -354,6 +379,8 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
               }, 0);
             }}
             onSubmit={() => {
+              refreshAttributionValue();
+
               // Force update hidden inputs with current values
               const formValues = form.getValues();
               Object.entries(formValues).forEach(([key, value]) => {
@@ -456,7 +483,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
           <input type="hidden" name="phone" value={form.watch('phone') || ''} />
           <input type="hidden" name="specialRequirements" value={form.watch('specialRequirements') || ''} />
           <input type="hidden" name="notes" value={form.watch('notes') || ''} />
-          <input type="hidden" name="attribution" value={attributionValue} readOnly />
+          <input ref={attributionInputRef} type="hidden" name="attribution" value={attributionValue} readOnly />
           
           <div className="bg-white rounded-lg shadow-md p-8">
             {renderStepContent()}

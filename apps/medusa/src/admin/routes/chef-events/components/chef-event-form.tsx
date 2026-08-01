@@ -94,6 +94,7 @@ interface ChefEventFormProps {
   isLoading?: boolean
   onCancel?: () => void
   detailsTabExtra?: ReactNode
+  marketingTabExtra?: ReactNode
   menuTabExtra?: ReactNode
 }
 
@@ -103,6 +104,7 @@ export const ChefEventForm = ({
   isLoading = false, 
   onCancel,
   detailsTabExtra,
+  marketingTabExtra,
   menuTabExtra,
 }: ChefEventFormProps) => {
   const isEditing = !!initialData
@@ -265,6 +267,7 @@ export const ChefEventForm = ({
           <Tabs.Trigger value="contact">Contact</Tabs.Trigger>
           <Tabs.Trigger value="location">Location</Tabs.Trigger>
           <Tabs.Trigger value="details">Details</Tabs.Trigger>
+          {marketingTabExtra ? <Tabs.Trigger value="marketing">Marketing Details</Tabs.Trigger> : null}
           {menuTabExtra ? <Tabs.Trigger value="menu">Selected Menu</Tabs.Trigger> : null}
         </Tabs.List>
 
@@ -653,6 +656,12 @@ export const ChefEventForm = ({
           </div>
         </Tabs.Content>
 
+        {marketingTabExtra ? (
+          <Tabs.Content value="marketing" className="space-y-4 pt-6">
+            {marketingTabExtra}
+          </Tabs.Content>
+        ) : null}
+
         {menuTabExtra ? (
           <Tabs.Content value="menu" className="space-y-4 pt-6">
             {menuTabExtra}
@@ -684,4 +693,4 @@ export const ChefEventForm = ({
       ) : null}
     </form>
   )
-} 
+}
