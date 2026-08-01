@@ -10,18 +10,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { EventRequestForm } from '@app/components/event-request/EventRequestForm';
 
+const formString = z.coerce.string();
+
 // Form validation schema
 export const eventRequestSchema = z.object({
   // Step 1: Menu Selection (optional)
-  menuId: z.string().optional(),
+  menuId: formString.optional(),
 
   // Step 2: Event Type Selection
-  eventType: z.string().min(1, 'Please select an experience type'),
-  experienceTypeId: z.string().optional(),
+  eventType: formString.min(1, 'Please select an experience type'),
+  experienceTypeId: formString.optional(),
 
   // Step 3: Date & Time
-  requestedDate: z
-    .string()
+  requestedDate: formString
     .min(1, 'Please select a date')
     .refine((date) => {
       const selectedDate = new Date(date);
@@ -43,8 +44,7 @@ export const eventRequestSchema = z.object({
       return selectedDate <= maxDate;
     }, 'Events cannot be scheduled more than 6 months in advance'),
 
-  requestedTime: z
-    .string()
+  requestedTime: formString
     .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Please enter a valid time (HH:MM format)')
     .refine((time) => {
       const [hours, minutes] = time.split(':').map(Number);
@@ -57,17 +57,16 @@ export const eventRequestSchema = z.object({
     }, 'Please select a time between 10:00 AM and 8:30 PM'),
 
   // Step 4: Party Size
-  partySize: z.number().min(2, 'Minimum 2 guests required').max(50, 'Maximum 50 guests allowed'),
+  partySize: z.coerce.number().min(2, 'Minimum 2 guests required').max(50, 'Maximum 50 guests allowed'),
 
   // Step 5: Location (now only customer location)
-  locationAddress: z.string().min(10, 'Please provide a complete address').max(500, 'Address is too long'),
+  locationAddress: formString.min(10, 'Please provide a complete address').max(500, 'Address is too long'),
 
   // Step 6: Contact Details
-  firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long'),
-  lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
-  email: z.string().email('Please enter a valid email address').max(255, 'Email address is too long'),
-  phone: z
-    .string()
+  firstName: formString.min(1, 'First name is required').max(50, 'First name is too long'),
+  lastName: formString.min(1, 'Last name is required').max(50, 'Last name is too long'),
+  email: formString.email('Please enter a valid email address').max(255, 'Email address is too long'),
+  phone: formString
     .min(1, 'Phone number is required')
     .refine((phone) => {
       // Remove all non-digits to check length
@@ -76,24 +75,22 @@ export const eventRequestSchema = z.object({
     }, 'Please enter a valid 10-digit phone number'),
 
   // Step 7: Special Requests
-  specialRequirements: z
-    .string()
+  specialRequirements: formString
     .optional()
     .refine((req) => {
       if (!req) return true;
       return req.length <= 1000;
     }, 'Special requirements must be less than 1000 characters'),
-  notes: z
-    .string()
+  notes: formString
     .optional()
     .refine((notes) => {
       if (!notes) return true;
       return notes.length <= 1000;
     }, 'Notes must be less than 1000 characters'),
-  attribution: z.string().optional(),
+  attribution: formString.optional(),
 
   // Hidden fields
-  currentStep: z.number().optional(),
+  currentStep: z.coerce.number().optional(),
 });
 
 export type EventRequestFormData = z.infer<typeof eventRequestSchema>;
