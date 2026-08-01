@@ -29,23 +29,21 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
   const product = products[0];
 
-  // const [productReviews, productReviewStats] = await Promise.all([
-  //   fetchProductReviews({
-  //     product_id: product.id,
-  //     fields:
-  //       'id,rating,content,name,images.url,created_at,updated_at,response.content,response.created_at,response.id',
-  //     order: 'created_at',
-  //     status: ['approved'],
-  //     // can use status: (pending, approved, flagged)[] to get reviews by status // default is approved
-  //     offset: reviewsOffset,
-  //     limit: reviewsLimit,
-  //   }),
-  //   fetchProductReviewStats({
-  //     product_id: product.id,
-  //     offset: 0,
-  //     limit: 1,
-  //   }),
-  // ]);
+  const [productReviews, productReviewStats] = await Promise.all([
+    fetchProductReviews({
+      product_id: product.id,
+      fields: 'id,rating,content,name,images.url,created_at,updated_at,response.content,response.created_at,response.id',
+      order: 'created_at',
+      status: ['approved'],
+      offset: reviewsOffset,
+      limit: reviewsLimit,
+    }).catch(() => ({ product_reviews: [], count: 0, offset: reviewsOffset, limit: reviewsLimit })),
+    fetchProductReviewStats({
+      product_id: product.id,
+      offset: 0,
+      limit: 1,
+    }).catch(() => ({ product_review_stats: [], count: 0, offset: 0, limit: 1 })),
+  ]);
 
   // Check if this is an event product and fetch additional data
   let chefEvent = null;
@@ -56,12 +54,11 @@ export const loader = async (args: LoaderFunctionArgs) => {
   if (isEvent) {
     [chefEvent, menu] = await Promise.all([
       fetchChefEventForProduct(product),
-      fetchMenuForProduct(product),
+      fetchMenuForProduct(),
     ]);
   }
 
-  // return { product, productReviews, productReviewStats, chefEvent, menu };
-  return { product, chefEvent, menu };
+  return { product, productReviews, productReviewStats, chefEvent, menu };
 };
 
 export type ProductPageLoaderData = typeof loader;

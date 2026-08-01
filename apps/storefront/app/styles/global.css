@@ -87,22 +87,20 @@
   }
 }
 
-/* Mobile-only typography tuning: increase text sizes without changing spacing scale */
 @layer utilities {
   /* Cross-browser multi-line text clamping with ellipsis */
   .ellipsis-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .ellipsis-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .ellipsis-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+}
 
-  @media (max-width: 639px) {
-    /* Bump common text utilities, keep rem-based spacing unchanged */
-    .text-sm { font-size: 0.9375rem; line-height: 1.5rem; }     /* ~15px */
-    .text-base { font-size: 1.0625rem; line-height: 1.75rem; }  /* ~17px */
-    .text-lg { font-size: 1.125rem; line-height: 1.75rem; }     /* ~18px */
+/* Mobile-only typography tuning: increase text sizes without changing spacing scale */
+@media (max-width: 639px) {
+  .text-sm { font-size: 0.9375rem; line-height: 1.5rem; }
+  .text-base { font-size: 1.0625rem; line-height: 1.75rem; }
+  .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
 
-    /* CTA readability */
-    .button { font-size: 1.0625rem; } /* match ~17px for labels */
-  }
+  .button { font-size: 1.0625rem; }
 }
 
 @layer components {

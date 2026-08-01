@@ -18,7 +18,7 @@ const createStoreChefEventSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Valid email is required"),
-  phone: z.string().optional(),
+  phone: z.string().min(1, "Phone is required"),
   notes: z.string().optional(),
   specialRequirements: z.string().optional()
 })

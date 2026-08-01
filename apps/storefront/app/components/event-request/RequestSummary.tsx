@@ -255,12 +255,10 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
               <p className="text-sm font-medium text-primary-700">Email</p>
               <p className="text-primary-900">{formData.email || 'Not provided'}</p>
             </div>
-            {formData.phone && (
-              <div className="md:col-span-2">
-                <p className="text-sm font-medium text-primary-700">Phone</p>
-                <p className="text-primary-900">{formData.phone}</p>
-              </div>
-            )}
+            <div className="md:col-span-2">
+              <p className="text-sm font-medium text-primary-700">Phone</p>
+              <p className="text-primary-900">{formData.phone || 'Not provided'}</p>
+            </div>
           </div>
         </div>
 

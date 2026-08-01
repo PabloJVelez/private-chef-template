@@ -125,7 +125,7 @@ export const ProductTemplate = ({ product, reviewsCount, reviewStats }: ProductT
   };
 
   const form = useRemixForm({
-    resolver: zodResolver(createLineItemSchema),
+    resolver: zodResolver(createLineItemSchema) as any,
     defaultValues,
     fetcher: addToCartFetcher,
     submitConfig: {

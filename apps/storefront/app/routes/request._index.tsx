@@ -68,9 +68,8 @@ export const eventRequestSchema = z.object({
   email: z.string().email('Please enter a valid email address').max(255, 'Email address is too long'),
   phone: z
     .string()
-    .optional()
+    .min(1, 'Phone number is required')
     .refine((phone) => {
-      if (!phone) return true; // Optional field
       // Remove all non-digits to check length
       const digitsOnly = phone.replace(/\D/g, '');
       return digitsOnly.length === 10;

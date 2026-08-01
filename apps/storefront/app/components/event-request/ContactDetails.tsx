@@ -111,7 +111,7 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
       {/* Phone field */}
       <div>
         <label className="block text-sm font-medium text-primary-900 mb-2">
-          Phone Number <span className="text-primary-500">(Optional)</span>
+          Phone Number <span className="text-red-500">*</span>
         </label>
         <input
           type="tel"
@@ -124,7 +124,7 @@ export const ContactDetails: FC<ContactDetailsProps> = ({ className }) => {
             errors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300',
           )}
         />
-        <p className="text-sm text-primary-600 mt-1">For quick communication and day-of-event coordination</p>
+        <p className="text-sm text-primary-600 mt-1">Used for quick follow-up and day-of-event coordination</p>
         {errors.phone && <p className="text-red-600 text-sm mt-1">{errors.phone.message}</p>}
       </div>
 

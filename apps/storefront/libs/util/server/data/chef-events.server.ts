@@ -13,7 +13,7 @@ export interface StoreChefEventDTO {
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string;
+  phone: string;
   notes?: string;
   totalPrice: number;
   specialRequirements?: string;
@@ -50,7 +50,7 @@ export interface StoreCreateChefEventDTO {
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string;
+  phone: string;
   notes?: string;
   specialRequirements?: string;
 }

@@ -69,7 +69,7 @@ export const ProductReviewForm: FC<ProductReviewFormProps> = ({
   const existingImages = productReview?.images || [];
 
   const form = useRemixForm({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     fetcher,
     submitHandlers: {
       onValid: (data) => {

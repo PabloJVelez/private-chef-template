@@ -3,6 +3,7 @@ import { Button } from '@app/components/common/buttons/Button';
 import { CheckCircleIcon, ClockIcon, EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import type { LoaderFunctionArgs, MetaFunction, ActionFunctionArgs } from 'react-router';
 import { useLoaderData, useSearchParams, Link, redirect } from 'react-router';
+import { getChefConfig } from '@libs/config/chef/chef-config';
 
 export const meta: MetaFunction = () => {
   return [
@@ -27,6 +28,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const searchParams = new URLSearchParams(url.search);
   const eventId = searchParams.get('eventId') || '';
+  const { contact } = getChefConfig();
 
   if (!eventId) {
     throw redirect('/');
@@ -34,9 +36,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return {
     eventId: searchParams.get('eventId') || 'unknown',
-    supportEmail: 'support@example.com', // TODO: Update with actual support email
-    supportPhone: '(702) 349-6158',
-    responseTime: '24 hours',
+    supportEmail: contact.email,
+    supportPhone: contact.phone,
+    responseTime: contact.responseTime,
   };
 };
 

@@ -2,6 +2,7 @@ import { useFormContext } from 'react-hook-form';
 import type { EventRequestFormData } from '@app/routes/request._index';
 import type { StoreExperienceTypeDTO } from '@libs/util/server/data/experience-types.server';
 import { legacyPricingKeyFromSlug } from '@libs/constants/pricing';
+import type { EventType } from '@libs/constants/pricing';
 import clsx from 'clsx';
 import { useMemo, type FC } from 'react';
 
@@ -10,7 +11,7 @@ export interface EventTypeSelectorProps {
   className?: string;
 }
 
-type LegacyWorkflowKey = 'cooking_class' | 'plated_dinner' | 'buffet_style';
+type LegacyWorkflowKey = EventType;
 
 interface FallbackExperienceType {
   id: LegacyWorkflowKey;

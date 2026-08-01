@@ -39,6 +39,13 @@ export interface ChefConfig {
     description: string;
     keywords: string[];
   };
+
+  // Contact details shown after booking requests
+  contact: {
+    email: string;
+    phone: string;
+    responseTime: string;
+  };
 }
 
 /**
@@ -97,6 +104,12 @@ export const chefConfig: ChefConfig = {
       'buffet style events',
       'at-home dining',
     ],
+  },
+
+  contact: {
+    email: 'hello@yourdomain.com',
+    phone: '(555) 555-5555',
+    responseTime: '24 hours',
   },
 };
 

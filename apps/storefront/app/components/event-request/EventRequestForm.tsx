@@ -154,7 +154,8 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
           !errors.firstName &&
           !errors.lastName &&
           !errors.email &&
-          (!values.phone || !errors.phone) &&
+          !!values.phone &&
+          !errors.phone &&
           !!values.locationAddress &&
           values.locationAddress.length >= 10 &&
           !errors.locationAddress
@@ -180,7 +181,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
       v.partySize <= 50 &&
       !e.partySize;
     const step2Date = !!v.requestedDate && !!v.requestedTime && !e.requestedDate && !e.requestedTime;
-    const step2Contact = !!v.firstName && !!v.lastName && !!v.email && !e.firstName && !e.lastName && !e.email && (!v.phone || !e.phone);
+    const step2Contact = !!v.firstName && !!v.lastName && !!v.email && !!v.phone && !e.firstName && !e.lastName && !e.email && !e.phone;
     const step2Location = !!v.locationAddress && v.locationAddress.length >= 10 && !e.locationAddress;
     return step1 && step2Date && step2Contact && step2Location; // step3 (special requests) is optional
   };
@@ -281,7 +282,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
               const v = form.getValues();
               const e = form.formState.errors;
               const isDateComplete = !!v.requestedDate && !!v.requestedTime && !e.requestedDate && !e.requestedTime;
-              const isContactComplete = !!v.firstName && !!v.lastName && !!v.email && !e.firstName && !e.lastName && !e.email && (!v.phone || !e.phone);
+              const isContactComplete = !!v.firstName && !!v.lastName && !!v.email && !!v.phone && !e.firstName && !e.lastName && !e.email && !e.phone;
               const isLocationComplete = !!v.locationAddress && v.locationAddress.length >= 10 && !e.locationAddress;
 
               return (
