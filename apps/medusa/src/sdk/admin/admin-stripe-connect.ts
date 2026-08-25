@@ -49,6 +49,12 @@ export interface StripeConnectOAuthLinkResponse {
   url: string;
 }
 
+export interface StripeConnectDashboardLinkResponse {
+  url: string;
+  mode: "express_login" | "stripe_dashboard";
+  message?: string;
+}
+
 export class AdminStripeConnectResource {
   constructor(private client: Client) {}
 
@@ -79,10 +85,14 @@ export class AdminStripeConnectResource {
     });
   }
 
-  async createExpressLoginLink() {
-    return this.client.fetch<{ url: string }>(
-      "/admin/stripe-connect/express-login",
+  async createDashboardLink() {
+    return this.client.fetch<StripeConnectDashboardLinkResponse>(
+      "/admin/stripe-connect/dashboard-link",
       { method: "POST" },
     );
+  }
+
+  async createExpressLoginLink() {
+    return this.createDashboardLink();
   }
 }

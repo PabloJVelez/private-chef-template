@@ -46,8 +46,11 @@ export const useStripeConnectDisconnectMutation = () => {
   });
 };
 
-export const useStripeConnectExpressLoginMutation = () => {
+export const useStripeConnectDashboardLinkMutation = () => {
   return useMutation({
-    mutationFn: async () => sdk.admin.stripeConnect.createExpressLoginLink(),
+    mutationFn: async () => sdk.admin.stripeConnect.createDashboardLink(),
   });
 };
+
+export const useStripeConnectExpressLoginMutation =
+  useStripeConnectDashboardLinkMutation;
