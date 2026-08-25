@@ -4,6 +4,7 @@ import { useEnv } from '@app/hooks/useEnv';
 import { CheckoutStep } from '@app/providers/checkout-provider';
 import { Tab } from '@headlessui/react';
 import { CustomPaymentSession } from '@libs/types';
+import { STRIPE_CONNECT_PROVIDER_ID } from '@libs/util/stripe/stripe-connect-session';
 import clsx from 'clsx';
 import { FC, useMemo } from 'react';
 import { ManualPayment } from './ManualPayment/ManualPayment';
@@ -21,7 +22,7 @@ export const CheckoutPayment: FC<CheckoutPaymentProps> = ({ isDigitalOnly = fals
   if (!cart) return null;
 
   const hasStripePaymentProvider = useMemo(
-    () => paymentProviders?.some((p) => p.id.includes('pp_stripe-connect_stripe-connect')),
+    () => paymentProviders?.some((p) => p.id === STRIPE_CONNECT_PROVIDER_ID),
     [paymentProviders],
   );
 
@@ -32,7 +33,7 @@ export const CheckoutPayment: FC<CheckoutPaymentProps> = ({ isDigitalOnly = fals
 
   const paymentOptions = [
     {
-      id: 'pp_stripe-connect_stripe-connect',
+      id: STRIPE_CONNECT_PROVIDER_ID,
       label: 'Credit Card',
       component: StripePayment,
       isActive: hasStripePaymentProvider,

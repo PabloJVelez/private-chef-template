@@ -7,18 +7,13 @@ import ShoppingCartIcon from '@heroicons/react/24/outline/ShoppingCartIcon';
 import { filterShippingOptionsForCart, hasOnlyDigitalItems, isDigitalShippingOption } from '@libs/util/cart/cart-helpers';
 import { sdk } from '@libs/util/server/client.server';
 import { getCartId, removeCartId } from '@libs/util/server/cookies.server';
-import { initiatePaymentSession, retrieveCart, setShippingMethod } from '@libs/util/server/data/cart.server';
+import { ensureStripePaymentSession, retrieveCart, setShippingMethod } from '@libs/util/server/data/cart.server';
 import { listCartPaymentProviders } from '@libs/util/server/data/payment.server';
-import {
-  STRIPE_CONNECT_PROVIDER_ID,
-  isStaleStripeConnectPaymentSession,
-} from '@libs/util/stripe/stripe-connect-session';
+import { STRIPE_CONNECT_PROVIDER_ID } from '@libs/util/stripe/stripe-connect-session';
 import { CartDTO, StoreCart, StoreCartShippingOption, StorePaymentProvider } from '@medusajs/types';
 import { BasePaymentSession } from '@medusajs/types/dist/http/payment/common';
 import { LoaderFunctionArgs, redirect } from 'react-router';
 import { Link, useLoaderData } from 'react-router';
-
-const SYSTEM_PROVIDER_ID = 'pp_system_default';
 
 const fetchShippingOptions = async (cartId: string) => {
   if (!cartId) return [];
@@ -70,37 +65,6 @@ const ensureSelectedCartShippingMethod = async (request: Request, cart: StoreCar
   }
 };
 
-const ensureCartPaymentSessions = async (request: Request, cart: StoreCart) => {
-  if (!cart) throw new Error('Cart was not provided.');
-
-  let activeSession = cart.payment_collection?.payment_sessions?.find((session) => session.status === 'pending');
-
-  if (!activeSession) {
-    const paymentProviders = await listCartPaymentProviders(cart.region_id!);
-    if (!paymentProviders.length) return activeSession;
-
-    const provider = paymentProviders.find((p) => p.id !== SYSTEM_PROVIDER_ID) || paymentProviders[0];
-
-    const { payment_collection } = await initiatePaymentSession(request, cart, {
-      provider_id: provider.id,
-      data: { cart_id: cart.id },
-    });
-
-    activeSession = payment_collection.payment_sessions?.find((session) => session.status === 'pending');
-  }
-
-  if (activeSession && isStaleStripeConnectPaymentSession(activeSession)) {
-    const { payment_collection } = await initiatePaymentSession(request, cart, {
-      provider_id: STRIPE_CONNECT_PROVIDER_ID,
-      data: { cart_id: cart.id },
-    });
-    activeSession =
-      payment_collection.payment_sessions?.find((session) => session.status === 'pending') ?? activeSession;
-  }
-
-  return activeSession as BasePaymentSession;
-};
-
 export const loader = async ({
   request,
 }: LoaderFunctionArgs): Promise<{
@@ -135,13 +99,19 @@ export const loader = async ({
 
   await ensureSelectedCartShippingMethod(request, cart);
 
-  const [shippingOptions, paymentProviders, activePaymentSession] = await Promise.all([
+  const [shippingOptions, paymentProviders] = await Promise.all([
     await fetchShippingOptions(cartId),
     (await listCartPaymentProviders(cart.region_id!)) as StorePaymentProvider[],
-    await ensureCartPaymentSessions(request, cart),
   ]);
 
-  const updatedCart = await retrieveCart(request);
+  const cartWithPayment = paymentProviders.some((provider) => provider.id === STRIPE_CONNECT_PROVIDER_ID)
+    ? await ensureStripePaymentSession(request, cart)
+    : cart;
+  const updatedCart = (await retrieveCart(request)) ?? cartWithPayment;
+  const activePaymentSession =
+    updatedCart.payment_collection?.payment_sessions?.find(
+      (session) => session.status === 'pending' && session.provider_id === STRIPE_CONNECT_PROVIDER_ID,
+    ) ?? null;
 
   return {
     cart: updatedCart,

@@ -3,6 +3,10 @@ import { useCheckout } from '@app/hooks/useCheckout';
 import { Address } from '@libs/types';
 import { amountToStripeExpressCheckoutAmount } from '@libs/util/checkout/amountToStripeExpressCheckoutAmount';
 import { expressCheckoutClient } from '@libs/util/checkout/express-checkout-client';
+import {
+  STRIPE_CONNECT_PROVIDER_ID,
+  getStripeConnectClientSecret,
+} from '@libs/util/stripe/stripe-connect-session';
 import { StoreCart, StoreCartShippingOption } from '@medusajs/types';
 import { ExpressCheckoutElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import {
@@ -60,7 +64,7 @@ export const StripeExpressCheckoutForm: FC = () => {
 
   const { shippingOptions: initialShippingOptions, activePaymentSession, paymentProviders } = useCheckout();
 
-  const isStripeAvailable = paymentProviders.some((provider) => provider.id === 'pp_stripe-connect_stripe-connect');
+  const isStripeAvailable = paymentProviders.some((provider) => provider.id === STRIPE_CONNECT_PROVIDER_ID);
 
   if (!cart || !isStripeAvailable) return null;
   if (canMakePaymentStatus === 'unavailable') return null;
@@ -164,9 +168,9 @@ export const StripeExpressCheckoutForm: FC = () => {
       const updatedCart = updatedCartRes.cart;
 
       const updatedPaymentSession = updatedCart.payment_collection?.payment_sessions?.find(
-        ({ provider_id, status }) => provider_id === 'pp_stripe-connect_stripe-connect' && status === 'pending',
+        ({ provider_id, status }) => provider_id === STRIPE_CONNECT_PROVIDER_ID && status === 'pending',
       );
-      const updatedClientSecret = updatedPaymentSession?.data.client_secret as string;
+      const updatedClientSecret = getStripeConnectClientSecret(updatedPaymentSession);
 
       if (!updatedClientSecret) throw new Error('No client secret provided in express checkout');
 

@@ -1,5 +1,10 @@
 import { useCheckout } from '@app/hooks/useCheckout';
 import { useEnv } from '@app/hooks/useEnv';
+import {
+  STRIPE_CONNECT_PROVIDER_ID,
+  getStripeConnectClientSecret,
+  getStripeConnectConnectedAccountId,
+} from '@libs/util/stripe/stripe-connect-session';
 import { Elements } from '@stripe/react-stripe-js';
 import { StripeElementsOptions, loadStripe } from '@stripe/stripe-js';
 import { FC, PropsWithChildren, useEffect, useMemo } from 'react';
@@ -13,13 +18,11 @@ export const StripeElementsProvider: FC<StripeElementsProviderProps> = ({ option
   const { cart } = useCheckout();
 
   const stripeSession = useMemo(
-    () => cart?.payment_collection?.payment_sessions?.find((s) => s.provider_id === 'pp_stripe-connect_stripe-connect'),
+    () => cart?.payment_collection?.payment_sessions?.find((s) => s.provider_id === STRIPE_CONNECT_PROVIDER_ID),
     [cart?.payment_collection?.payment_sessions],
-  ) as unknown as {
-    data: { client_secret: string; connected_account_id?: string };
-  };
+  );
 
-  const connectedAccountId = stripeSession?.data?.connected_account_id;
+  const connectedAccountId = getStripeConnectConnectedAccountId(stripeSession);
 
   const stripePromise = useMemo(
     () =>
@@ -29,7 +32,7 @@ export const StripeElementsProvider: FC<StripeElementsProviderProps> = ({ option
     [env.STRIPE_PUBLIC_KEY, connectedAccountId],
   );
 
-  const clientSecret = stripeSession?.data?.client_secret as string;
+  const clientSecret = getStripeConnectClientSecret(stripeSession);
 
   useEffect(() => {
     if (clientSecret && !connectedAccountId) {

@@ -3,6 +3,7 @@ import { useCheckout } from '@app/hooks/useCheckout';
 import { CompleteCheckoutFormData } from '@app/routes/api.checkout.complete';
 import type { Address, CustomPaymentSession, MedusaAddress } from '@libs/types';
 import { medusaAddressToAddress } from '@libs/util';
+import { STRIPE_CONNECT_PROVIDER_ID } from '@libs/util/stripe/stripe-connect-session';
 import { PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { PaymentMethodCreateParams, StripePaymentElement } from '@stripe/stripe-js';
 import clsx from 'clsx';
@@ -23,7 +24,7 @@ export const StripePaymentForm: FC<StripePaymentFormProps> = ({ isActiveStep, pa
   const elements = useElements();
   const { activePaymentSession, cart } = useCheckout();
   const stripePaymentMethods = useMemo(
-    () => paymentMethods?.filter((pm) => pm.provider_id === 'pp_stripe-connect_stripe-connect'),
+    () => paymentMethods?.filter((pm) => pm.provider_id === STRIPE_CONNECT_PROVIDER_ID),
     [paymentMethods],
   );
 
@@ -121,7 +122,7 @@ export const StripePaymentForm: FC<StripePaymentFormProps> = ({ isActiveStep, pa
   return (
     <>
       <CompleteCheckoutForm
-        providerId="pp_stripe-connect_stripe-connect"
+        providerId={STRIPE_CONNECT_PROVIDER_ID}
         id="stripePaymentForm"
         paymentMethods={stripePaymentMethods}
         onSubmit={handleSubmit}

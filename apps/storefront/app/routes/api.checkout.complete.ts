@@ -1,7 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addressPayload, addressToMedusaAddress, medusaAddressToAddress } from '@libs/util/addresses';
 import { removeCartId } from '@libs/util/server/cookies.server';
-import { initiatePaymentSession, placeOrder, retrieveCart, updateCart } from '@libs/util/server/data/cart.server';
+import {
+  ensureStripePaymentSession,
+  refreshStripePaymentSession,
+  placeOrder,
+  retrieveCart,
+  updateCart,
+} from '@libs/util/server/data/cart.server';
+import {
+  STRIPE_CONNECT_PROVIDER_ID,
+  isUsableStripeConnectPaymentSession,
+} from '@libs/util/stripe/stripe-connect-session';
 import type { StoreCart } from '@medusajs/types';
 import type { ActionFunctionArgs } from 'react-router';
 import { redirect, data as remixData } from 'react-router';
@@ -61,22 +71,25 @@ export async function action(actionArgs: ActionFunctionArgs) {
 
   cart = (await updateCart(actionArgs.request, updateData))?.cart;
 
-  const activePaymentSession = cart.payment_collection?.payment_sessions?.find((ps) => ps.status === 'pending');
+  const activePaymentSession = cart.payment_collection?.payment_sessions?.find(
+    (ps) => ps.status === 'pending' && ps.provider_id === STRIPE_CONNECT_PROVIDER_ID,
+  );
 
-  if (activePaymentSession?.provider_id !== data.providerId || !cart.payment_collection?.payment_sessions?.length) {
-    await initiatePaymentSession(actionArgs.request, cart, {
-      provider_id: data.providerId,
-      data: { payment_method: data.paymentMethodId, cart_id: cart.id },
-    });
+  if (data.providerId !== STRIPE_CONNECT_PROVIDER_ID) {
+    return remixData(
+      { errors: { root: { message: 'Stripe Connect is the only supported checkout provider.' } } },
+      { status: 400 },
+    );
   }
 
   const isNewPaymentMethod = data.paymentMethodId === 'new';
 
-  if (!isNewPaymentMethod && data.providerId === 'pp_stripe-connect_stripe-connect') {
-    await initiatePaymentSession(actionArgs.request, cart, {
-      provider_id: data.providerId,
-      data: { payment_method: data.paymentMethodId, cart_id: cart.id },
+  if (!isNewPaymentMethod) {
+    cart = await refreshStripePaymentSession(actionArgs.request, cart, {
+      payment_method: data.paymentMethodId,
     });
+  } else if (!isUsableStripeConnectPaymentSession(activePaymentSession)) {
+    cart = await ensureStripePaymentSession(actionArgs.request, cart);
   }
 
   const cartResponse = await placeOrder(actionArgs.request);

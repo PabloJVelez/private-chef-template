@@ -6,7 +6,10 @@ import { withAuthHeaders } from '../auth.server';
 import { getCartId } from '../cookies.server';
 import { getProductsById } from './products.server';
 import { getSelectedRegion } from './regions.server';
-import { STRIPE_CONNECT_PROVIDER_ID, isStaleStripeConnectPaymentSession } from '@libs/util/stripe/stripe-connect-session';
+import {
+  STRIPE_CONNECT_PROVIDER_ID,
+  isUsableStripeConnectPaymentSession,
+} from '@libs/util/stripe/stripe-connect-session';
 
 export const retrieveCart = withAuthHeaders(async (request, authHeaders) => {
   const cartId = await getCartId(request.headers);
@@ -111,26 +114,40 @@ export const addToCart = withAuthHeaders(
 export const ensureStripePaymentSession = async (request: Request, cart: StoreCart): Promise<StoreCart> => {
   if (!cart) throw new Error('Cart was not provided.');
 
-  let activeSession = cart.payment_collection?.payment_sessions?.find((session) => session.status === 'pending');
+  const activeStripeSession = cart.payment_collection?.payment_sessions?.find(
+    (session) => session.status === 'pending' && session.provider_id === STRIPE_CONNECT_PROVIDER_ID,
+  );
 
-  if (!activeSession) {
+  if (!isUsableStripeConnectPaymentSession(activeStripeSession)) {
     await initiatePaymentSession(request, cart, {
       provider_id: STRIPE_CONNECT_PROVIDER_ID,
       data: { cart_id: cart.id },
     });
 
-    return (await retrieveCart(request))!;
-  }
-
-  if (isStaleStripeConnectPaymentSession(activeSession)) {
-    await initiatePaymentSession(request, cart, {
-      provider_id: STRIPE_CONNECT_PROVIDER_ID,
-      data: { cart_id: cart.id },
-    });
     return (await retrieveCart(request))!;
   }
 
   return cart;
+};
+
+export const refreshStripePaymentSession = async (
+  request: Request,
+  cart: StoreCart,
+  data: Record<string, unknown> = {},
+): Promise<StoreCart> => {
+  if (!cart) throw new Error('Cart was not provided.');
+
+  await initiatePaymentSession(request, cart, {
+    provider_id: STRIPE_CONNECT_PROVIDER_ID,
+    data: { cart_id: cart.id, ...data },
+  });
+
+  const updatedCart = await retrieveCart(request);
+  if (!updatedCart) {
+    throw new Error('Cart could not be retrieved after refreshing payment session.');
+  }
+
+  return updatedCart;
 };
 
 export const updateLineItem = withAuthHeaders(
