@@ -9,8 +9,13 @@ export type StripeConnectStatus =
 export interface StripeConnectAccountSnapshot {
   id: string;
   stripe_account_id: string;
+  account_type: "express" | "standard";
+  connection_method: "platform_onboarding" | "oauth";
   details_submitted: boolean;
   charges_enabled: boolean;
+  payouts_enabled: boolean;
+  connected_at: string | null;
+  disconnected_at: string | null;
 }
 
 export interface StripeConnectStripeSnapshot {
@@ -40,6 +45,10 @@ export interface StripeConnectAccountLinkResponse {
   url: string;
 }
 
+export interface StripeConnectOAuthLinkResponse {
+  url: string;
+}
+
 export class AdminStripeConnectResource {
   constructor(private client: Client) {}
 
@@ -54,6 +63,13 @@ export class AdminStripeConnectResource {
     return this.client.fetch<StripeConnectAccountLinkResponse>(
       "/admin/stripe-connect/account-link",
       { method: "POST", body },
+    );
+  }
+
+  async createStandardOAuthLink() {
+    return this.client.fetch<StripeConnectOAuthLinkResponse>(
+      "/admin/stripe-connect/oauth/start",
+      { method: "POST" },
     );
   }
 

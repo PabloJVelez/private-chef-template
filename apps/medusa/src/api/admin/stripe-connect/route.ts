@@ -11,7 +11,9 @@ export type StripeConnectStatus =
 function deriveStatus(
   detailsSubmitted: boolean,
   chargesEnabled: boolean,
+  disconnectedAt?: Date | string | null,
 ): StripeConnectStatus {
+  if (disconnectedAt) return "not_connected";
   if (chargesEnabled) return "active";
   if (detailsSubmitted) return "pending_verification";
   return "onboarding_incomplete";
@@ -51,6 +53,7 @@ export async function GET(
   const status = deriveStatus(
     record.details_submitted,
     record.charges_enabled,
+    record.disconnected_at,
   );
 
   const stripeSnapshot =
@@ -74,8 +77,13 @@ export async function GET(
     account: {
       id: record.id,
       stripe_account_id: record.stripe_account_id,
+      account_type: record.account_type ?? "express",
+      connection_method: record.connection_method ?? "platform_onboarding",
       details_submitted: record.details_submitted,
       charges_enabled: record.charges_enabled,
+      payouts_enabled: record.payouts_enabled ?? false,
+      connected_at: record.connected_at ?? null,
+      disconnected_at: record.disconnected_at ?? null,
     },
     stripe_account: stripeSnapshot,
     status,

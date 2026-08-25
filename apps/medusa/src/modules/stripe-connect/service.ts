@@ -1,7 +1,7 @@
 /**
  * Stripe Connect Payment Provider
  *
- * Uses Express connected accounts with direct charges: PaymentIntents are created
+ * Uses connected accounts with direct charges: PaymentIntents are created
  * on the connected account via { stripeAccount }, and the platform collects its
  * cut via application_fee_amount.
  */
@@ -41,7 +41,14 @@ import { getPlatformFeeConfigFromEnv } from './utils/get-fee-config';
 import { getSmallestUnit } from './utils/get-smallest-unit';
 import { calculatePlatformFeeFromLines } from './utils/platform-fee';
 
+type ConnectedStripeAccount = {
+  stripe_account_id: string;
+  account_type: 'express' | 'standard';
+  connection_method: 'platform_onboarding' | 'oauth';
+};
+
 interface StripeConnectAccountService {
+  getConnectedAccount?(): Promise<ConnectedStripeAccount | null>;
   getConnectedAccountId(): Promise<string | null>;
 }
 
@@ -101,7 +108,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
         }`
       : `${this.config_.feePercent}% of order total`;
     this.logger_.info(
-      `${StripeConnectProviderService.LOG_PREFIX} Express + direct charges enabled, fee ${feeSummary}`,
+      `${StripeConnectProviderService.LOG_PREFIX} Direct charges enabled for connected accounts, fee ${feeSummary}`,
     );
     this.logger_.info(
       `${StripeConnectProviderService.LOG_PREFIX} [fee] config: feePerUnitBased=${this.config_.feePerUnitBased} feeModeEvents=${this.config_.feeModeEvents} feePerEventCents=${this.config_.feePerEventCents} feeModeProducts=${this.config_.feeModeProducts} feePerProductCents=${this.config_.feePerProductCents} feePercentEvents=${this.config_.feePercentEvents} feePercentProducts=${this.config_.feePercentProducts}`,
@@ -109,9 +116,9 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
   }
 
   /**
-   * Resolves the connected account ID from the DB-backed onboarding module.
+   * Resolves the active connected account from the DB-backed onboarding module.
    */
-  private async getConnectedAccountId(): Promise<string | null> {
+  private async getConnectedAccount(): Promise<ConnectedStripeAccount | null> {
     if (!this.stripeConnectAccountService_) {
       this.logger_.warn(
         `${StripeConnectProviderService.LOG_PREFIX} stripeConnectAccountModuleService not available — add it to the payment module's dependencies in medusa-config.ts.`,
@@ -120,7 +127,19 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
     }
 
     try {
-      return await this.stripeConnectAccountService_.getConnectedAccountId();
+      if (this.stripeConnectAccountService_.getConnectedAccount) {
+        return await this.stripeConnectAccountService_.getConnectedAccount();
+      }
+
+      const connectedAccountId =
+        await this.stripeConnectAccountService_.getConnectedAccountId();
+      return connectedAccountId
+        ? {
+            stripe_account_id: connectedAccountId,
+            account_type: 'express',
+            connection_method: 'platform_onboarding',
+          }
+        : null;
     } catch (e) {
       this.logger_.warn(
         `${StripeConnectProviderService.LOG_PREFIX} Failed to resolve connected account: ${(e as Error).message}`,
@@ -205,6 +224,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
   private persistDataFromPaymentIntent(
     pi: Stripe.PaymentIntent,
     connectedAccountId?: string,
+    existingData?: Record<string, unknown>,
   ): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     if (typeof pi.application_fee_amount === 'number') {
@@ -212,6 +232,14 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
     }
     if (connectedAccountId) {
       out.connected_account_id = connectedAccountId;
+    }
+    const accountType = existingData?.connected_account_type;
+    if (accountType === 'express' || accountType === 'standard') {
+      out.connected_account_type = accountType;
+    }
+    const connectionMethod = existingData?.connected_account_connection_method;
+    if (connectionMethod === 'platform_onboarding' || connectionMethod === 'oauth') {
+      out.connected_account_connection_method = connectionMethod;
     }
     return out;
   }
@@ -276,11 +304,12 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
     }
 
     try {
-      const connectedAccountId = await this.getConnectedAccountId();
-      if (!connectedAccountId) {
+      const connectedAccount = await this.getConnectedAccount();
+      if (!connectedAccount) {
         this.logger_.error(`${StripeConnectProviderService.LOG_PREFIX} ${NO_ACCOUNT_MESSAGE}`);
         throw new MedusaError(MedusaError.Types.NOT_ALLOWED, NO_ACCOUNT_MESSAGE);
       }
+      const connectedAccountId = connectedAccount.stripe_account_id;
 
       const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
         amount: amountInCents,
@@ -307,7 +336,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
       });
 
       this.logger_.info(
-        `${StripeConnectProviderService.LOG_PREFIX} Created PaymentIntent ${paymentIntent.id} on ${connectedAccountId}: amount=${amountInCents} ${currency_code} application_fee_amount=${applicationFeeAmount}`,
+        `${StripeConnectProviderService.LOG_PREFIX} Created PaymentIntent ${paymentIntent.id} on ${connectedAccountId} (${connectedAccount.account_type}/${connectedAccount.connection_method}): amount=${amountInCents} ${currency_code} application_fee_amount=${applicationFeeAmount}`,
       );
 
       const paymentData: StripeConnectPaymentData = {
@@ -317,6 +346,8 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
         amount: amountInCents,
         currency: currency_code.toLowerCase(),
         connected_account_id: connectedAccountId,
+        connected_account_type: connectedAccount.account_type,
+        connected_account_connection_method: connectedAccount.connection_method,
         application_fee_amount: applicationFeeAmount > 0 ? applicationFeeAmount : undefined,
       };
 
@@ -371,7 +402,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           status: paymentIntent.status,
           amount: paymentIntent.amount,
           currency: paymentIntent.currency,
-          ...this.persistDataFromPaymentIntent(paymentIntent, stripeAccount),
+          ...this.persistDataFromPaymentIntent(paymentIntent, stripeAccount, data),
         },
       };
     } catch (error) {
@@ -408,7 +439,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             status: existingIntent.status,
             amount: existingIntent.amount,
             currency: existingIntent.currency,
-            ...this.persistDataFromPaymentIntent(existingIntent, stripeAccount),
+            ...this.persistDataFromPaymentIntent(existingIntent, stripeAccount, data),
           },
         };
       }
@@ -425,7 +456,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             status: paymentIntent.status,
             amount: paymentIntent.amount,
             currency: paymentIntent.currency,
-            ...this.persistDataFromPaymentIntent(paymentIntent, stripeAccount),
+            ...this.persistDataFromPaymentIntent(paymentIntent, stripeAccount, data),
           },
         };
       }
@@ -439,7 +470,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           status: existingIntent.status,
           amount: existingIntent.amount,
           currency: existingIntent.currency,
-          ...this.persistDataFromPaymentIntent(existingIntent, stripeAccount),
+          ...this.persistDataFromPaymentIntent(existingIntent, stripeAccount, data),
         },
       };
     } catch (error) {
@@ -601,7 +632,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
           amount: paymentIntent.amount,
           currency: paymentIntent.currency,
           client_secret: paymentIntent.client_secret,
-          ...this.persistDataFromPaymentIntent(paymentIntent, stripeAccount),
+          ...this.persistDataFromPaymentIntent(paymentIntent, stripeAccount, data),
         },
       };
     } catch (error) {
@@ -687,6 +718,11 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
         amount: paymentIntent.amount,
         currency: paymentIntent.currency,
         connected_account_id: stripeAccount,
+        connected_account_type: data?.connected_account_type as 'express' | 'standard' | undefined,
+        connected_account_connection_method: data?.connected_account_connection_method as
+          | 'platform_onboarding'
+          | 'oauth'
+          | undefined,
         application_fee_amount: paymentIntent.application_fee_amount ?? undefined,
       };
 

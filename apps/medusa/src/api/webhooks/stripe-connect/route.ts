@@ -14,6 +14,50 @@ import type StripeConnectAccountModuleService from "../../../modules/stripe-conn
 const STRIPE_CONNECT_WEBHOOK_SECRET =
   process.env.STRIPE_CONNECT_WEBHOOK_SECRET || "";
 
+function getDeauthorizedStripeAccountId(event: Stripe.Event): string | null {
+  const eventAccount = (event as Stripe.Event & { account?: string }).account;
+  if (typeof eventAccount === "string" && eventAccount.startsWith("acct_")) {
+    return eventAccount;
+  }
+
+  const object = event.data?.object as unknown as
+    | Record<string, unknown>
+    | undefined;
+  const objectAccount = object?.account;
+  if (
+    typeof objectAccount === "string" &&
+    objectAccount.startsWith("acct_")
+  ) {
+    return objectAccount;
+  }
+
+  return null;
+}
+
+async function handleStripeConnectEvent(
+  event: Stripe.Event,
+  req: MedusaRequest,
+): Promise<void> {
+  const svc = req.scope.resolve(
+    STRIPE_CONNECT_ACCOUNT_MODULE,
+  ) as StripeConnectAccountModuleService;
+
+  if (event.type === "account.updated") {
+    const account = event.data?.object as Stripe.Account;
+    if (account?.id) {
+      await svc.syncAccountStatus(account.id);
+    }
+    return;
+  }
+
+  if (event.type === "account.application.deauthorized") {
+    const stripeAccountId = getDeauthorizedStripeAccountId(event);
+    if (stripeAccountId) {
+      await svc.markStripeAccountDisconnected(stripeAccountId);
+    }
+  }
+}
+
 export async function POST(
   req: MedusaRequest,
   res: MedusaResponse,
@@ -33,15 +77,7 @@ export async function POST(
       return;
     }
     const event = body as Stripe.Event;
-    if (event.type === "account.updated") {
-      const account = event.data?.object as Stripe.Account;
-      if (account?.id) {
-        const svc = req.scope.resolve(
-          STRIPE_CONNECT_ACCOUNT_MODULE,
-        ) as StripeConnectAccountModuleService;
-        await svc.syncAccountStatus(account.id);
-      }
-    }
+    await handleStripeConnectEvent(event, req);
     res.status(200).json({ received: true });
     return;
   } else {
@@ -67,15 +103,7 @@ export async function POST(
     typeof payload === "string" ? payload : payload.toString("utf8"),
   ) as Stripe.Event;
 
-  if (event.type === "account.updated") {
-    const account = event.data?.object as Stripe.Account;
-    if (account?.id) {
-      const svc = req.scope.resolve(
-        STRIPE_CONNECT_ACCOUNT_MODULE,
-      ) as StripeConnectAccountModuleService;
-      await svc.syncAccountStatus(account.id);
-    }
-  }
+  await handleStripeConnectEvent(event, req);
 
   res.status(200).json({ received: true });
 }

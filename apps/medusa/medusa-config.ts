@@ -12,6 +12,10 @@ const REDIS_URL = process.env.REDIS_URL;
 const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
 const REFUND_APPLICATION_FEE = process.env.REFUND_APPLICATION_FEE === 'true';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const STRIPE_CONNECT_CLIENT_ID = process.env.STRIPE_CONNECT_CLIENT_ID;
+const STRIPE_CONNECT_OAUTH_REDIRECT_URI =
+  process.env.STRIPE_CONNECT_OAUTH_REDIRECT_URI;
+const STRIPE_CONNECT_STATE_SECRET = process.env.STRIPE_CONNECT_STATE_SECRET;
 const SENTRY_DSN = process.env.SENTRY_DSN || '';
 // const SENTRY_API_TOKEN = process.env.SENTRY_API_TOKEN || ""; // Only needed for webhooks
 const IS_TEST = process.env.NODE_ENV === 'test';
@@ -47,6 +51,9 @@ const customModules = [
     options: {
       stripeApiKey: STRIPE_API_KEY,
       adminUrl: MEDUSA_ADMIN_URL,
+      connectClientId: STRIPE_CONNECT_CLIENT_ID,
+      oauthRedirectUri: STRIPE_CONNECT_OAUTH_REDIRECT_URI,
+      oauthStateSecret: STRIPE_CONNECT_STATE_SECRET,
     },
   },
   {

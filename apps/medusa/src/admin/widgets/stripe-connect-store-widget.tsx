@@ -3,6 +3,7 @@ import { Container, Heading, Button, toast, Text, Badge } from '@medusajs/ui';
 import {
   useStripeConnectStatus,
   useStripeConnectAccountLinkMutation,
+  useStripeConnectStandardOAuthMutation,
   useStripeConnectExpressLoginMutation,
 } from '../hooks/stripe-connect';
 import type { StripeConnectStatus } from '../../sdk';
@@ -17,6 +18,7 @@ const STATUS_LABELS: Record<StripeConnectStatus, string> = {
 const StripeConnectStoreWidget = () => {
   const { data, isLoading } = useStripeConnectStatus();
   const accountLinkMutation = useStripeConnectAccountLinkMutation();
+  const standardOAuthMutation = useStripeConnectStandardOAuthMutation();
   const expressLoginMutation = useStripeConnectExpressLoginMutation();
 
   const handleConnect = async () => {
@@ -27,6 +29,20 @@ const StripeConnectStoreWidget = () => {
       }
     } catch (e) {
       toast.error('Could not start Stripe onboarding', {
+        description: e instanceof Error ? e.message : 'Unknown error',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleConnectStandard = async () => {
+    try {
+      const res = await standardOAuthMutation.mutateAsync();
+      if (res?.url) {
+        window.location.href = res.url;
+      }
+    } catch (e) {
+      toast.error('Could not start Stripe Standard connection', {
         description: e instanceof Error ? e.message : 'Unknown error',
         duration: 5000,
       });
@@ -89,9 +105,18 @@ const StripeConnectStoreWidget = () => {
             <Text className="text-ui-fg-subtle">
               Connect your Stripe account to accept payments and receive payouts.
             </Text>
-            <Button onClick={handleConnect} disabled={accountLinkMutation.isPending}>
-              Connect with Stripe
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button onClick={handleConnect} disabled={accountLinkMutation.isPending}>
+                Create Express Account
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleConnectStandard}
+                disabled={standardOAuthMutation.isPending}
+              >
+                Connect Existing Account
+              </Button>
+            </div>
           </div>
         )}
 
@@ -119,6 +144,10 @@ const StripeConnectStoreWidget = () => {
                   <dt className="text-ui-fg-muted">Stripe account ID</dt>
                   <dd className="font-mono">{account.stripe_account_id}</dd>
                 </div>
+                <div>
+                  <dt className="text-ui-fg-muted">Account type</dt>
+                  <dd>{account.account_type === 'standard' ? 'Standard' : 'Express'}</dd>
+                </div>
                 {stripe_account?.business_profile?.name && (
                   <div>
                     <dt className="text-ui-fg-muted">Business name</dt>
@@ -136,12 +165,16 @@ const StripeConnectStoreWidget = () => {
               </dl>
             </div>
             <div className="flex gap-3">
-              <Button onClick={handleOpenExpressDashboard} disabled={expressLoginMutation.isPending}>
-                Dashboard
-              </Button>
-              <Button variant="secondary" onClick={handleCompleteOrUpdate} disabled={accountLinkMutation.isPending}>
-                Update Account Details
-              </Button>
+              {account.account_type === 'express' && (
+                <Button onClick={handleOpenExpressDashboard} disabled={expressLoginMutation.isPending}>
+                  Dashboard
+                </Button>
+              )}
+              {account.account_type === 'express' && (
+                <Button variant="secondary" onClick={handleCompleteOrUpdate} disabled={accountLinkMutation.isPending}>
+                  Update Account Details
+                </Button>
+              )}
             </div>
           </div>
         )}

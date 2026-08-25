@@ -2,7 +2,7 @@
  * Stripe Connect payment provider types.
  * Options passed from medusa-config (env); config is normalized for internal use.
  *
- * Uses Express connected accounts with direct charges — the PaymentIntent is created
+ * Uses connected accounts with direct charges — the PaymentIntent is created
  * on the connected account via { stripeAccount }, and the platform collects its cut
  * via application_fee_amount.
  */
@@ -65,6 +65,8 @@ export interface StripeConnectPaymentData {
   amount: number;
   currency: string;
   connected_account_id?: string;
+  connected_account_type?: "express" | "standard";
+  connected_account_connection_method?: "platform_onboarding" | "oauth";
   application_fee_amount?: number;
 }
 

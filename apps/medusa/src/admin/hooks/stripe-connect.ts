@@ -26,6 +26,16 @@ export const useStripeConnectAccountLinkMutation = () => {
   });
 };
 
+export const useStripeConnectStandardOAuthMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => sdk.admin.stripeConnect.createStandardOAuthLink(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+};
+
 export const useStripeConnectDisconnectMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
