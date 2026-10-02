@@ -1,12 +1,13 @@
 import { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
+import { Modules } from '@medusajs/framework/utils';
 import { z } from 'zod';
 import { SOCIAL_GALLERY_MODULE } from '../../../modules/social-gallery';
 import type SocialGalleryModuleService from '../../../modules/social-gallery/service';
-import {
-  normalizeInstagramSource,
-  scrapeSocialMetadata,
-  titleFromInstagramSource,
-} from '../../../lib/social-gallery/instagram';
+import { normalizeInstagramSource } from '../../../lib/social-gallery/instagram';
+
+type EventBusService = {
+  emit: (message: { name: string; data: Record<string, unknown> }) => Promise<void>;
+};
 
 const createImportSchema = z.object({
   source: z.string().min(1),
@@ -68,6 +69,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const svc = req.scope.resolve(SOCIAL_GALLERY_MODULE) as SocialGalleryModuleService;
+  const eventBus = req.scope.resolve(Modules.EVENT_BUS) as EventBusService;
   const parsed = createImportSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -89,100 +91,29 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     account_id: account?.id ?? null,
     source_url: source.sourceUrl,
     handle: source.handle,
-    status: 'running',
-    message: 'Import started.',
+    status: 'queued',
+    message: 'Instagram import queued.',
     raw_result: {
       source,
+      request: {
+        category: parsed.data.category || 'dishes',
+        cta_label: parsed.data.cta_label || 'Book this experience',
+        cta_url: parsed.data.cta_url || '/request',
+      },
       provider_boundary: 'medusa_social_gallery_import',
     },
   } as any);
 
-  if (source.kind === 'profile') {
-    const social_import_job = await svc.updateSocialImportJobs({
-      id: importJob.id,
-      status: 'needs_connection',
-      message: 'Instagram profile saved. Connect an Instagram importer to pull recent posts.',
-      completed_at: new Date(),
-      raw_result: {
-        source,
-        next_step: 'instagram_connector_required',
-      },
-    } as any);
-
-    return res.status(202).json({
-      social_import_job,
-      social_account: account,
-      social_gallery_posts: [],
-    });
-  }
-
-  const metadata = await scrapeSocialMetadata(source.sourceUrl);
-  const mediaUrl = metadata.video || metadata.image || '';
-
-  if (!mediaUrl) {
-    const social_import_job = await svc.updateSocialImportJobs({
-      id: importJob.id,
-      status: 'needs_connection',
-      message: 'The post link was saved, but Instagram did not expose media publicly. Connect the Instagram importer to fetch it.',
-      completed_at: new Date(),
-      raw_result: {
-        source,
-        metadata,
-        next_step: 'instagram_connector_required',
-      },
-    } as any);
-
-    return res.status(202).json({
-      social_import_job,
-      social_account: account,
-      social_gallery_posts: [],
-    });
-  }
-
-  const social_gallery_post = await svc.createSocialGalleryPosts({
-    title: metadata.title || titleFromInstagramSource(source),
-    caption: metadata.caption || null,
-    source_url: source.sourceUrl,
-    instagram_handle: source.handle,
-    provider: 'instagram',
-    provider_media_id: source.shortcode,
-    shortcode: source.shortcode,
-    permalink: source.sourceUrl,
-    import_status: 'draft',
-    media_type: metadata.video ? 'video' : 'image',
-    media_url: mediaUrl,
-    thumbnail_url: !metadata.video ? metadata.image : null,
-    poster_url: metadata.video ? metadata.image : null,
-    alt_text: metadata.title || titleFromInstagramSource(source),
-    category: parsed.data.category || 'dishes',
-    display_style: 'normal',
-    cta_label: parsed.data.cta_label || 'Book this experience',
-    cta_url: parsed.data.cta_url || '/request',
-    is_active: false,
-    is_featured: false,
-    sort_order: 0,
-    raw_provider_data: {
-      source,
-      metadata,
+  await eventBus.emit({
+    name: 'social-gallery.import-requested',
+    data: {
+      jobId: importJob.id,
     },
-  } as any);
+  });
 
-  const social_import_job = await svc.updateSocialImportJobs({
-    id: importJob.id,
-    status: 'completed',
-    imported_count: 1,
-    message: 'Imported one Instagram post as a draft.',
-    completed_at: new Date(),
-    raw_result: {
-      source,
-      metadata,
-      draft_post_id: social_gallery_post.id,
-    },
-  } as any);
-
-  res.status(201).json({
-    social_import_job,
+  res.status(202).json({
+    social_import_job: importJob,
     social_account: account,
-    social_gallery_posts: [social_gallery_post],
+    social_gallery_posts: [],
   });
 }

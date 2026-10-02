@@ -150,6 +150,10 @@ const SocialGalleryPage = () => {
             toast.success('Instagram draft imported', {
               description: 'Review and publish it when it looks right.',
             });
+          } else if (result.social_import_job.status === 'queued' || result.social_import_job.status === 'running') {
+            toast.success('Instagram import queued', {
+              description: 'The background importer will update this job when it finishes.',
+            });
           } else {
             toast.success('Instagram profile saved', {
               description: result.social_import_job.message || 'Connect the Instagram importer to pull recent posts.',
@@ -195,7 +199,7 @@ const SocialGalleryPage = () => {
                 placeholder="@chef_handle or https://www.instagram.com/chef_handle/"
               />
               <Text className="text-ui-fg-subtle text-xs">
-                Profile imports create an import job first. Recent-post scraping plugs into this job flow instead of publishing empty cards.
+                Imports run in the background through the Python worker boundary. No empty gallery cards are published.
               </Text>
             </div>
             <Button onClick={handleImportStart} disabled={createImport.isPending}>
