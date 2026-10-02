@@ -120,7 +120,7 @@ const sanitizePayload = (values: FormValues): AdminCreateSocialGalleryPostDTO =>
 
 const SocialGalleryPage = () => {
   const { data, isLoading } = useAdminListSocialGalleryPosts();
-  const { data: importsData } = useAdminListSocialGalleryImports({ limit: 5 });
+  const { data: importsData } = useAdminListSocialGalleryImports({ limit: 5 }, { refetchInterval: 3000 });
   const createImport = useAdminCreateSocialGalleryImportMutation();
   const deletePost = useAdminDeleteSocialGalleryPostMutation();
   const [editingPost, setEditingPost] = useState<AdminSocialGalleryPostDTO | null>(null);

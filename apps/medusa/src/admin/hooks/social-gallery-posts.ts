@@ -59,11 +59,15 @@ export const useAdminDeleteSocialGalleryPostMutation = () => {
   });
 };
 
-export const useAdminListSocialGalleryImports = (query: Record<string, any> = {}) => {
+export const useAdminListSocialGalleryImports = (
+  query: Record<string, any> = {},
+  options: { refetchInterval?: number | false } = {},
+) => {
   return useQuery<AdminSocialGalleryImportsResponse>({
     queryKey: [...IMPORTS_QUERY_KEY, query],
     placeholderData: (previousData) => previousData,
     queryFn: async () => sdk.admin.socialGalleryImports.list(query),
+    refetchInterval: options.refetchInterval,
   });
 };
 

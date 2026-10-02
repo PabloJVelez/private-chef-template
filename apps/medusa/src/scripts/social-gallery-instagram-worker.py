@@ -249,7 +249,7 @@ def aiograpi_import(payload: dict[str, Any]) -> dict[str, Any]:
     except ImportError:
         return {
             "status": "needs_connection",
-            "message": "aiograpi is not installed in the Python environment running the worker.",
+            "message": "aiograpi is not installed for the Python used by Medusa. Run: python3 -m pip install -r apps/medusa/requirements-social-gallery.txt",
             "account": {"status": "needs_connection"},
             "media": [],
             "raw_result": {"mode": "aiograpi", "reason": "missing_package"},
