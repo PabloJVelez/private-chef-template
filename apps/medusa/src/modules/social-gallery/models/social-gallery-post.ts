@@ -7,6 +7,13 @@ export const SocialGalleryPost = model.define('social_gallery_post', {
   caption: model.text().nullable(),
   source_url: model.text().nullable(),
   instagram_handle: model.text().nullable(),
+  provider: model.enum(['instagram', 'manual']).default('manual'),
+  provider_media_id: model.text().nullable(),
+  shortcode: model.text().nullable(),
+  permalink: model.text().nullable(),
+  import_status: model.enum(['draft', 'published', 'archived']).default('published'),
+  raw_provider_data: model.json().nullable(),
+  content_hash: model.text().nullable(),
   posted_at: model.dateTime().nullable(),
 
   media_type: model.enum(['image', 'video', 'carousel']).default('image'),

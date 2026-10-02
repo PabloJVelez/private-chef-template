@@ -2,13 +2,16 @@ import { defineRouteConfig } from '@medusajs/admin-sdk';
 import { Badge, Button, Container, FocusModal, Heading, Input, Label, Text, toast } from '@medusajs/ui';
 import { useMemo, useState } from 'react';
 import {
+  useAdminCreateSocialGalleryImportMutation,
   useAdminCreateSocialGalleryPostMutation,
   useAdminDeleteSocialGalleryPostMutation,
+  useAdminListSocialGalleryImports,
   useAdminListSocialGalleryPosts,
   useAdminUpdateSocialGalleryPostMutation,
 } from '../../hooks/social-gallery-posts';
 import type {
   AdminCreateSocialGalleryPostDTO,
+  AdminSocialImportJobDTO,
   AdminSocialGalleryPostDTO,
   SocialGalleryCategory,
   SocialGalleryDisplayStyle,
@@ -37,6 +40,13 @@ const blankForm: FormValues = {
   caption: '',
   source_url: '',
   instagram_handle: '',
+  provider: 'manual',
+  provider_media_id: '',
+  shortcode: '',
+  permalink: '',
+  import_status: 'published',
+  raw_provider_data: null,
+  content_hash: '',
   posted_at: '',
   media_type: 'image',
   media_url: '',
@@ -61,9 +71,16 @@ const normalize = (post?: AdminSocialGalleryPostDTO): FormValues => {
     caption: post.caption ?? '',
     source_url: post.source_url ?? '',
     instagram_handle: post.instagram_handle ?? '',
+    provider: post.provider,
+    provider_media_id: post.provider_media_id ?? '',
+    shortcode: post.shortcode ?? '',
+    permalink: post.permalink ?? '',
+    import_status: post.import_status,
+    raw_provider_data: post.raw_provider_data ?? null,
+    content_hash: post.content_hash ?? '',
     posted_at: post.posted_at ? post.posted_at.slice(0, 10) : '',
     media_type: post.media_type,
-    media_url: post.media_url,
+    media_url: post.media_url ?? '',
     thumbnail_url: post.thumbnail_url ?? '',
     poster_url: post.poster_url ?? '',
     alt_text: post.alt_text ?? '',
@@ -84,6 +101,13 @@ const sanitizePayload = (values: FormValues): AdminCreateSocialGalleryPostDTO =>
   caption: values.caption || null,
   source_url: values.source_url || null,
   instagram_handle: values.instagram_handle || handleFromSocialUrl(values.source_url || '') || null,
+  provider: values.provider || 'manual',
+  provider_media_id: values.provider_media_id || null,
+  shortcode: values.shortcode || null,
+  permalink: values.permalink || values.source_url || null,
+  import_status: values.import_status || (values.is_active ? 'published' : 'draft'),
+  raw_provider_data: values.raw_provider_data || null,
+  content_hash: values.content_hash || null,
   posted_at: values.posted_at || null,
   thumbnail_url: values.thumbnail_url || null,
   poster_url: values.poster_url || null,
@@ -94,55 +118,58 @@ const sanitizePayload = (values: FormValues): AdminCreateSocialGalleryPostDTO =>
   sort_order: Number(values.sort_order || 0),
 });
 
-const draftFromSocialUrl = (sourceUrl: string, sortOrder: number): FormValues => {
-  const handle = handleFromSocialUrl(sourceUrl);
-  const title = titleFromSocialUrl(sourceUrl);
-
-  return {
-    ...blankForm,
-    title,
-    source_url: sourceUrl,
-    instagram_handle: handle,
-    media_url: '',
-    thumbnail_url: '',
-    poster_url: '',
-    alt_text: title,
-    sort_order: sortOrder,
-  };
-};
-
 const SocialGalleryPage = () => {
   const { data, isLoading } = useAdminListSocialGalleryPosts();
-  const createPost = useAdminCreateSocialGalleryPostMutation();
+  const { data: importsData } = useAdminListSocialGalleryImports({ limit: 5 });
+  const createImport = useAdminCreateSocialGalleryImportMutation();
   const deletePost = useAdminDeleteSocialGalleryPostMutation();
   const [editingPost, setEditingPost] = useState<AdminSocialGalleryPostDTO | null>(null);
   const [draftValues, setDraftValues] = useState<FormValues | null>(null);
   const [socialUrl, setSocialUrl] = useState('');
 
   const posts = useMemo(() => data?.social_gallery_posts ?? [], [data?.social_gallery_posts]);
+  const importJobs = useMemo(() => importsData?.social_import_jobs ?? [], [importsData?.social_import_jobs]);
+  const socialAccounts = useMemo(() => importsData?.social_accounts ?? [], [importsData?.social_accounts]);
 
   const handleImportStart = () => {
     const trimmedUrl = socialUrl.trim();
     if (!trimmedUrl) {
-      toast.error('Paste a social link first');
+      toast.error('Paste an Instagram handle or profile link first');
       return;
     }
 
-    createPost.mutate(draftFromSocialUrl(trimmedUrl, posts.length), {
-      onSuccess: () => {
-        toast.success(isProfileUrl(trimmedUrl) ? 'Social profile imported' : 'Social post imported', {
-          description: isProfileUrl(trimmedUrl)
-            ? 'We imported public profile metadata. Bulk recent-post import needs the Instagram connector.'
-            : 'We pulled public preview metadata where available.',
-        });
-        setSocialUrl('');
+    createImport.mutate(
+      {
+        source: trimmedUrl,
+        cta_label: 'Book this experience',
+        cta_url: '/request',
       },
-      onError: () => {
-        setDraftValues(draftFromSocialUrl(trimmedUrl, posts.length));
-        toast.error('Automatic import failed', {
-          description: 'A draft is open so you can add media manually.',
-        });
+      {
+        onSuccess: (result) => {
+          if (result.social_import_job.status === 'completed') {
+            toast.success('Instagram draft imported', {
+              description: 'Review and publish it when it looks right.',
+            });
+          } else {
+            toast.success('Instagram profile saved', {
+              description: result.social_import_job.message || 'Connect the Instagram importer to pull recent posts.',
+            });
+          }
+          setSocialUrl('');
+        },
+        onError: () => {
+          toast.error('Import could not start', {
+            description: 'Check the Instagram handle or link and try again.',
+          });
+        },
       },
+    );
+  };
+
+  const openManualDraft = () => {
+    setDraftValues({
+      ...blankForm,
+      sort_order: posts.length,
     });
   };
 
@@ -152,7 +179,7 @@ const SocialGalleryPage = () => {
         <div>
           <Heading level="h1">Social Gallery</Heading>
           <Text className="text-ui-fg-subtle">
-            Paste social content, curate the best moments, and publish them to the storefront gallery.
+            Import Instagram content, curate the best moments, and publish them to the storefront gallery.
           </Text>
         </div>
       </div>
@@ -161,18 +188,18 @@ const SocialGalleryPage = () => {
         <div className="rounded-xl border bg-ui-bg-base p-5">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
             <div className="space-y-2">
-              <Label>Import from social</Label>
+              <Label>Import from Instagram</Label>
               <Input
                 value={socialUrl}
                 onChange={(event) => setSocialUrl(event.target.value)}
-                placeholder="Paste an Instagram, Reel, TikTok, or post link"
+                placeholder="@chef_handle or https://www.instagram.com/chef_handle/"
               />
               <Text className="text-ui-fg-subtle text-xs">
-                MVP import creates a ready-to-curate draft from the link. Add a media URL only when the preview cannot be fetched.
+                Profile imports create an import job first. Recent-post scraping plugs into this job flow instead of publishing empty cards.
               </Text>
             </div>
-            <Button onClick={handleImportStart} disabled={createPost.isPending}>
-              {createPost.isPending ? 'Importing...' : 'Import'}
+            <Button onClick={handleImportStart} disabled={createImport.isPending}>
+              {createImport.isPending ? 'Starting...' : 'Import Instagram'}
             </Button>
           </div>
         </div>
@@ -180,17 +207,33 @@ const SocialGalleryPage = () => {
         <div className="rounded-xl border bg-ui-bg-subtle p-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <SettingPreview label="Gallery Page" value="/gallery" />
-            <SettingPreview label="Default CTA" value="Book this experience" />
-            <SettingPreview label="Published Posts" value={`${posts.filter((post) => post.is_active).length} visible`} />
+            <SettingPreview label="Instagram Accounts" value={`${socialAccounts.length} saved`} />
+            <SettingPreview label="Published Posts" value={`${posts.filter((post) => post.is_active && post.import_status === 'published').length} visible`} />
           </div>
         </div>
+
+        {importJobs.length > 0 && (
+          <div className="rounded-xl border bg-ui-bg-base p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <Text className="font-semibold">Recent imports</Text>
+                <Text className="text-ui-fg-subtle text-sm">Instagram import jobs stay visible even when no posts were created yet.</Text>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {importJobs.map((job) => (
+                <ImportJobRow key={job.id} job={job} />
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <div>
             <Text className="font-semibold">Gallery posts</Text>
-            <Text className="text-ui-fg-subtle text-sm">Use quick controls here. Open a post only when you need details.</Text>
+            <Text className="text-ui-fg-subtle text-sm">Imported content starts as drafts. Publish only the posts with usable media.</Text>
           </div>
-          <Button variant="secondary" onClick={() => setDraftValues({ ...blankForm, sort_order: posts.length })}>
+          <Button variant="secondary" onClick={openManualDraft}>
             Add manually
           </Button>
         </div>
@@ -199,8 +242,8 @@ const SocialGalleryPage = () => {
           <Text>Loading gallery posts...</Text>
         ) : posts.length === 0 ? (
           <div className="rounded-xl border border-dashed p-8 text-center">
-            <Text className="font-medium">Start with a social link</Text>
-            <Text className="text-ui-fg-subtle mt-1">Paste a post or profile above. The detailed editor is only there for cleanup.</Text>
+            <Text className="font-medium">Start with an Instagram handle</Text>
+            <Text className="text-ui-fg-subtle mt-1">Paste a profile above. Imported media will appear here as drafts for review.</Text>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -236,6 +279,37 @@ const SocialGalleryPage = () => {
   );
 };
 
+/*
+ * The import-first screen above replaced the previous post-create-on-paste flow.
+ * Keeping the curation modal below lets manual cleanup stay available without
+ * making it the primary workflow.
+ */
+const ImportJobRow = ({ job }: { job: AdminSocialImportJobDTO }) => {
+  const color = job.status === 'completed' ? 'green' : job.status === 'failed' ? 'red' : job.status === 'needs_connection' ? 'orange' : 'blue';
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border bg-ui-bg-subtle p-3 md:flex-row md:items-center md:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <Text className="font-medium">{job.handle ? `@${job.handle}` : 'Instagram post'}</Text>
+          <Badge color={color as any}>{statusLabel(job.status)}</Badge>
+        </div>
+        <Text className="text-ui-fg-subtle mt-1 truncate text-sm">{job.message || job.source_url}</Text>
+      </div>
+      <Text className="text-ui-fg-subtle text-sm">{job.imported_count} drafts</Text>
+    </div>
+  );
+};
+
+const statusLabel = (status: AdminSocialImportJobDTO['status']) =>
+  ({
+    queued: 'Queued',
+    running: 'Running',
+    completed: 'Completed',
+    failed: 'Failed',
+    needs_connection: 'Needs connector',
+  })[status];
+
 const PostCard = ({
   post,
   onEdit,
@@ -247,6 +321,7 @@ const PostCard = ({
 }) => {
   const updatePost = useAdminUpdateSocialGalleryPostMutation(post.id);
   const previewUrl = post.thumbnail_url || post.poster_url || post.media_url;
+  const isPublished = post.is_active && post.import_status === 'published';
 
   const quickUpdate = (data: Partial<AdminCreateSocialGalleryPostDTO>) => {
     updatePost.mutate(data, {
@@ -298,7 +373,16 @@ const PostCard = ({
             </select>
           </Field>
           <div className="flex flex-wrap gap-2">
-            <QuickToggle label="Visible" active={post.is_active} onClick={() => quickUpdate({ is_active: !post.is_active })} />
+            <QuickToggle
+              label={isPublished ? 'Published' : 'Draft'}
+              active={isPublished}
+              onClick={() =>
+                quickUpdate({
+                  is_active: !isPublished,
+                  import_status: isPublished ? 'draft' : 'published',
+                })
+              }
+            />
             <QuickToggle label="Featured" active={post.is_featured} onClick={() => quickUpdate({ is_featured: !post.is_featured })} />
           </div>
         </div>
@@ -340,6 +424,14 @@ const PostModal = ({
       }
       return next;
     });
+  };
+
+  const setPublished = (published: boolean) => {
+    setValues((current) => ({
+      ...current,
+      is_active: published,
+      import_status: published ? 'published' : 'draft',
+    }));
   };
 
   const handleSubmit = async () => {
@@ -437,7 +529,11 @@ const PostModal = ({
                   </Field>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <QuickToggle label="Show on gallery" active={!!values.is_active} onClick={() => setValue('is_active', !values.is_active)} />
+                  <QuickToggle
+                    label={values.is_active && values.import_status === 'published' ? 'Published' : 'Draft'}
+                    active={!!values.is_active && values.import_status === 'published'}
+                    onClick={() => setPublished(!(values.is_active && values.import_status === 'published'))}
+                  />
                   <QuickToggle label="Feature this post" active={!!values.is_featured} onClick={() => setValue('is_featured', !values.is_featured)} />
                 </div>
               </Section>
