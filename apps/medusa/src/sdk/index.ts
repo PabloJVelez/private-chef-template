@@ -6,6 +6,7 @@ import { AdminUploadsResource } from './admin/admin-uploads'
 import { AdminStripeConnectResource } from './admin/admin-stripe-connect'
 import { AdminExperienceTypesResource } from './admin/admin-experience-types'
 import { AdminGoogleCalendarResource } from './admin/admin-google-calendar'
+import { AdminSocialGalleryPostsResource } from './admin/admin-social-gallery-posts'
 import { ExtendedStoreSDK } from './store'
 
 // Vite will inline this at build time for browser bundles.
@@ -19,6 +20,7 @@ class ExtendedAdminSDK extends Admin {
   public stripeConnect: AdminStripeConnectResource
   public experienceTypes: AdminExperienceTypesResource
   public googleCalendar: AdminGoogleCalendarResource
+  public socialGalleryPosts: AdminSocialGalleryPostsResource
 
   constructor(client: Client) {
     super(client)
@@ -28,6 +30,7 @@ class ExtendedAdminSDK extends Admin {
     this.stripeConnect = new AdminStripeConnectResource(client)
     this.experienceTypes = new AdminExperienceTypesResource(client)
     this.googleCalendar = new AdminGoogleCalendarResource(client)
+    this.socialGalleryPosts = new AdminSocialGalleryPostsResource(client)
   }
 }
 
@@ -60,6 +63,7 @@ export { AdminChefEventsResource } from './admin/admin-chef-events'
 export { AdminMenusResource } from './admin/admin-menus'
 export { AdminStripeConnectResource } from './admin/admin-stripe-connect'
 export { AdminGoogleCalendarResource } from './admin/admin-google-calendar'
+export { AdminSocialGalleryPostsResource } from './admin/admin-social-gallery-posts'
 export { ExtendedStoreSDK } from './store'
 export type * from './store'
 export type {

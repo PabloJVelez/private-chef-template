@@ -25,8 +25,13 @@ const config: MenuConfig = {
       label: 'Events',
       to: '/chef-events',
     },
+    {
+      icon: SquaresPlus,
+      label: 'Social Gallery',
+      to: '/social-gallery',
+    },
   ],
-  order: ['/chef-events', '/orders', '/menus', '/experience-types', '/customers', '/promotions'],
+  order: ['/chef-events', '/orders', '/menus', '/experience-types', '/social-gallery', '/customers', '/promotions'],
 };
 
 export default config;
