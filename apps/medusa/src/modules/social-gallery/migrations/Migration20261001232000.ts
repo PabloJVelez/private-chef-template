@@ -11,7 +11,7 @@ export class Migration20261001232000 extends Migration {
         "instagram_handle" text null,
         "posted_at" timestamptz null,
         "media_type" text check ("media_type" in ('image','video','carousel')) not null default 'image',
-        "media_url" text not null,
+        "media_url" text null,
         "thumbnail_url" text null,
         "poster_url" text null,
         "alt_text" text null,

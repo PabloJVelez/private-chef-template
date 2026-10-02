@@ -10,7 +10,7 @@ const updateSchema = z.object({
   instagram_handle: z.string().optional().nullable(),
   posted_at: z.string().optional().nullable(),
   media_type: z.enum(['image', 'video', 'carousel']).optional(),
-  media_url: z.string().min(1).optional(),
+  media_url: z.string().optional().nullable(),
   thumbnail_url: z.string().optional().nullable(),
   poster_url: z.string().optional().nullable(),
   alt_text: z.string().optional().nullable(),

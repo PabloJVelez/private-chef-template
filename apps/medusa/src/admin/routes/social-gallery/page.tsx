@@ -113,6 +113,7 @@ const draftFromSocialUrl = (sourceUrl: string, sortOrder: number): FormValues =>
 
 const SocialGalleryPage = () => {
   const { data, isLoading } = useAdminListSocialGalleryPosts();
+  const createPost = useAdminCreateSocialGalleryPostMutation();
   const deletePost = useAdminDeleteSocialGalleryPostMutation();
   const [editingPost, setEditingPost] = useState<AdminSocialGalleryPostDTO | null>(null);
   const [draftValues, setDraftValues] = useState<FormValues | null>(null);
@@ -127,8 +128,22 @@ const SocialGalleryPage = () => {
       return;
     }
 
-    setDraftValues(draftFromSocialUrl(trimmedUrl, posts.length));
-    setSocialUrl('');
+    createPost.mutate(draftFromSocialUrl(trimmedUrl, posts.length), {
+      onSuccess: () => {
+        toast.success(isProfileUrl(trimmedUrl) ? 'Social profile imported' : 'Social post imported', {
+          description: isProfileUrl(trimmedUrl)
+            ? 'We imported public profile metadata. Bulk recent-post import needs the Instagram connector.'
+            : 'We pulled public preview metadata where available.',
+        });
+        setSocialUrl('');
+      },
+      onError: () => {
+        setDraftValues(draftFromSocialUrl(trimmedUrl, posts.length));
+        toast.error('Automatic import failed', {
+          description: 'A draft is open so you can add media manually.',
+        });
+      },
+    });
   };
 
   return (
@@ -156,7 +171,9 @@ const SocialGalleryPage = () => {
                 MVP import creates a ready-to-curate draft from the link. Add a media URL only when the preview cannot be fetched.
               </Text>
             </div>
-            <Button onClick={handleImportStart}>Import</Button>
+            <Button onClick={handleImportStart} disabled={createPost.isPending}>
+              {createPost.isPending ? 'Importing...' : 'Import'}
+            </Button>
           </div>
         </div>
 
@@ -241,7 +258,7 @@ const PostCard = ({
     <div className="overflow-hidden rounded-xl border bg-ui-bg-base">
       <button type="button" className="block h-48 w-full bg-ui-bg-subtle text-left" onClick={onEdit}>
         {previewUrl ? (
-          post.media_type === 'video' ? (
+          post.media_type === 'video' && post.media_url ? (
             <video className="h-full w-full object-cover" muted playsInline preload="metadata" poster={post.poster_url || post.thumbnail_url || undefined}>
               <source src={post.media_url} />
             </video>
@@ -363,7 +380,7 @@ const PostModal = ({
                 {values.media_url ? (
                   values.media_type === 'video' ? (
                     <video className="h-full w-full object-cover" controls poster={values.poster_url || values.thumbnail_url || undefined}>
-                      <source src={values.media_url} />
+                      {values.media_url && <source src={values.media_url} />}
                     </video>
                   ) : (
                     <img className="h-full w-full object-cover" src={values.thumbnail_url || values.media_url} alt={values.alt_text || values.title} />
@@ -425,13 +442,14 @@ const PostModal = ({
                 </div>
               </Section>
 
-              <button
+              <Button
                 type="button"
-                className="text-ui-fg-base text-sm font-semibold hover:underline"
+                variant="secondary"
+                size="small"
                 onClick={() => setAdvancedOpen((open) => !open)}
               >
                 {advancedOpen ? 'Hide advanced details' : 'Advanced details'}
-              </button>
+              </Button>
 
               {advancedOpen && (
                 <>
@@ -489,7 +507,7 @@ const PostModal = ({
                       </Field>
                     </div>
                     <Field label="Media URL">
-                      <Input value={values.media_url} onChange={(event) => setValue('media_url', event.target.value)} placeholder="Image or video URL" />
+                      <Input value={values.media_url ?? ''} onChange={(event) => setValue('media_url', event.target.value)} placeholder="Image or video URL" />
                     </Field>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <Field label="Thumbnail URL">
@@ -593,8 +611,25 @@ const handleFromSocialUrl = (sourceUrl: string) => {
   return '';
 };
 
+const isProfileUrl = (sourceUrl: string) => {
+  if (!sourceUrl) return false;
+
+  try {
+    const url = new URL(sourceUrl);
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    if (url.hostname.includes('instagram.com')) return !!pathParts[0] && !['p', 'reel', 'tv', 'stories'].includes(pathParts[0]);
+    if (url.hostname.includes('tiktok.com')) return pathParts.some((part) => part.startsWith('@')) && !pathParts.includes('video');
+  } catch {
+    return false;
+  }
+
+  return false;
+};
+
 const titleFromSocialUrl = (sourceUrl: string) => {
   if (!sourceUrl) return '';
+  const handle = handleFromSocialUrl(sourceUrl);
+  if (isProfileUrl(sourceUrl) && handle) return `Social profile @${handle}`;
   if (sourceUrl.includes('instagram.com/reel')) return 'Instagram Reel';
   if (sourceUrl.includes('instagram.com')) return 'Instagram post';
   if (sourceUrl.includes('tiktok.com')) return 'TikTok post';

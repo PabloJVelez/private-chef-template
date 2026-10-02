@@ -299,7 +299,15 @@ const PostTile = ({
 const PostMedia = ({ post, className }: { post: StoreSocialGalleryPostDTO; className?: string }) => {
   const imageUrl = post.thumbnail_url || post.poster_url || post.media_url;
 
-  if (post.media_type === 'video') {
+  if (!imageUrl) {
+    return (
+      <div className={clsx('flex items-center justify-center bg-primary-900 p-6 text-center text-white', className)}>
+        <span className="max-w-xs text-sm font-semibold">{post.source_url ? 'Social source added. Add media in admin when preview is unavailable.' : post.title}</span>
+      </div>
+    );
+  }
+
+  if (post.media_type === 'video' && post.media_url) {
     return (
       <video
         className={className}
@@ -323,10 +331,14 @@ const PostModal = ({ post, onClose }: { post: StoreSocialGalleryPostDTO; onClose
     <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-3xl bg-white shadow-2xl">
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="min-h-[320px] bg-primary-900 lg:min-h-[720px]">
-          {post.media_type === 'video' ? (
+          {post.media_type === 'video' && post.media_url ? (
             <video className="h-full w-full object-contain" controls poster={post.poster_url || post.thumbnail_url || undefined}>
               <source src={post.media_url} />
             </video>
+          ) : !post.media_url ? (
+            <div className="flex h-full w-full items-center justify-center bg-primary-900 p-8 text-center text-white">
+              Social source added. Add media in admin when preview is unavailable.
+            </div>
           ) : (
             <img src={post.media_url} alt={post.alt_text || post.title} className="h-full w-full object-cover" />
           )}

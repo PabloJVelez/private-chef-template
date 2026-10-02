@@ -10,7 +10,7 @@ export const SocialGalleryPost = model.define('social_gallery_post', {
   posted_at: model.dateTime().nullable(),
 
   media_type: model.enum(['image', 'video', 'carousel']).default('image'),
-  media_url: model.text(),
+  media_url: model.text().nullable(),
   thumbnail_url: model.text().nullable(),
   poster_url: model.text().nullable(),
   alt_text: model.text().nullable(),

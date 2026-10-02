@@ -12,7 +12,7 @@ export interface StoreSocialGalleryPostDTO {
   instagram_handle?: string | null;
   posted_at?: string | null;
   media_type: StoreSocialGalleryMediaType;
-  media_url: string;
+  media_url?: string | null;
   thumbnail_url?: string | null;
   poster_url?: string | null;
   alt_text?: string | null;
