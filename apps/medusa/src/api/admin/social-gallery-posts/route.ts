@@ -136,7 +136,7 @@ const scrapeSocialMetadata = async (sourceUrl?: string | null) => {
 
 const toPayload = async (data: z.infer<typeof socialGalleryPostSchema>) => {
   const metadata = await scrapeSocialMetadata(data.source_url);
-  const mediaUrl = data.media_url || metadata.video || metadata.image || null;
+  const mediaUrl = data.media_url || metadata.video || metadata.image || '';
 
   return {
     ...(data as any),
