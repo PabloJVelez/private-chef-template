@@ -30,6 +30,7 @@ export type ChefEventRequestedEmailProps = {
     phone: string
   }
   emailType: "customer_confirmation" | "chef_notification"
+  magicLinkUrl?: string
 }
 
 const BRAND_NAME = "Chef John Doe"
@@ -54,6 +55,7 @@ function ChefEventRequestedEmailComponent({
   requestReference,
   chefContact,
   emailType,
+  magicLinkUrl,
 }: ChefEventRequestedEmailProps) {
   const isCustomerEmail = emailType === "customer_confirmation"
   const brandContact = {
@@ -91,8 +93,6 @@ function ChefEventRequestedEmailComponent({
     </>
   )
 
-  const adminBase = process.env.ADMIN_BACKEND_URL ?? process.env.MEDUSA_ADMIN_URL ?? ""
-
   const bodyContent = (
     <>
       <Section style={layoutStyles.lineItemsSection}>
@@ -116,12 +116,12 @@ function ChefEventRequestedEmailComponent({
         {row("Quoted total", event.total_price)}
       </Section>
 
-      {!isCustomerEmail && adminBase ? (
+      {!isCustomerEmail && magicLinkUrl ? (
         <Section style={{ ...layoutStyles.lineItemsSection, textAlign: "center" as const }}>
           <Row>
             <Column>
               <Button
-                href={`${adminBase}/app/chef-events`}
+                href={magicLinkUrl}
                 style={{
                   backgroundColor: "#16a34a",
                   color: "#fff",
@@ -131,10 +131,13 @@ function ChefEventRequestedEmailComponent({
                   marginRight: "8px",
                 }}
               >
-                Open admin
+                View event request
               </Button>
             </Column>
           </Row>
+          <Text style={{ ...layoutStyles.metaText, margin: "0.75rem 0 0 0" }}>
+            This link expires in 48 hours and will log you in automatically.
+          </Text>
         </Section>
       ) : null}
 

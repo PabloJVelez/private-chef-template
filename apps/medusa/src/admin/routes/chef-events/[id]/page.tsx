@@ -291,27 +291,28 @@ const ChefEventDetailPage = () => {
   }
 
   return (
-    <Container className="divide-y p-0">
-      <div className="flex items-center justify-between px-6 py-4">
-        <Heading level="h1">
+    <Container className="divide-y overflow-hidden p-0">
+      <div className="flex flex-col gap-3 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+        <Heading level="h1" className="break-words text-xl leading-snug sm:text-2xl">
           Edit Chef Event - {chefEvent.firstName} {chefEvent.lastName}
         </Heading>
         
         {isPending && (
-          <div className="flex space-x-2">
-            <Button variant="primary" size="small" onClick={() => setShowAcceptModal(true)}>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+            <Button className="w-full sm:w-auto" variant="primary" size="small" onClick={() => setShowAcceptModal(true)}>
               Accept Event
             </Button>
-            <Button variant="danger" size="small" onClick={() => setShowRejectModal(true)}>
+            <Button className="w-full sm:w-auto" variant="danger" size="small" onClick={() => setShowRejectModal(true)}>
               Reject Event
             </Button>
           </div>
         )}
         
         {isConfirmed && chefEvent.productId && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:shrink-0">
             {canSendReceipt ? (
               <Button
+                className="w-full sm:w-auto"
                 variant="primary"
                 size="small"
                 onClick={() => {
@@ -322,7 +323,7 @@ const ChefEventDetailPage = () => {
                 Send Receipt
               </Button>
             ) : null}
-            <Button variant="secondary" size="small" asChild>
+            <Button className="w-full sm:w-auto" variant="secondary" size="small" asChild>
               <a href={`/products/${chefEvent.productId}`} target="_blank" rel="noreferrer">
                 View Product
               </a>
@@ -331,7 +332,7 @@ const ChefEventDetailPage = () => {
         )}
       </div>
       
-      <div className="p-6 space-y-6">
+      <div className="space-y-6 p-4 sm:p-6">
         <ChefEventForm 
           key={`${chefEvent.id}-${chefEvent.updatedAt}-${chefEvent.eventMenuId ?? ""}`}
           initialData={chefEvent}
