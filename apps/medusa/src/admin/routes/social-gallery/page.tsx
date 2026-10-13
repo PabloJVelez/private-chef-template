@@ -239,7 +239,7 @@ const SocialGalleryPage = () => {
           <div>
             <Text className="font-semibold">Gallery posts</Text>
             <Text className="text-ui-fg-subtle text-sm">
-              Publish your favorites. Mark a Chef’s pick for a subtle spotlight in the gallery.
+              Publish your favorites. Use Chef’s pick to prioritize posts.
             </Text>
           </div>
           <Button variant="secondary" onClick={openManualDraft}>
@@ -257,7 +257,7 @@ const SocialGalleryPage = () => {
             </Text>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="flex flex-col gap-2">
             {posts.map((post) => (
               <PostCard
                 key={post.id}
@@ -396,11 +396,11 @@ const PostCard = ({
   };
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border bg-ui-bg-base">
+    <div className="flex items-start gap-3 rounded-xl border bg-ui-bg-base p-3 sm:items-center">
       <button
         type="button"
         aria-label={`Edit ${post.title}`}
-        className="block h-44 w-full shrink-0 bg-ui-bg-subtle text-left"
+        className="block h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-ui-bg-subtle text-left"
         onClick={onEdit}
       >
         {previewUrl ? (
@@ -424,30 +424,29 @@ const PostCard = ({
         )}
       </button>
 
-      <div className="flex flex-1 flex-col gap-4 p-4">
-        <div className="space-y-1">
-          <div className="flex items-start justify-between gap-3">
-            <button type="button" className="line-clamp-2 text-left font-medium hover:underline" onClick={onEdit}>
+      <div className="flex min-w-0 flex-1 flex-col gap-2 xl:flex-row xl:items-center xl:gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <button type="button" className="line-clamp-2 break-words text-left text-sm font-medium hover:underline" onClick={onEdit}>
               {post.title.replace(/[#@][^\s]+/g, '').trim() || categoryLabel(post.category)}
             </button>
             {post.media_type === 'video' && <Badge color="purple">Video</Badge>}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3">
-          <Field label="Category">
-            <select
-              className="w-full rounded border bg-ui-bg-base px-3 py-2 text-sm"
-              value={post.category}
-              onChange={(event) => quickUpdate({ category: event.target.value as SocialGalleryCategory })}
-            >
-              {categories.map((category) => (
-                <option key={category.value} value={category.value}>
-                  {category.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label={`Category for ${post.title}`}
+            className="w-40 max-w-full rounded border bg-ui-bg-base px-2 py-1.5 text-sm"
+            value={post.category}
+            onChange={(event) => quickUpdate({ category: event.target.value as SocialGalleryCategory })}
+          >
+            {categories.map((category) => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
+          </select>
           <div className="flex flex-wrap gap-2">
             <QuickToggle
               label={isPublished ? 'Published' : 'Draft'}
@@ -467,7 +466,7 @@ const PostCard = ({
           </div>
         </div>
 
-        <div className="mt-auto flex items-center justify-between border-t pt-3">
+        <div className="flex shrink-0 items-center gap-2">
           <Button size="small" variant="secondary" onClick={onEdit}>
             Edit
           </Button>

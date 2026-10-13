@@ -6,7 +6,7 @@ import {
   type StoreSocialGalleryPostDTO,
 } from "@libs/util/server/data/social-gallery.server";
 import clsx from "clsx";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import type { LoaderFunctionArgs, MetaFunction } from "react-router";
 import { Link, data, useLoaderData } from "react-router";
@@ -218,6 +218,12 @@ export default function GalleryRoute() {
   );
 }
 
+const PlaybackContext = createContext({
+  activeId: "",
+  paused: false,
+  toggle: () => {},
+});
+
 // Keep playback local to this page and rotate only through visible tiles.
 const GalleryPlayback = ({
   children,
@@ -228,14 +234,14 @@ const GalleryPlayback = ({
 }) => {
   const root = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
-  const [hasVideos, setHasVideos] = useState(false);
+  const [activeId, setActiveId] = useState("");
+  const lastVideo = useRef<HTMLVideoElement>();
   useEffect(() => {
     const videos = Array.from(
       root.current?.querySelectorAll<HTMLVideoElement>(
         "[data-gallery-video]",
       ) || [],
     );
-    setHasVideos(videos.length > 0);
     const visible = new Set<HTMLVideoElement>();
     const failed = new Set<HTMLVideoElement>();
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -251,16 +257,23 @@ const GalleryPlayback = ({
         stop();
         return;
       }
-      const start = after ? videos.indexOf(after) + 1 : 0;
+      const start = after
+        ? videos.indexOf(after) + 1
+        : Math.max(0, videos.indexOf(lastVideo.current!));
       const ordered = [...videos.slice(start), ...videos.slice(0, start)];
       const next = ordered.find(
         (video) => visible.has(video) && !failed.has(video),
       );
       stop();
-      if (!next) return;
+      if (!next) {
+        setActiveId("");
+        return;
+      }
       current = next;
+      lastVideo.current = next;
+      setActiveId(next.dataset.galleryVideo || "");
       next.muted = true;
-      if (after || next.ended) next.currentTime = 0;
+      if (after || next.ended || next.currentTime >= 10) next.currentTime = 0;
       void next.play().catch(() => {
         if (disposed || current !== next) return;
         failed.add(next);
@@ -269,6 +282,11 @@ const GalleryPlayback = ({
     };
     const ended = (event: Event) =>
       playNext(event.currentTarget as HTMLVideoElement);
+    const timeUpdate = (event: Event) => {
+      const video = event.currentTarget as HTMLVideoElement;
+      if (current === video && !video.paused && video.currentTime >= 10)
+        playNext(video);
+    };
     const error = (event: Event) => {
       const video = event.currentTarget as HTMLVideoElement;
       failed.add(video);
@@ -289,6 +307,7 @@ const GalleryPlayback = ({
     videos.forEach((video) => {
       observer.observe(video);
       video.addEventListener("ended", ended);
+      video.addEventListener("timeupdate", timeUpdate);
       video.addEventListener("error", error);
     });
     const refresh = () => playNext();
@@ -300,6 +319,7 @@ const GalleryPlayback = ({
       stop();
       videos.forEach((video) => {
         video.removeEventListener("ended", ended);
+        video.removeEventListener("timeupdate", timeUpdate);
         video.removeEventListener("error", error);
       });
       document.removeEventListener("visibilitychange", refresh);
@@ -307,19 +327,11 @@ const GalleryPlayback = ({
     };
   }, [paused, suspended]);
   return (
-    <div ref={root}>
-      {hasVideos && (
-        <button
-          type="button"
-          className="mb-3 text-xs underline underline-offset-4 motion-reduce:hidden"
-          aria-pressed={paused}
-          onClick={() => setPaused(!paused)}
-        >
-          {paused ? "Play gallery videos" : "Pause gallery videos"}
-        </button>
-      )}
-      {children}
-    </div>
+    <PlaybackContext.Provider
+      value={{ activeId, paused, toggle: () => setPaused((value) => !value) }}
+    >
+      <div ref={root}>{children}</div>
+    </PlaybackContext.Provider>
   );
 };
 
@@ -345,41 +357,74 @@ const PostTile = ({
   post: StoreSocialGalleryPostDTO;
   tall: boolean;
   onSelect: (post: StoreSocialGalleryPostDTO) => void;
-}) => (
-  <button
-    type="button"
-    aria-label={`Open ${post.media_type === "video" ? "video" : "photo"}: ${displayTitle(post)}`}
-    className={clsx(
-      "group relative min-w-0 overflow-hidden rounded-2xl bg-primary-900 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-900",
-      tall && "row-span-2",
-    )}
-    onClick={() => onSelect(post)}
-  >
-    <PostMedia
-      post={post}
-      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.03] motion-reduce:transition-none"
-    />
-    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
-    {post.media_type !== "image" && (
-      <span className="absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
-        {post.media_type === "video"
-          ? "▶ Video"
-          : `▧ ${post.media_assets?.length || "Photos"}`}
-      </span>
-    )}
-    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 text-white sm:p-4">
-      <span className="text-xs font-medium">
-        {categoryLabel(post.category)}
-      </span>
-      <span
-        aria-hidden="true"
-        className="text-lg transition-transform motion-safe:group-hover:-translate-y-0.5"
+}) => {
+  const playback = useContext(PlaybackContext);
+  return (
+    <div
+      className={clsx(
+        "group relative min-w-0 overflow-hidden rounded-2xl bg-primary-900",
+        tall && "row-span-2",
+      )}
+    >
+      <button
+        type="button"
+        aria-label={`Open ${post.media_type === "video" ? "video" : "photo"}: ${displayTitle(post)}`}
+        className={clsx(
+          "absolute inset-0 h-full w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white",
+        )}
+        onClick={() => onSelect(post)}
       >
-        ↗
-      </span>
+        <PostMedia
+          post={post}
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.03] motion-reduce:transition-none"
+        />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+        {post.media_type !== "image" && (
+          <span className="absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
+            {post.media_type === "video"
+              ? "▶ Video"
+              : `▧ ${post.media_assets?.length || "Photos"}`}
+          </span>
+        )}
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 text-white sm:p-4">
+          <span className="text-xs font-medium">
+            {categoryLabel(post.category)}
+          </span>
+          <span
+            aria-hidden="true"
+            className="text-lg transition-transform motion-safe:group-hover:-translate-y-0.5"
+          >
+            ↗
+          </span>
+        </div>
+      </button>
+      {playback.activeId === post.id && (
+        <button
+          type="button"
+          aria-label={
+            playback.paused ? "Resume video preview" : "Pause video preview"
+          }
+          aria-pressed={playback.paused}
+          onClick={playback.toggle}
+          className="absolute left-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white shadow-sm hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:hidden"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="currentColor"
+          >
+            {playback.paused ? (
+              <path d="M8 5v14l11-7z" />
+            ) : (
+              <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+            )}
+          </svg>
+        </button>
+      )}
     </div>
-  </button>
-);
+  );
+};
 
 const PostMedia = ({
   post,
@@ -402,7 +447,7 @@ const PostMedia = ({
   if (video?.url) {
     return (
       <video
-        data-gallery-video
+        data-gallery-video={post.id}
         muted
         playsInline
         preload="none"
