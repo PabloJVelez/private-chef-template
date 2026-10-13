@@ -400,7 +400,7 @@ const PostCard = ({
       <button
         type="button"
         aria-label={`Edit ${post.title}`}
-        className="block h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-ui-bg-subtle text-left"
+        className="relative block h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-ui-bg-subtle text-left"
         onClick={onEdit}
       >
         {previewUrl ? (
@@ -422,6 +422,14 @@ const PostCard = ({
             <Text className="text-ui-fg-subtle text-sm">Add media to preview this post</Text>
           </div>
         )}
+        {post.media_type === 'video' && (
+          <span title="Video" className="pointer-events-none absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white">
+            <span className="sr-only">Video</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </span>
+        )}
       </button>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2 xl:flex-row xl:items-center xl:gap-4">
@@ -430,7 +438,7 @@ const PostCard = ({
             <button type="button" className="line-clamp-2 break-words text-left text-sm font-medium hover:underline" onClick={onEdit}>
               {post.title.replace(/[#@][^\s]+/g, '').trim() || categoryLabel(post.category)}
             </button>
-            {post.media_type === 'video' && <Badge color="purple">Video</Badge>}
+
           </div>
         </div>
 
