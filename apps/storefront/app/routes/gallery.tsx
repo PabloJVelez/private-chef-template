@@ -222,6 +222,7 @@ const PlaybackContext = createContext({
   activeId: "",
   paused: false,
   toggle: (_id: string) => {},
+  hover: (_id: string) => {},
 });
 
 // Keep playback local to this page and rotate only through visible tiles.
@@ -247,6 +248,17 @@ const GalleryPlayback = ({
     lastVideo.current = video;
     setActiveId(id);
     setPaused(shouldPause);
+    setSelection((value) => value + 1);
+  };
+  const hover = (id: string) => {
+    if (paused || suspended ||
+      !window.matchMedia("(hover: hover) and (pointer: fine)").matches ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const video = Array.from(root.current?.querySelectorAll<HTMLVideoElement>("[data-gallery-video]") || [])
+      .find((item) => item.dataset.galleryVideo === id);
+    if (!video || !video.paused) return;
+    lastVideo.current = video;
+    setActiveId(id);
     setSelection((value) => value + 1);
   };
   useEffect(() => {
@@ -341,7 +353,7 @@ const GalleryPlayback = ({
   }, [paused, suspended, selection]);
   return (
     <PlaybackContext.Provider
-      value={{ activeId, paused, toggle }}
+      value={{ activeId, paused, toggle, hover }}
     >
       <div ref={root}>{children}</div>
     </PlaybackContext.Provider>
@@ -372,6 +384,9 @@ const PostTile = ({
   onSelect: (post: StoreSocialGalleryPostDTO) => void;
 }) => {
   const playback = useContext(PlaybackContext);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
+  const cancelHover = () => clearTimeout(hoverTimer.current);
+  useEffect(() => cancelHover, []);
   const hasVideo = Boolean(post.media_type === "video"
     ? post.media_url || post.media_assets?.some((asset) => asset.type === "video" && asset.url)
     : post.media_assets?.some((asset) => asset.type === "video" && asset.url));
@@ -389,7 +404,17 @@ const PostTile = ({
         className={clsx(
           "absolute inset-0 h-full w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white",
         )}
-        onClick={() => hasVideo ? playback.toggle(post.id) : onSelect(post)}
+        onPointerEnter={(event) => {
+          if (!hasVideo || event.pointerType !== "mouse") return;
+          cancelHover();
+          hoverTimer.current = setTimeout(() => playback.hover(post.id), 200);
+        }}
+        onPointerLeave={cancelHover}
+        onClick={() => {
+          cancelHover();
+          if (hasVideo) playback.toggle(post.id);
+          else onSelect(post);
+        }}
       >
         <PostMedia
           post={post}

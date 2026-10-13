@@ -126,8 +126,8 @@ const SocialGalleryPage = () => {
   const importJobs = useMemo(() => importsData?.social_import_jobs ?? [], [importsData?.social_import_jobs]);
   const socialAccounts = useMemo(() => importsData?.social_accounts ?? [], [importsData?.social_accounts]);
 
-  const handleImportStart = () => {
-    const trimmedUrl = socialUrl.trim();
+  const handleImportStart = (source = socialUrl) => {
+    const trimmedUrl = source.trim();
     if (!trimmedUrl) {
       toast.error('Paste an Instagram handle or profile link first');
       return;
@@ -154,7 +154,7 @@ const SocialGalleryPage = () => {
               description: result.social_import_job.message || 'Connect the Instagram importer to pull recent posts.',
             });
           }
-          setSocialUrl('');
+          if (source === socialUrl) setSocialUrl('');
         },
         onError: () => {
           toast.error('Import could not start', {
@@ -186,28 +186,53 @@ const SocialGalleryPage = () => {
       <div className="space-y-6 px-6 py-6">
         {importsData && !importsData.configured && (
           <Text className="text-ui-fg-subtle">
-            Instagram import is not connected yet. Ask your site administrator to connect Apify. Existing gallery
+            Instagram import is not connected yet. Ask your site administrator to enable importing. Existing gallery
             content is unaffected.
           </Text>
         )}
         {isError && <Text className="text-ui-fg-error">Gallery posts could not be loaded. Refresh to try again.</Text>}
         <div className="rounded-xl border bg-ui-bg-base p-5">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
-            <div className="space-y-2">
-              <Label>Import from Instagram</Label>
+          <Label htmlFor="instagram-source">Import from Instagram</Label>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
               <Input
+                id="instagram-source"
                 value={socialUrl}
                 onChange={(event) => setSocialUrl(event.target.value)}
                 placeholder="@chef_handle, profile URL, or post/reel URL"
               />
-              <Text className="text-ui-fg-subtle text-xs">
-                Import photos, reels, and carousels as drafts. Existing posts and your edits stay unchanged.
-              </Text>
             </div>
-            <Button onClick={handleImportStart} disabled={createImport.isPending || !importsData?.configured}>
+            <Button className="shrink-0" onClick={() => handleImportStart()} disabled={createImport.isPending || !importsData?.configured}>
               {createImport.isPending ? 'Starting...' : 'Import Instagram'}
             </Button>
           </div>
+          <Text className="mt-2 text-ui-fg-subtle text-xs">
+            Import photos, reels, and carousels as drafts. Existing posts and your edits stay unchanged.
+          </Text>
+          {socialAccounts.length > 0 && (
+            <div className="mt-4 space-y-2 border-t pt-4">
+              <Text className="text-sm font-medium">Saved Instagram profiles</Text>
+              {socialAccounts.map((account) => {
+                const busy = importJobs.some((job) =>
+                  (job.account_id === account.id || job.handle === account.handle) &&
+                  (job.status === 'queued' || job.status === 'running'));
+                return (
+                  <div key={account.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <Text className="min-w-0 break-all text-sm">@{account.handle}</Text>
+                    <Button
+                      size="small"
+                      variant="secondary"
+                      aria-label={`Pull latest from @${account.handle}`}
+                      disabled={busy || createImport.isPending || !importsData?.configured}
+                      onClick={() => handleImportStart(`@${account.handle}`)}
+                    >
+                      {busy ? 'Importing...' : 'Pull latest'}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-ui-fg-subtle">
@@ -351,16 +376,6 @@ const ImportJobRow = ({ job }: { job: AdminSocialImportJobDTO }) => {
           >
             Resume import
           </Button>
-        )}
-        {job.provider_run_id && (
-          <a
-            className="text-sm underline"
-            href={`https://console.apify.com/actors/runs/${encodeURIComponent(job.provider_run_id)}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Apify run details
-          </a>
         )}
       </div>
     </div>
