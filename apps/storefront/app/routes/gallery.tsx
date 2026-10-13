@@ -52,118 +52,63 @@ export default function GalleryRoute() {
   const { posts, count, page, category: activeCategory, unavailable } = useLoaderData<typeof loader>();
   const [selectedPost, setSelectedPost] = useState<StoreSocialGalleryPostDTO | null>(null);
 
-  const featuredPost = posts.find((post) => post.is_featured || post.display_style === 'feature') ?? posts[0];
-  const galleryPosts = posts.filter((post) => post.id !== featuredPost?.id);
+  const spotlightIndex = posts.findIndex((post) => post.is_featured || post.display_style === 'feature');
 
   return (
     <div className="bg-highlight-50 text-primary-900">
-      <Container className="pb-16 pt-12 md:pb-24 md:pt-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-accent-50">From the kitchen</p>
-          <h1 className="mt-4 text-5xl font-italiana leading-tight text-primary-900 md:text-7xl">
-            Recent dishes, dinners, and behind-the-scenes moments
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-primary-700">
-            A living portfolio of the food, gatherings, and details that shape each private chef experience.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              to="/request"
-              className="rounded-full bg-primary-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-700"
-            >
-              Book a Private Dinner
-            </Link>
-            <a
-              href="#gallery-feed"
-              className="rounded-full border border-primary-900/20 px-6 py-3 text-sm font-semibold text-primary-900 transition hover:border-primary-900"
-            >
-              View Gallery
-            </a>
+      <Container className="max-w-6xl pb-12 pt-8 md:pb-16 md:pt-12">
+        <header className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent-50">A glimpse inside</p>
+            <h1 className="mt-2 text-4xl font-italiana leading-tight md:text-5xl">From the kitchen</h1>
           </div>
-          {unavailable && <p className="mt-6">The gallery is temporarily unavailable. Please try again shortly.</p>}
-          {!unavailable && posts.length === 0 && (
-            <p className="mt-6">
-              No published moments here yet. Explore another category or plan your own experience below.
-            </p>
-          )}
-        </div>
+          <p className="max-w-sm text-sm leading-6 text-primary-700">
+            A few favorite plates, shared tables, and moments along the way. Take a look around.
+          </p>
+        </header>
 
-        {featuredPost && (
-          <section className="mt-14 overflow-hidden rounded-[2rem] bg-white shadow-xl shadow-primary-900/5 ring-1 ring-primary-900/10">
-            <div className="grid min-h-[520px] grid-cols-1 lg:grid-cols-[1.15fr_0.85fr]">
-              <button
-                type="button"
-                className="group relative min-h-[360px] overflow-hidden text-left lg:min-h-full"
-                onClick={() => setSelectedPost(featuredPost)}
-              >
-                <PostMedia
-                  post={featuredPost}
-                  className="h-full min-h-[360px] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
-                />
-                <div className="absolute left-5 top-5 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary-900">
-                  Featured
-                </div>
-              </button>
-              <div className="flex flex-col justify-center p-8 md:p-12">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent-50">
-                  {categoryLabel(featuredPost.category)}
-                </p>
-                <h2 className="mt-4 text-4xl font-italiana leading-tight text-primary-900 md:text-6xl">
-                  {featuredPost.title}
-                </h2>
-                {featuredPost.caption && (
-                  <p className="mt-6 text-lg leading-8 text-primary-700">{featuredPost.caption}</p>
+        <section aria-label="Gallery">
+          <nav aria-label="Gallery categories" className="mb-5 flex gap-2 overflow-x-auto pb-2">
+            {categoryFilters.map((filter) => (
+              <Link
+                key={filter.value}
+                to={`?category=${filter.value}`}
+                aria-current={activeCategory === filter.value ? 'page' : undefined}
+                className={clsx(
+                  'whitespace-nowrap rounded-full border px-4 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+                  activeCategory === filter.value
+                    ? 'border-primary-900 bg-primary-900 text-white'
+                    : 'border-primary-900/10 text-primary-700 hover:border-primary-900/40',
                 )}
-                <div className="mt-8 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    className="rounded-full bg-accent-50 px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-800"
-                    onClick={() => setSelectedPost(featuredPost)}
-                  >
-                    Open story
-                  </button>
-                  <Link
-                    to={featuredPost.cta_url || '/request'}
-                    className="rounded-full border border-primary-900/20 px-5 py-3 text-sm font-semibold text-primary-900 transition hover:border-primary-900"
-                  >
-                    {featuredPost.cta_label || 'Book this experience'}
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        <section id="gallery-feed" className="mt-16">
-          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent-50">Social portfolio</p>
-              <h2 className="mt-3 text-4xl font-italiana text-primary-900 md:text-5xl">A better home for the feed</h2>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 md:flex-wrap md:justify-end md:overflow-visible md:pb-0">
-              {categoryFilters.map((filter) => (
-                <Link
-                  key={filter.value}
-                  to={`?category=${filter.value}`}
-                  aria-current={activeCategory === filter.value ? 'page' : undefined}
-                  className={clsx(
-                    'whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition',
-                    activeCategory === filter.value
-                      ? 'border-primary-900 bg-primary-900 text-white'
-                      : 'border-primary-900/15 bg-white/70 text-primary-700 hover:border-primary-900/40',
-                  )}
-                >
-                  {filter.label}
-                </Link>
+              >
+                {filter.label}
+              </Link>
+            ))}
+          </nav>
+          {unavailable ? (
+            <p role="status" className="rounded-2xl border border-primary-900/10 p-10 text-center">
+              The gallery is temporarily unavailable. Please try again shortly.
+            </p>
+          ) : posts.length === 0 ? (
+            <p className="rounded-2xl border border-primary-900/10 p-10 text-center">
+              No moments here just yet. Check back soon or explore another category.
+            </p>
+          ) : (
+            <div className="grid auto-rows-[150px] grid-cols-2 gap-3 sm:auto-rows-[200px] lg:auto-rows-[220px] lg:grid-cols-3 lg:gap-4">
+              {posts.map((post, index) => (
+                <PostTile
+                  key={post.id}
+                  post={post}
+                  tall={
+                    posts.length >= 3 &&
+                    (index === (spotlightIndex >= 0 ? spotlightIndex : 1) ||
+                      (index % 9 === 7 && index < posts.length - 2))
+                  }
+                  onSelect={setSelectedPost}
+                />
               ))}
             </div>
-          </div>
-
-          <div className="mt-8 grid auto-rows-[220px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {galleryPosts.map((post, index) => (
-              <PostTile key={post.id} post={post} index={index} onSelect={setSelectedPost} />
-            ))}
-          </div>
+          )}
         </section>
 
         {count > 24 && (
@@ -187,18 +132,12 @@ export default function GalleryRoute() {
             )}
           </nav>
         )}
-        <section className="mt-16 rounded-[2rem] bg-primary-900 p-8 text-center text-white md:p-12">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent-700">Bring this to your table</p>
-          <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-italiana leading-tight md:text-6xl">
-            Like what you see? Build a private chef experience around it.
-          </h2>
-          <Link
-            to="/request"
-            className="mt-8 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-primary-900 transition hover:bg-highlight-100"
-          >
-            Start an Event Request
+        <footer className="mt-10 flex flex-col items-start gap-3 border-t border-primary-900/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-lg font-italiana">Good food. Great company. Your table next?</p>
+          <Link to="/request" className="text-sm font-semibold underline underline-offset-4 hover:text-accent-50">
+            Let’s plan a gathering <span aria-hidden="true">↗</span>
           </Link>
-        </section>
+        </footer>
       </Container>
 
       {selectedPost && <PostModal key={selectedPost.id} post={selectedPost} onClose={() => setSelectedPost(null)} />}
@@ -206,50 +145,57 @@ export default function GalleryRoute() {
   );
 }
 
+// Imported titles often contain the entire Instagram caption. Keep the original
+// caption intact, but never promote hashtags or a paragraph into a headline.
+const displayTitle = (post: StoreSocialGalleryPostDTO) => {
+  const title = post.title
+    .replace(/[#@][^\s]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return title ? (title.length > 80 ? `${title.slice(0, 77).trimEnd()}…` : title) : categoryLabel(post.category);
+};
+
 const PostTile = ({
   post,
-  index,
+  tall,
   onSelect,
 }: {
   post: StoreSocialGalleryPostDTO;
-  index: number;
+  tall: boolean;
   onSelect: (post: StoreSocialGalleryPostDTO) => void;
-}) => {
-  const spanClass =
-    post.display_style === 'large'
-      ? 'sm:col-span-2 sm:row-span-2'
-      : post.display_style === 'wide'
-        ? 'sm:col-span-2'
-        : index % 7 === 2
-          ? 'lg:row-span-2'
-          : '';
-
-  return (
-    <button
-      type="button"
-      className={clsx(
-        'group relative overflow-hidden rounded-3xl bg-primary-900 text-left shadow-lg shadow-primary-900/5',
-        spanClass,
-      )}
-      onClick={() => onSelect(post)}
-    >
-      <PostMedia post={post} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-      <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-3">
-        <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-primary-900">
-          {categoryLabel(post.category)}
-        </span>
-        {post.media_type === 'video' && (
-          <span className="rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">Play</span>
-        )}
-      </div>
-      <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-        <h3 className="text-2xl font-italiana leading-tight">{post.title}</h3>
-        {post.caption && <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/85">{post.caption}</p>}
-      </div>
-    </button>
-  );
-};
+}) => (
+  <button
+    type="button"
+    aria-label={`Open ${post.media_type === 'video' ? 'video' : 'photo'}: ${displayTitle(post)}`}
+    className={clsx(
+      'group relative min-w-0 overflow-hidden rounded-2xl bg-primary-900 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-900',
+      tall && 'row-span-2',
+    )}
+    onClick={() => onSelect(post)}
+  >
+    <PostMedia
+      post={post}
+      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.03] motion-reduce:transition-none"
+    />
+    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+    {(post.is_featured || post.display_style === 'feature') && (
+      <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary-900">
+        <span className="hidden sm:inline">Chef’s </span>pick
+      </span>
+    )}
+    {post.media_type !== 'image' && (
+      <span className="absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
+        {post.media_type === 'video' ? '▶ Video' : `▧ ${post.media_assets?.length || 'Photos'}`}
+      </span>
+    )}
+    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 text-white sm:p-4">
+      <span className="text-xs font-medium">{categoryLabel(post.category)}</span>
+      <span aria-hidden="true" className="text-lg transition-transform motion-safe:group-hover:-translate-y-0.5">
+        ↗
+      </span>
+    </div>
+  </button>
+);
 
 const PostMedia = ({ post, className }: { post: StoreSocialGalleryPostDTO; className?: string }) => {
   const imageUrl = post.thumbnail_url || post.poster_url || post.media_url;
@@ -288,7 +234,7 @@ const PostModal = ({ post, onClose }: { post: StoreSocialGalleryPostDTO; onClose
       <div className="fixed inset-0 bg-black/70" aria-hidden="true" />
       <div className="fixed inset-0 overflow-y-auto p-4">
         <div className="flex min-h-full items-center justify-center">
-          <DialogPanel className="w-full max-w-6xl rounded-3xl bg-white p-4 shadow-2xl md:p-6">
+          <DialogPanel className="w-full max-w-4xl rounded-3xl bg-white p-4 shadow-2xl md:p-6">
             <div className="mb-4 flex justify-end">
               <button type="button" autoFocus className="rounded-full border px-4 py-2 font-semibold" onClick={onClose}>
                 Close
@@ -342,19 +288,15 @@ const PostModal = ({ post, onClose }: { post: StoreSocialGalleryPostDTO; onClose
               </div>
               <div className="p-2 md:p-4">
                 <p className="text-sm font-semibold uppercase tracking-widest">{categoryLabel(post.category)}</p>
-                <DialogTitle className="mt-4 text-4xl font-italiana text-primary-900">{post.title}</DialogTitle>
+                <DialogTitle className="mt-3 break-words text-2xl font-italiana text-primary-900 sm:text-3xl">
+                  {displayTitle(post)}
+                </DialogTitle>
                 {post.caption && (
-                  <p className="mt-5 whitespace-pre-line break-words leading-8 text-primary-700">{post.caption}</p>
+                  <p className="mt-4 whitespace-pre-line break-words text-sm leading-7 text-primary-700">
+                    {post.caption}
+                  </p>
                 )}
-                {post.linked_service_label && <p className="mt-5">Good fit for: {post.linked_service_label}</p>}
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link
-                    to={post.cta_url || '/request'}
-                    onClick={onClose}
-                    className="rounded-full bg-primary-900 px-5 py-3 font-semibold text-white"
-                  >
-                    {post.cta_label || 'Book this experience'}
-                  </Link>
+                <div className="mt-6 flex flex-wrap gap-3">
                   {post.source_url && (
                     <a
                       href={post.source_url}
@@ -362,7 +304,7 @@ const PostModal = ({ post, onClose }: { post: StoreSocialGalleryPostDTO; onClose
                       rel="noreferrer"
                       className="rounded-full border px-5 py-3"
                     >
-                      View source
+                      View original post ↗
                     </a>
                   )}
                 </div>

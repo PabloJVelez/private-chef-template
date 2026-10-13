@@ -118,3 +118,24 @@ SOCIAL_GALLERY_TEST_DATABASE_URL=postgresql://postgres:<test-password>@127.0.0.1
 
 The tests use fixtures, mock provider/file boundaries, and PostgreSQL concurrency;
 they do not use an Apify token or consume account credit.
+
+## Gallery presentation and curation
+
+The storefront is a photo-first mosaic with a compact heading, category filters,
+click-to-open media, and one quiet page-level event-request link. Captions and
+original source links live in the detail viewer. Videos do not autoplay in the
+feed. There are no per-post booking/menu prompts.
+
+In Admin, publish a draft to show it and use **Chef’s pick** for a subtle badge
+and a possible taller tile. Layout is automatic and bounded on mobile/desktop;
+there is no oversized featured hero. Original captions and existing legacy
+CTA/layout data are preserved, but per-post CTAs and manual layout controls are
+not exposed in this gallery workflow. Caption/title editing is always visible;
+source/media details are collapsed for existing posts. New manual posts start
+with those details open. Successful import history is collapsed; active/failed
+imports remain visible.
+
+Manual UI checks: review 1, 3, and many posts at phone and desktop widths; open a
+photo, video, and carousel; check Escape and focus restoration; filter categories;
+publish/unpublish and toggle Chef’s pick. Confirm no full Instagram caption is
+used as a giant headline, and no import/publish/edit action loses existing data.

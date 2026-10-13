@@ -15,7 +15,6 @@ import type {
   AdminSocialImportJobDTO,
   AdminSocialGalleryPostDTO,
   SocialGalleryCategory,
-  SocialGalleryDisplayStyle,
   SocialGalleryMediaType,
 } from '../../../sdk/admin/admin-social-gallery-posts';
 
@@ -27,13 +26,6 @@ const categories: { label: string; value: SocialGalleryCategory }[] = [
   { label: 'Events', value: 'events' },
   { label: 'Behind the Scenes', value: 'behind_the_scenes' },
   { label: 'Press / Collabs', value: 'press_collabs' },
-];
-
-const displayStyles: { label: string; value: SocialGalleryDisplayStyle }[] = [
-  { label: 'Normal', value: 'normal' },
-  { label: 'Large', value: 'large' },
-  { label: 'Wide', value: 'wide' },
-  { label: 'Feature', value: 'feature' },
 ];
 
 const blankForm: FormValues = {
@@ -186,7 +178,7 @@ const SocialGalleryPage = () => {
         <div>
           <Heading level="h1">Social Gallery</Heading>
           <Text className="text-ui-fg-subtle">
-            Import Instagram content, curate the best moments, and publish them to the storefront gallery.
+            Your favorite moments, ready for your website. Import, choose, and publish.
           </Text>
         </div>
       </div>
@@ -218,43 +210,36 @@ const SocialGalleryPage = () => {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-ui-bg-subtle p-5">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <SettingPreview label="Gallery Page" value="/gallery" />
-            <SettingPreview
-              label="Instagram Accounts"
-              value={`${importsData?.account_count ?? socialAccounts.length} saved`}
-            />
-            <SettingPreview
-              label="Published on this page"
-              value={`${posts.filter((post) => post.is_active && post.import_status === 'published').length} visible`}
-            />
-          </div>
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-ui-fg-subtle">
+          <span>{data?.count ?? 0} gallery posts</span>
+          <span>
+            {posts.filter((post) => post.is_active && post.import_status === 'published').length} published on this page
+          </span>
+          <span>{importsData?.account_count ?? socialAccounts.length} Instagram accounts</span>
+          <span>Storefront: /gallery</span>
         </div>
 
         {importJobs.length > 0 && (
-          <div className="rounded-xl border bg-ui-bg-base p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <Text className="font-semibold">Recent imports</Text>
-                <Text className="text-ui-fg-subtle text-sm">
-                  Instagram import jobs stay visible even when no posts were created yet.
-                </Text>
-              </div>
-            </div>
-            <div className="space-y-3">
+          <details
+            className="rounded-xl border bg-ui-bg-base p-4"
+            open={importJobs.some(
+              (job) => job.status === 'queued' || job.status === 'running' || job.status === 'failed',
+            )}
+          >
+            <summary className="cursor-pointer text-sm font-medium">Recent imports ({importJobs.length})</summary>
+            <div className="mt-4 space-y-3">
               {importJobs.map((job) => (
                 <ImportJobRow key={job.id} job={job} />
               ))}
             </div>
-          </div>
+          </details>
         )}
 
         <div className="flex items-center justify-between">
           <div>
             <Text className="font-semibold">Gallery posts</Text>
             <Text className="text-ui-fg-subtle text-sm">
-              Imported content starts as drafts. Publish only the posts with usable media.
+              Publish your favorites. Mark a Chef’s pick for a subtle spotlight in the gallery.
             </Text>
           </div>
           <Button variant="secondary" onClick={openManualDraft}>
@@ -411,10 +396,15 @@ const PostCard = ({
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-ui-bg-base">
-      <button type="button" className="block h-48 w-full bg-ui-bg-subtle text-left" onClick={onEdit}>
+    <div className="flex flex-col overflow-hidden rounded-xl border bg-ui-bg-base">
+      <button
+        type="button"
+        aria-label={`Edit ${post.title}`}
+        className="block h-44 w-full shrink-0 bg-ui-bg-subtle text-left"
+        onClick={onEdit}
+      >
         {previewUrl ? (
-          post.media_type === 'video' && post.media_url ? (
+          post.media_type === 'video' && !post.poster_url && !post.thumbnail_url && post.media_url ? (
             <video
               className="h-full w-full object-cover"
               muted
@@ -434,17 +424,14 @@ const PostCard = ({
         )}
       </button>
 
-      <div className="space-y-4 p-4">
+      <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-3">
-            <button type="button" className="text-left font-medium hover:underline" onClick={onEdit}>
-              {post.title}
+            <button type="button" className="line-clamp-2 text-left font-medium hover:underline" onClick={onEdit}>
+              {post.title.replace(/[#@][^\s]+/g, '').trim() || categoryLabel(post.category)}
             </button>
             {post.media_type === 'video' && <Badge color="purple">Video</Badge>}
           </div>
-          <Text className="text-ui-fg-subtle line-clamp-2 text-sm">
-            {post.caption || post.source_url || 'Imported social post'}
-          </Text>
         </div>
 
         <div className="grid grid-cols-1 gap-3">
@@ -473,14 +460,14 @@ const PostCard = ({
               }
             />
             <QuickToggle
-              label="Featured"
+              label="Chef’s pick"
               active={post.is_featured}
               onClick={() => quickUpdate({ is_featured: !post.is_featured })}
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t pt-3">
+        <div className="mt-auto flex items-center justify-between border-t pt-3">
           <Button size="small" variant="secondary" onClick={onEdit}>
             Edit
           </Button>
@@ -506,7 +493,7 @@ const PostModal = ({
   const [previewIndex, setPreviewIndex] = useState(0);
   const previewAssets = initialPost?.media_assets || [];
   const previewAsset = previewAssets[previewIndex];
-  const [advancedOpen, setAdvancedOpen] = useState(true);
+  const [advancedOpen, setAdvancedOpen] = useState(!initialPost);
   const createPost = useAdminCreateSocialGalleryPostMutation();
   const updatePost = useAdminUpdateSocialGalleryPostMutation(initialPost?.id ?? '');
   const isLoading = createPost.isPending || updatePost.isPending;
@@ -607,10 +594,10 @@ const PostModal = ({
                   </div>
                 )}
                 <Badge color={values.is_featured ? 'blue' : 'grey'}>
-                  {values.is_featured ? 'Featured' : categoryLabel(values.category || 'dishes')}
+                  {values.is_featured ? 'Chef’s pick' : categoryLabel(values.category || 'dishes')}
                 </Badge>
-                <Text className="font-semibold">
-                  {values.title || titleFromSocialUrl(values.source_url || '') || 'Social post'}
+                <Text className="line-clamp-2 font-semibold">
+                  {values.title.replace(/[#@][^\s]+/g, '').trim() || 'Gallery moment'}
                 </Text>
                 <Text className="text-ui-fg-subtle line-clamp-3 text-sm">
                   {values.caption ||
@@ -621,24 +608,11 @@ const PostModal = ({
             </div>
 
             <div className="space-y-6">
-              <Section title="Source">
-                <Field label="Social Link">
-                  <Input
-                    value={values.source_url ?? ''}
-                    onChange={(event) => setValue('source_url', event.target.value)}
-                    placeholder="https://www.instagram.com/p/..."
-                  />
-                </Field>
-                <Text className="text-ui-fg-subtle text-xs">
-                  An optional source link credits the original post. Saving this form does not fetch or import the link.
-                </Text>
-              </Section>
-
               <Section title="Quick Review">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Field label="Category">
                     <select
-                      className="w-full rounded border px-3 py-2 text-sm"
+                      className="w-full rounded border bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base"
                       value={values.category}
                       onChange={(event) => setValue('category', event.target.value as SocialGalleryCategory)}
                     >
@@ -649,13 +623,6 @@ const PostModal = ({
                       ))}
                     </select>
                   </Field>
-                  <Field label="CTA">
-                    <Input
-                      value={values.cta_label ?? ''}
-                      onChange={(event) => setValue('cta_label', event.target.value)}
-                      placeholder="Book this experience"
-                    />
-                  </Field>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <QuickToggle
@@ -664,11 +631,33 @@ const PostModal = ({
                     onClick={() => setPublished(!(values.is_active && values.import_status === 'published'))}
                   />
                   <QuickToggle
-                    label="Feature this post"
+                    label="Chef’s pick"
                     active={!!values.is_featured}
                     onClick={() => setValue('is_featured', !values.is_featured)}
                   />
                 </div>
+              </Section>
+
+              <Text className="text-ui-fg-subtle text-sm">
+                The gallery arranges your photos automatically. Captions appear when a visitor opens a post.
+              </Text>
+              <Section title="Caption & title">
+                <Field label="Title">
+                  <Input
+                    value={values.title}
+                    onChange={(event) => setValue('title', event.target.value)}
+                    placeholder="Tasting menu finale"
+                  />
+                </Field>
+                <Field label="Caption">
+                  <textarea
+                    className="w-full rounded border bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base"
+                    rows={4}
+                    value={values.caption ?? ''}
+                    onChange={(event) => setValue('caption', event.target.value)}
+                    placeholder="Short story, dish note, or original caption"
+                  />
+                </Field>
               </Section>
 
               <Button type="button" variant="secondary" size="small" onClick={() => setAdvancedOpen((open) => !open)}>
@@ -677,23 +666,21 @@ const PostModal = ({
 
               {advancedOpen && (
                 <>
-                  <Section title="Content Overrides">
-                    <Field label="Title">
+                  <Section title="Source">
+                    <Field label="Social Link">
                       <Input
-                        value={values.title}
-                        onChange={(event) => setValue('title', event.target.value)}
-                        placeholder="Tasting menu finale"
+                        value={values.source_url ?? ''}
+                        onChange={(event) => setValue('source_url', event.target.value)}
+                        placeholder="https://www.instagram.com/p/..."
                       />
                     </Field>
-                    <Field label="Caption">
-                      <textarea
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        rows={4}
-                        value={values.caption ?? ''}
-                        onChange={(event) => setValue('caption', event.target.value)}
-                        placeholder="Short story, dish note, or original caption"
-                      />
-                    </Field>
+                    <Text className="text-ui-fg-subtle text-xs">
+                      An optional source link credits the original post. Saving this form does not fetch or import the
+                      link.
+                    </Text>
+                  </Section>
+
+                  <Section title="Source details">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <Field label="Instagram Handle">
                         <Input
@@ -713,10 +700,10 @@ const PostModal = ({
                   </Section>
 
                   <Section title="Media and display">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <Field label="Media Type">
                         <select
-                          className="w-full rounded border px-3 py-2 text-sm"
+                          className="w-full rounded border bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base"
                           disabled={initialPost?.provider === 'instagram'}
                           value={values.media_type}
                           onChange={(event) => setValue('media_type', event.target.value as SocialGalleryMediaType)}
@@ -724,21 +711,6 @@ const PostModal = ({
                           <option value="image">Image</option>
                           <option value="video">Video</option>
                           {initialPost?.media_type === 'carousel' && <option value="carousel">Carousel</option>}
-                        </select>
-                      </Field>
-                      <Field label="Display Style">
-                        <select
-                          className="w-full rounded border px-3 py-2 text-sm"
-                          value={values.display_style}
-                          onChange={(event) =>
-                            setValue('display_style', event.target.value as SocialGalleryDisplayStyle)
-                          }
-                        >
-                          {displayStyles.map((style) => (
-                            <option key={style.value} value={style.value}>
-                              {style.label}
-                            </option>
-                          ))}
                         </select>
                       </Field>
                       <Field label="Sort Order">
@@ -783,25 +755,6 @@ const PostModal = ({
                       />
                     </Field>
                   </Section>
-
-                  <Section title="Conversion">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <Field label="Linked Service Label">
-                        <Input
-                          value={values.linked_service_label ?? ''}
-                          onChange={(event) => setValue('linked_service_label', event.target.value)}
-                          placeholder="Private dinner"
-                        />
-                      </Field>
-                      <Field label="CTA URL">
-                        <Input
-                          value={values.cta_url ?? ''}
-                          onChange={(event) => setValue('cta_url', event.target.value)}
-                          placeholder="/request"
-                        />
-                      </Field>
-                    </div>
-                  </Section>
                 </>
               )}
 
@@ -825,16 +778,10 @@ const PostModal = ({
   );
 };
 
-const SettingPreview = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-lg border bg-ui-bg-base p-4">
-    <Text className="text-ui-fg-subtle text-xs uppercase">{label}</Text>
-    <Text className="mt-1 font-medium">{value}</Text>
-  </div>
-);
-
 const QuickToggle = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
   <button
     type="button"
+    aria-pressed={active}
     className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
       active
         ? 'border-ui-border-interactive bg-ui-bg-interactive text-ui-fg-on-color'
