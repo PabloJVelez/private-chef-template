@@ -1,225 +1,202 @@
-import { spawn } from 'node:child_process';
-import path from 'node:path';
-import { ContainerRegistrationKeys } from '@medusajs/framework/utils';
+import type { IFileModuleService, MedusaContainer } from '@medusajs/framework/types';
+import { ContainerRegistrationKeys, Modules } from '@medusajs/framework/utils';
 import { SOCIAL_GALLERY_MODULE } from '../../modules/social-gallery';
 import type SocialGalleryModuleService from '../../modules/social-gallery/service';
+import { apifyConfig, getApifyPosts, getApifyRun, startApifyRun } from './apify';
+import { ImportError, storedAssets, type ImportedPost } from './contracts';
+import { assetFileIds, persistMedia } from './media-storage';
+import { claimImport, galleryDatabase, updateOwnedJob } from './job-store';
 
-type ImportWorkerInput = {
-  job_id: string;
-  source_url: string;
-  handle?: string | null;
-  account_id?: string | null;
-  options?: {
-    category?: string;
-    cta_label?: string | null;
-    cta_url?: string | null;
-  };
-};
-
-type ImportWorkerMedia = {
-  provider_media_id?: string | null;
-  shortcode?: string | null;
-  permalink: string;
-  title: string;
-  caption?: string | null;
-  media_type: 'image' | 'video' | 'carousel';
-  media_url: string;
-  thumbnail_url?: string | null;
-  poster_url?: string | null;
-  posted_at?: string | null;
-  raw_provider_data?: Record<string, unknown> | null;
-};
-
-type ImportWorkerOutput = {
-  status: 'completed' | 'needs_connection' | 'failed';
-  message?: string | null;
-  account?: {
-    status?: 'needs_connection' | 'connected' | 'import_limited' | 'active' | 'error';
-    metadata?: Record<string, unknown> | null;
-  } | null;
-  media?: ImportWorkerMedia[];
-  raw_result?: Record<string, unknown> | null;
-};
-
-type Logger = {
-  info: (msg: string) => void;
-  warn: (msg: string) => void;
-  error: (msg: string) => void;
-};
-
-const workerCommand = () => {
-  const configured = process.env.SOCIAL_GALLERY_INSTAGRAM_WORKER_COMMAND;
-  if (configured) {
-    const [command, ...args] = configured.split(' ').filter(Boolean);
-    return { command, args };
-  }
-
-  return {
-    command: process.env.PYTHON || 'python3',
-    args: [path.join(process.cwd(), 'src/scripts/social-gallery-instagram-worker.py')],
-  };
-};
-
-const runWorker = (input: ImportWorkerInput): Promise<ImportWorkerOutput> =>
-  new Promise((resolve, reject) => {
-    const { command, args } = workerCommand();
-    const child = spawn(command, args, {
-      cwd: process.cwd(),
-      env: process.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-    });
-
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(stderr || `Instagram import worker exited with code ${code}`));
-        return;
-      }
-
-      try {
-        resolve(JSON.parse(stdout) as ImportWorkerOutput);
-      } catch (error) {
-        reject(new Error(`Instagram import worker returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`));
-      }
-    });
-
-    child.stdin.write(JSON.stringify(input));
-    child.stdin.end();
-  });
-
-const upsertDraftPost = async (
+/** Existing content belongs to the chef. Re-import only repairs legacy remote media. */
+export async function importDraft(
   svc: SocialGalleryModuleService,
-  media: ImportWorkerMedia,
-  input: ImportWorkerInput,
-) => {
-  const category = input.options?.category || 'dishes';
-  const ctaLabel = input.options?.cta_label || 'Book this experience';
-  const ctaUrl = input.options?.cta_url || '/request';
-  const providerMediaId = media.provider_media_id || media.shortcode || media.permalink;
-
-  const [existing] = await svc.listSocialGalleryPosts({
-    provider: 'instagram',
-    provider_media_id: providerMediaId,
-  } as any);
-
-  const payload = {
-    title: media.title,
-    caption: media.caption || null,
-    source_url: media.permalink,
-    instagram_handle: input.handle || null,
-    provider: 'instagram',
-    provider_media_id: providerMediaId,
-    shortcode: media.shortcode || null,
-    permalink: media.permalink,
-    import_status: 'draft',
-    media_type: media.media_type,
-    media_url: media.media_url,
-    thumbnail_url: media.thumbnail_url || null,
-    poster_url: media.poster_url || null,
-    alt_text: media.title,
-    posted_at: media.posted_at ? new Date(media.posted_at) : null,
-    category,
-    display_style: 'normal',
-    cta_label: ctaLabel,
-    cta_url: ctaUrl,
-    is_active: false,
-    is_featured: false,
-    raw_provider_data: media.raw_provider_data || null,
-  } as any;
-
-  if (existing?.id) {
-    return svc.updateSocialGalleryPosts({
-      id: existing.id,
-      ...payload,
-    });
-  }
-
-  return svc.createSocialGalleryPosts(payload);
-};
-
-export const processSocialGalleryImportJob = async (container: any, jobId: string) => {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
-  const svc = container.resolve(SOCIAL_GALLERY_MODULE) as SocialGalleryModuleService;
-
-  const job = await svc.retrieveSocialImportJob(jobId);
-  if (!job?.id) {
-    logger.warn(`[social-gallery-import] job not found: ${jobId}`);
-    return;
-  }
-
-  if (job.status === 'running') {
-    logger.info(`[social-gallery-import] job already running: ${jobId}`);
-    return;
-  }
-
-  await svc.updateSocialImportJobs({
-    id: job.id,
-    status: 'running',
-    message: 'Instagram import worker started.',
-    error_message: null,
-  } as any);
-
-  const input: ImportWorkerInput = {
-    job_id: job.id,
-    source_url: job.source_url,
-    handle: job.handle,
-    account_id: job.account_id,
-    options: ((job.raw_result as any)?.request || {}) as ImportWorkerInput['options'],
-  };
-
+  files: IFileModuleService,
+  post: ImportedPost,
+  signal: AbortSignal,
+  budget: { bytes: number },
+  verifyLease: () => Promise<void>,
+  store = persistMedia,
+): Promise<'created' | 'skipped' | 'repaired'> {
+  const [existing] = await svc.listSocialGalleryPosts({ provider: 'instagram', provider_media_id: post.id });
+  if (existing?.import_status === 'archived') return 'skipped';
+  if (
+    existing &&
+    storedAssets(existing.media_assets).length &&
+    storedAssets(existing.media_assets).every((asset) => asset.file_id)
+  )
+    return 'skipped';
+  const assets = await store(files, post.assets, signal, budget);
   try {
-    const result = await runWorker(input);
-    const importedPosts = [];
-
-    for (const media of result.media || []) {
-      if (!media.media_url) continue;
-      importedPosts.push(await upsertDraftPost(svc, media, input));
+    if (signal.aborted) throw new ImportError('timeout', 'Import timed out.', true);
+    await verifyLease();
+    const first = assets[0];
+    const media = {
+      media_assets: { items: assets },
+      media_url: first.url,
+      thumbnail_url: first.poster_url || (first.type === 'image' ? first.url : null),
+      poster_url: first.poster_url || null,
+      media_type: (assets.length > 1 ? 'carousel' : first.type) as 'image' | 'video' | 'carousel',
+    };
+    if (existing) {
+      await svc.updateSocialGalleryPosts({ id: existing.id, ...media });
+      return 'repaired';
     }
-
-    if (job.account_id && result.account?.status) {
-      await svc.updateSocialAccounts({
-        id: job.account_id,
-        status: result.account.status,
-        last_synced_at: result.status === 'completed' ? new Date() : null,
-        last_error: result.status === 'failed' ? result.message || 'Instagram import failed.' : null,
-        metadata: result.account.metadata || null,
-      } as any);
-    }
-
-    await svc.updateSocialImportJobs({
-      id: job.id,
-      status: result.status,
-      imported_count: importedPosts.length,
-      message: result.message || (importedPosts.length ? `Imported ${importedPosts.length} Instagram draft(s).` : 'Instagram import finished.'),
-      error_message: result.status === 'failed' ? result.message || 'Instagram import failed.' : null,
-      raw_result: {
-        ...(job.raw_result as Record<string, unknown> | null),
-        worker: result.raw_result || result,
-        imported_post_ids: importedPosts.map((post: any) => post.id),
-      },
-      completed_at: new Date(),
-    } as any);
+    const title = (post.caption.split('\n')[0].trim() || `From @${post.handle || 'the kitchen'}`).slice(0, 200);
+    await svc.createSocialGalleryPosts({
+      ...media,
+      provider: 'instagram',
+      provider_media_id: post.id,
+      shortcode: post.shortcode,
+      permalink: post.permalink,
+      source_url: post.permalink,
+      instagram_handle: post.handle,
+      title,
+      caption: post.caption || null,
+      posted_at: post.posted_at ? new Date(post.posted_at) : null,
+      alt_text: null,
+      category: 'dishes',
+      display_style: 'normal',
+      cta_label: 'Book this experience',
+      cta_url: '/request',
+      import_status: 'draft',
+      is_active: false,
+      is_featured: false,
+    });
+    return 'created';
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error(`[social-gallery-import] job ${job.id} failed: ${message}`);
-    await svc.updateSocialImportJobs({
-      id: job.id,
-      status: 'failed',
-      message: 'Instagram import failed.',
-      error_message: message,
-      completed_at: new Date(),
-    } as any);
+    // A failed DB write must not leave the just-uploaded files behind.
+    await files.deleteFiles(assetFileIds(assets)).catch(() => undefined);
+    throw error;
   }
-};
+}
+
+export async function processSocialGalleryImportJob(container: MedusaContainer, jobId: string) {
+  const database = galleryDatabase(container);
+  const job = await claimImport(database, jobId);
+  if (!job) return;
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const svc = container.resolve<SocialGalleryModuleService>(SOCIAL_GALLERY_MODULE);
+  const files = container.resolve<IFileModuleService>(Modules.FILE);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8 * 60 * 1000);
+  const patch = (values: Record<string, unknown>) => updateOwnedJob(database, job, values);
+  const verifyLease = async () => {
+    if (controller.signal.aborted)
+      throw new ImportError('timeout', 'Import timed out. Retry resumes the saved run.', true);
+    const result = await database.raw(
+      'select id from social_import_job where id = ? and lease_token = ? and status = ? and lease_expires_at > now()',
+      [job.id, job.lease_token, 'running'],
+    );
+    if (!result.rows.length)
+      throw new ImportError('lease_lost', 'Import ownership changed. No further posts were saved.');
+  };
+  const priorIds = job.raw_result?.imported_provider_ids;
+  const importedIds = new Set<string>(
+    Array.isArray(priorIds) ? priorIds.filter((id): id is string => typeof id === 'string') : [],
+  );
+  const skippedIds = new Set<string>();
+  let imported = importedIds.size;
+  let skipped = 0;
+  try {
+    apifyConfig();
+    if (!job.provider_run_id) {
+      if (job.provider_starting)
+        throw new ImportError('provider_start_uncertain', 'Check Apify Console before starting another import.');
+      await patch({ provider_starting: true });
+      job.provider_starting = true;
+      const run = await startApifyRun(job.source_url, controller.signal);
+      // Persist before polling or writing content. Do not retry start if this write fails.
+      await patch({ provider_run_id: run.id, provider_starting: false });
+      job.provider_run_id = run.id;
+      job.provider_starting = false;
+    }
+    let run = await getApifyRun(job.provider_run_id, controller.signal);
+    while (['READY', 'RUNNING', 'TIMING-OUT', 'ABORTING'].includes(run.status)) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await verifyLease();
+      run = await getApifyRun(job.provider_run_id, controller.signal);
+    }
+    if (!run.defaultDatasetId || !['SUCCEEDED', 'TIMED-OUT', 'ABORTED', 'FAILED'].includes(run.status)) {
+      throw new ImportError(
+        'provider_run_failed',
+        'Apify did not return a usable dataset. Check the saved run in Apify Console.',
+      );
+    }
+    await patch({ provider_dataset_id: run.defaultDatasetId });
+    const result = await getApifyPosts(run.defaultDatasetId, controller.signal);
+    const errors: string[] = [];
+    if (result.rejected) errors.push(`${result.rejected} returned post(s) had incomplete or unsupported media.`);
+    if (run.status !== 'SUCCEEDED') errors.push(`Apify run ended with ${run.status}; available results were retained.`);
+    if (!result.posts.length) errors.push('No usable posts were returned. Check that the Instagram profile is public.');
+    const budget = { bytes: 0 };
+    let retryable = false;
+    for (const post of result.posts) {
+      await verifyLease();
+      try {
+        const outcome = await importDraft(svc, files, post, controller.signal, budget, verifyLease);
+        if (outcome === 'skipped') {
+          if (!importedIds.has(post.id)) skippedIds.add(post.id);
+        } else importedIds.add(post.id);
+        imported = importedIds.size;
+        skipped = skippedIds.size;
+        await patch({
+          imported_count: imported,
+          skipped_count: skipped,
+          raw_result: { imported_provider_ids: [...importedIds] },
+        });
+      } catch (error) {
+        if (controller.signal.aborted)
+          throw new ImportError('timeout', 'Import timed out. Saved drafts were retained.', true);
+        const failure =
+          error instanceof ImportError
+            ? error
+            : new ImportError('media_storage', 'A post could not be saved. Check storage and retry.', true);
+        if (failure.code === 'lease_lost') throw failure;
+        errors.push(`${post.shortcode}: ${failure.message}`);
+        retryable ||= failure.retryable;
+      }
+    }
+    if (errors.length) throw new ImportError('partial_import', errors.slice(0, 4).join(' '), retryable);
+    await patch({
+      status: 'completed',
+      message: `${imported} new/repaired draft(s); ${skipped} existing post(s) left unchanged.`,
+      imported_count: imported,
+      skipped_count: skipped,
+      completed_at: new Date(),
+      failure_code: null,
+    });
+    if (job.account_id)
+      await svc
+        .updateSocialAccounts({ id: job.account_id, status: 'active', last_synced_at: new Date(), last_error: null })
+        .catch(() => logger.warn(`[social-gallery] account status could not be updated for ${job.id}`));
+  } catch (error) {
+    if (error instanceof ImportError && error.code === 'provider_rejected') job.provider_starting = false;
+    const failure =
+      job.provider_starting && !job.provider_run_id
+        ? new ImportError(
+            'provider_start_uncertain',
+            'Apify run start is uncertain. Check Apify Console before starting another import to avoid duplicate charges.',
+          )
+        : error instanceof ImportError
+          ? error
+          : new ImportError(
+              'import_failed',
+              'Import could not complete. Saved drafts were retained; check server storage/configuration.',
+            );
+    const retry = failure.retryable && !!job.provider_run_id && job.attempt_count < 3;
+    await patch({
+      status: retry ? 'queued' : 'failed',
+      failure_code: failure.code,
+      provider_starting: job.provider_starting,
+      message: `${imported} new/repaired post(s) retained. ${failure.message}${retry ? ' Retrying the saved run shortly.' : ''}`,
+      error_message: failure.message,
+      imported_count: imported,
+      skipped_count: skipped,
+      next_attempt_at: retry ? new Date(Date.now() + job.attempt_count * 60000) : null,
+      completed_at: retry ? null : new Date(),
+    }).catch(() => logger.warn(`[social-gallery] job ${job.id} could not be updated; reconciliation will recover it.`));
+    logger.warn(`[social-gallery] job ${job.id}: ${failure.code}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}

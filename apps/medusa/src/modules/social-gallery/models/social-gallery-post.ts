@@ -18,6 +18,7 @@ export const SocialGalleryPost = model.define('social_gallery_post', {
 
   media_type: model.enum(['image', 'video', 'carousel']).default('image'),
   media_url: model.text().nullable(),
+  media_assets: model.json().nullable(),
   thumbnail_url: model.text().nullable(),
   poster_url: model.text().nullable(),
   alt_text: model.text().nullable(),

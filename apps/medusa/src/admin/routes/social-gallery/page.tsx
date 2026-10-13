@@ -3,6 +3,7 @@ import { Badge, Button, Container, FocusModal, Heading, Input, Label, Text, toas
 import { useMemo, useState } from 'react';
 import {
   useAdminCreateSocialGalleryImportMutation,
+  useAdminRetrySocialGalleryImport,
   useAdminCreateSocialGalleryPostMutation,
   useAdminDeleteSocialGalleryPostMutation,
   useAdminListSocialGalleryImports,
@@ -44,7 +45,7 @@ const blankForm: FormValues = {
   provider_media_id: '',
   shortcode: '',
   permalink: '',
-  import_status: 'published',
+  import_status: 'draft',
   raw_provider_data: null,
   content_hash: '',
   posted_at: '',
@@ -58,7 +59,7 @@ const blankForm: FormValues = {
   linked_service_label: '',
   cta_label: 'Book this experience',
   cta_url: '/request',
-  is_active: true,
+  is_active: false,
   is_featured: false,
   sort_order: 0,
 };
@@ -97,6 +98,7 @@ const normalize = (post?: AdminSocialGalleryPostDTO): FormValues => {
 
 const sanitizePayload = (values: FormValues): AdminCreateSocialGalleryPostDTO => ({
   ...values,
+  media_url: values.media_url || null,
   title: values.title || titleFromSocialUrl(values.source_url || '') || 'Social post',
   caption: values.caption || null,
   source_url: values.source_url || null,
@@ -119,7 +121,8 @@ const sanitizePayload = (values: FormValues): AdminCreateSocialGalleryPostDTO =>
 });
 
 const SocialGalleryPage = () => {
-  const { data, isLoading } = useAdminListSocialGalleryPosts();
+  const [page, setPage] = useState(0);
+  const { data, isLoading, isError } = useAdminListSocialGalleryPosts({ limit: 24, offset: page * 24 });
   const { data: importsData } = useAdminListSocialGalleryImports({ limit: 5 }, { refetchInterval: 3000 });
   const createImport = useAdminCreateSocialGalleryImportMutation();
   const deletePost = useAdminDeleteSocialGalleryPostMutation();
@@ -189,6 +192,13 @@ const SocialGalleryPage = () => {
       </div>
 
       <div className="space-y-6 px-6 py-6">
+        {importsData && !importsData.configured && (
+          <Text className="text-ui-fg-subtle">
+            Instagram import is not connected yet. Ask your site administrator to connect Apify. Existing gallery
+            content is unaffected.
+          </Text>
+        )}
+        {isError && <Text className="text-ui-fg-error">Gallery posts could not be loaded. Refresh to try again.</Text>}
         <div className="rounded-xl border bg-ui-bg-base p-5">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
             <div className="space-y-2">
@@ -196,13 +206,13 @@ const SocialGalleryPage = () => {
               <Input
                 value={socialUrl}
                 onChange={(event) => setSocialUrl(event.target.value)}
-                placeholder="@chef_handle or https://www.instagram.com/chef_handle/"
+                placeholder="@chef_handle, profile URL, or post/reel URL"
               />
               <Text className="text-ui-fg-subtle text-xs">
-                Imports run in the background through the Python worker boundary. No empty gallery cards are published.
+                Import photos, reels, and carousels as drafts. Existing posts and your edits stay unchanged.
               </Text>
             </div>
-            <Button onClick={handleImportStart} disabled={createImport.isPending}>
+            <Button onClick={handleImportStart} disabled={createImport.isPending || !importsData?.configured}>
               {createImport.isPending ? 'Starting...' : 'Import Instagram'}
             </Button>
           </div>
@@ -211,8 +221,14 @@ const SocialGalleryPage = () => {
         <div className="rounded-xl border bg-ui-bg-subtle p-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <SettingPreview label="Gallery Page" value="/gallery" />
-            <SettingPreview label="Instagram Accounts" value={`${socialAccounts.length} saved`} />
-            <SettingPreview label="Published Posts" value={`${posts.filter((post) => post.is_active && post.import_status === 'published').length} visible`} />
+            <SettingPreview
+              label="Instagram Accounts"
+              value={`${importsData?.account_count ?? socialAccounts.length} saved`}
+            />
+            <SettingPreview
+              label="Published on this page"
+              value={`${posts.filter((post) => post.is_active && post.import_status === 'published').length} visible`}
+            />
           </div>
         </div>
 
@@ -221,7 +237,9 @@ const SocialGalleryPage = () => {
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <Text className="font-semibold">Recent imports</Text>
-                <Text className="text-ui-fg-subtle text-sm">Instagram import jobs stay visible even when no posts were created yet.</Text>
+                <Text className="text-ui-fg-subtle text-sm">
+                  Instagram import jobs stay visible even when no posts were created yet.
+                </Text>
               </div>
             </div>
             <div className="space-y-3">
@@ -235,7 +253,9 @@ const SocialGalleryPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <Text className="font-semibold">Gallery posts</Text>
-            <Text className="text-ui-fg-subtle text-sm">Imported content starts as drafts. Publish only the posts with usable media.</Text>
+            <Text className="text-ui-fg-subtle text-sm">
+              Imported content starts as drafts. Publish only the posts with usable media.
+            </Text>
           </div>
           <Button variant="secondary" onClick={openManualDraft}>
             Add manually
@@ -247,7 +267,9 @@ const SocialGalleryPage = () => {
         ) : posts.length === 0 ? (
           <div className="rounded-xl border border-dashed p-8 text-center">
             <Text className="font-medium">Start with an Instagram handle</Text>
-            <Text className="text-ui-fg-subtle mt-1">Paste a profile above. Imported media will appear here as drafts for review.</Text>
+            <Text className="text-ui-fg-subtle mt-1">
+              Paste a profile above. Imported media will appear here as drafts for review.
+            </Text>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -257,14 +279,32 @@ const SocialGalleryPage = () => {
                 post={post}
                 onEdit={() => setEditingPost(post)}
                 onDelete={() => {
-                  if (!confirm(`Delete "${post.title}"?`)) return;
+                  if (!confirm(`Archive "${post.title}"? It will be hidden and future imports will leave it archived.`))
+                    return;
                   deletePost.mutate(post.id, {
-                    onSuccess: () => toast.success('Gallery post deleted'),
-                    onError: () => toast.error('Could not delete gallery post'),
+                    onSuccess: () => toast.success('Gallery post archived'),
+                    onError: () => toast.error('Could not archive gallery post'),
                   });
                 }}
               />
             ))}
+          </div>
+        )}
+        {(data?.count || 0) > 24 && (
+          <div className="flex items-center justify-between">
+            <Button variant="secondary" disabled={page === 0} onClick={() => setPage(page - 1)}>
+              Previous
+            </Button>
+            <Text>
+              Page {page + 1} of {Math.ceil((data?.count || 0) / 24)}
+            </Text>
+            <Button
+              variant="secondary"
+              disabled={(page + 1) * 24 >= (data?.count || 0)}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </Button>
           </div>
         )}
       </div>
@@ -289,7 +329,16 @@ const SocialGalleryPage = () => {
  * making it the primary workflow.
  */
 const ImportJobRow = ({ job }: { job: AdminSocialImportJobDTO }) => {
-  const color = job.status === 'completed' ? 'green' : job.status === 'failed' ? 'red' : job.status === 'needs_connection' ? 'orange' : 'blue';
+  const retry = useAdminRetrySocialGalleryImport();
+  const canRetry = job.status === 'failed' && !!job.provider_run_id && job.failure_code !== 'provider_start_uncertain';
+  const color =
+    job.status === 'completed'
+      ? 'green'
+      : job.status === 'failed'
+        ? 'red'
+        : job.status === 'needs_connection'
+          ? 'orange'
+          : 'blue';
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border bg-ui-bg-subtle p-3 md:flex-row md:items-center md:justify-between">
@@ -298,9 +347,37 @@ const ImportJobRow = ({ job }: { job: AdminSocialImportJobDTO }) => {
           <Text className="font-medium">{job.handle ? `@${job.handle}` : 'Instagram post'}</Text>
           <Badge color={color as any}>{statusLabel(job.status)}</Badge>
         </div>
-        <Text className="text-ui-fg-subtle mt-1 truncate text-sm">{job.message || job.source_url}</Text>
+        <Text className="text-ui-fg-subtle mt-1 break-words text-sm">{job.message || job.source_url}</Text>
       </div>
-      <Text className="text-ui-fg-subtle text-sm">{job.imported_count} drafts</Text>
+      <div className="flex flex-wrap items-center gap-2">
+        <Text className="text-ui-fg-subtle text-sm">
+          {job.imported_count} saved · {job.skipped_count || 0} unchanged
+        </Text>
+        {canRetry && (
+          <Button
+            size="small"
+            variant="secondary"
+            disabled={retry.isPending}
+            onClick={() =>
+              retry.mutate(job.id, {
+                onError: () => toast.error('Could not resume import. Check its status and try again.'),
+              })
+            }
+          >
+            Resume import
+          </Button>
+        )}
+        {job.provider_run_id && (
+          <a
+            className="text-sm underline"
+            href={`https://console.apify.com/actors/runs/${encodeURIComponent(job.provider_run_id)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Apify run details
+          </a>
+        )}
+      </div>
     </div>
   );
 };
@@ -338,7 +415,13 @@ const PostCard = ({
       <button type="button" className="block h-48 w-full bg-ui-bg-subtle text-left" onClick={onEdit}>
         {previewUrl ? (
           post.media_type === 'video' && post.media_url ? (
-            <video className="h-full w-full object-cover" muted playsInline preload="metadata" poster={post.poster_url || post.thumbnail_url || undefined}>
+            <video
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+              poster={post.poster_url || post.thumbnail_url || undefined}
+            >
               <source src={post.media_url} />
             </video>
           ) : (
@@ -359,7 +442,9 @@ const PostCard = ({
             </button>
             {post.media_type === 'video' && <Badge color="purple">Video</Badge>}
           </div>
-          <Text className="text-ui-fg-subtle line-clamp-2 text-sm">{post.caption || post.source_url || 'Imported social post'}</Text>
+          <Text className="text-ui-fg-subtle line-clamp-2 text-sm">
+            {post.caption || post.source_url || 'Imported social post'}
+          </Text>
         </div>
 
         <div className="grid grid-cols-1 gap-3">
@@ -387,7 +472,11 @@ const PostCard = ({
                 })
               }
             />
-            <QuickToggle label="Featured" active={post.is_featured} onClick={() => quickUpdate({ is_featured: !post.is_featured })} />
+            <QuickToggle
+              label="Featured"
+              active={post.is_featured}
+              onClick={() => quickUpdate({ is_featured: !post.is_featured })}
+            />
           </div>
         </div>
 
@@ -396,7 +485,7 @@ const PostCard = ({
             Edit
           </Button>
           <Button size="small" variant="danger" onClick={onDelete}>
-            Delete
+            Archive
           </Button>
         </div>
       </div>
@@ -414,7 +503,10 @@ const PostModal = ({
   onClose: () => void;
 }) => {
   const [values, setValues] = useState<FormValues>(() => initialValues ?? normalize(initialPost));
-  const [advancedOpen, setAdvancedOpen] = useState(!!initialPost);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const previewAssets = initialPost?.media_assets || [];
+  const previewAsset = previewAssets[previewIndex];
+  const [advancedOpen, setAdvancedOpen] = useState(true);
   const createPost = useAdminCreateSocialGalleryPostMutation();
   const updatePost = useAdminUpdateSocialGalleryPostMutation(initialPost?.id ?? '');
   const isLoading = createPost.isPending || updatePost.isPending;
@@ -452,13 +544,13 @@ const PostModal = ({
         toast.success('Gallery post updated');
       } else {
         await createPost.mutateAsync(payload);
-        toast.success('Social post imported');
+        toast.success('Gallery post saved');
       }
       onClose();
     } catch (error) {
       console.error('Error saving gallery post:', error);
       toast.error('Save failed', {
-        description: 'Check required fields and try again.',
+        description: error instanceof Error ? error.message : 'Check required fields and try again.',
       });
     }
   };
@@ -467,40 +559,69 @@ const PostModal = ({
     <FocusModal open onOpenChange={(open) => !open && onClose()}>
       <FocusModal.Content className="max-h-[90vh]">
         <FocusModal.Header>
-          <FocusModal.Title>{initialPost ? 'Edit Social Post' : 'Import Social Post'}</FocusModal.Title>
+          <FocusModal.Title>{initialPost ? 'Edit Social Post' : 'Add Gallery Post'}</FocusModal.Title>
         </FocusModal.Header>
         <FocusModal.Body className="max-h-[80vh] overflow-y-auto p-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="overflow-hidden rounded-xl border bg-ui-bg-subtle">
               <div className="flex h-80 items-center justify-center bg-ui-bg-base">
-                {values.media_url ? (
-                  values.media_type === 'video' ? (
-                    <video className="h-full w-full object-cover" controls poster={values.poster_url || values.thumbnail_url || undefined}>
-                      {values.media_url && <source src={values.media_url} />}
+                {previewAsset?.url || values.media_url ? (
+                  (previewAsset?.type || values.media_type) === 'video' ? (
+                    <video
+                      key={previewAsset?.url || values.media_url}
+                      className="h-full w-full object-cover"
+                      controls
+                      poster={previewAsset?.poster_url || values.poster_url || values.thumbnail_url || undefined}
+                    >
+                      {values.media_url && <source src={previewAsset?.url || values.media_url} />}
                     </video>
                   ) : (
-                    <img className="h-full w-full object-cover" src={values.thumbnail_url || values.media_url} alt={values.alt_text || values.title} />
+                    <img
+                      className="h-full w-full object-cover"
+                      src={previewAsset?.url || values.thumbnail_url || values.media_url || undefined}
+                      alt={values.alt_text || values.title}
+                    />
                   )
                 ) : (
                   <div className="px-6 text-center">
                     <Text className="font-medium">Preview appears here</Text>
                     <Text className="text-ui-fg-subtle mt-1 text-sm">
-                      Paste a social link first. Add a media URL only if the importer cannot fetch one yet.
+                      Add a media URL below for a manual post. To import Instagram media, use the main import box.
                     </Text>
                   </div>
                 )}
               </div>
               <div className="space-y-2 p-4">
-                <Badge color={values.is_featured ? 'blue' : 'grey'}>{values.is_featured ? 'Featured' : categoryLabel(values.category || 'dishes')}</Badge>
-                <Text className="font-semibold">{values.title || titleFromSocialUrl(values.source_url || '') || 'Social post'}</Text>
+                {previewAssets.length > 1 && (
+                  <div className="flex flex-wrap gap-2">
+                    {previewAssets.map((asset, index) => (
+                      <Button
+                        key={asset.file_id || index}
+                        size="small"
+                        variant={index === previewIndex ? 'primary' : 'secondary'}
+                        onClick={() => setPreviewIndex(index)}
+                      >
+                        Item {index + 1}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                <Badge color={values.is_featured ? 'blue' : 'grey'}>
+                  {values.is_featured ? 'Featured' : categoryLabel(values.category || 'dishes')}
+                </Badge>
+                <Text className="font-semibold">
+                  {values.title || titleFromSocialUrl(values.source_url || '') || 'Social post'}
+                </Text>
                 <Text className="text-ui-fg-subtle line-clamp-3 text-sm">
-                  {values.caption || values.source_url || 'Imported social content will be curated for the gallery page.'}
+                  {values.caption ||
+                    values.source_url ||
+                    'Imported social content will be curated for the gallery page.'}
                 </Text>
               </div>
             </div>
 
             <div className="space-y-6">
-              <Section title="Import">
+              <Section title="Source">
                 <Field label="Social Link">
                   <Input
                     value={values.source_url ?? ''}
@@ -509,7 +630,7 @@ const PostModal = ({
                   />
                 </Field>
                 <Text className="text-ui-fg-subtle text-xs">
-                  This is the chef-friendly path. Advanced fields below are for cleanup, overrides, or failed imports.
+                  An optional source link credits the original post. Saving this form does not fetch or import the link.
                 </Text>
               </Section>
 
@@ -529,7 +650,11 @@ const PostModal = ({
                     </select>
                   </Field>
                   <Field label="CTA">
-                    <Input value={values.cta_label ?? ''} onChange={(event) => setValue('cta_label', event.target.value)} placeholder="Book this experience" />
+                    <Input
+                      value={values.cta_label ?? ''}
+                      onChange={(event) => setValue('cta_label', event.target.value)}
+                      placeholder="Book this experience"
+                    />
                   </Field>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -538,16 +663,15 @@ const PostModal = ({
                     active={!!values.is_active && values.import_status === 'published'}
                     onClick={() => setPublished(!(values.is_active && values.import_status === 'published'))}
                   />
-                  <QuickToggle label="Feature this post" active={!!values.is_featured} onClick={() => setValue('is_featured', !values.is_featured)} />
+                  <QuickToggle
+                    label="Feature this post"
+                    active={!!values.is_featured}
+                    onClick={() => setValue('is_featured', !values.is_featured)}
+                  />
                 </div>
               </Section>
 
-              <Button
-                type="button"
-                variant="secondary"
-                size="small"
-                onClick={() => setAdvancedOpen((open) => !open)}
-              >
+              <Button type="button" variant="secondary" size="small" onClick={() => setAdvancedOpen((open) => !open)}>
                 {advancedOpen ? 'Hide advanced details' : 'Advanced details'}
               </Button>
 
@@ -555,7 +679,11 @@ const PostModal = ({
                 <>
                   <Section title="Content Overrides">
                     <Field label="Title">
-                      <Input value={values.title} onChange={(event) => setValue('title', event.target.value)} placeholder="Tasting menu finale" />
+                      <Input
+                        value={values.title}
+                        onChange={(event) => setValue('title', event.target.value)}
+                        placeholder="Tasting menu finale"
+                      />
                     </Field>
                     <Field label="Caption">
                       <textarea
@@ -568,32 +696,43 @@ const PostModal = ({
                     </Field>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <Field label="Instagram Handle">
-                        <Input value={values.instagram_handle ?? ''} onChange={(event) => setValue('instagram_handle', event.target.value)} placeholder="chef_handle" />
+                        <Input
+                          value={values.instagram_handle ?? ''}
+                          onChange={(event) => setValue('instagram_handle', event.target.value)}
+                          placeholder="chef_handle"
+                        />
                       </Field>
                       <Field label="Posted Date">
-                        <Input type="date" value={values.posted_at ?? ''} onChange={(event) => setValue('posted_at', event.target.value)} />
+                        <Input
+                          type="date"
+                          value={values.posted_at ?? ''}
+                          onChange={(event) => setValue('posted_at', event.target.value)}
+                        />
                       </Field>
                     </div>
                   </Section>
 
-                  <Section title="Media Fallback">
+                  <Section title="Media and display">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                       <Field label="Media Type">
                         <select
                           className="w-full rounded border px-3 py-2 text-sm"
+                          disabled={initialPost?.provider === 'instagram'}
                           value={values.media_type}
                           onChange={(event) => setValue('media_type', event.target.value as SocialGalleryMediaType)}
                         >
                           <option value="image">Image</option>
                           <option value="video">Video</option>
-                          <option value="carousel">Carousel</option>
+                          {initialPost?.media_type === 'carousel' && <option value="carousel">Carousel</option>}
                         </select>
                       </Field>
                       <Field label="Display Style">
                         <select
                           className="w-full rounded border px-3 py-2 text-sm"
                           value={values.display_style}
-                          onChange={(event) => setValue('display_style', event.target.value as SocialGalleryDisplayStyle)}
+                          onChange={(event) =>
+                            setValue('display_style', event.target.value as SocialGalleryDisplayStyle)
+                          }
                         >
                           {displayStyles.map((style) => (
                             <option key={style.value} value={style.value}>
@@ -603,22 +742,45 @@ const PostModal = ({
                         </select>
                       </Field>
                       <Field label="Sort Order">
-                        <Input type="number" value={values.sort_order ?? 0} onChange={(event) => setValue('sort_order', Number(event.target.value))} />
+                        <Input
+                          type="number"
+                          value={values.sort_order ?? 0}
+                          onChange={(event) => setValue('sort_order', Number(event.target.value))}
+                        />
                       </Field>
                     </div>
                     <Field label="Media URL">
-                      <Input value={values.media_url ?? ''} onChange={(event) => setValue('media_url', event.target.value)} placeholder="Image or video URL" />
+                      <Input
+                        disabled={initialPost?.provider === 'instagram'}
+                        value={values.media_url ?? ''}
+                        onChange={(event) => setValue('media_url', event.target.value)}
+                        placeholder="Image or video URL"
+                      />
                     </Field>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <Field label="Thumbnail URL">
-                        <Input value={values.thumbnail_url ?? ''} onChange={(event) => setValue('thumbnail_url', event.target.value)} placeholder="Optional tile image" />
+                        <Input
+                          disabled={initialPost?.provider === 'instagram'}
+                          value={values.thumbnail_url ?? ''}
+                          onChange={(event) => setValue('thumbnail_url', event.target.value)}
+                          placeholder="Optional tile image"
+                        />
                       </Field>
                       <Field label="Poster URL">
-                        <Input value={values.poster_url ?? ''} onChange={(event) => setValue('poster_url', event.target.value)} placeholder="Optional video poster" />
+                        <Input
+                          disabled={initialPost?.provider === 'instagram'}
+                          value={values.poster_url ?? ''}
+                          onChange={(event) => setValue('poster_url', event.target.value)}
+                          placeholder="Optional video poster"
+                        />
                       </Field>
                     </div>
                     <Field label="Alt Text">
-                      <Input value={values.alt_text ?? ''} onChange={(event) => setValue('alt_text', event.target.value)} placeholder="Describe the media for accessibility" />
+                      <Input
+                        value={values.alt_text ?? ''}
+                        onChange={(event) => setValue('alt_text', event.target.value)}
+                        placeholder="Describe the media for accessibility"
+                      />
                     </Field>
                   </Section>
 
@@ -632,7 +794,11 @@ const PostModal = ({
                         />
                       </Field>
                       <Field label="CTA URL">
-                        <Input value={values.cta_url ?? ''} onChange={(event) => setValue('cta_url', event.target.value)} placeholder="/request" />
+                        <Input
+                          value={values.cta_url ?? ''}
+                          onChange={(event) => setValue('cta_url', event.target.value)}
+                          placeholder="/request"
+                        />
                       </Field>
                     </div>
                   </Section>
@@ -643,8 +809,12 @@ const PostModal = ({
                 <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>
                   Cancel
                 </Button>
-                <Button type="button" onClick={handleSubmit} disabled={isLoading || (!values.source_url && !values.media_url)}>
-                  {isLoading ? 'Saving...' : initialPost ? 'Update Post' : 'Import Post'}
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isLoading || (!values.source_url && !values.media_url)}
+                >
+                  {isLoading ? 'Saving...' : initialPost ? 'Update Post' : 'Save Post'}
                 </Button>
               </div>
             </div>
@@ -666,7 +836,9 @@ const QuickToggle = ({ label, active, onClick }: { label: string; active: boolea
   <button
     type="button"
     className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
-      active ? 'border-ui-border-interactive bg-ui-bg-interactive text-ui-fg-on-color' : 'border-ui-border-base bg-ui-bg-base text-ui-fg-base'
+      active
+        ? 'border-ui-border-interactive bg-ui-bg-interactive text-ui-fg-on-color'
+        : 'border-ui-border-base bg-ui-bg-base text-ui-fg-base'
     }`}
     onClick={onClick}
   >
@@ -674,7 +846,8 @@ const QuickToggle = ({ label, active, onClick }: { label: string; active: boolea
   </button>
 );
 
-const categoryLabel = (category: SocialGalleryCategory) => categories.find((item) => item.value === category)?.label ?? category;
+const categoryLabel = (category: SocialGalleryCategory) =>
+  categories.find((item) => item.value === category)?.label ?? category;
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="space-y-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
@@ -717,8 +890,10 @@ const isProfileUrl = (sourceUrl: string) => {
   try {
     const url = new URL(sourceUrl);
     const pathParts = url.pathname.split('/').filter(Boolean);
-    if (url.hostname.includes('instagram.com')) return !!pathParts[0] && !['p', 'reel', 'tv', 'stories'].includes(pathParts[0]);
-    if (url.hostname.includes('tiktok.com')) return pathParts.some((part) => part.startsWith('@')) && !pathParts.includes('video');
+    if (url.hostname.includes('instagram.com'))
+      return !!pathParts[0] && !['p', 'reel', 'tv', 'stories'].includes(pathParts[0]);
+    if (url.hostname.includes('tiktok.com'))
+      return pathParts.some((part) => part.startsWith('@')) && !pathParts.includes('video');
   } catch {
     return false;
   }

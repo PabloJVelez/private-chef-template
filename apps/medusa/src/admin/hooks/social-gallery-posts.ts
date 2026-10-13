@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { sdk } from '../../sdk';
 import type {
@@ -63,12 +64,29 @@ export const useAdminListSocialGalleryImports = (
   query: Record<string, any> = {},
   options: { refetchInterval?: number | false } = {},
 ) => {
-  return useQuery<AdminSocialGalleryImportsResponse>({
+  const client = useQueryClient();
+  const lastTerminal = useRef('');
+  const result = useQuery<AdminSocialGalleryImportsResponse>({
     queryKey: [...IMPORTS_QUERY_KEY, query],
     placeholderData: (previousData) => previousData,
     queryFn: async () => sdk.admin.socialGalleryImports.list(query),
-    refetchInterval: options.refetchInterval,
+    refetchInterval: (query) =>
+      query.state.data?.social_import_jobs.some((job) => ['queued', 'running'].includes(job.status))
+        ? (options.refetchInterval ?? 3000)
+        : false,
   });
+  const terminal =
+    result.data?.social_import_jobs
+      .filter((job) => ['completed', 'failed'].includes(job.status))
+      .map((job) => `${job.id}:${job.status}:${job.updated_at}`)
+      .join('|') || '';
+  useEffect(() => {
+    if (terminal && terminal !== lastTerminal.current) {
+      lastTerminal.current = terminal;
+      void client.invalidateQueries({ queryKey: QUERY_KEY });
+    }
+  }, [client, terminal]);
+  return result;
 };
 
 export const useAdminCreateSocialGalleryImportMutation = () => {
@@ -78,6 +96,16 @@ export const useAdminCreateSocialGalleryImportMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: IMPORTS_QUERY_KEY });
+    },
+  });
+};
+
+export const useAdminRetrySocialGalleryImport = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => sdk.admin.socialGalleryImports.retry(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: IMPORTS_QUERY_KEY });
     },
   });
 };

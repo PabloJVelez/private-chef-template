@@ -1,74 +1,44 @@
 import { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
-import { z } from 'zod';
 import { SOCIAL_GALLERY_MODULE } from '../../../../modules/social-gallery';
 import type SocialGalleryModuleService from '../../../../modules/social-gallery/service';
-
-const updateSchema = z.object({
-  title: z.string().min(1).optional(),
-  caption: z.string().optional().nullable(),
-  source_url: z.string().optional().nullable(),
-  instagram_handle: z.string().optional().nullable(),
-  provider: z.enum(['instagram', 'manual']).optional(),
-  provider_media_id: z.string().optional().nullable(),
-  shortcode: z.string().optional().nullable(),
-  permalink: z.string().optional().nullable(),
-  import_status: z.enum(['draft', 'published', 'archived']).optional(),
-  raw_provider_data: z.any().optional().nullable(),
-  content_hash: z.string().optional().nullable(),
-  posted_at: z.string().optional().nullable(),
-  media_type: z.enum(['image', 'video', 'carousel']).optional(),
-  media_url: z.string().optional().nullable(),
-  thumbnail_url: z.string().optional().nullable(),
-  poster_url: z.string().optional().nullable(),
-  alt_text: z.string().optional().nullable(),
-  category: z.enum(['dishes', 'private_dinners', 'events', 'behind_the_scenes', 'press_collabs']).optional(),
-  display_style: z.enum(['normal', 'large', 'wide', 'feature']).optional(),
-  linked_service_label: z.string().optional().nullable(),
-  cta_label: z.string().optional().nullable(),
-  cta_url: z.string().optional().nullable(),
-  is_active: z.boolean().optional(),
-  is_featured: z.boolean().optional(),
-  sort_order: z.number().optional(),
-});
-
-const toPayload = (data: z.infer<typeof updateSchema>) => ({
-  ...(data as any),
-  ...(Object.prototype.hasOwnProperty.call(data, 'posted_at')
-    ? { posted_at: data.posted_at ? new Date(data.posted_at) : null }
-    : {}),
-});
+import { adminPost, curationSchema, publicationError } from '../../../../lib/social-gallery/contracts';
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  const svc = req.scope.resolve(SOCIAL_GALLERY_MODULE) as SocialGalleryModuleService;
-
+  const svc = req.scope.resolve<SocialGalleryModuleService>(SOCIAL_GALLERY_MODULE);
   try {
-    const social_gallery_post = await svc.retrieveSocialGalleryPost(req.params.id);
-    res.status(200).json({ social_gallery_post });
+    return res.json({ social_gallery_post: adminPost(await svc.retrieveSocialGalleryPost(req.params.id)) });
   } catch {
-    res.status(404).json({ message: 'Social gallery post not found' });
+    return res.status(404).json({ message: 'Gallery post not found.' });
   }
 }
 
 export async function PUT(req: MedusaRequest, res: MedusaResponse) {
-  const svc = req.scope.resolve(SOCIAL_GALLERY_MODULE) as SocialGalleryModuleService;
-  const parsed = updateSchema.safeParse(req.body);
-
-  if (!parsed.success) {
-    return res.status(400).json({ message: 'Validation error', errors: parsed.error.issues });
+  const parsed = curationSchema.partial().safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ message: 'Invalid gallery content.', errors: parsed.error.issues });
+  const svc = req.scope.resolve<SocialGalleryModuleService>(SOCIAL_GALLERY_MODULE);
+  const existing = await svc.retrieveSocialGalleryPost(req.params.id);
+  const changes = parsed.data;
+  // Imported asset URLs/IDs are managed by ingestion, never by the curation form.
+  if (existing.provider === 'instagram') {
+    for (const field of ['media_type', 'media_url', 'poster_url', 'thumbnail_url'] as const) delete changes[field];
   }
-
+  const merged = { ...existing, ...changes };
+  const error = publicationError(merged);
+  if (error) return res.status(400).json({ message: error });
   const social_gallery_post = await svc.updateSocialGalleryPosts({
     id: req.params.id,
-    ...toPayload(parsed.data),
-  } as any);
-
-  res.status(200).json({ social_gallery_post });
+    ...changes,
+    ...(Object.prototype.hasOwnProperty.call(changes, 'posted_at')
+      ? { posted_at: changes.posted_at ? new Date(changes.posted_at) : null }
+      : { posted_at: existing.posted_at }),
+  });
+  return res.json({ social_gallery_post: adminPost(social_gallery_post) });
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
-  const svc = req.scope.resolve(SOCIAL_GALLERY_MODULE) as SocialGalleryModuleService;
-
-  await svc.deleteSocialGalleryPosts(req.params.id);
-
-  res.status(200).json({ id: req.params.id, deleted: true });
+  const svc = req.scope.resolve<SocialGalleryModuleService>(SOCIAL_GALLERY_MODULE);
+  // Retain a tombstone so the next profile import does not resurrect removed content.
+  await svc.updateSocialGalleryPosts({ id: req.params.id, import_status: 'archived', is_active: false });
+  return res.json({ id: req.params.id, deleted: true });
 }

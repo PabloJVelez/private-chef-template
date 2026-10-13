@@ -4,116 +4,97 @@ import { z } from 'zod';
 import { SOCIAL_GALLERY_MODULE } from '../../../modules/social-gallery';
 import type SocialGalleryModuleService from '../../../modules/social-gallery/service';
 import { normalizeInstagramSource } from '../../../lib/social-gallery/instagram';
+import { apifyConfig } from '../../../lib/social-gallery/apify';
+import { listQuery } from '../../../lib/social-gallery/contracts';
 
-type EventBusService = {
-  emit: (message: { name: string; data: Record<string, unknown> }) => Promise<void>;
-};
-
-const createImportSchema = z.object({
-  source: z.string().min(1),
-  category: z.enum(['dishes', 'private_dinners', 'events', 'behind_the_scenes', 'press_collabs']).optional(),
-  cta_label: z.string().optional().nullable(),
-  cta_url: z.string().optional().nullable(),
-});
-
-const getOrCreateAccount = async (
-  svc: SocialGalleryModuleService,
-  source: ReturnType<typeof normalizeInstagramSource>,
-) => {
-  if (!source.handle) return null;
-
-  const [existing] = await svc.listSocialAccounts({
-    provider: 'instagram',
-    handle: source.handle,
-  } as any);
-
-  if (existing) {
-    return existing;
-  }
-
-  return svc.createSocialAccounts({
-    provider: 'instagram',
-    handle: source.handle,
-    profile_url: `https://www.instagram.com/${source.handle}/`,
-    status: 'needs_connection',
-    metadata: {
-      import_strategy: 'medusa_import_job',
-    },
-  } as any);
-};
+type EventBus = { emit: (event: { name: string; data: { jobId: string } }) => Promise<unknown> };
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  const svc = req.scope.resolve(SOCIAL_GALLERY_MODULE) as SocialGalleryModuleService;
-
-  const social_import_jobs = await svc.listSocialImportJobs(
+  const svc = req.scope.resolve<SocialGalleryModuleService>(SOCIAL_GALLERY_MODULE);
+  const query = listQuery.safeParse(req.query);
+  if (!query.success) return res.status(400).json({ message: 'Invalid pagination.' });
+  const [jobs, count] = await svc.listAndCountSocialImportJobs(
     {},
-    {
-      order: {
-        created_at: 'DESC',
-      },
-      take: Number(req.query.limit || 20),
-    },
+    { order: { created_at: 'DESC' }, take: query.data.limit, skip: query.data.offset },
   );
-
-  const social_accounts = await svc.listSocialAccounts(
-    {},
-    {
-      order: {
-        created_at: 'DESC',
-      },
-    },
-  );
-
-  res.status(200).json({ social_import_jobs, social_accounts });
+  const [accounts, accountCount] = await svc.listAndCountSocialAccounts({}, { take: 100 });
+  let configured = false;
+  try {
+    apifyConfig();
+    configured = true;
+  } catch {
+    /* Expose state, never token/config values. */
+  }
+  return res.json({
+    social_import_jobs: jobs.map(({ raw_result, lease_token, ...job }) => job),
+    social_accounts: accounts,
+    count,
+    account_count: accountCount,
+    configured,
+  });
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  const svc = req.scope.resolve(SOCIAL_GALLERY_MODULE) as SocialGalleryModuleService;
-  const eventBus = req.scope.resolve(Modules.EVENT_BUS) as EventBusService;
-  const parsed = createImportSchema.safeParse(req.body);
-
-  if (!parsed.success) {
-    return res.status(400).json({ message: 'Validation error', errors: parsed.error.issues });
-  }
-
-  let source: ReturnType<typeof normalizeInstagramSource>;
+  const input = z.object({ source: z.string().trim().min(1).max(2048) }).safeParse(req.body);
+  if (!input.success) return res.status(400).json({ message: 'Enter an Instagram profile or post link.' });
+  let source;
   try {
-    source = normalizeInstagramSource(parsed.data.source);
-  } catch (error) {
-    return res.status(400).json({
-      message: error instanceof Error ? error.message : 'Invalid Instagram source.',
-    });
+    source = normalizeInstagramSource(input.data.source);
+  } catch {
+    return res.status(400).json({ message: 'Enter a valid Instagram profile or post link.' });
   }
-
-  const account = await getOrCreateAccount(svc, source);
-  const importJob = await svc.createSocialImportJobs({
-    provider: 'instagram',
-    account_id: account?.id ?? null,
-    source_url: source.sourceUrl,
-    handle: source.handle,
-    status: 'queued',
-    message: 'Instagram import queued.',
-    raw_result: {
-      source,
-      request: {
-        category: parsed.data.category || 'dishes',
-        cta_label: parsed.data.cta_label || 'Book this experience',
-        cta_url: parsed.data.cta_url || '/request',
-      },
-      provider_boundary: 'medusa_social_gallery_import',
-    },
-  } as any);
-
-  await eventBus.emit({
-    name: 'social-gallery.import-requested',
-    data: {
-      jobId: importJob.id,
-    },
-  });
-
-  res.status(202).json({
-    social_import_job: importJob,
-    social_account: account,
-    social_gallery_posts: [],
-  });
+  try {
+    apifyConfig();
+  } catch {
+    return res
+      .status(503)
+      .json({ message: 'Instagram import is not configured. Connect Apify in the server settings first.' });
+  }
+  const svc = req.scope.resolve<SocialGalleryModuleService>(SOCIAL_GALLERY_MODULE);
+  const active = await svc.listSocialImportJobs(
+    { source_url: source.sourceUrl, status: ['queued', 'running'] },
+    { take: 1 },
+  );
+  if (active[0]) return res.status(202).json({ social_import_job: active[0], social_gallery_posts: [] });
+  let account = null;
+  if (source.handle) {
+    [account] = await svc.listSocialAccounts({ provider: 'instagram', handle: source.handle });
+    if (!account) {
+      try {
+        account = await svc.createSocialAccounts({
+          provider: 'instagram',
+          handle: source.handle,
+          profile_url: source.sourceUrl,
+          status: 'connected',
+        });
+      } catch (error) {
+        [account] = await svc.listSocialAccounts({ provider: 'instagram', handle: source.handle });
+        if (!account) throw error;
+      }
+    }
+  }
+  let job;
+  try {
+    job = await svc.createSocialImportJobs({
+      provider: 'instagram',
+      source_url: source.sourceUrl,
+      handle: source.handle,
+      account_id: account?.id || null,
+      status: 'queued',
+      message: 'Instagram import queued.',
+    });
+  } catch (error) {
+    const [existing] = await svc.listSocialImportJobs(
+      { source_url: source.sourceUrl, status: ['queued', 'running'] },
+      { take: 1 },
+    );
+    if (!existing) throw error;
+    job = existing;
+  }
+  // The scheduled reconciler also picks queued jobs if Redis emission fails.
+  await req.scope
+    .resolve<EventBus>(Modules.EVENT_BUS)
+    .emit({ name: 'social-gallery.import-requested', data: { jobId: job.id } })
+    .catch(() => undefined);
+  return res.status(202).json({ social_import_job: job, social_account: account, social_gallery_posts: [] });
 }

@@ -6,93 +6,12 @@ import {
   type StoreSocialGalleryPostDTO,
 } from '@libs/util/server/data/social-gallery.server';
 import clsx from 'clsx';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { Link, data, useLoaderData } from 'react-router';
 
 const chefConfig = getChefConfig();
-
-const demoPosts: StoreSocialGalleryPostDTO[] = [
-  {
-    id: 'demo-feature',
-    title: 'A plated dinner built around the season',
-    caption:
-      'A long-table menu with bright herbs, market vegetables, and a slow finish designed for a relaxed evening at home.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&w=1400&q=85',
-    thumbnail_url: null,
-    poster_url: null,
-    alt_text: 'Private chef plating a composed dinner course',
-    category: 'private_dinners',
-    display_style: 'feature',
-    linked_service_label: 'Private dinner',
-    cta_label: 'Book a private dinner',
-    cta_url: '/request',
-    is_active: true,
-    is_featured: true,
-    sort_order: 0,
-    source_url: 'https://instagram.com',
-    instagram_handle: 'chef',
-    posted_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-video',
-    title: 'Behind the pass',
-    caption: 'Short prep clips, final touches, and the little details that make dinner feel hosted instead of catered.',
-    media_type: 'video',
-    media_url: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
-    thumbnail_url: 'https://images.unsplash.com/photo-1514986888952-8cd320577b68?auto=format&fit=crop&w=900&q=85',
-    poster_url: 'https://images.unsplash.com/photo-1514986888952-8cd320577b68?auto=format&fit=crop&w=900&q=85',
-    alt_text: 'Chef preparing ingredients in a kitchen',
-    category: 'behind_the_scenes',
-    display_style: 'large',
-    linked_service_label: 'Chef experience',
-    cta_label: 'Plan your event',
-    cta_url: '/request',
-    is_active: true,
-    is_featured: false,
-    sort_order: 1,
-    source_url: 'https://instagram.com',
-    instagram_handle: 'chef',
-    posted_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-dish',
-    title: 'Charred citrus and herbs',
-    caption: 'A bright starter that works beautifully before richer courses.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=85',
-    category: 'dishes',
-    display_style: 'normal',
-    is_active: true,
-    is_featured: false,
-    sort_order: 2,
-  },
-  {
-    id: 'demo-event',
-    title: 'Family-style celebration',
-    caption: 'Large-format service for birthdays, anniversaries, and small gatherings that still deserve a real menu.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=1000&q=85',
-    category: 'events',
-    display_style: 'wide',
-    is_active: true,
-    is_featured: false,
-    sort_order: 3,
-  },
-  {
-    id: 'demo-collab',
-    title: 'Brand dinner table',
-    caption: 'A composed service style for tastings, product dinners, and culinary collaborations.',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=900&q=85',
-    category: 'press_collabs',
-    display_style: 'normal',
-    is_active: true,
-    is_featured: false,
-    sort_order: 4,
-  },
-];
 
 const categoryFilters: { label: string; value: StoreSocialGalleryCategory | 'all' }[] = [
   { label: 'All', value: 'all' },
@@ -103,17 +22,22 @@ const categoryFilters: { label: string; value: StoreSocialGalleryCategory | 'all
   { label: 'Press / Collabs', value: 'press_collabs' },
 ];
 
-export const loader = async (_args: LoaderFunctionArgs) => {
-  const response = await fetchSocialGalleryPosts();
-  const posts = response.social_gallery_posts.length > 0 ? response.social_gallery_posts : demoPosts;
-
-  return data({
-    posts: posts.map((post) => ({
-      ...post,
-      posted_at: post.posted_at ?? null,
-    })),
-    isDemo: response.social_gallery_posts.length === 0,
-  });
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const url = new URL(request.url);
+  const requestedPage = Number(url.searchParams.get('page') || 1);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 && requestedPage <= 4000 ? requestedPage : 1;
+  const category = categoryFilters.find((item) => item.value === url.searchParams.get('category'))?.value || 'all';
+  const response = await fetchSocialGalleryPosts(page, category);
+  return data(
+    {
+      posts: response.social_gallery_posts,
+      count: response.count,
+      page,
+      category,
+      unavailable: !!response.unavailable,
+    },
+    { status: response.unavailable ? 503 : 200 },
+  );
 };
 
 export const meta: MetaFunction<typeof loader> = () => [
@@ -125,16 +49,11 @@ export const meta: MetaFunction<typeof loader> = () => [
 ];
 
 export default function GalleryRoute() {
-  const { posts, isDemo } = useLoaderData<typeof loader>();
-  const [activeCategory, setActiveCategory] = useState<StoreSocialGalleryCategory | 'all'>('all');
+  const { posts, count, page, category: activeCategory, unavailable } = useLoaderData<typeof loader>();
   const [selectedPost, setSelectedPost] = useState<StoreSocialGalleryPostDTO | null>(null);
 
   const featuredPost = posts.find((post) => post.is_featured || post.display_style === 'feature') ?? posts[0];
-  const galleryPosts = useMemo(
-    () =>
-      posts.filter((post) => post.id !== featuredPost?.id).filter((post) => activeCategory === 'all' || post.category === activeCategory),
-    [activeCategory, featuredPost?.id, posts],
-  );
+  const galleryPosts = posts.filter((post) => post.id !== featuredPost?.id);
 
   return (
     <div className="bg-highlight-50 text-primary-900">
@@ -161,9 +80,10 @@ export default function GalleryRoute() {
               View Gallery
             </a>
           </div>
-          {isDemo && (
-            <p className="mt-4 text-xs text-primary-500">
-              Showing template sample posts until curated gallery content is added in admin.
+          {unavailable && <p className="mt-6">The gallery is temporarily unavailable. Please try again shortly.</p>}
+          {!unavailable && posts.length === 0 && (
+            <p className="mt-6">
+              No published moments here yet. Explore another category or plan your own experience below.
             </p>
           )}
         </div>
@@ -176,7 +96,10 @@ export default function GalleryRoute() {
                 className="group relative min-h-[360px] overflow-hidden text-left lg:min-h-full"
                 onClick={() => setSelectedPost(featuredPost)}
               >
-                <PostMedia post={featuredPost} className="h-full min-h-[360px] w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
+                <PostMedia
+                  post={featuredPost}
+                  className="h-full min-h-[360px] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
+                />
                 <div className="absolute left-5 top-5 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary-900">
                   Featured
                 </div>
@@ -185,8 +108,12 @@ export default function GalleryRoute() {
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent-50">
                   {categoryLabel(featuredPost.category)}
                 </p>
-                <h2 className="mt-4 text-4xl font-italiana leading-tight text-primary-900 md:text-6xl">{featuredPost.title}</h2>
-                {featuredPost.caption && <p className="mt-6 text-lg leading-8 text-primary-700">{featuredPost.caption}</p>}
+                <h2 className="mt-4 text-4xl font-italiana leading-tight text-primary-900 md:text-6xl">
+                  {featuredPost.title}
+                </h2>
+                {featuredPost.caption && (
+                  <p className="mt-6 text-lg leading-8 text-primary-700">{featuredPost.caption}</p>
+                )}
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <button
                     type="button"
@@ -215,19 +142,19 @@ export default function GalleryRoute() {
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 md:flex-wrap md:justify-end md:overflow-visible md:pb-0">
               {categoryFilters.map((filter) => (
-                <button
+                <Link
                   key={filter.value}
-                  type="button"
+                  to={`?category=${filter.value}`}
+                  aria-current={activeCategory === filter.value ? 'page' : undefined}
                   className={clsx(
                     'whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition',
                     activeCategory === filter.value
                       ? 'border-primary-900 bg-primary-900 text-white'
                       : 'border-primary-900/15 bg-white/70 text-primary-700 hover:border-primary-900/40',
                   )}
-                  onClick={() => setActiveCategory(filter.value)}
                 >
                   {filter.label}
-                </button>
+                </Link>
               ))}
             </div>
           </div>
@@ -239,6 +166,27 @@ export default function GalleryRoute() {
           </div>
         </section>
 
+        {count > 24 && (
+          <nav className="mt-8 flex items-center justify-between" aria-label="Gallery pages">
+            {page > 1 ? (
+              <Link to={`?category=${activeCategory}&page=${page - 1}`} className="underline">
+                Previous
+              </Link>
+            ) : (
+              <span />
+            )}
+            <span>
+              Page {page} of {Math.ceil(count / 24)}
+            </span>
+            {page * 24 < count ? (
+              <Link to={`?category=${activeCategory}&page=${page + 1}`} className="underline">
+                Next
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        )}
         <section className="mt-16 rounded-[2rem] bg-primary-900 p-8 text-center text-white md:p-12">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent-700">Bring this to your table</p>
           <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-italiana leading-tight md:text-6xl">
@@ -253,7 +201,7 @@ export default function GalleryRoute() {
         </section>
       </Container>
 
-      {selectedPost && <PostModal post={selectedPost} onClose={() => setSelectedPost(null)} />}
+      {selectedPost && <PostModal key={selectedPost.id} post={selectedPost} onClose={() => setSelectedPost(null)} />}
     </div>
   );
 }
@@ -279,14 +227,21 @@ const PostTile = ({
   return (
     <button
       type="button"
-      className={clsx('group relative overflow-hidden rounded-3xl bg-primary-900 text-left shadow-lg shadow-primary-900/5', spanClass)}
+      className={clsx(
+        'group relative overflow-hidden rounded-3xl bg-primary-900 text-left shadow-lg shadow-primary-900/5',
+        spanClass,
+      )}
       onClick={() => onSelect(post)}
     >
       <PostMedia post={post} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
       <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-3">
-        <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-primary-900">{categoryLabel(post.category)}</span>
-        {post.media_type === 'video' && <span className="rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">Play</span>}
+        <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-primary-900">
+          {categoryLabel(post.category)}
+        </span>
+        {post.media_type === 'video' && (
+          <span className="rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">Play</span>
+        )}
       </div>
       <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
         <h3 className="text-2xl font-italiana leading-tight">{post.title}</h3>
@@ -302,82 +257,123 @@ const PostMedia = ({ post, className }: { post: StoreSocialGalleryPostDTO; class
   if (!imageUrl) {
     return (
       <div className={clsx('flex items-center justify-center bg-primary-900 p-6 text-center text-white', className)}>
-        <span className="max-w-xs text-sm font-semibold">{post.source_url ? 'Social source added. Add media in admin when preview is unavailable.' : post.title}</span>
+        <span className="max-w-xs text-sm font-semibold">{post.title}</span>
       </div>
     );
   }
 
-  if (post.media_type === 'video' && post.media_url) {
-    return (
-      <video
-        className={className}
-        poster={post.poster_url || post.thumbnail_url || undefined}
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        autoPlay
-      >
-        <source src={post.media_url} />
-      </video>
-    );
+  if (post.media_type === 'video' && !post.poster_url && !post.thumbnail_url) {
+    return <div className={clsx('flex items-center justify-center text-white', className)}>Open video</div>;
   }
 
   return <img src={imageUrl} alt={post.alt_text || post.title} className={className} loading="lazy" />;
 };
 
-const PostModal = ({ post, onClose }: { post: StoreSocialGalleryPostDTO; onClose: () => void }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-    <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="min-h-[320px] bg-primary-900 lg:min-h-[720px]">
-          {post.media_type === 'video' && post.media_url ? (
-            <video className="h-full w-full object-contain" controls poster={post.poster_url || post.thumbnail_url || undefined}>
-              <source src={post.media_url} />
-            </video>
-          ) : !post.media_url ? (
-            <div className="flex h-full w-full items-center justify-center bg-primary-900 p-8 text-center text-white">
-              Social source added. Add media in admin when preview is unavailable.
+const PostModal = ({ post, onClose }: { post: StoreSocialGalleryPostDTO; onClose: () => void }) => {
+  const [index, setIndex] = useState(0);
+  const assets = post.media_assets?.length
+    ? post.media_assets
+    : post.media_url
+      ? [
+          {
+            type: post.media_type === 'video' ? ('video' as const) : ('image' as const),
+            url: post.media_url,
+            poster_url: post.poster_url,
+          },
+        ]
+      : [];
+  const asset = assets[index];
+  return (
+    <Dialog open onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/70" aria-hidden="true" />
+      <div className="fixed inset-0 overflow-y-auto p-4">
+        <div className="flex min-h-full items-center justify-center">
+          <DialogPanel className="w-full max-w-6xl rounded-3xl bg-white p-4 shadow-2xl md:p-6">
+            <div className="mb-4 flex justify-end">
+              <button type="button" autoFocus className="rounded-full border px-4 py-2 font-semibold" onClick={onClose}>
+                Close
+              </button>
             </div>
-          ) : (
-            <img src={post.media_url} alt={post.alt_text || post.title} className="h-full w-full object-cover" />
-          )}
-        </div>
-        <div className="flex flex-col p-6 md:p-8">
-          <button type="button" className="ml-auto rounded-full border px-4 py-2 text-sm font-semibold" onClick={onClose}>
-            Close
-          </button>
-          <p className="mt-8 text-sm font-semibold uppercase tracking-[0.24em] text-accent-50">{categoryLabel(post.category)}</p>
-          <h2 className="mt-4 text-4xl font-italiana leading-tight text-primary-900 md:text-5xl">{post.title}</h2>
-          {post.caption && <p className="mt-5 text-base leading-8 text-primary-700">{post.caption}</p>}
-          {post.linked_service_label && (
-            <p className="mt-5 rounded-2xl bg-highlight-100 px-4 py-3 text-sm font-semibold text-primary-800">
-              Good fit for: {post.linked_service_label}
-            </p>
-          )}
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              to={post.cta_url || '/request'}
-              className="rounded-full bg-primary-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-700"
-            >
-              {post.cta_label || 'Book this experience'}
-            </Link>
-            {post.source_url && (
-              <a
-                href={post.source_url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full border border-primary-900/20 px-5 py-3 text-sm font-semibold text-primary-900 transition hover:border-primary-900"
-              >
-                View source
-              </a>
-            )}
-          </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <div className="flex min-h-[240px] items-center justify-center rounded-xl bg-primary-900">
+                  {asset?.type === 'video' ? (
+                    <video
+                      key={asset.url}
+                      className="max-h-[65vh] w-full"
+                      controls
+                      playsInline
+                      preload="none"
+                      poster={asset.poster_url || undefined}
+                    >
+                      <source src={asset.url} />
+                    </video>
+                  ) : asset ? (
+                    <img
+                      className="max-h-[65vh] w-full object-contain"
+                      src={asset.url}
+                      alt={post.alt_text || `${post.title}, item ${index + 1}`}
+                    />
+                  ) : (
+                    <p className="p-8 text-white">Media unavailable</p>
+                  )}
+                </div>
+                {assets.length > 1 && (
+                  <div className="mt-4 flex items-center justify-between" aria-label="Carousel controls">
+                    <button
+                      className="rounded-full border px-4 py-2 disabled:opacity-40"
+                      disabled={index === 0}
+                      onClick={() => setIndex(index - 1)}
+                    >
+                      Previous item
+                    </button>
+                    <span aria-live="polite">
+                      {index + 1} / {assets.length}
+                    </span>
+                    <button
+                      className="rounded-full border px-4 py-2 disabled:opacity-40"
+                      disabled={index === assets.length - 1}
+                      onClick={() => setIndex(index + 1)}
+                    >
+                      Next item
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="p-2 md:p-4">
+                <p className="text-sm font-semibold uppercase tracking-widest">{categoryLabel(post.category)}</p>
+                <DialogTitle className="mt-4 text-4xl font-italiana text-primary-900">{post.title}</DialogTitle>
+                {post.caption && (
+                  <p className="mt-5 whitespace-pre-line break-words leading-8 text-primary-700">{post.caption}</p>
+                )}
+                {post.linked_service_label && <p className="mt-5">Good fit for: {post.linked_service_label}</p>}
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <Link
+                    to={post.cta_url || '/request'}
+                    onClick={onClose}
+                    className="rounded-full bg-primary-900 px-5 py-3 font-semibold text-white"
+                  >
+                    {post.cta_label || 'Book this experience'}
+                  </Link>
+                  {post.source_url && (
+                    <a
+                      href={post.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border px-5 py-3"
+                    >
+                      View source
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </DialogPanel>
         </div>
       </div>
-    </div>
-  </div>
-);
+    </Dialog>
+  );
+};
 
 const categoryLabel = (category: StoreSocialGalleryCategory) =>
   category

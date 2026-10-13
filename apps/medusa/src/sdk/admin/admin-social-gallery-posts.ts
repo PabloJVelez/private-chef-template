@@ -1,3 +1,4 @@
+import type { GalleryAsset } from '../../lib/social-gallery/contracts';
 import type { Client } from '@medusajs/js-sdk';
 
 export type SocialGalleryMediaType = 'image' | 'video' | 'carousel';
@@ -24,6 +25,7 @@ export interface AdminSocialGalleryPostDTO {
   posted_at?: string | null;
   media_type: SocialGalleryMediaType;
   media_url?: string | null;
+  media_assets?: GalleryAsset[] | null;
   thumbnail_url?: string | null;
   poster_url?: string | null;
   alt_text?: string | null;
@@ -70,6 +72,9 @@ export interface AdminCreateSocialGalleryPostDTO {
 export type AdminUpdateSocialGalleryPostDTO = Partial<AdminCreateSocialGalleryPostDTO>;
 
 export interface AdminSocialGalleryPostsResponse {
+  count: number;
+  limit: number;
+  offset: number;
   social_gallery_posts: AdminSocialGalleryPostDTO[];
 }
 
@@ -94,6 +99,9 @@ export interface AdminSocialImportJobDTO {
   handle?: string | null;
   status: SocialImportJobStatus;
   imported_count: number;
+  skipped_count: number;
+  provider_run_id?: string | null;
+  failure_code?: string | null;
   message?: string | null;
   error_message?: string | null;
   raw_result?: unknown | null;
@@ -110,6 +118,9 @@ export interface AdminCreateSocialImportDTO {
 }
 
 export interface AdminSocialGalleryImportsResponse {
+  configured: boolean;
+  count: number;
+  account_count: number;
   social_import_jobs: AdminSocialImportJobDTO[];
   social_accounts: AdminSocialAccountDTO[];
 }
@@ -175,6 +186,10 @@ export class AdminSocialGalleryImportsResource {
       method: 'GET',
       query,
     });
+  }
+
+  async retry(id: string) {
+    return this.client.fetch(`/admin/social-gallery-imports/${id}/retry`, { method: 'POST' });
   }
 
   async create(data: AdminCreateSocialImportDTO) {

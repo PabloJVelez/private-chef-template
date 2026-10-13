@@ -1,10 +1,24 @@
 import { baseMedusaConfig } from '../client.server';
 
 export type StoreSocialGalleryMediaType = 'image' | 'video' | 'carousel';
-export type StoreSocialGalleryCategory = 'dishes' | 'private_dinners' | 'events' | 'behind_the_scenes' | 'press_collabs';
+export type StoreSocialGalleryCategory =
+  | 'dishes'
+  | 'private_dinners'
+  | 'events'
+  | 'behind_the_scenes'
+  | 'press_collabs';
 export type StoreSocialGalleryDisplayStyle = 'normal' | 'large' | 'wide' | 'feature';
 
+export interface StoreGalleryAsset {
+  type: 'image' | 'video';
+  url: string;
+  poster_url?: string | null;
+  width?: number | null;
+  height?: number | null;
+}
+
 export interface StoreSocialGalleryPostDTO {
+  media_assets?: StoreGalleryAsset[];
   id: string;
   title: string;
   caption?: string | null;
@@ -29,27 +43,33 @@ export interface StoreSocialGalleryPostDTO {
 }
 
 export interface StoreSocialGalleryPostsResponse {
+  count: number;
+  unavailable?: boolean;
   social_gallery_posts: StoreSocialGalleryPostDTO[];
 }
 
-export async function fetchSocialGalleryPosts(): Promise<StoreSocialGalleryPostsResponse> {
+export async function fetchSocialGalleryPosts(page = 1, category = 'all'): Promise<StoreSocialGalleryPostsResponse> {
   try {
-    const response = await fetch(`${baseMedusaConfig.baseUrl}/store/social-gallery-posts`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-publishable-api-key': baseMedusaConfig.publishableKey || '',
+    const response = await fetch(
+      `${baseMedusaConfig.baseUrl}/store/social-gallery-posts?limit=24&offset=${(page - 1) * 24}${category === 'all' ? '' : `&category=${encodeURIComponent(category)}`}`,
+      {
+        signal: AbortSignal.timeout(10000),
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-publishable-api-key': baseMedusaConfig.publishableKey || '',
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       console.error(`Failed to fetch social gallery posts: ${response.status}`);
-      return { social_gallery_posts: [] };
+      return { social_gallery_posts: [], count: 0, unavailable: true };
     }
 
     return await response.json();
   } catch (error) {
     console.error('Error fetching social gallery posts:', error);
-    return { social_gallery_posts: [] };
+    return { social_gallery_posts: [], count: 0, unavailable: true };
   }
 }
