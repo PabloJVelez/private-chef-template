@@ -1,16 +1,20 @@
-import { baseMedusaConfig } from '../client.server';
+import { baseMedusaConfig } from "../client.server";
 
-export type StoreSocialGalleryMediaType = 'image' | 'video' | 'carousel';
+export type StoreSocialGalleryMediaType = "image" | "video" | "carousel";
 export type StoreSocialGalleryCategory =
-  | 'dishes'
-  | 'private_dinners'
-  | 'events'
-  | 'behind_the_scenes'
-  | 'press_collabs';
-export type StoreSocialGalleryDisplayStyle = 'normal' | 'large' | 'wide' | 'feature';
+  | "dishes"
+  | "private_dinners"
+  | "events"
+  | "behind_the_scenes"
+  | "press_collabs";
+export type StoreSocialGalleryDisplayStyle =
+  | "normal"
+  | "large"
+  | "wide"
+  | "feature";
 
 export interface StoreGalleryAsset {
-  type: 'image' | 'video';
+  type: "image" | "video";
   url: string;
   poster_url?: string | null;
   width?: number | null;
@@ -44,20 +48,24 @@ export interface StoreSocialGalleryPostDTO {
 
 export interface StoreSocialGalleryPostsResponse {
   count: number;
+  categories?: StoreSocialGalleryCategory[];
   unavailable?: boolean;
   social_gallery_posts: StoreSocialGalleryPostDTO[];
 }
 
-export async function fetchSocialGalleryPosts(page = 1, category = 'all'): Promise<StoreSocialGalleryPostsResponse> {
+export async function fetchSocialGalleryPosts(
+  page = 1,
+  category = "all",
+): Promise<StoreSocialGalleryPostsResponse> {
   try {
     const response = await fetch(
-      `${baseMedusaConfig.baseUrl}/store/social-gallery-posts?limit=24&offset=${(page - 1) * 24}${category === 'all' ? '' : `&category=${encodeURIComponent(category)}`}`,
+      `${baseMedusaConfig.baseUrl}/store/social-gallery-posts?limit=24&offset=${(page - 1) * 24}${category === "all" ? "" : `&category=${encodeURIComponent(category)}`}`,
       {
         signal: AbortSignal.timeout(10000),
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Content-Type': 'application/json',
-          'x-publishable-api-key': baseMedusaConfig.publishableKey || '',
+          "Content-Type": "application/json",
+          "x-publishable-api-key": baseMedusaConfig.publishableKey || "",
         },
       },
     );
@@ -69,7 +77,7 @@ export async function fetchSocialGalleryPosts(page = 1, category = 'all'): Promi
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching social gallery posts:', error);
+    console.error("Error fetching social gallery posts:", error);
     return { social_gallery_posts: [], count: 0, unavailable: true };
   }
 }
