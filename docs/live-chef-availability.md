@@ -76,3 +76,50 @@ backend/admin production build, changed-file ESLint and `git diff --check` passe
 The dependency manifests match the pre-patch feature baseline. Browser automation
 reported no connected browsers; direct navigation and primary-sidebar navigation
 were verified through the generated route tree and React Router, not a visual click.
+
+### Chef-facing availability editor
+
+The primary-sidebar page now groups the usual week, days off/special hours, saved
+arrival-time preview and Google controls. Weekday switches remember that day's
+in-progress hours when toggled off and on. New hours start blank. Copying into days
+with existing hours requires explicit replacement confirmation. Split periods remain
+supported, with the same server constraints (12 periods/day; no overlaps or overnight
+periods; touching periods allowed).
+
+The date editor supports one date or an inclusive range. Opening a duplicate date
+loads its existing hours instead of closing it. Ranges that touch existing exceptions
+require explicit replacement, and the draft cannot exceed 366 exception dates. Apply
+to draft stages the changes; the sticky Save bar persists them. Use weekly hours
+removes an exception. Discard restores the last successfully saved schedule.
+
+The timezone field uses searchable native suggestions with city names and timezone
+identifiers. Browser-specific picker appearance and keyboard behavior still need
+manual visual QA. Save is disabled for invalid hours/timezone or unfinished copy/date
+editors. Background refreshes never replace a loaded draft. Save completions update
+the saved snapshot while retaining any newer edits made during the request; failures
+retain the draft. Refresh/close warns when edits are unsaved.
+
+`GET /admin/availability/preview` uses standard admin authentication and the existing
+`availableSlots` server calculation. It returns only timezone, selection identifiers
+and arrival labels/instants; no customer or calendar-event details. Preview is clearly
+labeled as saved schedule, refreshes after saving, and separates empty results from
+lookup errors. Query keys and selection checks prevent late responses from showing
+slots for the wrong date or experience. No client-side booking calculation, payment
+policy, schema migration or dependency patch was introduced.
+
+Redesign validation: 113 unit tests across 12 suites passed, including six rendered
+React/jsdom interaction tests and new editor/API tests. Coverage includes replacement
+consent, duplicate/range exceptions, off/on preservation, save failures and edits during
+save, background refresh, dirty preview, stale responses and preview refresh after save;
+existing timezone/DST and booking-conflict tests also passed. Medusa typecheck and
+backend/admin production builds passed. Changed-file ESLint has zero errors and one
+existing-style Zod import-source warning. Browser discovery returned no connected
+browsers; jsdom tests do not establish visual browser QA.
+
+Manual review after pulling: open `/app/availability` at desktop and narrow widths;
+set a split weekday, toggle it off/on, copy into an existing day with replacement;
+edit a duplicate exception and an overlapping date range; save/discard; choose an
+experience/date and compare the saved preview before/after a schedule change. Verify
+timezone suggestions, keyboard focus, sticky Save and the Google connection warning.
+No migration or special install command is needed for this redesign. Restart/rebuild
+only your local app as needed; the agent did not restart the manual-test server.

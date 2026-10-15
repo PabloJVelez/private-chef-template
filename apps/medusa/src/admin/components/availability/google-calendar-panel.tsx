@@ -1,106 +1,94 @@
 import { Badge, Button, Container, Heading, Text, toast } from '@medusajs/ui';
+import type { ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useGoogleCalendarConnectMutation,
   useGoogleCalendarDisconnectMutation,
   useGoogleCalendarStatus,
 } from '../../hooks/google-calendar';
 import type { GoogleCalendarStatus } from '../../../sdk/admin/admin-google-calendar';
-
-const STATUS_LABELS: Record<GoogleCalendarStatus, string> = {
+const labels: Record<GoogleCalendarStatus, string> = {
   not_connected: 'Not connected',
-  active: 'Active',
-  reauthorization_required: 'Reauthorization required',
-  sync_error: 'Sync error',
+  active: 'Connected',
+  reauthorization_required: 'Reconnect needed',
+  sync_error: 'Needs attention',
 };
-
-const GoogleCalendarStoreWidget = () => {
-  const { data, isLoading } = useGoogleCalendarStatus();
-  const connectMutation = useGoogleCalendarConnectMutation();
-  const disconnectMutation = useGoogleCalendarDisconnectMutation();
-
+export default function GoogleCalendarPanel({
+  required = false,
+  unsaved = false,
+  children,
+}: { required?: boolean; unsaved?: boolean; children?: ReactNode }) {
+  const status = useGoogleCalendarStatus();
+  const connect = useGoogleCalendarConnectMutation();
+  const disconnect = useGoogleCalendarDisconnectMutation();
+  const client = useQueryClient();
+  const data = status.data;
+  const busy = connect.isPending || disconnect.isPending;
   const handleConnect = async () => {
     try {
-      const result = await connectMutation.mutateAsync();
-      if (result?.url) {
-        window.location.href = result.url;
-      }
-    } catch (error) {
-      toast.error('Could not start Google Calendar connection', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-        duration: 5000,
-      });
+      const result = await connect.mutateAsync();
+      if (result?.url) window.location.href = result.url;
+    } catch {
+      toast.error('Could not start the Google connection. Please try again.');
     }
   };
-
   const handleDisconnect = async () => {
     try {
-      await disconnectMutation.mutateAsync();
+      await disconnect.mutateAsync();
+      client.invalidateQueries({ queryKey: ['availability-preview'] });
       toast.success('Google Calendar disconnected');
-    } catch (error) {
-      toast.error('Could not disconnect Google Calendar', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-        duration: 5000,
-      });
+    } catch {
+      toast.error('Could not disconnect Google Calendar. Please try again.');
     }
   };
-
-  if (isLoading || !data) {
-    return (
-      <Container>
-        <div className="flex h-32 items-center justify-center">
-          <Text className="text-ui-fg-muted">Loading Google Calendar...</Text>
-        </div>
-      </Container>
-    );
-  }
-
-  const status = data.status as GoogleCalendarStatus;
-
   return (
-    <Container className="divide-y p-0">
-      <div className="flex flex-col gap-4 px-6 py-6">
-        <div className="flex items-center justify-between">
-          <Heading level="h2">Google Calendar</Heading>
-          <Badge size="large" color={status === 'active' ? 'green' : status === 'not_connected' ? 'grey' : 'orange'}>
-            {STATUS_LABELS[status]}
-          </Badge>
-        </div>
-
-        {status === 'not_connected' ? (
-          <div className="flex flex-col gap-4 rounded-lg border border-ui-border-base p-4">
-            <Text className="text-ui-fg-subtle">Connect your Google Calendar to mirror chef events.</Text>
-            <Button onClick={handleConnect} disabled={connectMutation.isPending}>
-              Connect Google Calendar
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="rounded-lg border border-ui-border-base p-4">
-              <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-ui-fg-muted">Calendar ID</dt>
-                  <dd className="font-mono">{data.calendarId || 'primary'}</dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-ui-fg-muted">Last sync error</dt>
-                  <dd>{data.lastSyncError || 'None'}</dd>
-                </div>
-              </dl>
-            </div>
-
-            <div className="flex gap-3">
-              <Button variant="secondary" onClick={handleConnect} disabled={connectMutation.isPending}>
-                Reconnect Google Calendar
-              </Button>
-              <Button variant="secondary" onClick={handleDisconnect} disabled={disconnectMutation.isPending}>
-                Disconnect
-              </Button>
-            </div>
-          </div>
-        )}
+    <Container className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Heading level="h2">Google Calendar</Heading>
+        {data && <Badge color={data.status === 'active' ? 'green' : 'orange'}>{labels[data.status]}</Badge>}
       </div>
+      {children}
+      {status.isLoading && <Text size="small">Checking connection…</Text>}
+      {status.isError && (
+        <Text role="alert" className="text-ui-fg-error">
+          Could not check the Google connection.{' '}
+          <button className="underline" onClick={() => status.refetch()}>
+            Retry
+          </button>
+        </Text>
+      )}
+      {required && !status.isLoading && (status.isError || data?.status !== 'active') && (
+        <Text role="alert" size="small" className="text-ui-fg-error">
+          Google checks are required. Connect or fix the calendar connection before offering times that need a conflict
+          check.
+        </Text>
+      )}
+      {unsaved && (
+        <Text size="small" className="text-ui-fg-subtle">
+          Save or discard your schedule changes before connecting or disconnecting.
+        </Text>
+      )}
+      {data && (
+        <div className="flex flex-wrap gap-2">
+          <Button size="small" variant="secondary" disabled={busy || unsaved} onClick={handleConnect}>
+            {data.status === 'not_connected' ? 'Connect Google Calendar' : 'Reconnect'}
+          </Button>
+          {data.status !== 'not_connected' && (
+            <Button size="small" variant="transparent" disabled={busy || unsaved} onClick={handleDisconnect}>
+              Disconnect
+            </Button>
+          )}
+        </div>
+      )}
+      {data && data.status !== 'not_connected' && (
+        <details className="text-sm">
+          <summary className="cursor-pointer">Connection details</summary>
+          <Text size="small" className="mt-2 break-all">
+            Calendar: {data.calendarId || 'Primary calendar'}
+          </Text>
+          {data.lastSyncError && <Text size="small">{data.lastSyncError}</Text>}
+        </details>
+      )}
     </Container>
   );
-};
-
-export default GoogleCalendarStoreWidget;
+}
