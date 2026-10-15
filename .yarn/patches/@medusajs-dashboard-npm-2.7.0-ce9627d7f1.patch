@@ -1,0 +1,39 @@
+diff --git a/dist/app.js b/dist/app.js
+index 7310af2738db9d6d3357371e7b5be7da2cb42582..d1f9e770a452e4ecad5e10c5ef0629cfc75c3441 100644
+--- a/dist/app.js
++++ b/dist/app.js
+@@ -161823,7 +161823,7 @@ var init_dashboard_app = __esm({
+             "settings"
+           );
+           const coreRoutesMap = createRouteMap(filteredCoreRoutes);
+-          const settingsRoutesMap = createRouteMap(filteredSettingsRoutes);
++          const settingsRoutesMap = createRouteMap(filteredSettingsRoutes, "/settings");
+           coreRoutes.push(...coreRoutesMap);
+           settingsRoutes.push(...settingsRoutesMap);
+         }
+diff --git a/dist/chunk-2QUBSJMV.mjs b/dist/chunk-2QUBSJMV.mjs
+index 86d08b68b6b2297153590d65dc752e1854c6000f..839e0edd9490b54a3ee0f966910641a656c88cf2 100644
+--- a/dist/chunk-2QUBSJMV.mjs
++++ b/dist/chunk-2QUBSJMV.mjs
+@@ -4795,7 +4795,7 @@ var DashboardApp = class {
+         "settings"
+       );
+       const coreRoutesMap = createRouteMap(filteredCoreRoutes);
+-      const settingsRoutesMap = createRouteMap(filteredSettingsRoutes);
++      const settingsRoutesMap = createRouteMap(filteredSettingsRoutes, "/settings");
+       coreRoutes.push(...coreRoutesMap);
+       settingsRoutes.push(...settingsRoutesMap);
+     }
+diff --git a/src/dashboard-app/dashboard-app.tsx b/src/dashboard-app/dashboard-app.tsx
+index 2e2f23b3f15335a3a33ef3212311b225e92d4dcf..536700391d9b1d08e6823dbf524b56a83698af30 100644
+--- a/src/dashboard-app/dashboard-app.tsx
++++ b/src/dashboard-app/dashboard-app.tsx
+@@ -74,7 +74,7 @@ export class DashboardApp {
+       )
+ 
+       const coreRoutesMap = createRouteMap(filteredCoreRoutes)
+-      const settingsRoutesMap = createRouteMap(filteredSettingsRoutes)
++      const settingsRoutesMap = createRouteMap(filteredSettingsRoutes, "/settings")
+ 
+       coreRoutes.push(...coreRoutesMap)
+       settingsRoutes.push(...settingsRoutesMap)

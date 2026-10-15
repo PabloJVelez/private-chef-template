@@ -50,3 +50,34 @@ References checked against installed Medusa 2.7 conventions: [module transaction
 - ESLint via the root binary: zero errors, 205 warnings. The workspace lint script itself remains blocked by its existing binary-resolution issue.
 - `git diff --check` passed. New source files were formatted; existing file styles were preserved where practical to reduce unrelated diff noise. Medusa's parameter decorators require a formatter that supports legacy TypeScript decorators.
 - Browser QA was attempted with a localhost fixture harness, but the in-app browser was unavailable and native-browser control stopped when the active window changed. Visual and end-to-end payment checks remain manual. No live Google calendar or Stripe account was used.
+
+### Medusa 2.7 Availability page 404 correction
+
+Medusa 2.7.0 retains the `settings` path segment when nesting custom settings
+routes under `/settings`. That made the generated route resolve at
+`/app/settings/settings/availability` while the menu and links correctly target
+`/app/settings/availability`. This is the upstream regression tracked in
+[Medusa issue #12256](https://github.com/medusajs/medusa/issues/12256).
+
+The root Yarn resolution applies a three-line patch to `@medusajs/dashboard`
+2.7.0: pass `/settings` to its existing `createRouteMap` prefix-removal argument
+in the shipped TSX source and both compiled bundles. The source patch is essential:
+this project's Unlock plugin redirects the admin entry to Medusa's shipped source.
+A bundle-only patch builds successfully but does not fix this project's UI.
+No route URLs, Medusa versions, database schema, or availability behavior change.
+
+After pulling this correction, run `YARN_ENABLE_SCRIPTS=false yarn install --immutable`
+from the repository root, then restart your local Medusa dev process and reload the
+admin. Disabling install scripts avoids this repository's database-changing
+`prepare` command. If testing a production build, rebuild it before restarting.
+No migration is needed for this routing correction. The running manual-test server
+was not restarted by the agent.
+
+Five routing regression tests execute Medusa's actual generated routes/menu and
+its shipped source route-building method with React Router. They cover initial
+navigation, navigation to the generated menu target, no duplicate settings prefix,
+matching bundle patches, and reproduction of the original 404 without the patch.
+Component imports are stubbed in these route tests; they do not establish visual
+browser or backend API coverage. Remove the patch during a future Medusa upgrade
+only after these checks pass against the upgraded router without it; its source
+adapter is intentionally tied to the installed 2.7.0 layout.
