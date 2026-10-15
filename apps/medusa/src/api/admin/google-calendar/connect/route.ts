@@ -23,7 +23,7 @@ export async function POST(
   const state = buildState({
     nonce: crypto.randomBytes(16).toString("hex"),
     ts: Date.now(),
-    returnTo: "/app/settings/availability",
+    returnTo: "/app/availability",
   });
 
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");

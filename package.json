@@ -31,8 +31,7 @@
     "@medusajs/ui": "4.1.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "remix-hook-form": "7.0.1",
-    "@medusajs/dashboard@npm:2.7.0": "patch:@medusajs/dashboard@npm%3A2.7.0#~/.yarn/patches/@medusajs-dashboard-npm-2.7.0-ce9627d7f1.patch"
+    "remix-hook-form": "7.0.1"
   },
   "packageManager": "yarn@4.5.0",
   "workspaces": [

@@ -1,6 +1,6 @@
 # Live chef availability
 
-Settings → Availability owns chef timezone, weekly working windows, date overrides and Google conflict mode. Hours start unconfigured: no opening hours are invented. Empty date overrides close a date; nonempty overrides replace that weekday's hours. Split overnight windows across dates.
+Availability in the primary sidebar owns chef timezone, weekly working windows, date overrides and Google conflict mode. Hours start unconfigured: no opening hours are invented. Empty date overrides close a date; nonempty overrides replace that weekday's hours. Split overnight windows across dates.
 
 Experience Types owns duration, off-site preparation, travel each way, additional cleanup, advance notice and arrival restrictions. Duration runs from chef arrival to the end of the experience and includes on-site preparation. Occupied time starts preparation + travel minutes before arrival and ends cleanup + travel minutes after the duration. The entire occupied interval must fit a working window. The existing six-month horizon is calculated server-side in the chef timezone.
 
@@ -38,9 +38,9 @@ Run `yarn workspace medusa test:unit`, both workspace `typecheck` commands and b
 
 The current workspace's `medusa lint` script cannot find root-installed ESLint; from `apps/medusa`, use `../../node_modules/.bin/eslint .`. Existing repository warnings remain.
 
-Port module registration, models/migrations, claims/constraints, workflows, experience schemas/SDKs, Google handling, Settings UI and storefront canonical slot fields together. Audit each client database separately. Preserve its OAuth configuration and digital shipping/Stripe setup. Neither client repository, production migrations nor deployment is included here.
+Port module registration, models/migrations, claims/constraints, workflows, experience schemas/SDKs, Google handling, Availability UI and storefront canonical slot fields together. Audit each client database separately. Preserve its OAuth configuration and digital shipping/Stripe setup. Neither client repository, production migrations nor deployment is included here.
 
-References checked against installed Medusa 2.7 conventions: [module transactions](https://docs.medusajs.com/learn/fundamentals/modules/db-operations), [Settings routes](https://docs.medusajs.com/learn/fundamentals/admin/ui-routes), and [Google Events list scopes/pagination](https://developers.google.com/workspace/calendar/api/v3/reference/events/list). Transaction imports use `@mikro-orm/knex`, as required before Medusa 2.11.
+References checked against installed Medusa 2.7 conventions: [module transactions](https://docs.medusajs.com/learn/fundamentals/modules/db-operations), [admin routes](https://docs.medusajs.com/learn/fundamentals/admin/ui-routes), and [Google Events list scopes/pagination](https://developers.google.com/workspace/calendar/api/v3/reference/events/list). Transaction imports use `@mikro-orm/knex`, as required before Medusa 2.11.
 
 ### Validation in the implementation workspace
 
@@ -51,33 +51,28 @@ References checked against installed Medusa 2.7 conventions: [module transaction
 - `git diff --check` passed. New source files were formatted; existing file styles were preserved where practical to reduce unrelated diff noise. Medusa's parameter decorators require a formatter that supports legacy TypeScript decorators.
 - Browser QA was attempted with a localhost fixture harness, but the in-app browser was unavailable and native-browser control stopped when the active window changed. Visual and end-to-end payment checks remain manual. No live Google calendar or Stripe account was used.
 
-### Medusa 2.7 Availability page 404 correction
+### Availability navigation
 
-Medusa 2.7.0 retains the `settings` path segment when nesting custom settings
-routes under `/settings`. That made the generated route resolve at
-`/app/settings/settings/availability` while the menu and links correctly target
-`/app/settings/availability`. This is the upstream regression tracked in
-[Medusa issue #12256](https://github.com/medusajs/medusa/issues/12256).
+Availability is a top-level admin page at `/app/availability`, placed immediately
+below Events using the existing primary-sidebar menu configuration. Working hours,
+date exceptions and Google Calendar controls remain together on this page. Events,
+the Store shortcut and the Google OAuth return path all use this canonical URL.
+The former `/app/settings/availability` URL is no longer supported; update saved
+bookmarks. There is no custom Settings route, dashboard dependency patch or Medusa
+version upgrade.
 
-The root Yarn resolution applies a three-line patch to `@medusajs/dashboard`
-2.7.0: pass `/settings` to its existing `createRouteMap` prefix-removal argument
-in the shipped TSX source and both compiled bundles. The source patch is essential:
-this project's Unlock plugin redirects the admin entry to Medusa's shipped source.
-A bundle-only patch builds successfully but does not fix this project's UI.
-No route URLs, Medusa versions, database schema, or availability behavior change.
+After pulling, run `yarn install --immutable` at the repository root to remove the
+previous dependency patch, then restart your local Medusa dev process and reload
+the admin. Rebuild first if serving a production build. No database migration is
+needed for this navigation change. The agent did not restart the manual-test server.
 
-After pulling this correction, run `YARN_ENABLE_SCRIPTS=false yarn install --immutable`
-from the repository root, then restart your local Medusa dev process and reload the
-admin. Disabling install scripts avoids this repository's database-changing
-`prepare` command. If testing a production build, rebuild it before restarting.
-No migration is needed for this routing correction. The running manual-test server
-was not restarted by the agent.
+Routing tests exercise unpatched Medusa 2.7's generated routes, its shipped source
+route-building method and React Router, including direct navigation and the primary
+sidebar target. Component imports are stubbed, so these tests do not establish
+visual browser or backend API coverage.
 
-Five routing regression tests execute Medusa's actual generated routes/menu and
-its shipped source route-building method with React Router. They cover initial
-navigation, navigation to the generated menu target, no duplicate settings prefix,
-matching bundle patches, and reproduction of the original 404 without the patch.
-Component imports are stubbed in these route tests; they do not establish visual
-browser or backend API coverage. Remove the patch during a future Medusa upgrade
-only after these checks pass against the upgraded router without it; its source
-adapter is intentionally tied to the installed 2.7.0 layout.
+Navigation-change validation: all 97 unit tests (9 suites), Medusa typecheck,
+backend/admin production build, changed-file ESLint and `git diff --check` passed.
+The dependency manifests match the pre-patch feature baseline. Browser automation
+reported no connected browsers; direct navigation and primary-sidebar navigation
+were verified through the generated route tree and React Router, not a visual click.

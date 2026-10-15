@@ -33,7 +33,7 @@ const ChefEventsPage = () => {
       <Container className="divide-y p-0">
         <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Heading level="h1">Chef Events</Heading>
-          <Link className="text-sm underline" to="/settings/availability">
+          <Link className="text-sm underline" to="/availability">
             Availability settings
           </Link>
           <Button className="w-full shrink-0 sm:w-auto" onClick={() => setShowCreateModal(true)}>

@@ -3,9 +3,9 @@ import { Button, Container, Heading, Input, Text, toast } from '@medusajs/ui';
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { sdk } from '../../../../sdk';
-import GoogleCalendarPanel from '../../../components/availability/google-calendar-panel';
-import type { Settings } from '../../../../lib/availability/slots';
+import { sdk } from '../../../sdk';
+import GoogleCalendarPanel from '../../components/availability/google-calendar-panel';
+import type { Settings } from '../../../lib/availability/slots';
 type Window = { start: string; end: string };
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 function Windows({ value, onChange }: { value: Window[]; onChange: (v: Window[]) => void }) {

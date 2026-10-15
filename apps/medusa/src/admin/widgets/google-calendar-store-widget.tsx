@@ -7,7 +7,7 @@ const AvailabilityLink = () => {
     <Container>
       <Text>
         Google Calendar settings have moved to{' '}
-        <Link className="underline" to="/settings/availability">
+        <Link className="underline" to="/availability">
           Availability
         </Link>
         .

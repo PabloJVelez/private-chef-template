@@ -3,6 +3,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createMemoryRouter, matchRoutes, type RouteObject } from 'react-router-dom';
 import type { ReactElement } from 'react';
+import menuConfig from '../../admin/overrides/menu.config';
 
 // Exercise the installed, pinned Medusa router, not a duplicate of its algorithm.
 // Upgrade this adapter with Medusa: it intentionally fails if its internals move.
@@ -14,7 +15,7 @@ const helpers = dashboard
   .split('// src/dashboard-app/routes/utils.ts')[1]
   .split('// src/dashboard-app/dashboard-app.tsx')[0];
 // This repository's Unlock plugin uses Medusa's shipped TSX source instead of
-// the bundles. Verify that real execution path as well as both bundles.
+// the bundles. Verify the unpatched real execution path and both bundles.
 const dashboardSource = fs.readFileSync(
   path.join(path.dirname(require.resolve('@medusajs/dashboard/package.json')), 'src/dashboard-app/dashboard-app.tsx'),
   'utf8',
@@ -51,15 +52,15 @@ let routes: any[];
 let availabilityComponent: any;
 beforeAll(async () => {
   const routeModule = await generatedModule('virtual:medusa/routes');
-  availabilityComponent = routeModule.routes.find((route: any) => route.path === '/settings/availability').Component;
+  availabilityComponent = routeModule.routes.find((route: any) => route.path === '/availability').Component;
   const { coreRoutes, settingsRoutes } = populate([{ routeModule }]);
   // Medusa's core route tree mounts settings extensions inside /settings.
   expect(dashboard).toMatch(/path: "\/settings"/);
   routes = [...coreRoutes, { path: '/settings', children: settingsRoutes }];
 });
 
-test('generated Availability page resolves on direct /app/settings/availability navigation', async () => {
-  const router = createMemoryRouter(routes, { basename: '/app', initialEntries: ['/app/settings/availability'] });
+test('generated Availability page resolves on direct /app/availability navigation', async () => {
+  const router = createMemoryRouter(routes, { basename: '/app', initialEntries: ['/app/availability'] });
   if (!router.state.initialized) {
     await new Promise<void>((resolve) => {
       const unsubscribe = router.subscribe((state) => {
@@ -77,13 +78,16 @@ test('generated Availability page resolves on direct /app/settings/availability 
   router.dispose();
 });
 
-test('generated Settings menu target navigates to the Availability page', async () => {
+test('primary sidebar Availability target navigates to the generated page', async () => {
   const menu = await generatedModule('virtual:medusa/menu-items');
-  const item = menu.menuItems.find((entry: any) => entry.path === '/settings/availability');
-  expect(item).toBeDefined();
+  const generated = menu.menuItems.find((entry: any) => entry.path === '/availability');
+  expect(generated).toBeDefined();
+  const item = menuConfig.add?.find((entry) => entry.to === '/availability');
+  expect(item?.label).toBe('Availability');
+  expect(menuConfig.order?.indexOf('/availability')).toBe((menuConfig.order?.indexOf('/chef-events') ?? -2) + 1);
   const router = createMemoryRouter(routes, { basename: '/app', initialEntries: ['/app/chef-events'] });
-  await router.navigate(item.path);
-  expect(router.state.location.pathname).toBe('/app/settings/availability');
+  await router.navigate(item!.to);
+  expect(router.state.location.pathname).toBe('/app/availability');
   expect(router.state.errors).toBeNull();
   expect(((router.state.matches.at(-1)?.route as RouteObject)?.element as ReactElement)?.type).toBe(
     availabilityComponent,
@@ -91,24 +95,16 @@ test('generated Settings menu target navigates to the Availability page', async 
   router.dispose();
 });
 
-test('settings prefix is not doubled and other routes still resolve', () => {
+test('only the top-level Availability route exists and other pages still resolve', () => {
+  expect(matchRoutes(routes, '/settings/availability')).toBeNull();
   expect(matchRoutes(routes, '/settings/settings/availability')).toBeNull();
   expect(matchRoutes(routes, '/chef-events')).not.toBeNull();
 });
 
-test('both shipped bundles retain the same settings prefix fix', () => {
+test('Medusa source and bundles are unpatched', () => {
   const cjs = fs.readFileSync(require.resolve('@medusajs/dashboard'), 'utf8');
-  for (const code of [dashboard, cjs]) {
-    expect(code).toContain('createRouteMap(filteredSettingsRoutes, "/settings")');
+  for (const code of [dashboardSource, dashboard, cjs]) {
+    expect(code).toContain('createRouteMap(filteredSettingsRoutes)');
+    expect(code).not.toContain('createRouteMap(filteredSettingsRoutes, "/settings")');
   }
-});
-
-test('unpatched Medusa source reproduces the reported 404', async () => {
-  const broken = vm.runInNewContext(
-    `const ErrorBoundary = () => null; ${helpers}; ({ ${populateRoutes.replace(', "/settings"', '')} }).populateRoutes`,
-  );
-  const { settingsRoutes } = broken([{ routeModule: await generatedModule('virtual:medusa/routes') }]);
-  const brokenTree = [{ path: '/settings', children: settingsRoutes }];
-  expect(matchRoutes(brokenTree, '/settings/availability')).toBeNull();
-  expect(matchRoutes(brokenTree, '/settings/settings/availability')).not.toBeNull();
 });

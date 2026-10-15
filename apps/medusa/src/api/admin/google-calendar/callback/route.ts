@@ -77,5 +77,5 @@ export async function GET(
   await svc.upsertPrimaryConnection(payload);
   await ensureGoogleCalendarWatchAndBootstrapSync(req.scope, svc);
 
-  res.redirect("/app/settings/availability");
+  res.redirect("/app/availability");
 }
