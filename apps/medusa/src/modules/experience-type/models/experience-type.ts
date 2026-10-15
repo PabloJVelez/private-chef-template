@@ -16,6 +16,9 @@ export const ExperienceType = model.define('experience_type', {
   pricing_type: model.enum(['per_person', 'per_item', 'product_based']).default('per_person'),
   price_per_unit: model.bigNumber().nullable(),
 
+  preparation_minutes: model.number().default(0),
+  travel_minutes: model.number().default(0),
+  cleanup_minutes: model.number().default(0),
   duration_minutes: model.number().nullable(),
   duration_display: model.text().nullable(),
 

@@ -22,7 +22,7 @@ export interface StoreChefEventDTO {
     id: string;
     name: string;
     amount: number;
-    status: "pending" | "paid" | "void";
+    status: 'pending' | 'paid' | 'void';
   }>;
   paymentSummary?: {
     minimumInitialTicketQuantity: number;
@@ -40,6 +40,7 @@ export interface StoreChefEventDTO {
 }
 
 export interface StoreCreateChefEventDTO {
+  slotStart: string;
   requestedDate: string;
   requestedTime: string;
   partySize: number;
@@ -86,9 +87,7 @@ export const calculateEventPrice = (eventType: string, partySize: number): numbe
 };
 
 // Create a chef event request
-export const createChefEventRequest = async (
-  data: StoreCreateChefEventDTO
-): Promise<StoreChefEventResponse> => {
+export const createChefEventRequest = async (data: StoreCreateChefEventDTO): Promise<StoreChefEventResponse> => {
   try {
     const requestUrl = `${baseMedusaConfig.baseUrl}/store/chef-events`;
 
@@ -126,9 +125,9 @@ export const createChefEventRequest = async (
 
     // Wrap other errors
     throw new Error(
-      error instanceof Error 
+      error instanceof Error
         ? `Failed to create chef event request: ${error.message}`
-        : 'Failed to create chef event request: Unknown error'
+        : 'Failed to create chef event request: Unknown error',
     );
   }
 };
@@ -157,7 +156,7 @@ export const validateEventRequest = (data: StoreCreateChefEventDTO): string[] =>
     const eventDate = new Date(data.requestedDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (eventDate < today) {
       errors.push('Event date cannot be in the past');
     }
@@ -186,4 +185,4 @@ export const validateEventRequest = (data: StoreCreateChefEventDTO): string[] =>
   }
 
   return errors;
-}; 
+};

@@ -15,6 +15,9 @@ export interface AdminExperienceTypeDTO {
   ideal_for?: string | null;
   pricing_type: PricingType;
   price_per_unit?: number | null;
+  preparation_minutes?: number;
+  travel_minutes?: number;
+  cleanup_minutes?: number;
   duration_minutes?: number | null;
   duration_display?: string | null;
   is_product_based: boolean;
@@ -46,6 +49,9 @@ export interface AdminCreateExperienceTypeDTO {
   ideal_for?: string | null;
   pricing_type?: PricingType;
   price_per_unit?: number | null;
+  preparation_minutes?: number;
+  travel_minutes?: number;
+  cleanup_minutes?: number;
   duration_minutes?: number | null;
   duration_display?: string | null;
   is_product_based?: boolean;

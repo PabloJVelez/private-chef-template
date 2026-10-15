@@ -12,6 +12,9 @@ export interface StoreExperienceTypeDTO {
   ideal_for?: string | null;
   pricing_type: 'per_person' | 'per_item' | 'product_based';
   price_per_unit?: number | null;
+  preparation_minutes?: number;
+  travel_minutes?: number;
+  cleanup_minutes?: number;
   duration_minutes?: number | null;
   duration_display?: string | null;
   is_product_based: boolean;
