@@ -2,6 +2,7 @@ import { Button, Heading, Input, Text } from '@medusajs/ui';
 import { useState } from 'react';
 import type { Settings } from '../../../lib/availability/slots';
 import { applyException, cloneHours, dateRange, type Hours } from './editor';
+import { HelpTip } from './help-tip';
 import { HoursEditor } from './hours-editor';
 
 type Form = {
@@ -76,16 +77,19 @@ export function ExceptionsEditor({
   return (
     <section className="space-y-3" aria-labelledby="exceptions-heading">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Heading id="exceptions-heading" level="h2">
-          Days off &amp; special hours
-        </Heading>
+        <div className="flex items-center gap-1">
+          <Heading id="exceptions-heading" level="h2">
+            Days off &amp; special hours
+          </Heading>
+          <HelpTip
+            label="About days off and special hours"
+            content="Change a day or a range of dates without changing your usual week. You can save exceptions for up to 366 dates. Applying adds changes to your draft; save availability to publish them."
+          />
+        </div>
         <Button size="small" variant="secondary" disabled={!!form} onClick={() => open()}>
           Add dates
         </Button>
       </div>
-      <Text size="small" className="text-ui-fg-subtle">
-        Change a day or a range of dates without changing your usual week.
-      </Text>
       {form && (
         <div className="space-y-3 rounded-lg border p-4">
           <div className="flex flex-wrap items-end gap-3">
@@ -159,9 +163,6 @@ export function ExceptionsEditor({
               {overlaps.length > 4 ? '…' : ''}
             </label>
           )}
-          <Text size="small" className="text-ui-fg-subtle">
-            Up to 366 exception dates total. Applying adds these changes to your draft.
-          </Text>
           {error && (
             <Text role="alert" className="text-ui-fg-error">
               {error}

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { Settings } from '../../../lib/availability/slots';
 import { dayNames } from './editor';
 import { HoursEditor } from './hours-editor';
+import { HelpTip } from './help-tip';
 export function WorkingDays({
   settings,
   onChange,
@@ -24,16 +25,16 @@ export function WorkingDays({
   return (
     <div className="space-y-3">
       <Text size="small" className="text-ui-fg-subtle">
-        Days not listed are unavailable. Add only the days you work.
+        Days not listed are unavailable.
       </Text>
       <div className="divide-y">
         {[...configured, ...(blank ? [''] : [])].map((day) => (
-          <div key={day || 'new'} className="grid gap-3 py-3 md:grid-cols-[160px_1fr_auto]">
-            <label className="self-start text-sm">
-              Working day
+          <div key={day || 'new'} className="grid items-start gap-3 py-4 xl:grid-cols-[10rem_25rem_auto] xl:gap-4">
+            <label className="block max-w-40 text-sm leading-5">
+              <span className="mb-1 block">Working day</span>
               <select
                 aria-label={day ? `Working day ${dayNames[Number(day) - 1]}` : 'New working day'}
-                className="mt-1 block w-full rounded border p-2"
+                className="block h-8 w-full rounded border border-ui-border-base bg-ui-bg-field px-2 py-1 text-ui-fg-base"
                 value={day}
                 onChange={(e) => move(day, e.target.value)}
               >
@@ -57,11 +58,11 @@ export function WorkingDays({
                 onChange={(hours) => onChange({ ...settings, weekly: { ...settings.weekly, [day]: hours } })}
               />
             ) : (
-              <Text size="small" className="self-center text-ui-fg-muted">
-                Choose a day, then enter your hours. Nothing is saved yet.
+              <Text size="small" className="self-start text-ui-fg-muted xl:pt-6">
+                Choose a working day to add hours.
               </Text>
             )}
-            <div className="flex flex-wrap gap-1 self-start">
+            <div className="flex flex-wrap items-center gap-1 xl:pt-6">
               {day && (
                 <Button size="small" variant="transparent" onClick={() => onCopy(day)}>
                   Copy hours
@@ -71,7 +72,7 @@ export function WorkingDays({
                 <Button
                   size="small"
                   variant="transparent"
-                  aria-label={day ? `Remove ${dayNames[Number(day) - 1]}` : 'Cancel new day'}
+                  aria-label={day ? `Remove ${dayNames[Number(day) - 1]} working day` : 'Cancel new day'}
                   onClick={() => {
                     if (!day) {
                       setAdding(false);
@@ -82,21 +83,27 @@ export function WorkingDays({
                     onChange({ ...settings, weekly });
                   }}
                 >
-                  Remove
+                  {day ? 'Remove day' : 'Cancel'}
                 </Button>
               )}
             </div>
           </div>
         ))}
       </div>
-      <Button
-        size="small"
-        variant="secondary"
-        disabled={blank || configured.length === 7}
-        onClick={() => setAdding(true)}
-      >
-        Add working day
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button
+          size="small"
+          variant="secondary"
+          disabled={blank || configured.length === 7}
+          onClick={() => setAdding(true)}
+        >
+          Add working day
+        </Button>
+        <HelpTip
+          label="About adding working days"
+          content="Add only the days you work, then enter your hours. New hours start blank. Save availability to publish your changes."
+        />
+      </div>
     </div>
   );
 }

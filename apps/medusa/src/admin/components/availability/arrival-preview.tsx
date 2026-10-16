@@ -1,6 +1,7 @@
 import { Button, Heading, Input, Text } from '@medusajs/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { HelpTip } from './help-tip';
 import { sdk } from '../../../sdk';
 export function ArrivalPreview({
   configured,
@@ -27,15 +28,17 @@ export function ArrivalPreview({
       : undefined;
   return (
     <section className="space-y-3" aria-labelledby="preview-heading">
-      <Heading level="h2" id="preview-heading">
-        What clients can request
-      </Heading>
+      <div className="flex items-center gap-1">
+        <Heading level="h2" id="preview-heading">
+          What clients can request
+        </Heading>
+        <HelpTip
+          label="About arrival-time preview"
+          content="Includes saved hours, accepted bookings, your calendar choice, and the experience’s length, travel and preparation time."
+        />
+      </div>
       <Text size="small" weight="plus">
         Client arrival times · saved schedule
-      </Text>
-      <Text size="small" className="text-ui-fg-subtle">
-        Includes saved hours, accepted bookings, your calendar choice, and the experience’s length, travel and
-        preparation time.
       </Text>
       {dirty && (
         <Text size="small" role="status">

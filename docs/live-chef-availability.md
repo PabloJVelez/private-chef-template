@@ -183,3 +183,28 @@ and retry after calendar failure. Desktop and narrow-width visual QA remain requ
 When porting later, include the shared query refactor, calendar API and proxy, schema,
 request components, working-day editor and tests together; first confirm each client's
 base availability migrations and accepted-booking backfill from the earlier checklist.
+
+### Working-day alignment and contextual help
+
+Working-day, Start and End labels now sit above consistently aligned controls.
+Desktop rows use bounded columns with day actions beside the first period, rather
+than at the far edge of a stretching column. Repeated periods use the same columns;
+narrow layouts stack day controls and keep time pairs together. Visible actions now
+say Remove period and Remove day, with weekday/period-specific accessible names.
+
+Supplementary working-window, add-day, exception, preview and booking-rule guidance
+uses Medusa Tooltip and named IconButton triggers, following the existing menu-pricing
+pattern. The dashboard's `providers/providers.tsx` wraps its routes in TooltipProvider;
+the rendered tests now reproduce that context. Essential labels, omitted-day status,
+validation, unsaved-state and Google availability warnings remain visible. No stored
+schedule or booking behavior changed.
+
+Validation: all 121 Medusa unit tests (13 suites), Medusa typecheck, backend/admin
+production build and changed-file ESLint passed; lint reported zero warnings/errors.
+New tests verify keyboard-focus tooltip content, Escape dismissal, distinct removal
+labels and independent removal from a split day. Browser fixture QA used the real
+components and production admin CSS at 1280×720 and 390×844 in dark mode. Alignment,
+wrapping, focus indication, tooltip focus/Escape, add-day and remove-period/day actions
+were checked. This was isolated component QA, not a full authenticated admin session;
+native time-field typing still warrants manual review (automated fill did not persist
+in the fixture). No backend, calendar, or saved schedule was accessed for browser QA.

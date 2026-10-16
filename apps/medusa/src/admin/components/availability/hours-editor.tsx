@@ -7,37 +7,43 @@ export function HoursEditor({
 }: { value: Hours; onChange: (hours: Hours) => void; label: string }) {
   const error = hoursError(value);
   return (
-    <div className="min-w-0 space-y-2">
+    <div className="w-full min-w-0 max-w-[25rem] space-y-2">
       {value.map((hours, index) => (
-        <div key={index} className="flex flex-wrap items-center gap-2">
-          <Input
-            className="!w-32"
-            aria-label={`${label} start ${index + 1}`}
-            aria-invalid={!!error}
-            type="time"
-            value={hours.start}
-            onChange={(event) =>
-              onChange(value.map((item, i) => (i === index ? { ...item, start: event.target.value } : item)))
-            }
-          />
-          <span aria-hidden="true">–</span>
-          <Input
-            className="!w-32"
-            aria-label={`${label} end ${index + 1}`}
-            aria-invalid={!!error}
-            type="time"
-            value={hours.end}
-            onChange={(event) =>
-              onChange(value.map((item, i) => (i === index ? { ...item, end: event.target.value } : item)))
-            }
-          />
+        <div key={index} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <label className="min-w-0 text-sm leading-5">
+            <span className="mb-1 block">Start</span>
+            <Input
+              className="w-full min-w-0"
+              aria-label={`${label} start ${index + 1}`}
+              aria-invalid={!!error}
+              type="time"
+              value={hours.start}
+              onChange={(event) =>
+                onChange(value.map((item, i) => (i === index ? { ...item, start: event.target.value } : item)))
+              }
+            />
+          </label>
+          <label className="min-w-0 text-sm leading-5">
+            <span className="mb-1 block">End</span>
+            <Input
+              className="w-full min-w-0"
+              aria-label={`${label} end ${index + 1}`}
+              aria-invalid={!!error}
+              type="time"
+              value={hours.end}
+              onChange={(event) =>
+                onChange(value.map((item, i) => (i === index ? { ...item, end: event.target.value } : item)))
+              }
+            />
+          </label>
           <Button
             size="small"
             variant="transparent"
+            className="col-span-2 justify-self-start sm:col-span-1"
             aria-label={`Remove ${label} period ${index + 1}`}
             onClick={() => onChange(value.filter((_, i) => i !== index))}
           >
-            Remove
+            Remove period
           </Button>
         </div>
       ))}

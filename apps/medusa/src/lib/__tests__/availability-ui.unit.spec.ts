@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 import React from 'react';
+import { TooltipProvider } from '@medusajs/ui';
 import { act, Simulate } from 'react-dom/test-utils';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -35,7 +36,13 @@ let client: QueryClient;
 const settle = () => new Promise((resolve) => setTimeout(resolve, 15));
 async function render(element: React.ReactElement) {
   await act(async () => {
-    root.render(React.createElement(QueryClientProvider, { client }, React.createElement(MemoryRouter, null, element)));
+    root.render(
+      React.createElement(
+        QueryClientProvider,
+        { client },
+        React.createElement(MemoryRouter, null, React.createElement(TooltipProvider, null, element)),
+      ),
+    );
     await settle();
   });
 }
@@ -161,7 +168,7 @@ test('configured days can move and be removed; adding excludes duplicates and st
   expect((host.querySelector('[aria-label="Tuesday start 1"]') as HTMLInputElement).value).toBe('');
   await change(host.querySelector('[aria-label="Working day Monday"]')!, '3');
   expect((host.querySelector('[aria-label="Wednesday start 1"]') as HTMLInputElement).value).toBe('10:00');
-  await act(async () => Simulate.click(host.querySelector('[aria-label="Remove Wednesday"]')!));
+  await act(async () => Simulate.click(host.querySelector('[aria-label="Remove Wednesday working day"]')!));
   expect(host.querySelector('[aria-label="Wednesday start 1"]')).toBeNull();
   await click('Discard');
   expect((host.querySelector('[aria-label="Monday start 1"]') as HTMLInputElement).value).toBe('10:00');
@@ -188,4 +195,42 @@ test('successful saved revision refreshes preview while unsaved edits do not', a
   expect(api.preview).toHaveBeenCalledTimes(calls);
   await render(React.createElement(ArrivalPreview, { configured: true, dirty: false, revision: 1 }));
   expect(api.preview).toHaveBeenCalledTimes(calls + 1);
+});
+
+test('working-window guidance uses a named keyboard tooltip and removal controls identify their scope', async () => {
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  expect(host.textContent).not.toContain('Leave room for the whole visit');
+  const help = host.querySelector<HTMLButtonElement>('[aria-label="About working hours"]')!;
+  expect(help.tagName).toBe('BUTTON');
+  await act(async () => {
+    help.focus();
+    await settle();
+  });
+  expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Leave room for the whole visit');
+  await act(async () => {
+    help.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+  });
+  expect(document.querySelector('[role="tooltip"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Remove Monday period 1"]')?.textContent).toBe('Remove period');
+  expect(host.querySelector('[aria-label="Remove Monday working day"]')?.textContent).toBe('Remove day');
+});
+test('split periods retain distinct labels and independent remove actions', async () => {
+  api.get.mockResolvedValue({
+    settings: {
+      ...saved,
+      weekly: {
+        '1': [
+          { start: '09:00', end: '12:00' },
+          { start: '14:00', end: '18:00' },
+        ],
+      },
+    },
+  });
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  await act(async () => Simulate.click(host.querySelector('[aria-label="Remove Monday period 1"]')!));
+  expect((host.querySelector('[aria-label="Monday start 1"]') as HTMLInputElement).value).toBe('14:00');
+  expect(host.querySelector('[aria-label="Remove Monday working day"]')).not.toBeNull();
 });

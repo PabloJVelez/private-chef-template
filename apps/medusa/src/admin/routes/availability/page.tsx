@@ -8,6 +8,7 @@ import { availabilitySettingsSchema, type Settings } from '../../../lib/availabi
 import GoogleCalendarPanel from '../../components/availability/google-calendar-panel';
 import { ArrivalPreview } from '../../components/availability/arrival-preview';
 import { ExceptionsEditor } from '../../components/availability/exceptions-editor';
+import { HelpTip } from '../../components/availability/help-tip';
 import { WorkingDays } from '../../components/availability/working-days';
 import { copyDays, dayNames, editorReducer, equalSettings, initialEditor } from '../../components/availability/editor';
 
@@ -130,12 +131,12 @@ const AvailabilityPage = () => {
         </Text>
       )}
       <Container className="space-y-4">
-        <div>
+        <div className="flex items-center gap-1">
           <Heading level="h2">Your usual week</Heading>
-          <Text size="small" className="text-ui-fg-subtle">
-            Choose when you’re available to work. Leave room for the whole visit, preparation, travel and cleanup—not
-            only the client’s arrival.
-          </Text>
+          <HelpTip
+            label="About working hours"
+            content="Choose when you’re available to work. Leave room for the whole visit, preparation, travel and cleanup—not only the client’s arrival."
+          />
         </div>
         <label className="block max-w-md text-sm">
           Your timezone
@@ -244,23 +245,16 @@ const AvailabilityPage = () => {
           those times.
         </Text>
       </GoogleCalendarPanel>
-      <details className="rounded border p-4 text-sm">
-        <summary className="cursor-pointer font-medium">How hours and booking requests work</summary>
-        <div className="mt-3 space-y-2">
-          <Text size="small">
-            Pending requests do not reserve time. Accepted bookings do. Clients see arrival times only when the full
-            working period fits, including the experience’s preparation, travel and cleanup.
-          </Text>
-          <Text size="small">
-            Set duration and extra time in{' '}
-            <Link className="underline" to="/experience-types">
-              Experiences
-            </Link>
-            . On-site preparation is already included in arrival-to-finish duration. Split overnight hours across dates;
-            periods can touch but cannot overlap.
-          </Text>
-        </div>
-      </details>
+      <div className="flex flex-wrap items-center gap-2 rounded border p-4 text-sm">
+        <Text size="small">Experience duration and buffers</Text>
+        <HelpTip
+          label="About booking requests and experience duration"
+          content="Pending requests do not reserve time. Accepted bookings do. Clients see arrival times only when the full working period fits, including preparation, travel and cleanup. On-site preparation is already included in arrival-to-finish duration. Split overnight hours across dates; periods can touch but cannot overlap."
+        />
+        <Link className="underline" to="/experience-types">
+          Manage experiences
+        </Link>
+      </div>
     </div>
   );
 };
