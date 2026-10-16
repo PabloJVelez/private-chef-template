@@ -8,17 +8,13 @@ import GoogleCalendarConnectionModuleService from '../../modules/google-calendar
 import { GOOGLE_CALENDAR_CONNECTION_MODULE } from '../../modules/google-calendar-connection';
 import { EXPERIENCE_TYPE_MODULE } from '../../modules/experience-type';
 import { CHEF_EVENT_MODULE } from '../../modules/chef-event';
-import { availabilitySettingsSchema, calculateSlots, type Interval } from './slots';
+import { availabilitySettingsSchema, calculateSlots, overlaps, type Interval } from './slots';
 import { googleBusy } from './google-busy';
 
-export async function availableSlots(
-  container: MedusaContainer,
-  date: string,
-  experienceId: string,
-  ignoreEventId?: string,
-) {
-  const availability = container.resolve<AvailabilityModuleService>('availability');
-  const [raw] = await availability.listAvailabilitySettings({ id: 'chef-default' });
+async function loadSchedule(container: MedusaContainer, experienceId: string) {
+  const [raw] = await container
+    .resolve<AvailabilityModuleService>('availability')
+    .listAvailabilitySettings({ id: 'chef-default' });
   if (!raw)
     throw new MedusaError(
       MedusaError.Types.NOT_ALLOWED,
@@ -29,49 +25,108 @@ export async function availableSlots(
     .resolve<ExperienceTypeModuleService>(EXPERIENCE_TYPE_MODULE)
     .retrieveExperienceType(experienceId);
   if (!experience.is_active) throw new MedusaError(MedusaError.Types.INVALID_DATA, 'Experience is not available.');
-  const chef = container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
-  const google = container.resolve<GoogleCalendarConnectionModuleService>(GOOGLE_CALENDAR_CONNECTION_MODULE);
-  const busy: Interval[] = [];
-  const candidateSlots = calculateSlots(date, settings, experience, []);
+  const now = DateTime.utc();
+  const today = now.setZone(settings.timezone).startOf('day');
+  return {
+    settings,
+    experience,
+    now,
+    minDate: today
+      .plus({ days: experience.requires_advance_notice ? (experience.advance_notice_days ?? 7) : 0 })
+      .toISODate()!,
+    maxDate: today.plus({ months: 6 }).toISODate()!,
+  };
+}
 
+/** Reuse one internal-booking read and one paginated Google lookup for a bounded set of days. */
+async function calculateDates(
+  container: MedusaContainer,
+  schedule: Awaited<ReturnType<typeof loadSchedule>>,
+  dates: string[],
+  ignoreEventId?: string,
+) {
+  const { settings, experience, now } = schedule;
+  const candidates = dates.map((date) => ({ date, slots: calculateSlots(date, settings, experience, [], now) }));
+  if (!candidates.some((day) => day.slots.length)) return candidates;
+  const chef = container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
+  const busy: Interval[] = [];
   const pending = new Set<string>();
   for (let skip = 0; ; skip += 250) {
     const events = await chef.listChefEvents({}, { skip, take: 250 });
-    for (const e of events) {
-      if (e.status === 'pending' && !e.acceptanceToken) pending.add(e.id);
-      if (e.id !== ignoreEventId && (e.status === 'confirmed' || e.status === 'completed' || e.acceptanceToken)) {
-        if (!e.occupiedStart || !e.occupiedEnd) throw new Error('An existing booking needs an availability backfill.');
-        busy.push({ start: new Date(e.occupiedStart).toISOString(), end: new Date(e.occupiedEnd).toISOString() });
+    for (const event of events) {
+      if (event.status === 'pending' && !event.acceptanceToken) pending.add(event.id);
+      if (
+        event.id !== ignoreEventId &&
+        (event.status === 'confirmed' || event.status === 'completed' || event.acceptanceToken)
+      ) {
+        if (!event.occupiedStart || !event.occupiedEnd)
+          throw new Error('An existing booking needs an availability backfill.');
+        busy.push({
+          start: new Date(event.occupiedStart).toISOString(),
+          end: new Date(event.occupiedEnd).toISOString(),
+        });
       }
     }
     if (events.length < 250) break;
   }
-  if (settings.google_mode === 'required' && candidateSlots.length > 0) {
-    const ignored = new Set<string>();
+  if (settings.google_mode === 'required') {
+    const google = container.resolve<GoogleCalendarConnectionModuleService>(GOOGLE_CALENDAR_CONNECTION_MODULE);
     const connection = await google.getPrimaryConnection();
+    const ignored = new Set<string>();
     for (let skip = 0; ; skip += 250) {
       const maps = await google.listGoogleCalendarSyncMaps({}, { skip, take: 250 });
       for (const map of maps)
         if (map.connectionId === connection?.id && pending.has(map.chefEventId)) ignored.add(map.googleEventId);
       if (maps.length < 250) break;
     }
-    const day = DateTime.fromISO(date, { zone: settings.timezone }).startOf('day');
-    if (!day.isValid) throw new Error('Invalid availability date.');
-    busy.push(...(await googleBusy(google, day.toUTC().toISO()!, day.plus({ days: 1 }).toUTC().toISO()!, ignored)));
+    const first = DateTime.fromISO(dates[0], { zone: settings.timezone }).startOf('day');
+    const last = DateTime.fromISO(dates[dates.length - 1], { zone: settings.timezone })
+      .plus({ days: 1 })
+      .startOf('day');
+    busy.push(...(await googleBusy(google, first.toUTC().toISO()!, last.toUTC().toISO()!, ignored)));
   }
-  const now = DateTime.utc();
+  return candidates.map(({ date, slots }) => ({
+    date,
+    slots: slots.filter(
+      (slot) => !busy.some((interval) => overlaps({ start: slot.occupiedStart, end: slot.occupiedEnd }, interval)),
+    ),
+  }));
+}
+
+export async function availableSlots(
+  container: MedusaContainer,
+  date: string,
+  experienceId: string,
+  ignoreEventId?: string,
+) {
+  const schedule = await loadSchedule(container, experienceId);
+  const [day] = await calculateDates(container, schedule, [date], ignoreEventId);
   return {
-    timezone: settings.timezone,
+    timezone: schedule.settings.timezone,
     date,
     experienceId,
-    minDate: now
-      .setZone(settings.timezone)
-      .startOf('day')
-      .plus({ days: experience.requires_advance_notice ? experience.advance_notice_days : 0 })
-      .toISODate(),
-    maxDate: now.setZone(settings.timezone).plus({ months: 6 }).toISODate(),
-    slots: calculateSlots(date, settings, experience, busy, now),
-    experience,
+    minDate: schedule.minDate,
+    maxDate: schedule.maxDate,
+    slots: day.slots,
+    experience: schedule.experience,
+  };
+}
+
+export async function availableCalendar(container: MedusaContainer, experienceId: string, month?: string) {
+  const schedule = await loadSchedule(container, experienceId);
+  const selectedMonth = month || schedule.minDate.slice(0, 7);
+  const first = DateTime.fromISO(`${selectedMonth}-01`, { zone: schedule.settings.timezone });
+  if (!/^\d{4}-\d{2}$/.test(selectedMonth) || !first.isValid)
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, 'Choose a valid month.');
+  const dates = Array.from({ length: first.daysInMonth! }, (_, index) => first.plus({ days: index }).toISODate()!);
+  const result = await calculateDates(container, schedule, dates);
+  return {
+    month: selectedMonth,
+    experienceId,
+    timezone: schedule.settings.timezone,
+    minDate: schedule.minDate,
+    maxDate: schedule.maxDate,
+    dates: result.map(({ date, slots }) => ({ date, available: slots.length > 0 })),
   };
 }
 

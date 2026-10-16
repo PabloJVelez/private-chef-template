@@ -8,7 +8,7 @@ import { availabilitySettingsSchema, type Settings } from '../../../lib/availabi
 import GoogleCalendarPanel from '../../components/availability/google-calendar-panel';
 import { ArrivalPreview } from '../../components/availability/arrival-preview';
 import { ExceptionsEditor } from '../../components/availability/exceptions-editor';
-import { HoursEditor } from '../../components/availability/hours-editor';
+import { WorkingDays } from '../../components/availability/working-days';
 import { copyDays, dayNames, editorReducer, equalSettings, initialEditor } from '../../components/availability/editor';
 
 const timezoneNames = (() => {
@@ -157,53 +157,17 @@ const AvailabilityPage = () => {
             Choose a timezone from the list, such as Chicago or London.
           </Text>
         )}
-        <div className="divide-y">
-          {dayNames.map((day, index) => {
-            const key = String(index + 1);
-            const hours = settings.weekly[key as '1'] || [];
-            return (
-              <div className="grid gap-2 py-3 md:grid-cols-[170px_1fr_auto]" key={day}>
-                <label className="flex items-center gap-2 self-start py-1 text-sm">
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    aria-label={`${day} available`}
-                    checked={!!hours.length}
-                    onChange={(e) => dispatch({ type: 'toggle', day: key, enabled: e.target.checked })}
-                  />
-                  <span className="font-medium">{day}</span>
-                  <span className="sr-only">Available</span>
-                </label>
-                {hours.length ? (
-                  <HoursEditor
-                    label={day}
-                    value={hours}
-                    onChange={(value) => edit({ ...settings, weekly: { ...settings.weekly, [key]: value } })}
-                  />
-                ) : (
-                  <Text size="small" className="py-1 text-ui-fg-muted">
-                    Unavailable
-                  </Text>
-                )}
-                {hours.length > 0 && (
-                  <Button
-                    size="small"
-                    variant="transparent"
-                    className="self-start justify-self-start"
-                    onClick={() => {
-                      setCopyFrom(key);
-                      setTargets([]);
-                      setReplace(false);
-                      setCopyError('');
-                    }}
-                  >
-                    Copy hours
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <WorkingDays
+          key={discardVersion}
+          settings={settings}
+          onChange={edit}
+          onCopy={(day) => {
+            setCopyFrom(day);
+            setTargets([]);
+            setReplace(false);
+            setCopyError('');
+          }}
+        />
         {copyFrom && (
           <fieldset className="space-y-3 rounded-lg border p-3">
             <legend className="px-1 text-sm font-medium">Copy {dayNames[Number(copyFrom) - 1]}’s hours</legend>

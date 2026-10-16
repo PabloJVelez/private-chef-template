@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@app/components/common/buttons/Button';
 import { ActionList } from '@app/components/common/actions-list/ActionList';
 import type { StoreMenuDTO } from '@app/../types/menus';
-import type { EventRequestFormData } from '@app/routes/request._index';
+import type { EventRequestFormData } from './schema';
 import { RemixFormProvider, useRemixForm } from 'remix-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { eventRequestSchema } from '@app/routes/request._index';
+import { eventRequestSchema } from './schema';
 import { useActionData, useLocation } from 'react-router';
 import clsx from 'clsx';
 import type { FC } from 'react';
@@ -90,7 +90,7 @@ function mergeExperienceDefaults(
 
   return {
     eventType: initialValues.eventType ?? 'plated_dinner',
-    experienceTypeId: initialValues.experienceTypeId ?? '',
+    experienceTypeId: '',
   };
 }
 
@@ -116,9 +116,13 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceT
     if (actionData?.errors?.root?.message) form.setError('root', { message: actionData.errors.root.message });
   }, [actionData, form.setError]);
   const selectedExperience = form.watch('experienceTypeId');
+  form.watch('slotValidated');
   useEffect(() => {
     form.setValue('slotStart', '');
     form.setValue('requestedTime', '');
+    form.setValue('slotValidated', false);
+    form.setValue('slotTimezone', '');
+    form.setValue('slotLabel', '');
   }, [selectedExperience, form.setValue]);
 
   // Scroll to top whenever step changes
@@ -175,6 +179,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceT
         // Experience required, party size required
         return (
           !!values.eventType &&
+          !!values.experienceTypeId &&
           !errors.eventType &&
           !!values.menuId &&
           values.partySize >= 2 &&
@@ -187,6 +192,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceT
           !!values.requestedDate &&
           !!values.requestedTime &&
           !!values.slotStart &&
+          values.slotValidated === true &&
           !errors.requestedDate &&
           !errors.requestedTime &&
           !!values.firstName &&
@@ -214,8 +220,21 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceT
   const isAllComplete = () => {
     const v = form.getValues();
     const e = form.formState.errors;
-    const step1 = !!v.menuId && !!v.eventType && !e.eventType && v.partySize >= 2 && v.partySize <= 50 && !e.partySize;
-    const step2Date = !!v.requestedDate && !!v.requestedTime && !!v.slotStart && !e.requestedDate && !e.requestedTime;
+    const step1 =
+      !!v.menuId &&
+      !!v.eventType &&
+      !!v.experienceTypeId &&
+      !e.eventType &&
+      v.partySize >= 2 &&
+      v.partySize <= 50 &&
+      !e.partySize;
+    const step2Date =
+      !!v.requestedDate &&
+      !!v.requestedTime &&
+      !!v.slotStart &&
+      v.slotValidated === true &&
+      !e.requestedDate &&
+      !e.requestedTime;
     const step2Contact =
       !!v.firstName && !!v.lastName && !!v.email && !!v.phone && !e.firstName && !e.lastName && !e.email && !e.phone;
     const step2Location = !!v.locationAddress && v.locationAddress.length >= 10 && !e.locationAddress;
@@ -271,10 +290,16 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceT
       case 1:
         return (
           <div className="space-y-6">
+            {!selectedExperience && (
+              <p role="alert">
+                The experience catalog is unavailable or no experience is selected. Reload the page or contact the chef
+                before continuing.
+              </p>
+            )}
             {(() => {
               const v = form.getValues();
               const e = form.formState.errors;
-              const isEventTypeComplete = !!v.eventType && !e.eventType;
+              const isEventTypeComplete = !!v.eventType && !!v.experienceTypeId && !e.eventType;
               const isPartySizeComplete = v.partySize >= 2 && v.partySize <= 50 && !e.partySize;
               const isMenuSelected = !!v.menuId;
 
@@ -312,7 +337,12 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceT
               const v = form.getValues();
               const e = form.formState.errors;
               const isDateComplete =
-                !!v.requestedDate && !!v.requestedTime && !!v.slotStart && !e.requestedDate && !e.requestedTime;
+                !!v.requestedDate &&
+                !!v.requestedTime &&
+                !!v.slotStart &&
+                v.slotValidated === true &&
+                !e.requestedDate &&
+                !e.requestedTime;
               const isContactComplete =
                 !!v.firstName &&
                 !!v.lastName &&
@@ -382,7 +412,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceT
                   const btn = Array.from(document.querySelectorAll('button')).find((b) =>
                     b.textContent?.trim().startsWith(text),
                   );
-                  if (btn) (btn as HTMLButtonElement).click();
+                  if (btn?.getAttribute('aria-expanded') === 'false') (btn as HTMLButtonElement).click();
                 });
               }, 0);
             }}
@@ -430,6 +460,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceT
                   'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
                   currentStep >= step.id ? 'bg-accent-500 text-white' : 'bg-gray-200 text-gray-600',
                 )}
+                disabled={step.id > currentStep && !(step.id === currentStep + 1 ? canProceed() : isAllComplete())}
                 onClick={() => setCurrentStep(step.id)}
               >
                 {step.id}

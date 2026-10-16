@@ -75,6 +75,7 @@ export function calculateSlots(
     throw new Error('Experience scheduling is not configured.');
   // Arrival is the public start. On-site preparation is INCLUDED in duration; prep is off-site only.
   const work = settings.overrides[date] ?? settings.weekly[String(day.weekday) as keyof Settings['weekly']] ?? [];
+  if (!work.length) return [];
   const allowed = Array.isArray(experience.available_time_slots) ? (experience.available_time_slots as string[]) : [];
   const result: Slot[] = [];
   for (let start = day; start < day.plus({ days: 1 }); start = start.plus({ minutes: 1 })) {

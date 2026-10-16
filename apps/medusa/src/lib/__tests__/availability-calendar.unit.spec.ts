@@ -1,0 +1,103 @@
+import { DateTime, Settings as LuxonSettings } from 'luxon';
+import { availableCalendar, availableSlots } from '../availability/query';
+import { googleBusy } from '../availability/google-busy';
+import type { Settings } from '../availability/slots';
+import { GET } from '../../api/store/availability/calendar/route';
+jest.mock('../availability/google-busy', () => ({ googleBusy: jest.fn() }));
+const lookup = jest.mocked(googleBusy);
+let settings: Settings;
+let experience: any;
+let events: any[];
+const listEvents = jest.fn(async () => events);
+const maps = jest.fn(async () => [] as any[]);
+const google = { getPrimaryConnection: async () => ({ id: 'connection' }), listGoogleCalendarSyncMaps: maps };
+const container: any = {
+  resolve: (key: string) =>
+    ({
+      availability: { listAvailabilitySettings: async () => [settings] },
+      experienceTypeModuleService: { retrieveExperienceType: async () => experience },
+      chefEventModuleService: { listChefEvents: listEvents },
+      googleCalendarConnectionModuleService: google,
+    })[key],
+};
+beforeEach(() => {
+  LuxonSettings.now = () => Date.parse('2026-10-30T12:00:00Z');
+  settings = {
+    timezone: 'America/New_York',
+    weekly: {},
+    overrides: {
+      '2026-11-01': [{ start: '00:00', end: '04:00' }],
+      '2026-11-02': [{ start: '09:00', end: '13:00' }],
+    },
+    google_mode: 'required',
+  };
+  experience = { is_active: true, duration_minutes: 60, time_slot_interval_minutes: 30 };
+  events = [];
+  jest.clearAllMocks();
+  lookup.mockResolvedValue([]);
+});
+afterEach(() => {
+  LuxonSettings.now = () => Date.now();
+});
+test('month summary shares one Google/internal read, follows open overrides, and exposes no event details', async () => {
+  const result = await availableCalendar(container, 'exp', '2026-11');
+  expect(result.dates).toHaveLength(30);
+  expect(result.dates.filter((d) => d.available).map((d) => d.date)).toEqual(['2026-11-01', '2026-11-02']);
+  expect(lookup).toHaveBeenCalledTimes(1);
+  expect(listEvents).toHaveBeenCalledTimes(1);
+  expect(lookup.mock.calls[0].slice(1, 3)).toEqual(['2026-11-01T04:00:00.000Z', '2026-12-01T05:00:00.000Z']);
+  expect(Object.keys(result.dates[0])).toEqual(['date', 'available']);
+});
+test('buffers, Google busy time and accepted bookings remove days; pending requests do not hold', async () => {
+  experience = {
+    ...experience,
+    duration_minutes: 150,
+    preparation_minutes: 30,
+    travel_minutes: 30,
+    cleanup_minutes: 30,
+  };
+  events = [
+    { id: 'pending', status: 'pending' },
+    { id: 'accepted', status: 'confirmed', occupiedStart: '2026-11-01T04:00:00Z', occupiedEnd: '2026-11-01T10:00:00Z' },
+  ];
+  maps.mockResolvedValueOnce([{ connectionId: 'connection', chefEventId: 'pending', googleEventId: 'mirror' }]);
+  const result = await availableCalendar(container, 'exp', '2026-11');
+  // Four-hour November 2 window cannot fit 4.5 hours of occupancy.
+  expect(result.dates.some((d) => d.available)).toBe(false);
+  expect(lookup.mock.calls[0][3]).toEqual(new Set(['mirror']));
+  experience = { ...experience, duration_minutes: 60, preparation_minutes: 0, travel_minutes: 0, cleanup_minutes: 0 };
+  lookup.mockResolvedValue([{ start: '2026-11-02T14:00:00Z', end: '2026-11-02T18:00:00Z' }]);
+  expect((await availableCalendar(container, 'exp', '2026-11')).dates.some((d) => d.available)).toBe(false);
+});
+test('closures replace weekly hours and bounds prevent out-of-range dates or lookups', async () => {
+  settings.weekly = { '1': [{ start: '09:00', end: '13:00' }] };
+  settings.overrides['2026-11-02'] = [];
+  experience.requires_advance_notice = true;
+  experience.advance_notice_days = 7;
+  const month = await availableCalendar(container, 'exp');
+  expect(month.month).toBe('2026-11');
+  expect(month.minDate).toBe('2026-11-06');
+  expect(month.dates.find((d) => d.date === '2026-11-02')?.available).toBe(false);
+  lookup.mockClear();
+  expect((await availableCalendar(container, 'exp', '2027-05')).dates.some((d) => d.available)).toBe(false);
+  expect(lookup).not.toHaveBeenCalled();
+});
+test('per-date choices still distinguish DST fold offsets and match the month summary', async () => {
+  const day = await availableSlots(container, '2026-11-01', 'exp');
+  const repeated = day.slots.filter((s) => s.time === '01:00');
+  expect(repeated).toHaveLength(2);
+  expect(repeated[0].label).not.toBe(repeated[1].label);
+  expect((await availableCalendar(container, 'exp', '2026-11')).dates[0].available).toBe(day.slots.length > 0);
+});
+test('Google failure is an unavailable service, never a free month; invalid month is rejected', async () => {
+  lookup.mockRejectedValue(new Error('private detail'));
+  await expect(availableCalendar(container, 'exp', '2026-11')).rejects.toThrow('private detail');
+  const res: any = { setHeader: jest.fn(), json: jest.fn(), status: jest.fn().mockReturnThis() };
+  await GET({ query: { experience_id: 'exp', month: '2026-11' }, scope: container } as any, res);
+  expect(res.status).toHaveBeenCalledWith(503);
+  expect(JSON.stringify(res.json.mock.calls)).not.toContain('private detail');
+  lookup.mockClear();
+  await GET({ query: { experience_id: 'exp', month: '2026-13' }, scope: container } as any, res);
+  expect(res.status).toHaveBeenCalledWith(400);
+  expect(lookup).not.toHaveBeenCalled();
+});

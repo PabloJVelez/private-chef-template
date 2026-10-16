@@ -123,3 +123,63 @@ experience/date and compare the saved preview before/after a schedule change. Ve
 timezone suggestions, keyboard focus, sticky Save and the Google connection warning.
 No migration or special install command is needed for this redesign. Restart/rebuild
 only your local app as needed; the agent did not restart the manual-test server.
+
+### Additive working days and storefront availability calendar
+
+This pass supersedes the seven weekday switches described above. Only configured
+weekdays are shown. An empty schedule starts with one uncommitted day selector;
+choosing a day creates blank hours, never default bookable hours. Add working day
+excludes weekdays already present. Removing a day makes it unavailable. Existing
+saved schedules, split periods, copy-hours confirmation, exceptions and Save/Discard
+remain supported. Omitted days are explicitly described as unavailable.
+
+`GET /store/availability/calendar?experience_id=…&month=YYYY-MM` returns at most one
+month of `{ date, available }` flags, the chef timezone and booking bounds. Omitting
+month starts at the first bookable month. It shares the authoritative slot calculator
+with daily lookup, including advance notice, six-month horizon, experience duration,
+preparation/travel/cleanup, weekly windows, date overrides, accepted/in-flight internal
+bookings and Google conflicts. Internal records and Google range lookup are reused
+across the month, with pagination inside those reads. Google failures return 503;
+closed/out-of-bounds months can return no dates without querying Google. No calendar
+or customer event details are returned by the month endpoint. The storefront proxy
+uses the existing publishable API key. Server responses use `Cache-Control: no-store`.
+
+The actual `/request` builder uses the month summary to disable unavailable dates.
+It supports bounded previous/next month navigation, Tab/arrow-key operation, empty,
+loading and failure states, and explicit refresh. A component-local 20-second cache
+reduces repeated month navigation; refresh and remount discard it. Daily slots are
+still fetched on date choice and when returning to scheduling. A valid saved UTC
+arrival survives revalidation; an unavailable one is cleared with an explanation.
+A lookup failure retains the choice but prevents continuation until a successful
+retry. Date or experience changes invalidate the choice. Review displays the server's
+arrival label (including the applicable offset) and chef timezone. Missing catalog
+or experience IDs prevent progression and show recovery guidance. Forward step
+navigation cannot skip required fields. Submission and acceptance still revalidate
+on the server; pending requests still do not reserve slots. Payment and expiry
+policies are unchanged.
+
+Validation for this pass: 119 Medusa tests across 13 suites and nine storefront
+React/jsdom tests passed. These include configured/blank/add/remove/move weekday
+rows, duplicate prevention, discard, month limits, shared Google reads, open overrides,
+closures, buffers, accepted versus pending bookings, DST fold offsets, lookup failure,
+keyboard navigation, late responses, and the real request builder's retained/stale/
+failed arrival revalidation and timezone review. Both typechecks and both production
+builds passed. Changed-file ESLint reported zero errors and six warnings from the
+repository Medusa rules (Zod import source and generic errors). The Medusa build
+required permission for the bundler's temporary local port; its rerun passed.
+
+Browser QA remains partial: a loopback-only fixture loaded the real editor and request
+components without backend/calendar calls. Adding a day exposed duplicate React in
+that mixed fixture; after applying fixture-only deduplication the browser could no
+longer reach localhost, so visual/interaction QA was not completed. The fixture is
+not shipped. No real booking was submitted and no live Google calendar was accessed.
+
+For manual testing, pull this commit and rebuild/restart the template's backend/admin
+and storefront. This incremental pass adds no migration, environment variable or
+package dependency. Check `/app/availability` with a saved split schedule and an empty
+schedule, then `/request` with a configured active experience. Check a closed date,
+open override, fully booked date, month boundary, timezone offset, return from review,
+and retry after calendar failure. Desktop and narrow-width visual QA remain required.
+When porting later, include the shared query refactor, calendar API and proxy, schema,
+request components, working-day editor and tests together; first confirm each client's
+base availability migrations and accepted-booking backfill from the earlier checklist.

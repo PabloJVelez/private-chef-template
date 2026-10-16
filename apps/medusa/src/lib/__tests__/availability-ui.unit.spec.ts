@@ -149,27 +149,32 @@ test('save in flight and background refetch cannot overwrite newer input; failur
   await click('Discard');
   expect(timezone().value).toBe('Europe/London');
 });
-test('weekday toggles retain edited hours and date editor survives parent rerenders until discard', async () => {
+test('configured days can move and be removed; adding excludes duplicates and starts with blank hours', async () => {
   await render(React.createElement(AvailabilityPage));
   await act(settle);
-  await change(host.querySelector('[aria-label="Monday start 1"]')!, '11:30');
-  const toggle = () => host.querySelector('[aria-label="Monday available"]')!;
-  await act(async () => {
-    Simulate.change(toggle(), { target: { checked: false } } as any);
-  });
-  expect(host.querySelector('[aria-label="Monday start 1"]')).toBeNull();
-  await act(async () => {
-    Simulate.change(toggle(), { target: { checked: true } } as any);
-  });
-  expect((host.querySelector('[aria-label="Monday start 1"]') as HTMLInputElement).value).toBe('11:30');
-  await click('Add dates');
-  expect(host.textContent).toContain('Apply to draft');
-  expect([...host.querySelectorAll('button')].find((node) => node.textContent === 'Save availability')?.disabled).toBe(
-    true,
-  );
+  expect(host.querySelector('[aria-label="Working day Monday"]')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Working day Tuesday"]')).toBeNull();
+  await click('Add working day');
+  const newDay = host.querySelector('[aria-label="New working day"]')!;
+  expect(newDay.textContent).not.toContain('Monday');
+  await change(newDay, '2');
+  expect((host.querySelector('[aria-label="Tuesday start 1"]') as HTMLInputElement).value).toBe('');
+  await change(host.querySelector('[aria-label="Working day Monday"]')!, '3');
+  expect((host.querySelector('[aria-label="Wednesday start 1"]') as HTMLInputElement).value).toBe('10:00');
+  await act(async () => Simulate.click(host.querySelector('[aria-label="Remove Wednesday"]')!));
+  expect(host.querySelector('[aria-label="Wednesday start 1"]')).toBeNull();
   await click('Discard');
-  expect(host.textContent).not.toContain('Apply to draft');
   expect((host.querySelector('[aria-label="Monday start 1"]') as HTMLInputElement).value).toBe('10:00');
+  expect(host.querySelector('[aria-label="Tuesday start 1"]')).toBeNull();
+});
+test('empty schedule starts with an uncommitted day and never publishes default hours', async () => {
+  api.get.mockResolvedValue({ settings: { ...saved, weekly: {} } });
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  expect(host.querySelector('[aria-label="New working day"]')).not.toBeNull();
+  expect(host.querySelector('input[type=time]')).toBeNull();
+  expect(host.textContent).toContain('Days not listed are unavailable');
+  expect(api.save).not.toHaveBeenCalled();
 });
 test('successful saved revision refreshes preview while unsaved edits do not', async () => {
   api.preview.mockResolvedValue({ date: '2026-11-01', experienceId: 'exp', timezone: 'America/Chicago', slots: [] });
