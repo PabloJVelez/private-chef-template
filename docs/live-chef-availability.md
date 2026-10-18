@@ -208,3 +208,27 @@ wrapping, focus indication, tooltip focus/Escape, add-day and remove-period/day 
 were checked. This was isolated component QA, not a full authenticated admin session;
 native time-field typing still warrants manual review (automated fill did not persist
 in the fixture). No backend, calendar, or saved schedule was accessed for browser QA.
+
+## Diagnosing an unavailable storefront calendar
+
+The storefront monthly request goes through `/api/availability-calendar` to Medusa's
+`/store/availability/calendar`, with the configured publishable API key. A 503 must
+remain unavailable; it is not an empty or free month. In the admin, use the saved
+schedule arrival preview and Google Calendar connection panel for configuration
+diagnostics. A required Google check with no connection now explicitly asks the
+chef to connect Google Calendar in Availability settings. Use the existing OAuth
+flow and grants; do not switch to internal-only mode to conceal a failed check.
+
+On 2026-10-18 the running local development database had saved Monday hours, one
+active experience, no internal bookings, and no Google connection, while
+`google_mode` was `required`. The real monthly proxy returned Medusa's 503 for
+that experience. This is a missing local connection, not a missing proxy route.
+Connecting Google through the existing admin flow remains necessary before the
+local storefront can offer checked dates. No configuration or calendar data was
+changed during diagnosis.
+
+The availability help uses Medusa's native Radix portal. Its content needs an
+explicit stacking level above the page's `z-20` sticky save bar; `z-50` is applied
+to the tooltip content, with viewport collision padding. Keyboard focus and
+Escape remain native behavior. Verify overlap and narrow viewport positioning in
+the running admin after updating its checkout.

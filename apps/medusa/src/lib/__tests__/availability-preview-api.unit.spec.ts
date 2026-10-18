@@ -1,3 +1,4 @@
+import { GoogleAvailabilityError } from '../availability/google-busy';
 import { GET } from '../../api/admin/availability/preview/route';
 import { availableSlots } from '../availability/query';
 jest.mock('../availability/query', () => ({ availableSlots: jest.fn() }));
@@ -42,4 +43,14 @@ test('lookup failure is an error, never an empty available day or leaked calenda
   await GET({ query: { date: '2026-11-01', experience_id: 'experience' }, scope: {} } as any, res);
   expect(res.status).toHaveBeenCalledWith(503);
   expect(JSON.stringify(res.json.mock.calls)).not.toContain('private calendar detail');
+});
+
+test('admin preview explains the missing required connection while remaining unavailable', async () => {
+  calculate.mockRejectedValue(new GoogleAvailabilityError('google_not_connected'));
+  const res = response();
+  await GET({ query: { date: '2026-11-01', experience_id: 'experience' }, scope: {} } as any, res);
+  expect(res.status).toHaveBeenCalledWith(503);
+  expect(res.json).toHaveBeenCalledWith({
+    message: expect.stringContaining('Connect Google Calendar in Availability settings.'),
+  });
 });

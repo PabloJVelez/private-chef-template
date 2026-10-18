@@ -4,7 +4,7 @@ import { IconButton, Tooltip } from '@medusajs/ui';
 /** Match the admin's pricing-field help: a named, keyboard-focusable tooltip trigger. */
 export function HelpTip({ label, content }: { label: string; content: string }) {
   return (
-    <Tooltip content={content}>
+    <Tooltip content={content} className="z-50" collisionPadding={12}>
       <IconButton
         type="button"
         variant="transparent"

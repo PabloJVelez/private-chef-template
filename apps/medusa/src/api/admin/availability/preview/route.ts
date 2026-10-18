@@ -1,6 +1,7 @@
 import type { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
 import { DateTime } from 'luxon';
 import { z } from 'zod';
+import { GoogleAvailabilityError } from '../../../../lib/availability/google-busy';
 import { availableSlots } from '../../../../lib/availability/query';
 const query = z.object({
   date: z
@@ -25,11 +26,13 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       experienceId: result.experienceId,
       slots: result.slots.map(({ start, label }) => ({ start, label })),
     });
-  } catch {
+  } catch (error) {
     res
       .status(503)
       .json({
-        message: 'We could not check arrival times. Check your saved hours and Google connection, then try again.',
+        message: error instanceof GoogleAvailabilityError
+          ? error.message
+          : 'We could not check arrival times. Check your saved hours and Google connection, then try again.',
       });
   }
 }

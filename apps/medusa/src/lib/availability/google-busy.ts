@@ -3,6 +3,15 @@ import type GoogleCalendarConnectionModuleService from '../../modules/google-cal
 import { ensureValidAccessToken } from '../google-calendar/tokens';
 import type { Interval } from './slots';
 
+export class GoogleAvailabilityError extends Error {
+  constructor(public readonly code: 'google_not_connected' | 'google_connection_unavailable') {
+    super(code === 'google_not_connected'
+      ? 'Connect Google Calendar in Availability settings. Required Google checks keep storefront dates unavailable until connected.'
+      : 'Reconnect or resolve the Google Calendar sync error in Availability settings.');
+    this.name = 'GoogleAvailabilityError';
+  }
+}
+
 export async function googleBusy(
   service: GoogleCalendarConnectionModuleService,
   start: string,
@@ -10,8 +19,8 @@ export async function googleBusy(
   ignoredPendingMirrorIds: Set<string>,
 ): Promise<Interval[]> {
   const connection = await service.getPrimaryConnection();
-  if (!connection || connection.status !== 'active')
-    throw new Error('Google Calendar is unavailable. Reconnect or resolve the sync error in Availability settings.');
+  if (!connection) throw new GoogleAvailabilityError('google_not_connected');
+  if (connection.status !== 'active') throw new GoogleAvailabilityError('google_connection_unavailable');
   const token = await ensureValidAccessToken(connection as unknown as Record<string, unknown>, async (payload) => {
     await service.updateGoogleCalendarConnections({ id: connection.id, ...payload });
   });

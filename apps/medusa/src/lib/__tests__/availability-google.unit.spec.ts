@@ -59,3 +59,10 @@ it('fails closed for missing connection, errors, timeout, malformed interval and
   fetchMock.mockResolvedValue(response([], { nextPageToken: 'same' }));
   await expect(run()).rejects.toThrow('pagination');
 });
+
+it('identifies missing Google configuration without issuing requests or refreshing tokens', async () => {
+  service.getPrimaryConnection.mockResolvedValueOnce(null);
+  await expect(run()).rejects.toMatchObject({ code: 'google_not_connected' });
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(ensureValidAccessToken).not.toHaveBeenCalled();
+});

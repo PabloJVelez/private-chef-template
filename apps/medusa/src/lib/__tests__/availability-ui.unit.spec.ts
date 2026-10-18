@@ -234,3 +234,13 @@ test('split periods retain distinct labels and independent remove actions', asyn
   expect((host.querySelector('[aria-label="Monday start 1"]') as HTMLInputElement).value).toBe('14:00');
   expect(host.querySelector('[aria-label="Remove Monday working day"]')).not.toBeNull();
 });
+
+test('preview displays the server’s actionable Google connection diagnostic', async () => {
+  api.preview.mockRejectedValue(new Error('Connect Google Calendar in Availability settings.'));
+  await render(React.createElement(ArrivalPreview, { configured: true, dirty: false, revision: 0 }));
+  await change(host.querySelector('select')!, 'exp');
+  await change(host.querySelector('input[type=date]')!, '2026-11-01');
+  await act(settle);
+  expect(host.textContent).toContain('Connect Google Calendar in Availability settings.');
+  expect(host.textContent).toContain('This does not mean the day is free.');
+});

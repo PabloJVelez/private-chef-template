@@ -94,8 +94,11 @@ export function ArrivalPreview({
         {selected && preview.isFetching && <Text>Checking arrival times…</Text>}
         {selected && preview.isError && (
           <Text role="alert" className="text-ui-fg-error">
-            Could not check availability. Check your saved schedule and Google connection, then refresh. This does not
-            mean the day is free.
+            Could not check availability.{' '}
+            {preview.error instanceof Error
+              ? preview.error.message
+              : 'Check your saved schedule and Google connection, then refresh.'}{' '}
+            This does not mean the day is free.
           </Text>
         )}
         {result && (
