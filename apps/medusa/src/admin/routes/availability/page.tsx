@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import { sdk } from '../../../sdk';
 import { availabilitySettingsSchema, type Settings } from '../../../lib/availability/slots';
 import GoogleCalendarPanel from '../../components/availability/google-calendar-panel';
-import { ArrivalPreview } from '../../components/availability/arrival-preview';
 import { ExceptionsEditor } from '../../components/availability/exceptions-editor';
 import { HelpTip } from '../../components/availability/help-tip';
 import { WorkingDays } from '../../components/availability/working-days';
@@ -64,7 +63,6 @@ const AvailabilityPage = () => {
       const response = await sdk.admin.availability.save(snapshot);
       dispatch({ type: 'saved', id, settings: response.settings });
       client.setQueryData(['availability'], response);
-      client.invalidateQueries({ queryKey: ['availability-preview'] });
     } catch (error) {
       dispatch({
         type: 'failed',
@@ -266,9 +264,6 @@ const AvailabilityPage = () => {
           </div>
         )}
       </form>
-      <Container>
-        <ArrivalPreview configured={!!state.saved} dirty={dirty || exceptionOpen} revision={state.revision} />
-      </Container>
       <div className="flex flex-wrap items-center gap-2 rounded border p-4 text-sm">
         <Text size="small">Set experience duration, preparation, travel and cleanup in Experiences.</Text>
         <HelpTip

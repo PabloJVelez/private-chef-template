@@ -83,10 +83,9 @@ test('refetch and save completion preserve edits made during the request', () =>
   expect(state.draft.timezone).toBe('Europe/Paris');
   expect(state.saved?.timezone).toBe('Europe/London');
   expect(equalSettings(state.saved, state.draft)).toBe(false);
-  expect(state.revision).toBe(1);
   expect(editorReducer(state, { type: 'saved', id: 0, settings: settings() })).toBe(state);
 });
-test('failed saves keep the draft and saved preview unchanged; discard restores saved hours', () => {
+test('failed saves keep the draft and saved settings unchanged; discard restores saved hours', () => {
   let state = editorReducer(initialEditor(), { type: 'receive', settings: settings() });
   state = editorReducer(state, { type: 'edit', settings: { ...state.draft, timezone: 'UTC' } });
   state = editorReducer(state, { type: 'saving', id: 2, snapshot: state.draft });
@@ -94,7 +93,6 @@ test('failed saves keep the draft and saved preview unchanged; discard restores 
   expect(state.error).toBe('Offline');
   expect(state.draft.timezone).toBe('UTC');
   expect(state.saved?.timezone).toBe('America/Chicago');
-  expect(state.revision).toBe(0);
   state = editorReducer(state, { type: 'discard' });
   expect(equalSettings(state.saved, state.draft)).toBe(true);
 });

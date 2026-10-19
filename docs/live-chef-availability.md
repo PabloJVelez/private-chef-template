@@ -1,3 +1,9 @@
+> Current UI decision (2026-10-19): the admin “What clients can request” preview
+> has been removed at the user’s request. Earlier dated implementation notes below
+> describe its history. Storefront availability filtering and backend availability
+> checks remain active. Use the Google Calendar connection panel for connection
+> status and the Experiences link for duration, preparation, travel and cleanup.
+
 # Live chef availability
 
 Availability in the primary sidebar owns chef timezone, weekly working windows, date overrides and Google conflict mode. Hours start unconfigured: no opening hours are invented. Empty date overrides close a date; nonempty overrides replace that weekday's hours. Split overnight windows across dates.
@@ -252,14 +258,14 @@ validation messages are associated with their fields. Exception actions retain
 apply-to-draft and replacement confirmation. Omitted weekdays remain unavailable.
 
 Google connection settings precede the form actions so all editable settings
-are saved together. The saved-schedule preview follows the form and retains its
-automatic checks, Refresh action, timezone labels, and fail-closed errors. Only
-control widths and explanatory copy changed. The Experiences link now states
+are saved together. The user subsequently chose to remove the admin preview
+section entirely. Its component, SDK UI accessor, preview query invalidation and
+revision counter were removed, along with its UI-only tests. The backend endpoint
+and shared availability calculation remain intact. The Experiences link states
 which duration/buffer settings it opens. No scheduling rules changed.
 
 Further recommendations, not implemented in this pass:
-- Consider renaming the preview “Check client arrival times” and placing the
-  Experiences shortcut beside it rather than in a separate strip.
+- Revisit an optional admin preview only if a future chef workflow needs it.
 - Return explicit backend exclusion reasons before displaying claims such as
   “closed that day” or “visit too long.” An empty slot list alone cannot establish
   which rule or conflict excluded arrivals.

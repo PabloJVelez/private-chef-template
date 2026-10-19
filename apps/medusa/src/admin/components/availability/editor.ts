@@ -16,7 +16,6 @@ export type EditorState = {
   remembered: Record<string, Hours>;
   saving: { id: number; snapshot: Settings } | null;
   error: string;
-  revision: number;
 };
 export const initialEditor = (): EditorState => ({
   initialized: false,
@@ -25,7 +24,6 @@ export const initialEditor = (): EditorState => ({
   remembered: {},
   saving: null,
   error: '',
-  revision: 0,
 });
 export type EditorAction =
   | { type: 'receive'; settings: Settings | null }
@@ -74,7 +72,6 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         draft: equalSettings(state.saving.snapshot, state.draft) ? saved : state.draft,
         saving: null,
         error: '',
-        revision: state.revision + 1,
       };
     }
     case 'failed':

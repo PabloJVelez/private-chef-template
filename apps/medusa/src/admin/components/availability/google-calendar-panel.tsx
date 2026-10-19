@@ -1,6 +1,5 @@
 import { Badge, Button, Container, Heading, Text, toast } from '@medusajs/ui';
 import type { ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   useGoogleCalendarConnectMutation,
   useGoogleCalendarDisconnectMutation,
@@ -21,7 +20,6 @@ export default function GoogleCalendarPanel({
   const status = useGoogleCalendarStatus();
   const connect = useGoogleCalendarConnectMutation();
   const disconnect = useGoogleCalendarDisconnectMutation();
-  const client = useQueryClient();
   const data = status.data;
   const busy = connect.isPending || disconnect.isPending;
   const handleConnect = async () => {
@@ -35,7 +33,6 @@ export default function GoogleCalendarPanel({
   const handleDisconnect = async () => {
     try {
       await disconnect.mutateAsync();
-      client.invalidateQueries({ queryKey: ['availability-preview'] });
       toast.success('Google Calendar disconnected');
     } catch {
       toast.error('Could not disconnect Google Calendar. Please try again.');
