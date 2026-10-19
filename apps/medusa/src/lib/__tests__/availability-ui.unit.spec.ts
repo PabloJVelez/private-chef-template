@@ -56,7 +56,7 @@ async function click(text: string) {
   const button = [...host.querySelectorAll('button')].find((node) => node.textContent === text);
   expect(button).toBeDefined();
   await act(async () => {
-    Simulate.click(button!);
+    button!.click();
     await settle();
   });
 }
@@ -243,4 +243,52 @@ test('preview displays the server’s actionable Google connection diagnostic', 
   await act(settle);
   expect(host.textContent).toContain('Connect Google Calendar in Availability settings.');
   expect(host.textContent).toContain('This does not mean the day is free.');
+});
+
+test('save and discard appear only for edits; reset restores saved values and hides actions', async () => {
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  const button = (text: string) => [...host.querySelectorAll('button')].find((node) => node.textContent === text);
+  expect(button('Save availability')).toBeUndefined();
+  expect(button('Discard')).toBeUndefined();
+  await act(async () => Simulate.submit(host.querySelector('form')!));
+  expect(api.save).not.toHaveBeenCalled();
+  const timezone = host.querySelector('input[list=chef-timezones]') as HTMLInputElement;
+  await change(timezone, 'Europe/London');
+  expect(button('Save availability')?.type).toBe('submit');
+  expect(button('Discard')).toBeDefined();
+  await click('Discard');
+  expect(timezone.value).toBe('America/Chicago');
+  expect(button('Save availability')).toBeUndefined();
+  expect(button('Discard')).toBeUndefined();
+});
+
+test('form submission validates before save and hides actions after a successful save', async () => {
+  api.save.mockImplementation(async (settings) => ({ settings }));
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  const timezone = host.querySelector('input[list=chef-timezones]')!;
+  await change(timezone, 'Not/AZone');
+  await act(async () => Simulate.submit(host.querySelector('form')!));
+  expect(api.save).not.toHaveBeenCalled();
+  expect(timezone.getAttribute('aria-describedby')).toBe('availability-timezone-error');
+  await change(timezone, 'Europe/London');
+  await act(async () => {
+    Simulate.submit(host.querySelector('form')!);
+    await settle();
+  });
+  expect(api.save).toHaveBeenCalledWith({ ...saved, timezone: 'Europe/London' });
+  expect([...host.querySelectorAll('button')].find((node) => node.textContent === 'Save availability')).toBeUndefined();
+  expect(host.textContent).toContain('All changes saved');
+});
+
+test('working-day and period actions never submit the availability form', async () => {
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  const day = host.querySelector('[aria-label="Monday working hours"]')!;
+  expect(day).not.toBeNull();
+  expect([...day.querySelectorAll('button')].every((button) => button.type === 'button')).toBe(true);
+  await click('+ Add a period');
+  expect(host.querySelector('[aria-label="Monday start 2"]')).not.toBeNull();
+  expect(api.save).not.toHaveBeenCalled();
 });

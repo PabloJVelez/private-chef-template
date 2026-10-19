@@ -38,7 +38,7 @@ export function ArrivalPreview({
         />
       </div>
       <Text size="small" weight="plus">
-        Client arrival times · saved schedule
+        Check which arrival times clients can choose using your saved schedule.
       </Text>
       {dirty && (
         <Text size="small" role="status">
@@ -47,7 +47,7 @@ export function ArrivalPreview({
       )}
       {!configured && <Text>Save your first schedule to preview arrival times.</Text>}
       <div className="flex flex-wrap items-end gap-3">
-        <label className="min-w-0 flex-1 text-sm">
+        <label className="w-full min-w-0 text-sm sm:w-72">
           Experience
           <select
             className="mt-1 block w-full rounded border p-2"
@@ -64,7 +64,7 @@ export function ArrivalPreview({
               ))}
           </select>
         </label>
-        <label className="text-sm">
+        <label className="w-full text-sm sm:w-44">
           Date
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>

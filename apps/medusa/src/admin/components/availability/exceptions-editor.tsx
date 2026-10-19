@@ -86,7 +86,7 @@ export function ExceptionsEditor({
             content="Change a day or a range of dates without changing your usual week. You can save exceptions for up to 366 dates. Applying adds changes to your draft; save availability to publish them."
           />
         </div>
-        <Button size="small" variant="secondary" disabled={!!form} onClick={() => open()}>
+        <Button type="button" size="small" variant="secondary" disabled={!!form} onClick={() => open()}>
           Add dates
         </Button>
       </div>
@@ -169,10 +169,10 @@ export function ExceptionsEditor({
             </Text>
           )}
           <div className="flex gap-2">
-            <Button size="small" onClick={apply}>
+            <Button type="button" size="small" onClick={apply}>
               Apply to draft
             </Button>
-            <Button size="small" variant="secondary" onClick={close}>
+            <Button type="button" size="small" variant="secondary" onClick={close}>
               Cancel
             </Button>
           </div>
@@ -194,10 +194,11 @@ export function ExceptionsEditor({
                   {hours.length ? hours.map((h) => `${h.start}–${h.end}`).join(', ') : 'Unavailable'}
                 </Text>
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-2">
                 <Button
+                  type="button"
                   size="small"
-                  variant="transparent"
+                  variant="secondary"
                   disabled={!!form}
                   onClick={() => open(date)}
                   aria-label={`Edit ${date}`}
@@ -205,8 +206,9 @@ export function ExceptionsEditor({
                   Edit
                 </Button>
                 <Button
+                  type="button"
                   size="small"
-                  variant="transparent"
+                  variant="secondary"
                   disabled={!!form}
                   onClick={() => {
                     const overrides = { ...settings.overrides };

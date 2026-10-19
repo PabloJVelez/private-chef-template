@@ -27,9 +27,14 @@ export function WorkingDays({
       <Text size="small" className="text-ui-fg-subtle">
         Days not listed are unavailable.
       </Text>
-      <div className="divide-y">
+      <div className="space-y-3">
         {[...configured, ...(blank ? [''] : [])].map((day) => (
-          <div key={day || 'new'} className="grid items-start gap-3 py-4 xl:grid-cols-[10rem_25rem_auto] xl:gap-4">
+          <div
+            key={day || 'new'}
+            role="group"
+            aria-label={day ? `${dayNames[Number(day) - 1]} working hours` : 'New working day row'}
+            className="grid items-start gap-4 rounded-lg border border-ui-border-base p-4 xl:grid-cols-[10rem_minmax(0,1fr)]"
+          >
             <label className="block max-w-40 text-sm leading-5">
               <span className="mb-1 block">Working day</span>
               <select
@@ -62,36 +67,40 @@ export function WorkingDays({
                 Choose a working day to add hours.
               </Text>
             )}
-            <div className="flex flex-wrap items-center gap-1 xl:pt-6">
-              {day && (
-                <Button size="small" variant="transparent" onClick={() => onCopy(day)}>
-                  Copy hours
-                </Button>
-              )}
-              {(day || configured.length > 0) && (
-                <Button
-                  size="small"
-                  variant="transparent"
-                  aria-label={day ? `Remove ${dayNames[Number(day) - 1]} working day` : 'Cancel new day'}
-                  onClick={() => {
-                    if (!day) {
-                      setAdding(false);
-                      return;
-                    }
-                    const weekly = { ...settings.weekly };
-                    delete weekly[day as '1'];
-                    onChange({ ...settings, weekly });
-                  }}
-                >
-                  {day ? 'Remove day' : 'Cancel'}
-                </Button>
-              )}
-            </div>
+            {(day || configured.length > 0) && (
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-ui-border-base pt-3 xl:col-span-2">
+                {day && (
+                  <Button type="button" size="small" variant="secondary" onClick={() => onCopy(day)}>
+                    Copy hours
+                  </Button>
+                )}
+                {(day || configured.length > 0) && (
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="secondary"
+                    aria-label={day ? `Remove ${dayNames[Number(day) - 1]} working day` : 'Cancel new day'}
+                    onClick={() => {
+                      if (!day) {
+                        setAdding(false);
+                        return;
+                      }
+                      const weekly = { ...settings.weekly };
+                      delete weekly[day as '1'];
+                      onChange({ ...settings, weekly });
+                    }}
+                  >
+                    {day ? 'Remove day' : 'Cancel'}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
       <div className="flex items-center gap-1">
         <Button
+          type="button"
           size="small"
           variant="secondary"
           disabled={blank || configured.length === 7}

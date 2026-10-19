@@ -52,7 +52,7 @@ export default function GoogleCalendarPanel({
       {status.isError && (
         <Text role="alert" className="text-ui-fg-error">
           Could not check the Google connection.{' '}
-          <button className="underline" onClick={() => status.refetch()}>
+          <button type="button" className="underline" onClick={() => status.refetch()}>
             Retry
           </button>
         </Text>
@@ -70,11 +70,17 @@ export default function GoogleCalendarPanel({
       )}
       {data && (
         <div className="flex flex-wrap gap-2">
-          <Button size="small" variant="secondary" disabled={busy || unsaved} onClick={handleConnect}>
+          <Button type="button" size="small" variant="secondary" disabled={busy || unsaved} onClick={handleConnect}>
             {data.status === 'not_connected' ? 'Connect Google Calendar' : 'Reconnect'}
           </Button>
           {data.status !== 'not_connected' && (
-            <Button size="small" variant="transparent" disabled={busy || unsaved} onClick={handleDisconnect}>
+            <Button
+              type="button"
+              size="small"
+              variant="transparent"
+              disabled={busy || unsaved}
+              onClick={handleDisconnect}
+            >
               Disconnect
             </Button>
           )}

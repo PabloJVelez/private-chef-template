@@ -232,3 +232,41 @@ explicit stacking level above the page's `z-20` sticky save bar; `z-50` is appli
 to the tooltip content, with viewport collision padding. Keyboard focus and
 Escape remain native behavior. Verify overlap and narrow viewport positioning in
 the running admin after updating its checkout.
+
+## Availability UX audit — 2026-10-19
+
+The page now uses a normal scrolling heading and a semantic settings form.
+Save/Discard appear only for a modified draft or active save, matching the
+conditional action/reset/loading pattern in
+`src/admin/routes/chef-events/components/chef-event-form.tsx`. Schema validation
+and field-level errors follow the existing Experience Type form convention.
+Availability retains its reducer rather than replacing its concurrency handling:
+a save response must not overwrite edits made while that save was in flight.
+Save failures remain beside the actions, preserve the draft, and support retry.
+
+Working days are named, bordered groups. Period removal stays beside start/end
+inputs; day-level copy/removal actions occupy a separate grouped footer.
+Secondary Medusa buttons make the controls visible. All inline actions explicitly
+use `type="button"`; only Save submits the settings form. Hours and timezone
+validation messages are associated with their fields. Exception actions retain
+apply-to-draft and replacement confirmation. Omitted weekdays remain unavailable.
+
+Google connection settings precede the form actions so all editable settings
+are saved together. The saved-schedule preview follows the form and retains its
+automatic checks, Refresh action, timezone labels, and fail-closed errors. Only
+control widths and explanatory copy changed. The Experiences link now states
+which duration/buffer settings it opens. No scheduling rules changed.
+
+Further recommendations, not implemented in this pass:
+- Consider renaming the preview “Check client arrival times” and placing the
+  Experiences shortcut beside it rather than in a separate strip.
+- Return explicit backend exclusion reasons before displaying claims such as
+  “closed that day” or “visit too long.” An empty slot list alone cannot establish
+  which rule or conflict excluded arrivals.
+- Preserve visible Google connection errors and replacement warnings; these are
+  essential action guidance, while supplementary explanations stay in tooltips.
+
+Visual verification must be performed in the updated running admin. This pass
+inspected all four supplied screenshots but did not operate Dia or modify the
+separate development checkout. Pull/restart that checkout only after the branch
+update is verified, then check wide/narrow layouts and native date/time input.
