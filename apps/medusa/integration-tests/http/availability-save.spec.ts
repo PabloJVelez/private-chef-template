@@ -23,7 +23,7 @@ if (url) {
     // The runner owns medusa-availability-integration-1 on the opted-in test server.
     schema: 'public',
     testSuite: ({ service }: { service: unknown }) => {
-      it('creates, updates minute-precision hours, and reloads the persisted schedule through the real routes', async () => {
+      it('replaces complete schedules through SDK/HTTP/workflow and persists weekday and exception deletions', async () => {
         const scope = createContainer();
         scope.register('availability', asValue(service));
         const server = createServer(async (request, response) => {
@@ -72,6 +72,30 @@ if (url) {
           const changed = { ...initial, weekly: { '1': [{ start: '09:01', end: '21:02' }] } };
           expect(await save(changed)).toMatchObject(changed);
           expect(await read()).toMatchObject(changed);
+          const fullWeek = {
+            ...changed,
+            weekly: Object.fromEntries(
+              Array.from({ length: 7 }, (_, i) => [String(i + 1), [{ start: '09:01', end: '21:02' }]]),
+            ),
+          };
+          await save(fullWeek);
+          const withoutSunday = { ...fullWeek, weekly: { ...fullWeek.weekly } };
+          delete withoutSunday.weekly['7'];
+          expect((await save(withoutSunday)).weekly).toEqual(withoutSunday.weekly);
+          expect((await read())?.weekly).toEqual(withoutSunday.weekly);
+          const exceptions = {
+            ...withoutSunday,
+            overrides: { '2026-11-01': [], '2026-11-02': [{ start: '10:00', end: '14:00' }] },
+          };
+          await save(exceptions);
+          const oneException = { ...exceptions, overrides: { '2026-11-02': exceptions.overrides['2026-11-02'] } };
+          expect((await save(oneException)).overrides).toEqual(oneException.overrides);
+          expect((await read())?.overrides).toEqual(oneException.overrides);
+          const empty = { ...changed, weekly: {}, overrides: {} };
+          expect((await save(empty)).weekly).toEqual({});
+          expect((await read())?.weekly).toEqual({});
+          expect((await read())?.overrides).toEqual({});
+          await save(changed);
           await expect(save({ ...changed, timezone: 'not-a-timezone' })).rejects.toThrow();
           expect(await read()).toMatchObject(changed);
         } finally {

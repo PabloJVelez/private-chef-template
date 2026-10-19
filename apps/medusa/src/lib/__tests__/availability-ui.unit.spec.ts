@@ -405,3 +405,30 @@ test('all seven days hide Add and its help; removing a day restores both', async
   await act(settle);
   expect(document.activeElement?.textContent).toBe('Add working day');
 });
+
+test('removing Sunday submits a six-day snapshot and remains removed after save and remount', async () => {
+  let stored: Settings = {
+    ...saved,
+    weekly: Object.fromEntries(
+      Array.from({ length: 7 }, (_, i) => [String(i + 1), [{ start: '09:01', end: '21:02' }]]),
+    ),
+  };
+  api.get.mockImplementation(async () => ({ settings: stored }));
+  api.save.mockImplementation(async (settings) => {
+    stored = JSON.parse(JSON.stringify(settings));
+    return { settings: stored };
+  });
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  await menuAction('Sunday', 'Remove day');
+  await click('Save availability');
+  expect(Object.keys(api.save.mock.calls[0][0].weekly)).toEqual(['1', '2', '3', '4', '5', '6']);
+  expect(host.querySelector('[aria-label="Sunday working hours"]')).toBeNull();
+  await act(async () => root.unmount());
+  client.clear();
+  root = createRoot(host);
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  expect(host.querySelector('[aria-label="Sunday working hours"]')).toBeNull();
+  expect(host.textContent).toContain('All changes saved');
+});

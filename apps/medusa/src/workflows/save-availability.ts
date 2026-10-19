@@ -4,10 +4,7 @@ import { availabilitySettingsSchema, type Settings } from '../lib/availability/s
 const save = createStep('save-chef-availability', async (input: Settings, { container }) => {
   const values = availabilitySettingsSchema.parse(input);
   const service = container.resolve<AvailabilityModuleService>('availability');
-  const [existing] = await service.listAvailabilitySettings({ id: 'chef-default' });
-  const result = existing
-    ? await service.updateAvailabilitySettings({ id: existing.id, ...values })
-    : await service.createAvailabilitySettings({ id: 'chef-default', ...values });
+  const result = await service.saveSchedule(values);
   return new StepResponse(result);
 });
 export const saveAvailabilityWorkflow = createWorkflow(
