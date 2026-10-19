@@ -10,6 +10,15 @@ type Result = {
   maxDate: string;
   slots: { start: string; time: string; label: string }[];
 };
+// Keep repeated DST wall-clock times distinct without displaying timezone details.
+export function arrivalLabel(slot: Result['slots'][number], slots: Result['slots']) {
+  const [hour, minute] = slot.time.split(':').map(Number);
+  const label = `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
+  const repeated = slots.filter((item) => item.time === slot.time).sort((a, b) => a.start.localeCompare(b.start));
+  return repeated.length > 1
+    ? `${label} (${repeated.findIndex((item) => item.start === slot.start) + 1} of ${repeated.length})`
+    : label;
+}
 export function DateTimeForm({ className }: { className?: string }) {
   const {
     watch,
@@ -49,7 +58,7 @@ export function DateTimeForm({ className }: { className?: string }) {
         const retained = body.slots.find((slot) => slot.start === previous);
         if (retained) {
           setValue('requestedTime', retained.time);
-          setValue('slotLabel', retained.label);
+          setValue('slotLabel', arrivalLabel(retained, body.slots));
           setValue('slotTimezone', body.timezone);
           setValue('slotValidated', true);
         } else {
@@ -78,14 +87,17 @@ export function DateTimeForm({ className }: { className?: string }) {
   return (
     <div className={className}>
       <h3 className="mb-2 text-lg font-semibold">Choose the chef arrival time</h3>
-      <p className="mb-4">
-        Times are shown in the chef’s timezone{current ? ` (${current.timezone})` : ''}. Your request is reviewed before
-        payment and does not reserve the slot.
-      </p>
+      <p className="mb-4">Your request is reviewed before payment and does not reserve the slot.</p>
       <AvailabilityCalendar
         experienceId={experience || ''}
         selected={date || ''}
+        onRefresh={() => {
+          setValue('slotValidated', false);
+          setRetry((value) => value + 1);
+        }}
         onSelect={(next) => {
+          setValue('slotValidated', false);
+          setRetry((value) => value + 1);
           if (next !== date) {
             setValue('slotStart', '');
             setValue('requestedTime', '');
@@ -106,7 +118,7 @@ export function DateTimeForm({ className }: { className?: string }) {
             const slot = current?.slots.find((item) => item.start === event.target.value);
             setValue('slotStart', slot?.start || '', { shouldValidate: true });
             setValue('requestedTime', slot?.time || '', { shouldValidate: true });
-            setValue('slotLabel', slot?.label || '');
+            setValue('slotLabel', slot && current ? arrivalLabel(slot, current.slots) : '');
             setValue('slotTimezone', current?.timezone || '');
             setValue('slotValidated', !!slot);
           }}
@@ -114,7 +126,7 @@ export function DateTimeForm({ className }: { className?: string }) {
           <option value="">Select a time…</option>
           {current?.slots.map((slot) => (
             <option key={slot.start} value={slot.start}>
-              {slot.label}
+              {arrivalLabel(slot, current.slots)}
             </option>
           ))}
         </select>

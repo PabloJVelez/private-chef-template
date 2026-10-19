@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CalendarCache } from './calendar-cache';
 export type CalendarResult = {
   month: string;
   experienceId: string;
@@ -15,57 +16,77 @@ export function AvailabilityCalendar({
   experienceId,
   selected,
   onSelect,
-}: { experienceId: string; selected: string; onSelect: (date: string) => void }) {
-  const [month, setMonth] = useState(selected?.slice(0, 7) || '');
+  onRefresh,
+}: { experienceId: string; selected: string; onSelect: (date: string) => void; onRefresh?: () => void }) {
+  const [view, setView] = useState({ experienceId, month: selected?.slice(0, 7) || '' });
+  const month = view.experienceId === experienceId ? view.month : '';
+  const setMonth = (next: string) => setView({ experienceId, month: next });
   const [result, setResult] = useState<CalendarResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
-  const cache = useRef(new Map<string, { at: number; value: CalendarResult }>());
+  const cache = useRef(new CalendarCache());
   const grid = useRef<HTMLDivElement>(null);
+  useEffect(() => () => cache.current.clear(), []);
   useEffect(() => {
-    const controller = new AbortController();
-    setResult(null);
+    let active = true;
     setError('');
     if (!experienceId) {
+      setResult(null);
       setLoading(false);
       return;
     }
-    const key = `${experienceId}:${month}`;
-    const existing = cache.current.get(key);
-    if (existing && Date.now() - existing.at < 20000) {
-      setResult(existing.value);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const params = new URLSearchParams({ experience_id: experienceId });
-    if (month) params.set('month', month);
-    fetch(`/api/availability-calendar?${params}`, { signal: controller.signal })
-      .then(async (response) => {
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.message);
-        return body as CalendarResult;
-      })
+    const cached = cache.current.peek(experienceId, month);
+    setLoading(!cached);
+    if (cached) setResult(cached);
+    cache.current
+      .load(experienceId, month)
       .then((value) => {
-        if (!controller.signal.aborted && value.experienceId === experienceId) {
-          cache.current.set(key, { at: Date.now(), value });
-          setResult(value);
+        if (!active) return;
+        setResult(value);
+        // Only adjacent valid months, never recursively prefetch the full horizon.
+        for (const offset of [-1, 1]) {
+          const adjacent = shiftMonth(value.month, offset);
+          if (adjacent >= value.minDate.slice(0, 7) && adjacent <= value.maxDate.slice(0, 7))
+            void cache.current.load(experienceId, adjacent).catch(() => {});
         }
       })
       .catch(() => {
-        if (!controller.signal.aborted)
+        if (active)
           setError('We could not check the calendar. Retry or contact the chef; dates are unavailable until checked.');
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (active) setLoading(false);
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+    };
   }, [experienceId, month, retry]);
-  const current = result?.experienceId === experienceId && (!month || result.month === month) ? result : null;
+  const context = result?.experienceId === experienceId ? result : null;
+  const checked = cache.current.peek(experienceId, month);
+  const current = checked && !error ? checked : null;
+  const displayMonth = month || context?.month;
+  const display =
+    current ||
+    (context && displayMonth
+      ? {
+          ...context,
+          month: displayMonth,
+          dates: Array.from(
+            {
+              length: new Date(
+                Date.UTC(Number(displayMonth.slice(0, 4)), Number(displayMonth.slice(5)), 0),
+              ).getUTCDate(),
+            },
+            (_, index) => ({ date: `${displayMonth}-${String(index + 1).padStart(2, '0')}`, available: false }),
+          ),
+        }
+      : null);
   const refresh = () => {
     cache.current.clear();
+    setLoading(true);
     setRetry((value) => value + 1);
+    onRefresh?.();
   };
   const moveFocus = (event: React.KeyboardEvent<HTMLButtonElement>, date: string) => {
     const offset = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
@@ -79,7 +100,7 @@ export function AvailabilityCalendar({
       }
     }
   };
-  const blanks = current ? new Date(`${current.month}-01T12:00:00Z`).getUTCDay() : 0;
+  const blanks = display ? new Date(`${display.month}-01T12:00:00Z`).getUTCDay() : 0;
   return (
     <section aria-label="Available dates" className="mb-4 rounded-lg border p-3" aria-busy={loading}>
       {!experienceId && (
@@ -90,25 +111,26 @@ export function AvailabilityCalendar({
       )}
       {loading && <p role="status">Checking available dates…</p>}
       {error && <p role="alert">{error}</p>}
+      {display && !loading && !error && !current && <p role="status">Refresh dates to check availability.</p>}
       {experienceId && (
         <button type="button" className="mb-2 text-sm underline" disabled={loading} onClick={refresh}>
           Refresh dates
         </button>
       )}
-      {current && !loading && (
+      {display && (
         <>
           <div className="mb-3 flex items-center justify-between gap-2">
             <button
               type="button"
               aria-label="Previous month"
-              disabled={current.month <= current.minDate.slice(0, 7)}
-              onClick={() => setMonth(shiftMonth(current.month, -1))}
+              disabled={display.month <= display.minDate.slice(0, 7)}
+              onClick={() => setMonth(shiftMonth(display.month, -1))}
               className="rounded border px-3 py-1 disabled:opacity-40"
             >
               ←
             </button>
             <h4 aria-live="polite" className="font-semibold">
-              {new Date(`${current.month}-01T12:00:00Z`).toLocaleDateString('en-US', {
+              {new Date(`${display.month}-01T12:00:00Z`).toLocaleDateString('en-US', {
                 month: 'long',
                 year: 'numeric',
                 timeZone: 'UTC',
@@ -117,16 +139,13 @@ export function AvailabilityCalendar({
             <button
               type="button"
               aria-label="Next month"
-              disabled={current.month >= current.maxDate.slice(0, 7)}
-              onClick={() => setMonth(shiftMonth(current.month, 1))}
+              disabled={display.month >= display.maxDate.slice(0, 7)}
+              onClick={() => setMonth(shiftMonth(display.month, 1))}
               className="rounded border px-3 py-1 disabled:opacity-40"
             >
               →
             </button>
           </div>
-          <p className="mb-2 text-sm">
-            {current.timezone} · {current.minDate} through {current.maxDate}
-          </p>
           <div
             ref={grid}
             className="grid grid-cols-7 gap-1"
@@ -141,13 +160,15 @@ export function AvailabilityCalendar({
             {Array.from({ length: blanks }, (_, index) => (
               <span key={`blank-${index}`} aria-hidden="true" />
             ))}
-            {current.dates.map((day) => (
+            {display.dates.map((day) => (
               <button
                 type="button"
                 key={day.date}
                 data-date={day.date}
-                disabled={!day.available || day.date < current.minDate || day.date > current.maxDate}
-                aria-label={`${day.date}${day.available ? ', available' : ', unavailable'}`}
+                disabled={
+                  !current || loading || !day.available || day.date < display.minDate || day.date > display.maxDate
+                }
+                aria-label={`${day.date}${!current || loading ? ', checking' : day.available ? ', available' : ', unavailable'}`}
                 aria-pressed={day.date === selected}
                 onKeyDown={(e) => moveFocus(e, day.date)}
                 onClick={() => onSelect(day.date)}
@@ -161,7 +182,7 @@ export function AvailabilityCalendar({
             Only dates with available arrival times can be selected. Use Tab or arrow keys to move between available
             dates.
           </p>
-          {!current.dates.some((day) => day.available) && (
+          {current && !loading && !display.dates.some((day) => day.available) && (
             <p role="status" className="mt-2">
               No available dates this month. Try another month or experience.
             </p>

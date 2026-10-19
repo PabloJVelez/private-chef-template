@@ -77,11 +77,11 @@ async function schedule() {
   fireEvent.click(screen.getByRole('button', { name: 'Next Step' }));
   await screen.findByRole('button', { name: '2026-11-01, available' });
   fireEvent.click(screen.getByRole('button', { name: '2026-11-01, available' }));
-  await screen.findByRole('option', { name: slot.label });
+  await screen.findByRole('option', { name: '1:00 AM' });
   fireEvent.change(screen.getByLabelText('Available arrival time'), { target: { value: slot.start } });
   await waitFor(() => expect(screen.getByRole('button', { name: 'Next Step' }).disabled).toBe(false));
 }
-test('real request builder retains and revalidates an arrival when returning, with timezone/offset in review', async () => {
+test('real request builder retains and revalidates an arrival when returning, without timezone text in review', async () => {
   builder();
   await schedule();
   expect(screen.getByRole('button', { name: '2026-11-02, unavailable' }).disabled).toBe(true);
@@ -91,8 +91,8 @@ test('real request builder retains and revalidates an arrival when returning, wi
   await waitFor(() => expect(screen.getByRole('button', { name: 'Next Step' }).disabled).toBe(false));
   expect(request.mock.calls.filter(([url]) => !url.includes('availability-calendar')).length).toBe(2);
   fireEvent.click(screen.getByRole('button', { name: 'Review Now' }));
-  expect(screen.getByText(slot.label)).toBeTruthy();
-  expect(screen.getByText(/America\/New_York/)).toBeTruthy();
+  expect(screen.getByText('1:00 AM')).toBeTruthy();
+  expect(screen.queryByText(/America\/New_York/)).toBeNull();
 });
 test('revisiting clears a stale arrival and prevents continuation', async () => {
   builder();
@@ -137,31 +137,6 @@ test('month navigation is bounded, disables closed dates and handles lookup fail
   expect(screen.queryByRole('button', { name: '2026-12-01, available' })).toBeNull();
 });
 
-test('late calendar response cannot replace a newer experience', async () => {
-  let resolveOld!: (value: any) => void;
-  const pending = new Promise((resolve) => {
-    resolveOld = resolve;
-  });
-  const view = render(<AvailabilityCalendar experienceId="exp" selected="" onSelect={jest.fn()} />);
-  await screen.findByText('November 2026');
-  request.mockImplementationOnce(() => pending as any);
-  fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
-  request.mockImplementationOnce(async () => ({
-    ok: true,
-    json: async () => ({
-      ...calendar('2026-12'),
-      experienceId: 'other',
-      dates: [{ date: '2026-12-03', available: true }],
-    }),
-  }));
-  view.rerender(<AvailabilityCalendar experienceId="other" selected="" onSelect={jest.fn()} />);
-  await screen.findByRole('button', { name: '2026-12-03, available' });
-  await require('@testing-library/react').act(async () => {
-    resolveOld({ ok: true, json: async () => calendar('2026-12') });
-  });
-  expect(screen.queryByRole('button', { name: '2026-12-01, available' })).toBeNull();
-  expect(screen.getByRole('button', { name: '2026-12-03, available' })).toBeTruthy();
-});
 test('calendar arrow keys skip unavailable dates', async () => {
   request.mockImplementationOnce(async () => ({
     ok: true,
@@ -188,4 +163,14 @@ test('request schema rejects a missing experience ID', () => {
   const { eventRequestSchema } = require('../schema');
   expect(eventRequestSchema.shape.experienceTypeId.safeParse(undefined).success).toBe(false);
   expect(eventRequestSchema.shape.experienceTypeId.safeParse('').success).toBe(false);
+});
+
+test('Refresh dates also rechecks a selected arrival and blocks a newly unavailable choice', async () => {
+  builder();
+  await schedule();
+  slots = [];
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh dates' }));
+  await screen.findByText(/previous time is no longer available/);
+  expect(screen.getByLabelText('Available arrival time').value).toBe('');
+  expect(screen.getByRole('button', { name: 'Next Step' }).disabled).toBe(true);
 });

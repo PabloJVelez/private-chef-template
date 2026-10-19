@@ -199,9 +199,6 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
               <p className="text-primary-900">
                 {formData.slotLabel ||
                   (formData.requestedTime ? formatTimeForDisplay(formData.requestedTime) : 'Not selected')}
-                {formData.slotTimezone && (
-                  <span className="block text-sm">Chef’s timezone: {formData.slotTimezone}</span>
-                )}
               </p>
             </div>
           </div>
