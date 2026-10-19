@@ -21,16 +21,20 @@ export function WorkingDays({
   const returnFocus = useRef<HTMLButtonElement | null>(null);
   const triggers = useRef<Record<string, HTMLButtonElement | null>>({});
   const openingEditor = useRef(false);
+  const removedDay = useRef(false);
   const configured = Object.keys(settings.weekly)
     .filter((key) => settings.weekly[key as '1']?.length)
     .sort();
   const daysKey = configured.join(',');
   useEffect(() => {
-    if (mode) editor.current?.focus();
+    if (removedDay.current) {
+      addButton.current?.focus();
+    } else if (mode) editor.current?.focus();
     else if (returnFocus.current) {
-      const target = returnFocus.current.disabled
-        ? Object.values(triggers.current).find((button) => button && !button.disabled)
-        : returnFocus.current;
+      const target =
+        !returnFocus.current.isConnected || returnFocus.current.disabled
+          ? Object.values(triggers.current).find((button) => button && !button.disabled)
+          : returnFocus.current;
       target?.focus();
     }
   }, [mode, daysKey]);
@@ -58,7 +62,7 @@ export function WorkingDays({
     }
   };
   return (
-    <div className="max-w-3xl space-y-3">
+    <div className="max-w-2xl space-y-3">
       <Text size="small" className="text-ui-fg-subtle">
         Days not listed are unavailable.
       </Text>
@@ -66,10 +70,10 @@ export function WorkingDays({
         <div>
           <div
             aria-hidden="true"
-            className="hidden grid-cols-[8rem_minmax(0,1fr)_2rem] gap-3 pb-2 text-sm text-ui-fg-subtle md:grid"
+            className="hidden grid-cols-[8rem_minmax(0,1fr)] gap-2 pb-2 text-sm text-ui-fg-subtle md:grid"
           >
             <span>Day</span>
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem] gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem_2rem] gap-2">
               <span>Start</span>
               <span>End</span>
             </div>
@@ -83,68 +87,70 @@ export function WorkingDays({
                   key={day}
                   role="group"
                   aria-label={`${name} working hours`}
-                  className="grid grid-cols-[minmax(0,1fr)_2rem] items-start gap-3 py-3 md:grid-cols-[8rem_minmax(0,1fr)_2rem]"
+                  className="grid grid-cols-1 items-start gap-2 py-3 md:grid-cols-[8rem_minmax(0,1fr)]"
                 >
                   <Text size="small" weight="plus" className="pt-1">
                     {name}
                   </Text>
-                  <div className="col-span-2 min-w-0 md:col-span-1 md:col-start-2 md:row-start-1">
+                  <div className="min-w-0">
                     <HoursEditor
                       compact
+                      actions={
+                        <DropdownMenu>
+                          <DropdownMenu.Trigger asChild>
+                            <IconButton
+                              type="button"
+                              size="base"
+                              variant="primary"
+                              disabled={!!mode}
+                              ref={(node) => {
+                                triggers.current[day] = node;
+                              }}
+                              aria-label={`Actions for ${name}`}
+                            >
+                              <EllipsisHorizontal aria-hidden="true" />
+                            </IconButton>
+                          </DropdownMenu.Trigger>
+                          <DropdownMenu.Content
+                            align="end"
+                            className="z-50"
+                            onCloseAutoFocus={(event) => {
+                              if (openingEditor.current || removedDay.current) event.preventDefault();
+                              removedDay.current = false;
+                            }}
+                          >
+                            <DropdownMenu.Item onSelect={() => open(day)}>Copy to other days</DropdownMenu.Item>
+                            <DropdownMenu.Item
+                              disabled={ranges.length >= 12}
+                              onSelect={() =>
+                                onChange({
+                                  ...settings,
+                                  weekly: { ...settings.weekly, [day]: [...ranges, { start: '', end: '' }] },
+                                })
+                              }
+                            >
+                              Add another time range
+                            </DropdownMenu.Item>
+                            <DropdownMenu.Separator />
+                            <DropdownMenu.Item
+                              onSelect={() => {
+                                const weekly = { ...settings.weekly };
+                                delete weekly[day as '1'];
+                                removedDay.current = true;
+                                returnFocus.current = null;
+                                onChange({ ...settings, weekly });
+                                addButton.current?.focus();
+                              }}
+                            >
+                              Remove day
+                            </DropdownMenu.Item>
+                          </DropdownMenu.Content>
+                        </DropdownMenu>
+                      }
                       label={name}
                       value={ranges}
                       onChange={(next) => onChange({ ...settings, weekly: { ...settings.weekly, [day]: next } })}
                     />
-                  </div>
-                  <div className="col-start-2 row-start-1 md:col-start-3">
-                    <DropdownMenu>
-                      <DropdownMenu.Trigger asChild>
-                        <IconButton
-                          type="button"
-                          size="small"
-                          variant="transparent"
-                          disabled={!!mode}
-                          ref={(node) => {
-                            triggers.current[day] = node;
-                          }}
-                          aria-label={`Actions for ${name}`}
-                        >
-                          <EllipsisHorizontal aria-hidden="true" />
-                        </IconButton>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Content
-                        align="end"
-                        className="z-50"
-                        onCloseAutoFocus={(event) => {
-                          if (openingEditor.current) event.preventDefault();
-                        }}
-                      >
-                        <DropdownMenu.Item onSelect={() => open(day)}>Copy to other days</DropdownMenu.Item>
-                        <DropdownMenu.Item
-                          disabled={ranges.length >= 12}
-                          onSelect={() =>
-                            onChange({
-                              ...settings,
-                              weekly: { ...settings.weekly, [day]: [...ranges, { start: '', end: '' }] },
-                            })
-                          }
-                        >
-                          Add another time range
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Separator />
-                        <DropdownMenu.Item
-                          onSelect={() => {
-                            const weekly = { ...settings.weekly };
-                            delete weekly[day as '1'];
-                            returnFocus.current = addButton.current;
-                            onChange({ ...settings, weekly });
-                            addButton.current?.focus();
-                          }}
-                        >
-                          Remove day
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu>
                   </div>
                 </div>
               );
@@ -156,22 +162,24 @@ export function WorkingDays({
           No working days yet. Add the days you are available.
         </Text>
       )}
-      <div className="flex items-center gap-1">
-        <Button
-          ref={addButton}
-          type="button"
-          size="small"
-          variant="secondary"
-          disabled={!!mode || configured.length === 7}
-          onClick={() => open('add')}
-        >
-          Add working day
-        </Button>
-        <HelpTip
-          label="About adding working days"
-          content="Select one or several days and enter hours once. Each day can be edited independently afterward. Save availability to publish your changes."
-        />
-      </div>
+      {configured.length < 7 && (
+        <div className="flex items-center gap-1">
+          <Button
+            ref={addButton}
+            type="button"
+            size="small"
+            variant="secondary"
+            disabled={!!mode}
+            onClick={() => open('add')}
+          >
+            Add working day
+          </Button>
+          <HelpTip
+            label="About adding working days"
+            content="Select one or several days and enter hours once. Each day can be edited independently afterward. Save availability to publish your changes."
+          />
+        </div>
+      )}
       {mode && (
         <fieldset
           ref={editor}

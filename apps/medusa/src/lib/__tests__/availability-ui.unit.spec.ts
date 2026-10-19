@@ -217,15 +217,15 @@ test('working-day and period actions never submit the availability form', async 
   expect(api.save).not.toHaveBeenCalled();
 });
 
-test('availability omits the admin preview and retains the experience settings link', async () => {
+test('availability omits the admin preview and the standalone experience settings strip', async () => {
   await render(React.createElement(AvailabilityPage));
   await act(settle);
   expect(host.textContent).not.toContain('What clients can request');
   expect(host.querySelector('#preview-heading')).toBeNull();
   expect(list).not.toHaveBeenCalled();
   const link = host.querySelector('a[href="/experience-types"]');
-  expect(link?.textContent).toBe('Manage experiences');
-  expect(host.textContent).toContain('Set experience duration, preparation, travel and cleanup in Experiences.');
+  expect(link).toBeNull();
+  expect(host.textContent).not.toContain('Set experience duration, preparation, travel and cleanup in Experiences.');
 });
 
 async function openMenu(day: string) {
@@ -353,4 +353,55 @@ test('timezone summary preserves the exact IANA value until an explicit edit', a
   expect(host.textContent).toContain('Chicago · America/Chicago');
   expect([...host.querySelectorAll('button')].some((button) => button.textContent === 'Save availability')).toBe(false);
   expect(api.save).not.toHaveBeenCalled();
+});
+
+test('top Save owns the form, accepts minute times on native click, and reloads the saved response', async () => {
+  let stored = saved;
+  api.get.mockImplementation(async () => ({ settings: stored }));
+  api.save.mockImplementation(async (settings) => {
+    stored = JSON.parse(JSON.stringify(settings));
+    return { settings: stored };
+  });
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  await change(host.querySelector('[aria-label="Monday start 1"]')!, '09:01');
+  await change(host.querySelector('[aria-label="Monday end 1"]')!, '21:02');
+  const form = host.querySelector('form')!;
+  const button = [...host.querySelectorAll('button')].find((node) => node.textContent === 'Save availability')!;
+  expect(button.form).toBe(form);
+  expect(form.contains(button)).toBe(false);
+  expect(form.checkValidity()).toBe(true);
+  await click('Save availability');
+  expect(api.save).toHaveBeenCalledWith({ ...saved, weekly: { '1': [{ start: '09:01', end: '21:02' }] } });
+  expect(host.textContent).toContain('All changes saved');
+  await act(async () => root.unmount());
+  client.clear();
+  root = createRoot(host);
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  expect(host.querySelector<HTMLInputElement>('[aria-label="Monday start 1"]')!.value).toBe('09:01');
+  expect(host.querySelector<HTMLInputElement>('[aria-label="Monday end 1"]')!.value).toBe('21:02');
+  expect(host.textContent).not.toContain('Save availability');
+});
+
+test('all seven days hide Add and its help; removing a day restores both', async () => {
+  api.get.mockResolvedValue({
+    settings: {
+      ...saved,
+      weekly: Object.fromEntries(
+        Array.from({ length: 7 }, (_, i) => [String(i + 1), [{ start: '09:01', end: '21:02' }]]),
+      ),
+    },
+  });
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  expect(host.textContent).not.toContain('Add working day');
+  expect(host.querySelector('[aria-label="About adding working days"]')).toBeNull();
+  const end = host.querySelector('[aria-label="Monday end 1"]')!;
+  expect(end.closest('label')!.nextElementSibling?.getAttribute('aria-label')).toBe('Actions for Monday');
+  await menuAction('Monday', 'Remove day');
+  expect(host.textContent).toContain('Add working day');
+  expect(host.querySelector('[aria-label="About adding working days"]')).not.toBeNull();
+  await act(settle);
+  expect(document.activeElement?.textContent).toBe('Add working day');
 });

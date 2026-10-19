@@ -2,7 +2,6 @@ import { defineRouteConfig } from '@medusajs/admin-sdk';
 import { Button, Container, Heading, Input, Text } from '@medusajs/ui';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { sdk } from '../../../sdk';
 import { availabilitySettingsSchema, type Settings } from '../../../lib/availability/slots';
 import GoogleCalendarPanel from '../../components/availability/google-calendar-panel';
@@ -92,6 +91,44 @@ const AvailabilityPage = () => {
                   : 'All changes saved'}
           </Text>
         </div>
+        {(dirty || state.saving) && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {state.error && (
+              <Text className="w-full text-ui-fg-error" size="small" role="alert">
+                {state.error}
+              </Text>
+            )}
+            {(exceptionOpen || workingOpen || !validation.success) && (
+              <Text size="small" className="w-full text-ui-fg-subtle" role="status">
+                {exceptionOpen || workingOpen
+                  ? 'Apply or cancel the open editor before saving.'
+                  : 'Check the highlighted timezone or hours before saving.'}
+              </Text>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!!state.saving}
+              onClick={() => {
+                dispatch({ type: 'discard' });
+                setWorkingOpen(false);
+                setTimezoneEditing(false);
+                setExceptionOpen(false);
+                setDiscardVersion((value) => value + 1);
+              }}
+            >
+              Discard
+            </Button>
+            <Button
+              type="submit"
+              form="availability-settings"
+              isLoading={!!state.saving}
+              disabled={!dirty || !!state.saving || !validation.success || exceptionOpen || workingOpen}
+            >
+              Save availability
+            </Button>
+          </div>
+        )}
         {state.error && !dirty && !state.saving && (
           <Text className="w-full text-ui-fg-error" size="small" role="alert">
             {state.error}
@@ -99,6 +136,7 @@ const AvailabilityPage = () => {
         )}
       </div>
       <form
+        id="availability-settings"
         aria-label="Availability settings"
         className="space-y-4"
         onSubmit={(event) => {
@@ -189,54 +227,7 @@ const AvailabilityPage = () => {
             those times.
           </Text>
         </GoogleCalendarPanel>
-        {(dirty || state.saving) && (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-ui-border-base pt-4">
-            {state.error && (
-              <Text className="w-full text-ui-fg-error" size="small" role="alert">
-                {state.error}
-              </Text>
-            )}
-            {(exceptionOpen || workingOpen || !validation.success) && (
-              <Text size="small" className="w-full text-ui-fg-subtle" role="status">
-                {exceptionOpen || workingOpen
-                  ? 'Apply or cancel the open editor before saving.'
-                  : 'Check the highlighted timezone or hours before saving.'}
-              </Text>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={!!state.saving}
-              onClick={() => {
-                dispatch({ type: 'discard' });
-                setWorkingOpen(false);
-                setTimezoneEditing(false);
-                setExceptionOpen(false);
-                setDiscardVersion((value) => value + 1);
-              }}
-            >
-              Discard
-            </Button>
-            <Button
-              type="submit"
-              isLoading={!!state.saving}
-              disabled={!dirty || !!state.saving || !validation.success || exceptionOpen || workingOpen}
-            >
-              Save availability
-            </Button>
-          </div>
-        )}
       </form>
-      <div className="flex flex-wrap items-center gap-2 rounded border p-4 text-sm">
-        <Text size="small">Set experience duration, preparation, travel and cleanup in Experiences.</Text>
-        <HelpTip
-          label="About booking requests and experience duration"
-          content="Pending requests do not reserve time. Accepted bookings do. Clients see arrival times only when the full working period fits, including preparation, travel and cleanup. On-site preparation is already included in arrival-to-finish duration. Split overnight hours across dates; periods can touch but cannot overlap."
-        />
-        <Link className="underline" to="/experience-types">
-          Manage experiences
-        </Link>
-      </div>
     </div>
   );
 };
