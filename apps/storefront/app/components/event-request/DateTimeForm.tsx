@@ -76,7 +76,7 @@ export function DateTimeForm({ className }: { className?: string }) {
         }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setMessage('Arrival times could not be checked. Retry before continuing.');
+        if (!controller.signal.aborted) setMessage('Arrival times could not be checked. Use Refresh dates to try again.');
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -133,16 +133,6 @@ export function DateTimeForm({ className }: { className?: string }) {
       <p aria-live="polite" className="mt-3">
         {loading ? 'Checking arrival times…' : message}
       </p>
-      {date && experience && (
-        <button
-          type="button"
-          className="mt-2 underline"
-          disabled={loading}
-          onClick={() => setRetry((value) => value + 1)}
-        >
-          Refresh arrival times
-        </button>
-      )}
       {errors.slotStart && <p role="alert">{errors.slotStart.message}</p>}
     </div>
   );

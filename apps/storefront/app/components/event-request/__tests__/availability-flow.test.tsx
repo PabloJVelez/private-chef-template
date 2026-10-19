@@ -116,7 +116,8 @@ test('failed revisit retains choice but blocks continuation until successful ret
   await screen.findByText(/Arrival times could not be checked/);
   expect(screen.getByRole('button', { name: 'Next Step' }).disabled).toBe(true);
   fail = false;
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh arrival times' }));
+  expect(screen.queryByRole('button', { name: 'Refresh arrival times' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh dates' }));
   await waitFor(() => expect(screen.getByLabelText('Available arrival time').value).toBe(slot.start));
 });
 test('missing catalog is explained and cannot advance', () => {
