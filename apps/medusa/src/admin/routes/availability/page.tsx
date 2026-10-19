@@ -9,7 +9,7 @@ import GoogleCalendarPanel from '../../components/availability/google-calendar-p
 import { ExceptionsEditor } from '../../components/availability/exceptions-editor';
 import { HelpTip } from '../../components/availability/help-tip';
 import { WorkingDays } from '../../components/availability/working-days';
-import { copyDays, dayNames, editorReducer, equalSettings, initialEditor } from '../../components/availability/editor';
+import { editorReducer, equalSettings, initialEditor } from '../../components/availability/editor';
 
 const timezoneNames = (() => {
   const supported = (Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
@@ -33,10 +33,8 @@ const AvailabilityPage = () => {
   const saveId = useRef(0);
   const [exceptionOpen, setExceptionOpen] = useState(false);
   const [discardVersion, setDiscardVersion] = useState(0);
-  const [copyFrom, setCopyFrom] = useState('');
-  const [targets, setTargets] = useState<string[]>([]);
-  const [replace, setReplace] = useState(false);
-  const [copyError, setCopyError] = useState('');
+  const [workingOpen, setWorkingOpen] = useState(false);
+  const [timezoneEditing, setTimezoneEditing] = useState(false);
   const dirty = !equalSettings(state.saved, state.draft);
   const settings = state.draft;
   const validation = availabilitySettingsSchema.safeParse(settings);
@@ -46,16 +44,16 @@ const AvailabilityPage = () => {
     if (query.data) dispatch({ type: 'receive', settings: query.data.settings });
   }, [query.data]);
   useEffect(() => {
-    if (!dirty && !exceptionOpen) return;
+    if (!dirty && !exceptionOpen && !workingOpen) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, exceptionOpen]);
+  }, [dirty, exceptionOpen, workingOpen]);
   const save = async () => {
-    if (!dirty || !validation.success || state.saving || exceptionOpen || copyFrom) return;
+    if (!dirty || !validation.success || state.saving || exceptionOpen || workingOpen) return;
     const id = ++saveId.current;
     const snapshot = validation.data;
     dispatch({ type: 'saving', id, snapshot });
@@ -89,7 +87,7 @@ const AvailabilityPage = () => {
               ? 'Saving… You can keep editing.'
               : state.error
                 ? 'Not saved — try again'
-                : dirty || exceptionOpen
+                : dirty || exceptionOpen || workingOpen
                   ? 'Unsaved changes'
                   : 'All changes saved'}
           </Text>
@@ -121,96 +119,60 @@ const AvailabilityPage = () => {
               content="Choose when you’re available to work. Leave room for the whole visit, preparation, travel and cleanup—not only the client’s arrival."
             />
           </div>
-          <label className="block max-w-md text-sm">
-            Your timezone
-            <Input
-              list="chef-timezones"
-              placeholder="Search a city or timezone"
-              value={settings.timezone}
-              aria-invalid={!timezoneValid}
-              aria-describedby={!timezoneValid ? 'availability-timezone-error' : undefined}
-              onChange={(e) => edit({ ...settings, timezone: e.target.value })}
-            />
-            <datalist id="chef-timezones">
-              {timezoneNames.map((zone) => (
-                <option value={zone} label={friendlyZone(zone)} key={zone} />
-              ))}
-            </datalist>
-          </label>
-          {!timezoneValid && (
-            <Text id="availability-timezone-error" size="small" className="text-ui-fg-error">
-              Choose a timezone from the list, such as Chicago or London.
+          <div className="flex flex-wrap items-center gap-2">
+            <Text size="small" className="text-ui-fg-subtle">
+              Timezone: {settings.timezone ? friendlyZone(settings.timezone) : 'Not set'}
             </Text>
-          )}
-          <WorkingDays
-            key={discardVersion}
-            settings={settings}
-            onChange={edit}
-            onCopy={(day) => {
-              setCopyFrom(day);
-              setTargets([]);
-              setReplace(false);
-              setCopyError('');
-            }}
-          />
-          {copyFrom && (
-            <fieldset className="space-y-3 rounded-lg border p-3">
-              <legend className="px-1 text-sm font-medium">Copy {dayNames[Number(copyFrom) - 1]}’s hours</legend>
-              <div className="flex flex-wrap gap-3">
-                {dayNames.map((day, index) => {
-                  const key = String(index + 1);
-                  return key === copyFrom ? null : (
-                    <label className="flex gap-1 text-sm" key={day}>
-                      <input
-                        type="checkbox"
-                        checked={targets.includes(key)}
-                        onChange={(e) => {
-                          setTargets(e.target.checked ? [...targets, key] : targets.filter((target) => target !== key));
-                          setReplace(false);
-                        }}
-                      />
-                      {day}
-                    </label>
-                  );
-                })}
-              </div>
-              {targets.some((day) => settings.weekly[day as '1']?.length) && (
-                <label className="block text-sm">
-                  <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Replace
-                  existing hours on selected days
-                </label>
-              )}
-              {copyError && (
-                <Text role="alert" className="text-ui-fg-error">
-                  {copyError}
+            {!timezoneEditing && timezoneValid && (
+              <Button type="button" size="small" variant="secondary" onClick={() => setTimezoneEditing(true)}>
+                Change timezone
+              </Button>
+            )}
+          </div>
+          {(timezoneEditing || !timezoneValid) && (
+            <div className="space-y-2">
+              <label className="block max-w-md text-sm">
+                Your timezone
+                <Input
+                  list="chef-timezones"
+                  autoFocus
+                  placeholder="Search a city or timezone"
+                  value={settings.timezone}
+                  aria-invalid={!timezoneValid}
+                  aria-describedby={!timezoneValid ? 'availability-timezone-error' : undefined}
+                  onChange={(e) => edit({ ...settings, timezone: e.target.value })}
+                />
+                <datalist id="chef-timezones">
+                  {timezoneNames.map((zone) => (
+                    <option value={zone} label={friendlyZone(zone)} key={zone} />
+                  ))}
+                </datalist>
+              </label>
+              {!timezoneValid && (
+                <Text id="availability-timezone-error" size="small" className="text-ui-fg-error">
+                  Choose a timezone from the list, such as Chicago or London.
                 </Text>
               )}
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="small"
-                  onClick={() => {
-                    try {
-                      edit(copyDays(settings, copyFrom, targets, replace));
-                      setCopyFrom('');
-                    } catch (e) {
-                      setCopyError((e as Error).message);
-                    }
-                  }}
-                >
-                  Apply copy
-                </Button>
-                <Button type="button" size="small" variant="secondary" onClick={() => setCopyFrom('')}>
-                  Cancel
-                </Button>
-              </div>
-            </fieldset>
+              <Button
+                type="button"
+                size="small"
+                variant="secondary"
+                disabled={!timezoneValid}
+                onClick={() => setTimezoneEditing(false)}
+              >
+                Done
+              </Button>
+            </div>
           )}
+          <WorkingDays key={discardVersion} settings={settings} onChange={edit} onEditing={setWorkingOpen} />
         </Container>
         <Container>
           <ExceptionsEditor key={discardVersion} settings={settings} onChange={edit} onEditing={setExceptionOpen} />
         </Container>
-        <GoogleCalendarPanel required={settings.google_mode === 'required'} unsaved={dirty || exceptionOpen}>
+        <GoogleCalendarPanel
+          required={settings.google_mode === 'required'}
+          unsaved={dirty || exceptionOpen || workingOpen}
+        >
           <label className="block text-sm">
             Check for conflicts in
             <select
@@ -234,9 +196,9 @@ const AvailabilityPage = () => {
                 {state.error}
               </Text>
             )}
-            {(exceptionOpen || copyFrom || !validation.success) && (
+            {(exceptionOpen || workingOpen || !validation.success) && (
               <Text size="small" className="w-full text-ui-fg-subtle" role="status">
-                {exceptionOpen || copyFrom
+                {exceptionOpen || workingOpen
                   ? 'Apply or cancel the open editor before saving.'
                   : 'Check the highlighted timezone or hours before saving.'}
               </Text>
@@ -247,7 +209,8 @@ const AvailabilityPage = () => {
               disabled={!!state.saving}
               onClick={() => {
                 dispatch({ type: 'discard' });
-                setCopyFrom('');
+                setWorkingOpen(false);
+                setTimezoneEditing(false);
                 setExceptionOpen(false);
                 setDiscardVersion((value) => value + 1);
               }}
@@ -257,7 +220,7 @@ const AvailabilityPage = () => {
             <Button
               type="submit"
               isLoading={!!state.saving}
-              disabled={!dirty || !!state.saving || !validation.success || exceptionOpen || !!copyFrom}
+              disabled={!dirty || !!state.saving || !validation.success || exceptionOpen || workingOpen}
             >
               Save availability
             </Button>

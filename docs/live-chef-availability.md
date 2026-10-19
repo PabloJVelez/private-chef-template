@@ -276,3 +276,31 @@ Visual verification must be performed in the updated running admin. This pass
 inspected all four supplied screenshots but did not operate Dia or modify the
 separate development checkout. Pull/restart that checkout only after the branch
 update is verified, then check wide/narrow layouts and native date/time input.
+
+## Compact weekly editor — 2026-10-19
+
+The later compact-row design replaces the bordered day cards described above.
+Configured days share Day/Start/End headings on wide screens and retain labelled
+inputs on narrow screens. Subtle dividers separate days; each native Medusa menu
+offers Copy to other days, Add another time range and Remove day. Range removal
+is shown only for multiple ranges. The sole remaining range is removed through
+Remove day, making the scope explicit.
+
+Add working day opens a temporary editor for one or several unconfigured days.
+Hours start blank and must validate before being applied to the draft. Each day
+receives a separate copy of all ranges. Existing days cannot be overwritten by
+this flow; Copy to other days retains explicit replacement confirmation. Cancel
+or Escape leaves the schedule unchanged and restores focus. Open editors block
+page save and Google connection changes until applied or cancelled.
+
+Timezone is shown as a friendly city name plus the exact IANA identifier. Change
+timezone opens the existing input; opening or closing it does not replace or
+normalize the saved timezone. Dirty-only save/reset, validation, pending states,
+and protection for edits during a save remain in place. The admin preview stays
+removed. No backend, Google scope, database or dependency changes are involved.
+
+Regression coverage includes multi-day add, invalid/duplicate targets, independent
+range copies, cancellation, replacement confirmation, split-range removal, native
+menu keyboard/Escape focus, and exact timezone preservation. Wide/narrow visual
+verification remains manual: the in-app browser was unavailable, and Dia was not
+used to avoid repeating its app-approval loop.

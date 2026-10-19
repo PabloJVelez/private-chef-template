@@ -78,6 +78,20 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return state.saving?.id === action.id ? { ...state, saving: null, error: action.message } : state;
   }
 }
+/** Add independent schedules without overwriting any configured day. */
+export function addWorkingDays(settings: Settings, targets: string[], hours: Hours): Settings {
+  const selected = [...new Set(targets)];
+  if (!selected.length) throw new Error('Select at least one day.');
+  if (selected.some((day) => !/^[1-7]$/.test(day))) throw new Error('Choose valid weekdays.');
+  if (selected.some((day) => settings.weekly[day as '1']?.length))
+    throw new Error('A selected day already has hours. Use Copy to other days to replace them.');
+  if (!hours.length || !validHours(hours)) throw new Error('Enter valid hours before adding days.');
+  const weekly = { ...settings.weekly };
+  selected.forEach((day) => {
+    weekly[day as '1'] = cloneHours(hours);
+  });
+  return { ...settings, weekly };
+}
 export function copyDays(settings: Settings, source: string, targets: string[], replace: boolean): Settings {
   const hours = settings.weekly[source as '1'] || [];
   if (!hours.length || !validHours(hours)) throw new Error('Enter valid hours on the source day first.');

@@ -98,6 +98,7 @@ test('save in flight and background refetch cannot overwrite newer input; failur
   api.save.mockReturnValueOnce(saving.promise);
   await render(React.createElement(AvailabilityPage));
   await act(settle);
+  await click('Change timezone');
   const timezone = () => host.querySelector('input[list=chef-timezones]') as HTMLInputElement;
   await change(timezone(), 'Europe/London');
   await click('Save availability');
@@ -114,31 +115,14 @@ test('save in flight and background refetch cannot overwrite newer input; failur
   expect(timezone().value).toBe('Europe/Paris');
   expect(host.textContent).toContain('Save failed');
   await click('Discard');
-  expect(timezone().value).toBe('Europe/London');
-});
-test('configured days can move and be removed; adding excludes duplicates and starts with blank hours', async () => {
-  await render(React.createElement(AvailabilityPage));
-  await act(settle);
-  expect(host.querySelector('[aria-label="Working day Monday"]')).not.toBeNull();
-  expect(host.querySelector('[aria-label="Working day Tuesday"]')).toBeNull();
-  await click('Add working day');
-  const newDay = host.querySelector('[aria-label="New working day"]')!;
-  expect(newDay.textContent).not.toContain('Monday');
-  await change(newDay, '2');
-  expect((host.querySelector('[aria-label="Tuesday start 1"]') as HTMLInputElement).value).toBe('');
-  await change(host.querySelector('[aria-label="Working day Monday"]')!, '3');
-  expect((host.querySelector('[aria-label="Wednesday start 1"]') as HTMLInputElement).value).toBe('10:00');
-  await act(async () => Simulate.click(host.querySelector('[aria-label="Remove Wednesday working day"]')!));
-  expect(host.querySelector('[aria-label="Wednesday start 1"]')).toBeNull();
-  await click('Discard');
-  expect((host.querySelector('[aria-label="Monday start 1"]') as HTMLInputElement).value).toBe('10:00');
-  expect(host.querySelector('[aria-label="Tuesday start 1"]')).toBeNull();
+  expect(host.textContent).toContain('Europe/London');
+  expect(host.querySelector('input[list=chef-timezones]')).toBeNull();
 });
 test('empty schedule starts with an uncommitted day and never publishes default hours', async () => {
   api.get.mockResolvedValue({ settings: { ...saved, weekly: {} } });
   await render(React.createElement(AvailabilityPage));
   await act(settle);
-  expect(host.querySelector('[aria-label="New working day"]')).not.toBeNull();
+  expect(host.textContent).toContain('No working days yet');
   expect(host.querySelector('input[type=time]')).toBeNull();
   expect(host.textContent).toContain('Days not listed are unavailable');
   expect(api.save).not.toHaveBeenCalled();
@@ -160,8 +144,8 @@ test('working-window guidance uses a named keyboard tooltip and removal controls
     await settle();
   });
   expect(document.querySelector('[role="tooltip"]')).toBeNull();
-  expect(host.querySelector('[aria-label="Remove Monday period 1"]')?.textContent).toBe('Remove period');
-  expect(host.querySelector('[aria-label="Remove Monday working day"]')?.textContent).toBe('Remove day');
+  expect(host.querySelector('[aria-label="Remove Monday time range 1"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Actions for Monday"]')).not.toBeNull();
 });
 test('split periods retain distinct labels and independent remove actions', async () => {
   api.get.mockResolvedValue({
@@ -177,9 +161,9 @@ test('split periods retain distinct labels and independent remove actions', asyn
   });
   await render(React.createElement(AvailabilityPage));
   await act(settle);
-  await act(async () => Simulate.click(host.querySelector('[aria-label="Remove Monday period 1"]')!));
+  await act(async () => Simulate.click(host.querySelector('[aria-label="Remove Monday time range 1"]')!));
   expect((host.querySelector('[aria-label="Monday start 1"]') as HTMLInputElement).value).toBe('14:00');
-  expect(host.querySelector('[aria-label="Remove Monday working day"]')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Actions for Monday"]')).not.toBeNull();
 });
 
 test('save and discard appear only for edits; reset restores saved values and hides actions', async () => {
@@ -190,12 +174,14 @@ test('save and discard appear only for edits; reset restores saved values and hi
   expect(button('Discard')).toBeUndefined();
   await act(async () => Simulate.submit(host.querySelector('form')!));
   expect(api.save).not.toHaveBeenCalled();
+  await click('Change timezone');
   const timezone = host.querySelector('input[list=chef-timezones]') as HTMLInputElement;
   await change(timezone, 'Europe/London');
   expect(button('Save availability')?.type).toBe('submit');
   expect(button('Discard')).toBeDefined();
   await click('Discard');
-  expect(timezone.value).toBe('America/Chicago');
+  expect(host.textContent).toContain('America/Chicago');
+  expect(host.querySelector('input[list=chef-timezones]')).toBeNull();
   expect(button('Save availability')).toBeUndefined();
   expect(button('Discard')).toBeUndefined();
 });
@@ -204,6 +190,7 @@ test('form submission validates before save and hides actions after a successful
   api.save.mockImplementation(async (settings) => ({ settings }));
   await render(React.createElement(AvailabilityPage));
   await act(settle);
+  await click('Change timezone');
   const timezone = host.querySelector('input[list=chef-timezones]')!;
   await change(timezone, 'Not/AZone');
   await act(async () => Simulate.submit(host.querySelector('form')!));
@@ -225,7 +212,7 @@ test('working-day and period actions never submit the availability form', async 
   const day = host.querySelector('[aria-label="Monday working hours"]')!;
   expect(day).not.toBeNull();
   expect([...day.querySelectorAll('button')].every((button) => button.type === 'button')).toBe(true);
-  await click('+ Add a period');
+  await menuAction('Monday', 'Add another time range');
   expect(host.querySelector('[aria-label="Monday start 2"]')).not.toBeNull();
   expect(api.save).not.toHaveBeenCalled();
 });
@@ -239,4 +226,131 @@ test('availability omits the admin preview and retains the experience settings l
   const link = host.querySelector('a[href="/experience-types"]');
   expect(link?.textContent).toBe('Manage experiences');
   expect(host.textContent).toContain('Set experience duration, preparation, travel and cleanup in Experiences.');
+});
+
+async function openMenu(day: string) {
+  const trigger = host.querySelector<HTMLButtonElement>(`[aria-label="Actions for ${day}"]`)!;
+  await act(async () => {
+    trigger.focus();
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+  });
+  expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  return trigger;
+}
+async function menuAction(day: string, text: string) {
+  await openMenu(day);
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+    (node) => node.textContent === text,
+  )!;
+  expect(item).toBeDefined();
+  await act(async () => {
+    item.click();
+    await settle();
+  });
+}
+async function checkDay(text: string) {
+  const label = [...host.querySelectorAll('fieldset label')].find((node) => node.textContent?.trim() === text)!;
+  expect(label).toBeDefined();
+  await act(async () => {
+    label.querySelector<HTMLInputElement>('input')!.click();
+    await settle();
+  });
+}
+test('multi-day add excludes configured days, validates, creates independent rows and resets', async () => {
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  await click('Add working day');
+  expect(document.activeElement?.tagName).toBe('FIELDSET');
+  expect([...host.querySelectorAll('fieldset label')].some((node) => node.textContent === 'Monday')).toBe(false);
+  expect((host.querySelector('[aria-label="New working days start 1"]') as HTMLInputElement).value).toBe('');
+  await click('Add days to draft');
+  expect(host.textContent).toContain('Select at least one day');
+  await checkDay('Tuesday');
+  await checkDay('Wednesday');
+  await click('Add days to draft');
+  expect(host.textContent).toContain('Enter valid hours');
+  await change(host.querySelector('[aria-label="New working days start 1"]')!, '09:00');
+  await change(host.querySelector('[aria-label="New working days end 1"]')!, '17:00');
+  await click('Add days to draft');
+  await change(host.querySelector('[aria-label="Tuesday start 1"]')!, '10:00');
+  expect((host.querySelector('[aria-label="Wednesday start 1"]') as HTMLInputElement).value).toBe('09:00');
+  expect(api.save).not.toHaveBeenCalled();
+  await click('Discard');
+  expect(host.querySelector('[aria-label="Tuesday start 1"]')).toBeNull();
+  expect((host.querySelector('[aria-label="Monday start 1"]') as HTMLInputElement).value).toBe('10:00');
+});
+test('cancel and Escape discard only the new-day editor and restore focus', async () => {
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  await click('Add working day');
+  await checkDay('Tuesday');
+  await click('Cancel');
+  expect(document.activeElement?.textContent).toBe('Add working day');
+  expect(host.querySelector('[aria-label="Tuesday start 1"]')).toBeNull();
+  await click('Add working day');
+  await act(async () => {
+    host.querySelector('fieldset')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+  });
+  expect(document.activeElement?.textContent).toBe('Add working day');
+  expect(host.querySelector('fieldset')).toBeNull();
+  expect(api.save).not.toHaveBeenCalled();
+});
+test('native day menu opens from keyboard, closes with Escape and returns focus', async () => {
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  const trigger = await openMenu('Monday');
+  expect(document.querySelector('[role="menu"]')).not.toBeNull();
+  await act(async () => {
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+  });
+  await act(settle);
+  expect(document.querySelector('[role="menu"]')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+});
+test('copy keeps all ranges and requires replacement confirmation; remove day removes final range', async () => {
+  api.get.mockResolvedValue({
+    settings: {
+      ...saved,
+      weekly: {
+        '1': [
+          { start: '09:00', end: '12:00' },
+          { start: '14:00', end: '18:00' },
+        ],
+        '2': [{ start: '10:00', end: '11:00' }],
+      },
+    },
+  });
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  await menuAction('Monday', 'Copy to other days');
+  await checkDay('Tuesday');
+  await click('Apply copy');
+  expect(host.textContent).toContain('Confirm replacement');
+  expect((host.querySelector('[aria-label="Tuesday end 1"]') as HTMLInputElement).value).toBe('11:00');
+  await checkDay('Replace existing hours on selected days');
+  await click('Apply copy');
+  expect((host.querySelector('[aria-label="Tuesday start 2"]') as HTMLInputElement).value).toBe('14:00');
+  await act(async () => {
+    host.querySelector<HTMLButtonElement>('[aria-label="Remove Tuesday time range 1"]')!.click();
+    await settle();
+  });
+  expect(host.querySelector('[aria-label="Remove Tuesday time range 1"]')).toBeNull();
+  await menuAction('Tuesday', 'Remove day');
+  expect(host.querySelector('[aria-label="Tuesday start 1"]')).toBeNull();
+});
+
+test('timezone summary preserves the exact IANA value until an explicit edit', async () => {
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  expect(host.textContent).toContain('Chicago · America/Chicago');
+  expect(host.querySelector('input[list=chef-timezones]')).toBeNull();
+  await click('Change timezone');
+  expect((host.querySelector('input[list=chef-timezones]') as HTMLInputElement).value).toBe('America/Chicago');
+  await click('Done');
+  expect(host.textContent).toContain('Chicago · America/Chicago');
+  expect([...host.querySelectorAll('button')].some((button) => button.textContent === 'Save availability')).toBe(false);
+  expect(api.save).not.toHaveBeenCalled();
 });

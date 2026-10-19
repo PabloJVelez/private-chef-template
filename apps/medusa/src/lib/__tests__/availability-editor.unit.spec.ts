@@ -1,5 +1,6 @@
 import {
   applyException,
+  addWorkingDays,
   copyDays,
   dateRange,
   editorReducer,
@@ -95,4 +96,17 @@ test('failed saves keep the draft and saved settings unchanged; discard restores
   expect(state.saved?.timezone).toBe('America/Chicago');
   state = editorReducer(state, { type: 'discard' });
   expect(equalSettings(state.saved, state.draft)).toBe(true);
+});
+
+test('multi-day add rejects duplicates without overwriting and clones every range', () => {
+  const original = settings();
+  expect(() => addWorkingDays(original, ['1', '3'], hours)).toThrow('already has hours');
+  expect(() => addWorkingDays(original, [], hours)).toThrow('Select');
+  expect(() => addWorkingDays(original, ['8'], hours)).toThrow('valid weekdays');
+  expect(() => addWorkingDays(original, ['3'], [])).toThrow('valid hours');
+  const next = addWorkingDays(original, ['3', '4', '3'], hours);
+  expect(next.weekly['3']).toEqual(hours);
+  next.weekly['3']![0].start = '10:30';
+  expect(next.weekly['4']![0].start).toBe('10:00');
+  expect(original.weekly['1']![0].start).toBe('10:00');
 });
