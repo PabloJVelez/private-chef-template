@@ -85,6 +85,9 @@ test('real request builder retains and revalidates an arrival when returning, wi
   builder();
   await schedule();
   expect(screen.getByRole('button', { name: '2026-11-02, unavailable' }).disabled).toBe(true);
+  expect(screen.queryByText(/Selected date:/)).toBeNull();
+  expect(screen.queryByText(/Your selected experience’s duration/)).toBeNull();
+  expect(screen.getByRole('button', { name: '2026-11-01, available' }).getAttribute('aria-pressed')).toBe('true');
   fireEvent.click(screen.getByRole('button', { name: 'Next Step' }));
   fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
   await waitFor(() => expect(screen.getByLabelText('Available arrival time').value).toBe(slot.start));

@@ -107,7 +107,6 @@ export function DateTimeForm({ className }: { className?: string }) {
           setValue('requestedDate', next, { shouldValidate: true });
         }}
       />
-      {date && <p className="mb-3">Selected date: {date}</p>}
       <label className="block">
         Available arrival time
         <select
@@ -145,10 +144,6 @@ export function DateTimeForm({ className }: { className?: string }) {
         </button>
       )}
       {errors.slotStart && <p role="alert">{errors.slotStart.message}</p>}
-      <p className="mt-3 text-sm">
-        Your selected experience’s duration, preparation, travel and cleanup are included when checking availability.
-        Times are checked again on submission and chef approval.
-      </p>
     </div>
   );
 }
