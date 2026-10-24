@@ -90,12 +90,18 @@ test('per-date choices still distinguish DST fold offsets and match the month su
   expect(repeated[0].label).not.toBe(repeated[1].label);
   expect((await availableCalendar(container, 'exp', '2026-11')).dates[0].available).toBe(day.slots.length > 0);
 });
-test('Google failure is an unavailable service, never a free month; invalid month is rejected', async () => {
+test('Google failure keeps internal availability and private errors out of responses; invalid month is rejected', async () => {
   lookup.mockRejectedValue(new Error('private detail'));
-  await expect(availableCalendar(container, 'exp', '2026-11')).rejects.toThrow('private detail');
+  events = [{ id: 'accepted', status: 'confirmed', occupiedStart: '2026-11-02T14:00:00Z', occupiedEnd: '2026-11-02T18:00:00Z' }];
+  const result = await availableCalendar(container, 'exp', '2026-11');
+  expect(result.dates.find((day) => day.date === '2026-11-01')?.available).toBe(true);
+  expect(result.dates.find((day) => day.date === '2026-11-02')?.available).toBe(false);
+  const day = await availableSlots(container, '2026-11-01', 'exp');
+  await expect(requireSlot(container, '2026-11-01', 'exp', day.slots[0].start)).resolves.toHaveProperty('slot');
   const res: any = { setHeader: jest.fn(), json: jest.fn(), status: jest.fn().mockReturnThis() };
   await GET({ query: { experience_id: 'exp', month: '2026-11' }, scope: container } as any, res);
-  expect(res.status).toHaveBeenCalledWith(503);
+  expect(res.status).not.toHaveBeenCalledWith(503);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ dates: expect.any(Array) }));
   expect(JSON.stringify(res.json.mock.calls)).not.toContain('private detail');
   lookup.mockClear();
   await GET({ query: { experience_id: 'exp', month: '2026-13' }, scope: container } as any, res);
@@ -122,9 +128,9 @@ test('no connection permits monthly, daily and acceptance validation while retai
   expect(maps).not.toHaveBeenCalled();
   expect(lookup).not.toHaveBeenCalled();
 });
-test('connection state lookup failures do not silently fall back to bookings only', async () => {
+test('connection state lookup failures still allow internal availability', async () => {
   google.getPrimaryConnection.mockRejectedValueOnce(new Error('connection lookup failed'));
-  await expect(availableCalendar(container, 'exp', '2026-11')).rejects.toThrow('connection lookup failed');
+  expect((await availableCalendar(container, 'exp', '2026-11')).dates.some((day) => day.available)).toBe(true);
 });
 test('seven-day notice on October 24 plus weekdays starts November 2; reducing notice opens October', async () => {
   LuxonSettings.now = () => Date.parse('2026-10-24T17:00:00Z');
@@ -148,4 +154,16 @@ test('seven-day notice on October 24 plus weekdays starts November 2; reducing n
   expect((await availableCalendar(container, 'exp', '2026-10')).dates.find((day) => day.available)?.date).toBe(
     '2026-10-26',
   );
+});
+
+test('a stalled Google read falls back before the storefront proxy timeout', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick'] });
+  lookup.mockImplementation(() => new Promise(() => {}));
+  try {
+    const result = availableSlots(container, '2026-11-02', 'exp');
+    await jest.advanceTimersByTimeAsync(8001);
+    expect((await result).slots.length).toBeGreaterThan(0);
+  } finally {
+    jest.useRealTimers();
+  }
 });

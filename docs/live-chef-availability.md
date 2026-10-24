@@ -321,3 +321,19 @@ Advance notice remains experience-specific. With seven days of notice, a chef-lo
 current date of October 24, 2026, and Monday–Friday hours, October 31 is the minimum
 date but November 2 is the first working day. Reduce the experience's Advance Notice
 (days) only if shorter lead times are desired. This is not a month-navigation rule.
+
+### Advisory Google checks and advance-notice controls — 2026-10-24
+
+Supersedes the failure policy above: Google is advisory even when connected.
+Connection/token/API/pagination failures fall back to internal availability for
+month/day lookup, request submission and acceptance. Working windows, experience
+rules and internal booking/claim conflicts still apply. Only complete successful
+Google lookups contribute conflicts; incomplete results are discarded. Advisory
+reads have an eight-second total deadline, below the storefront proxy timeouts. The admin
+keeps optional integration guidance in a tooltip beside the connection badge,
+without duplicate paragraphs. Existing connection diagnostics remain available.
+
+Advance notice remains per experience under Experiences → Scheduling. A switch
+reveals the required whole-number day count only when enabled; disabling it removes
+lead-time filtering, while all other availability rules remain active. Existing
+saved settings and the seven-day default are preserved. No migration is needed.

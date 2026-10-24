@@ -222,10 +222,6 @@ const AvailabilityPage = () => {
               <option value="internal_only">Bookings only — ignore Google conflicts</option>
             </select>
           </label>
-          <Text size="small" className="text-ui-fg-subtle">
-            Google Calendar is optional. Without a connection, only bookings are checked. When connected and enabled,
-            calendar lookup failures pause availability until resolved or switched to bookings only.
-          </Text>
         </GoogleCalendarPanel>
       </form>
     </div>

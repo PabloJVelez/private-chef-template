@@ -44,6 +44,11 @@ export const experienceTypeSchema = z.object({
   is_featured: z.boolean().default(false),
   sort_order: numberOrUndefined.optional(),
   highlights_input: z.string().optional().default(''),
+}).superRefine((values, ctx) => {
+  if (values.requires_advance_notice &&
+    (!Number.isInteger(values.advance_notice_days) || (values.advance_notice_days ?? 0) < 1)) {
+    ctx.addIssue({ code: 'custom', path: ['advance_notice_days'], message: 'Enter a whole number of days of at least 1.' });
+  }
 });
 
 export type ExperienceTypeFormValues = z.infer<typeof experienceTypeSchema>;

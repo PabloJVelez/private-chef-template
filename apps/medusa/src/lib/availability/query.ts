@@ -11,6 +11,21 @@ import { CHEF_EVENT_MODULE } from '../../modules/chef-event';
 import { availabilitySettingsSchema, calculateSlots, overlaps, type Interval } from './slots';
 import { googleBusy } from './google-busy';
 
+/** Bound advisory reads below storefront proxy timeouts, including token refresh and pagination. */
+async function advisoryGoogleRead(read: () => Promise<Interval[]>): Promise<Interval[]> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      read(),
+      new Promise<Interval[]>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Google availability deadline exceeded.')), 8000);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function loadSchedule(container: MedusaContainer, experienceId: string) {
   const [raw] = await container
     .resolve<AvailabilityModuleService>('availability')
@@ -70,24 +85,31 @@ async function calculateDates(
     if (events.length < 250) break;
   }
   if (settings.google_mode === 'required') {
-    const google = container.resolve<GoogleCalendarConnectionModuleService>(GOOGLE_CALENDAR_CONNECTION_MODULE);
-    const connection = await google.getPrimaryConnection();
-    // Google is optional. No connection (including an explicit disconnect) uses
-    // internal bookings only. A configured connection must still fail closed on
-    // lookup/auth errors; never silently ignore an enabled calendar outage.
-    if (connection) {
-      const ignored = new Set<string>();
-      for (let skip = 0; ; skip += 250) {
-        const maps = await google.listGoogleCalendarSyncMaps({}, { skip, take: 250 });
-        for (const map of maps)
-          if (map.connectionId === connection?.id && pending.has(map.chefEventId)) ignored.add(map.googleEventId);
-        if (maps.length < 250) break;
-      }
-      const first = DateTime.fromISO(dates[0], { zone: settings.timezone }).startOf('day');
-      const last = DateTime.fromISO(dates[dates.length - 1], { zone: settings.timezone })
-        .plus({ days: 1 })
-        .startOf('day');
-      busy.push(...(await googleBusy(google, first.toUTC().toISO()!, last.toUTC().toISO()!, ignored)));
+    // Google is advisory: failures never remove internal booking protection or
+    // prevent a request. Only add Google conflicts after a complete lookup.
+    try {
+      const conflicts = await advisoryGoogleRead(async () => {
+        const google = container.resolve<GoogleCalendarConnectionModuleService>(GOOGLE_CALENDAR_CONNECTION_MODULE);
+        const connection = await google.getPrimaryConnection();
+        if (connection) {
+          const ignored = new Set<string>();
+          for (let skip = 0; ; skip += 250) {
+            const maps = await google.listGoogleCalendarSyncMaps({}, { skip, take: 250 });
+            for (const map of maps)
+              if (map.connectionId === connection?.id && pending.has(map.chefEventId)) ignored.add(map.googleEventId);
+            if (maps.length < 250) break;
+          }
+          const first = DateTime.fromISO(dates[0], { zone: settings.timezone }).startOf('day');
+          const last = DateTime.fromISO(dates[dates.length - 1], { zone: settings.timezone })
+            .plus({ days: 1 })
+            .startOf('day');
+          return googleBusy(google, first.toUTC().toISO()!, last.toUTC().toISO()!, ignored);
+        }
+        return [];
+      });
+      busy.push(...conflicts);
+    } catch {
+      container.resolve('logger')?.warn('Google availability lookup unavailable; using internal bookings only.');
     }
   }
   return candidates.map(({ date, slots }) => ({

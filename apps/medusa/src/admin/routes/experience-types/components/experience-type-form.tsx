@@ -1,6 +1,6 @@
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Label, Text } from '@medusajs/ui';
+import { Button, Input, Label, Switch, Text } from '@medusajs/ui';
 import type {
   AdminCreateExperienceTypeDTO,
   AdminExperienceTypeDTO,
@@ -184,14 +184,27 @@ export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading 
 
       <Section title="Scheduling" description="Configure advance notice and available time windows.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <CheckboxField
-            label="Requires Advance Notice"
-            description="Enforce lead time before booking."
-            registration={form.register('requires_advance_notice')}
-          />
-          <Field label="Advance Notice (days)" error={form.formState.errors.advance_notice_days?.message}>
-            <Input type="number" min={0} {...form.register('advance_notice_days', { valueAsNumber: true })} />
-          </Field>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="requires-advance-notice"
+                checked={form.watch('requires_advance_notice')}
+                onCheckedChange={(checked) => form.setValue('requires_advance_notice', checked, { shouldDirty: true, shouldValidate: true })}
+              />
+              <Label htmlFor="requires-advance-notice">Require advance notice</Label>
+            </div>
+            <Text size="small" className="text-ui-fg-subtle">
+              {form.watch('requires_advance_notice')
+                ? 'Choose how many days ahead clients must request this experience.'
+                : 'Clients can request same-day arrivals when your schedule has room.'}
+            </Text>
+          </div>
+          {form.watch('requires_advance_notice') && (
+            <Field label="Advance notice (days)" error={form.formState.errors.advance_notice_days?.message}>
+              <Input aria-label="Advance notice (days)" type="number" min={1} step={1}
+                {...form.register('advance_notice_days', { valueAsNumber: true })} />
+            </Field>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 import React from 'react';
+import { TooltipProvider } from '@medusajs/ui';
 import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
 import GoogleCalendarPanel from '../../admin/components/availability/google-calendar-panel';
@@ -11,31 +12,29 @@ jest.mock('../../admin/hooks/google-calendar', () => ({
 }));
 const status = jest.mocked(useGoogleCalendarStatus);
 test.each([
-  ['not_connected', true, 'Google Calendar is optional and is not connected.', false],
-  ['active', false, 'conflict checks are off', false],
-  ['reauthorization_required', true, 'Google conflict checks are enabled but unavailable.', true],
-  ['sync_error', true, 'Google conflict checks are enabled but unavailable.', true],
-])('shows actionable guidance for %s with checking %s', async (connection, enabled, message, blocked) => {
+  ['not_connected', true, 'Google Calendar is optional.'],
+  ['active', false, 'Google conflict checks are off.'],
+  ['reauthorization_required', true, 'clients can still request times'],
+  ['sync_error', true, 'clients can still request times'],
+])('keeps %s guidance in the badge tooltip', async (connection, enabled, message) => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  status.mockReturnValue({
-    data: { status: connection },
-    isLoading: false,
-    isError: false,
-  } as any);
+  status.mockReturnValue({ data: { status: connection }, isLoading: false, isError: false } as any);
   const host = document.createElement('div');
+  document.body.appendChild(host);
   const root = createRoot(host);
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   try {
-    await act(async () =>
-      root.render(
-        React.createElement(GoogleCalendarPanel, {
-          checkWhenConnected: enabled as boolean,
-        }),
-      ),
-    );
-    expect(host.textContent).toContain(message);
-    expect(!!host.querySelector('[role="alert"]')).toBe(blocked);
-    if (connection === 'not_connected') expect(host.textContent).toContain('help prevent double bookings');
+    await act(async () => root.render(React.createElement(TooltipProvider, null,
+      React.createElement(GoogleCalendarPanel, { checkWhenConnected: enabled as boolean }))));
+    expect(host.textContent).not.toContain(message);
+    expect(host.textContent).not.toContain('resume availability');
+    const trigger = host.querySelector<HTMLButtonElement>('[aria-label="About Google Calendar availability"]')!;
+    await act(async () => { trigger.focus(); await settle(); });
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(message);
+    await act(async () => { trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle(); });
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
+    host.remove();
   }
 });

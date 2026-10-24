@@ -1,5 +1,6 @@
 import { Badge, Button, Container, Heading, Text, toast } from '@medusajs/ui';
 import type { ReactNode } from 'react';
+import { HelpTip } from './help-tip';
 import {
   useGoogleCalendarConnectMutation,
   useGoogleCalendarDisconnectMutation,
@@ -25,6 +26,11 @@ export default function GoogleCalendarPanel({
   const connect = useGoogleCalendarConnectMutation();
   const disconnect = useGoogleCalendarDisconnectMutation();
   const data = status.data;
+  const guidance = data?.status === 'not_connected'
+    ? 'Google Calendar is optional. Connect it to help avoid double bookings with personal appointments. Without it, availability uses your working hours and bookings.'
+    : !checkWhenConnected
+      ? 'Google conflict checks are off. Enable them to help avoid double bookings with personal appointments.'
+      : 'Google Calendar helps avoid conflicts with personal appointments. If Google cannot be checked, clients can still request times based on your working hours and bookings.';
   const busy = connect.isPending || disconnect.isPending;
   const handleConnect = async () => {
     try {
@@ -46,37 +52,21 @@ export default function GoogleCalendarPanel({
     <Container className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Heading level="h2">Google Calendar</Heading>
-        {data && <Badge color={data.status === 'active' ? 'green' : 'orange'}>{labels[data.status]}</Badge>}
+        {data && (
+          <div className="flex items-center gap-1">
+            <Badge color={data.status === 'active' ? 'green' : 'orange'}>{labels[data.status]}</Badge>
+            <HelpTip label="About Google Calendar availability" content={guidance} />
+          </div>
+        )}
       </div>
       {children}
       {status.isLoading && <Text size="small">Checking connection…</Text>}
       {status.isError && (
         <Text role="alert" className="text-ui-fg-error">
-          Could not check the Google connection.{' '}
+          Could not check the Google connection. Requests remain available using your working hours and bookings.{' '}
           <button type="button" className="underline" onClick={() => status.refetch()}>
             Retry
           </button>
-        </Text>
-      )}
-      {checkWhenConnected &&
-        !status.isLoading &&
-        (status.isError || (data && data.status !== 'active' && data.status !== 'not_connected')) && (
-          <Text role="alert" size="small" className="text-ui-fg-error">
-            Google conflict checks are enabled but unavailable. Reconnect or fix the connection, or choose bookings only
-            to resume availability without Google conflict checks.
-          </Text>
-        )}
-      {!status.isLoading && !status.isError && data?.status === 'not_connected' && (
-        <Text role="status" size="small" className="text-ui-fg-subtle">
-          Google Calendar is optional and is not connected. Clients can request times based on your working hours and
-          bookings, but personal calendar conflicts are not checked. Connect Google Calendar to help prevent double
-          bookings with appointments outside this app.
-        </Text>
-      )}
-      {!status.isLoading && !status.isError && data?.status === 'active' && !checkWhenConnected && (
-        <Text role="status" size="small" className="text-ui-fg-subtle">
-          Google Calendar is connected, but conflict checks are off. Enable Google conflict checks to help prevent
-          double bookings with your other appointments.
         </Text>
       )}
       {unsaved && (
