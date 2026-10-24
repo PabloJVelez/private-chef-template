@@ -3,9 +3,6 @@ import {
   addWorkingDays,
   copyDays,
   dateRange,
-  editorReducer,
-  equalSettings,
-  initialEditor,
   validHours,
 } from '../../admin/components/availability/editor';
 import type { Settings } from '../availability/slots';
@@ -27,15 +24,7 @@ test('copy preserves split periods and requires explicit replacement of populate
   expect(copied.weekly['2']).toEqual(hours);
   expect(copied.weekly['3']).not.toBe(hours);
 });
-test('off/on preserves draft hours and never invents defaults', () => {
-  let state = editorReducer(initialEditor(), { type: 'receive', settings: settings() });
-  state = editorReducer(state, { type: 'toggle', day: '1', enabled: false });
-  expect(state.draft.weekly['1']).toEqual([]);
-  state = editorReducer(state, { type: 'toggle', day: '1', enabled: true });
-  expect(state.draft.weekly['1']).toEqual(hours);
-  state = editorReducer(state, { type: 'toggle', day: '3', enabled: true });
-  expect(state.draft.weekly['3']).toEqual([{ start: '', end: '' }]);
-});
+
 test('date ranges survive DST and reject invalid or excessive dates', () => {
   expect(dateRange('2026-10-31', '2026-11-02')).toEqual(['2026-10-31', '2026-11-01', '2026-11-02']);
   expect(dateRange('2026-03-07', '2026-03-09')).toHaveLength(3);
@@ -72,31 +61,8 @@ test('hour constraints allow touching but reject overlap, overnight, incomplete 
   ])
     expect(validHours(rows)).toBe(false);
 });
-test('refetch and save completion preserve edits made during the request', () => {
-  let state = editorReducer(initialEditor(), { type: 'receive', settings: settings() });
-  const snapshot = { ...state.draft, timezone: 'Europe/London' };
-  state = editorReducer(state, { type: 'edit', settings: snapshot });
-  state = editorReducer(state, { type: 'saving', id: 1, snapshot });
-  const newer = { ...snapshot, timezone: 'Europe/Paris' };
-  state = editorReducer(state, { type: 'edit', settings: newer });
-  state = editorReducer(state, { type: 'receive', settings: settings() });
-  state = editorReducer(state, { type: 'saved', id: 1, settings: snapshot });
-  expect(state.draft.timezone).toBe('Europe/Paris');
-  expect(state.saved?.timezone).toBe('Europe/London');
-  expect(equalSettings(state.saved, state.draft)).toBe(false);
-  expect(editorReducer(state, { type: 'saved', id: 0, settings: settings() })).toBe(state);
-});
-test('failed saves keep the draft and saved settings unchanged; discard restores saved hours', () => {
-  let state = editorReducer(initialEditor(), { type: 'receive', settings: settings() });
-  state = editorReducer(state, { type: 'edit', settings: { ...state.draft, timezone: 'UTC' } });
-  state = editorReducer(state, { type: 'saving', id: 2, snapshot: state.draft });
-  state = editorReducer(state, { type: 'failed', id: 2, message: 'Offline' });
-  expect(state.error).toBe('Offline');
-  expect(state.draft.timezone).toBe('UTC');
-  expect(state.saved?.timezone).toBe('America/Chicago');
-  state = editorReducer(state, { type: 'discard' });
-  expect(equalSettings(state.saved, state.draft)).toBe(true);
-});
+
+
 
 test('multi-day add rejects duplicates without overwriting and clones every range', () => {
   const original = settings();

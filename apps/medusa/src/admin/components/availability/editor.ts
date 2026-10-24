@@ -11,14 +11,6 @@ export const emptySettings = (): Settings => ({
   notice_rules: [],
 });
 export const cloneHours = (hours: Hours): Hours => hours.map((window) => ({ ...window }));
-// JSONB and schema parsing can reorder object keys without changing a schedule.
-// Keep array ordering significant and compare only the editable settings fields.
-const settingsKey = (value: Settings) => JSON.stringify(cleanSettings(value), (_key, item) =>
-  item && typeof item === 'object' && !Array.isArray(item)
-    ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, item[key]]))
-    : item,
-);
-export const equalSettings = (a: Settings | null, b: Settings) => a !== null && settingsKey(a) === settingsKey(b);
 export function cleanSettings(value: Settings): Settings {
   return {
     timezone: value.timezone,
@@ -27,90 +19,6 @@ export function cleanSettings(value: Settings): Settings {
     google_mode: value.google_mode,
     ...(value.notice_rules !== undefined ? { notice_rules: value.notice_rules } : {}),
   };
-}
-export type EditorState = {
-  initialized: boolean;
-  draft: Settings;
-  saved: Settings | null;
-  remembered: Record<string, Hours>;
-  saving: { id: number; snapshot: Settings } | null;
-  error: string;
-};
-export const initialEditor = (): EditorState => ({
-  initialized: false,
-  draft: emptySettings(),
-  saved: null,
-  remembered: {},
-  saving: null,
-  error: '',
-});
-export type EditorAction =
-  | { type: 'receive'; settings: Settings | null }
-  | { type: 'edit'; settings: Settings }
-  | { type: 'toggle'; day: string; enabled: boolean }
-  | { type: 'discard' }
-  | { type: 'saving'; id: number; snapshot: Settings }
-  | { type: 'saved'; id: number; settings: Settings }
-  | { type: 'failed'; id: number; message: string };
-export function editorReducer(state: EditorState, action: EditorAction): EditorState {
-  switch (action.type) {
-    case 'receive':
-      if (state.initialized) return state; // Refetches must never replace local work.
-      return {
-        ...state,
-        initialized: true,
-        saved: action.settings && cleanSettings(action.settings),
-        draft: action.settings ? cleanSettings(action.settings) : emptySettings(),
-      };
-    case 'edit':
-      return { ...state, draft: action.settings, error: '' };
-    case 'toggle': {
-      const hours = state.draft.weekly[action.day as '1'] || [];
-      return {
-        ...state,
-        remembered: hours.length
-          ? { ...state.remembered, [action.day]: cloneHours(hours) }
-          : state.remembered,
-        draft: {
-          ...state.draft,
-          weekly: {
-            ...state.draft.weekly,
-            [action.day]: action.enabled
-              ? cloneHours(state.remembered[action.day] || [{ start: '', end: '' }])
-              : [],
-          },
-        },
-      };
-    }
-    case 'discard':
-      return state.saving
-        ? state
-        : {
-            ...state,
-            draft: state.saved || emptySettings(),
-            remembered: {},
-            error: '',
-          };
-    case 'saving':
-      return {
-        ...state,
-        saving: { id: action.id, snapshot: action.snapshot },
-        error: '',
-      };
-    case 'saved': {
-      if (state.saving?.id !== action.id) return state;
-      const saved = cleanSettings(action.settings);
-      return {
-        ...state,
-        saved,
-        draft: equalSettings(state.saving.snapshot, state.draft) ? saved : state.draft,
-        saving: null,
-        error: '',
-      };
-    }
-    case 'failed':
-      return state.saving?.id === action.id ? { ...state, saving: null, error: action.message } : state;
-  }
 }
 /** Add independent schedules without overwriting any configured day. */
 export function addWorkingDays(settings: Settings, targets: string[], hours: Hours): Settings {

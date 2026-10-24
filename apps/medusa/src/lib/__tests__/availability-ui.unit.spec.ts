@@ -473,3 +473,34 @@ test('JSONB key ordering does not leave a successful save dirty and uses Medusa 
     expect(success).toHaveBeenCalledWith('Availability saved');
   } finally { success.mockRestore(); }
 });
+
+test('failed mutation shows Medusa error feedback and can retry without losing the draft', async () => {
+  const failure = jest.spyOn(toast, 'error').mockImplementation(() => 'error');
+  api.save.mockRejectedValueOnce(new Error('Connection lost'));
+  api.save.mockImplementationOnce(async (settings) => ({ settings }));
+  try {
+    await render(React.createElement(AvailabilityPage));
+    await act(settle);
+    await click('Change timezone');
+    await change(host.querySelector('input[list=chef-timezones]')!, 'Europe/London');
+    await click('Save availability');
+    expect(failure).toHaveBeenCalledWith('Save failed', expect.objectContaining({ description: 'Connection lost' }));
+    expect(host.querySelector<HTMLInputElement>('input[list=chef-timezones]')!.value).toBe('Europe/London');
+    await click('Save availability');
+    expect(api.save).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toContain('All changes saved');
+  } finally { failure.mockRestore(); }
+});
+
+test('reverting an edit clears form dirtiness and invalid timezone cannot submit', async () => {
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  await click('Change timezone');
+  const timezone = host.querySelector('input[list=chef-timezones]')!;
+  await change(timezone, 'Not/AZone');
+  await act(async () => { Simulate.submit(host.querySelector('form')!); await settle(); });
+  expect(api.save).not.toHaveBeenCalled();
+  await change(timezone, saved.timezone);
+  expect(host.textContent).toContain('All changes saved');
+  expect([...host.querySelectorAll('button')].some((node) => node.textContent === 'Save availability')).toBe(false);
+});

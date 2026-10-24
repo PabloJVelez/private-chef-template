@@ -1,15 +1,17 @@
 import { defineRouteConfig } from '@medusajs/admin-sdk';
 import { Button, Container, Heading, Input, Text, toast } from '@medusajs/ui';
-import { useEffect, useReducer, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { sdk } from '../../../sdk';
+import { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useAdminAvailability, useAdminSaveAvailabilityMutation } from '../../hooks/availability';
+import { useAdminListExperienceTypes } from '../../hooks/experience-types';
 import { availabilitySettingsSchema, type Settings } from '../../../lib/availability/slots';
 import { NoticeRules } from '../../components/availability/notice-rules';
 import GoogleCalendarPanel from '../../components/availability/google-calendar-panel';
 import { ExceptionsEditor } from '../../components/availability/exceptions-editor';
 import { HelpTip } from '../../components/availability/help-tip';
 import { WorkingDays } from '../../components/availability/working-days';
-import { editorReducer, equalSettings, initialEditor } from '../../components/availability/editor';
+import { cleanSettings, emptySettings } from '../../components/availability/editor';
 
 const timezoneNames = (() => {
   const supported = (Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] })
@@ -29,29 +31,41 @@ const friendlyZone = (zone: string) =>
   `${zone.split('/').slice(1).join(' / ').replace(/_/g, ' ') || zone} · ${zone}`;
 
 const AvailabilityPage = () => {
-  const client = useQueryClient();
-  const query = useQuery({
-    queryKey: ['availability'],
-    queryFn: () => sdk.admin.availability.get(),
+  const query = useAdminAvailability();
+  const mutation = useAdminSaveAvailabilityMutation();
+  const experiences = useAdminListExperienceTypes();
+  const form = useForm<Settings>({
+    resolver: zodResolver(availabilitySettingsSchema),
+    defaultValues: emptySettings(),
+    mode: 'onChange',
   });
-  const experiences = useQuery({
-    queryKey: ['experience-types', 'availability'],
-    queryFn: () => sdk.admin.experienceTypes.list(),
-  });
-  const [state, dispatch] = useReducer(editorReducer, undefined, initialEditor);
-  const saveId = useRef(0);
+  const initialized = useRef(false);
+  const editVersion = useRef(0);
+  const [hasSaved, setHasSaved] = useState(false);
+  const { isDirty: dirty, isValid, isSubmitting } = form.formState;
+  const saving = mutation.isPending || isSubmitting;
+  const error = mutation.error?.message;
   const [exceptionOpen, setExceptionOpen] = useState(false);
   const [discardVersion, setDiscardVersion] = useState(0);
   const [workingOpen, setWorkingOpen] = useState(false);
   const [timezoneEditing, setTimezoneEditing] = useState(false);
-  const dirty = !equalSettings(state.saved, state.draft);
-  const settings = state.draft;
-  const validation = availabilitySettingsSchema.safeParse(settings);
+  const settings = form.watch();
   const timezoneValid = availabilitySettingsSchema.shape.timezone.safeParse(settings.timezone).success;
-  const edit = (next: Settings) => dispatch({ type: 'edit', settings: next });
+  const edit = (next: Settings) => {
+    editVersion.current += 1;
+    if (mutation.isError) mutation.reset();
+    // Nested schedule editors supply complete field values, including deletions.
+    for (const key of Object.keys(cleanSettings(next)) as (keyof Settings)[]) {
+      form.setValue(key, next[key], { shouldDirty: true, shouldValidate: true });
+    }
+  };
   useEffect(() => {
-    if (query.data) dispatch({ type: 'receive', settings: query.data.settings });
-  }, [query.data]);
+    if (query.data && !initialized.current) {
+      initialized.current = true;
+      setHasSaved(!!query.data.settings);
+      form.reset(query.data.settings ? cleanSettings(query.data.settings) : emptySettings());
+    }
+  }, [query.data, form.reset]);
   useEffect(() => {
     if (!dirty && !exceptionOpen && !workingOpen) return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -61,28 +75,28 @@ const AvailabilityPage = () => {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, exceptionOpen, workingOpen]);
-  const save = async () => {
-    if (!dirty || !validation.success || state.saving || exceptionOpen || workingOpen) return;
-    const id = ++saveId.current;
-    const snapshot = validation.data;
-    dispatch({ type: 'saving', id, snapshot });
+  const save = async (snapshot: Settings) => {
+    if (!dirty || mutation.isPending || exceptionOpen || workingOpen) return;
+    const submittedVersion = editVersion.current;
     try {
-      const response = await sdk.admin.availability.save(snapshot);
-      dispatch({ type: 'saved', id, settings: response.settings });
-      client.setQueryData(['availability'], response);
+      const response = await mutation.mutateAsync(snapshot);
+      const current = form.getValues();
+      form.reset(cleanSettings(response.settings));
+      // Advance the saved baseline without losing input made during the request.
+      // RHF performs structural dirty checks, independent of JSON object key order.
+      if (editVersion.current !== submittedVersion) {
+        form.reset(current, { keepDefaultValues: true });
+      }
+      setHasSaved(true);
       toast.success('Availability saved');
     } catch (error) {
-      dispatch({
-        type: 'failed',
-        id,
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Could not save. Your changes are still here; please try again.',
-      });
+      const message = error instanceof Error
+        ? error.message
+        : 'Could not save. Your changes are still here; please try again.';
+      toast.error('Save failed', { description: message, duration: 5000 });
     }
   };
-  if (!state.initialized)
+  if (!initialized.current)
     return (
       <Container>
         <Text>{query.isError ? 'Unable to load your schedule.' : 'Loading availability…'}</Text>
@@ -95,23 +109,23 @@ const AvailabilityPage = () => {
         <div>
           <Heading>Availability</Heading>
           <Text size="small" role="status">
-            {state.saving
+            {saving
               ? 'Saving… You can keep editing.'
-              : state.error
+              : error
                 ? 'Not saved — try again'
                 : dirty || exceptionOpen || workingOpen
                   ? 'Unsaved changes'
                   : 'All changes saved'}
           </Text>
         </div>
-        {(dirty || state.saving || exceptionOpen || workingOpen) && (
+        {(dirty || saving || exceptionOpen || workingOpen) && (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {state.error && (
+            {error && (
               <Text className="w-full text-ui-fg-error" size="small" role="alert">
-                {state.error}
+                {error}
               </Text>
             )}
-            {(exceptionOpen || workingOpen || !validation.success) && (
+            {(exceptionOpen || workingOpen || !isValid) && (
               <Text size="small" className="w-full text-ui-fg-subtle" role="status">
                 {workingOpen
                   ? 'Apply the working-day changes below, then save availability.'
@@ -123,9 +137,10 @@ const AvailabilityPage = () => {
             <Button
               type="button"
               variant="secondary"
-              disabled={!!state.saving}
+              disabled={!!saving}
               onClick={() => {
-                dispatch({ type: 'discard' });
+                form.reset();
+                mutation.reset();
                 setWorkingOpen(false);
                 setTimezoneEditing(false);
                 setExceptionOpen(false);
@@ -137,16 +152,16 @@ const AvailabilityPage = () => {
             <Button
               type="submit"
               form="availability-settings"
-              isLoading={!!state.saving}
-              disabled={!dirty || !!state.saving || !validation.success || exceptionOpen || workingOpen}
+              isLoading={!!saving}
+              disabled={!dirty || !!saving || !isValid || exceptionOpen || workingOpen}
             >
               Save availability
             </Button>
           </div>
         )}
-        {state.error && !dirty && !state.saving && (
+        {error && !dirty && !saving && (
           <Text className="w-full text-ui-fg-error" size="small" role="alert">
-            {state.error}
+            {error}
           </Text>
         )}
       </div>
@@ -154,12 +169,9 @@ const AvailabilityPage = () => {
         id="availability-settings"
         aria-label="Availability settings"
         className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
+        onSubmit={form.handleSubmit(save)}
       >
-        {!state.saved && (
+        {!hasSaved && (
           <Text>
             No arrival times are offered until you save your schedule. Start with your timezone and usual
             hours.
