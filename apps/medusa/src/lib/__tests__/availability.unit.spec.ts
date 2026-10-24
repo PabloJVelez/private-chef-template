@@ -63,13 +63,13 @@ describe('chef availability', () => {
       slots('2026-11-02', schedule, exp, [{ start: '2026-11-02T10:15Z', end: '2026-11-02T11:00Z' }]).map((s) => s.time),
     ).toEqual(['11:00', '11:30']);
   });
-  it('enforces experience notice, horizon and explicit slots', () => {
+  it('enforces centralized notice, horizon and explicit slots', () => {
     const now = DateTime.fromISO('2026-10-31T12:00Z');
     expect(
       calculateSlots(
         '2026-11-01',
-        settings,
-        { ...exp, requires_advance_notice: true, advance_notice_days: 7 },
+        { ...settings, notice_rules: [{ enabled: true, days: 7, scope: 'all', experience_ids: [] }] },
+        exp,
         [],
         now,
       ),

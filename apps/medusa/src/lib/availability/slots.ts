@@ -65,13 +65,11 @@ export type Slot = Interval & {
 export const overlaps = (a: Interval, b: Interval) =>
   Date.parse(a.start) < Date.parse(b.end) && Date.parse(b.start) < Date.parse(a.end);
 
-/** Null is the compatibility path until existing policies have been migrated. */
+/** Availability is the sole notice authority; absent rules match the admin's off state. */
 export function advanceNoticeDays(settings: Settings, experience: ExperienceSchedule): number {
-  if (settings.notice_rules == null)
-    return experience.requires_advance_notice ? (experience.advance_notice_days ?? 7) : 0;
   return Math.max(
     0,
-    ...settings.notice_rules
+    ...(settings.notice_rules ?? [])
       .filter(
         (rule) => rule.enabled && (rule.scope === 'all' || rule.experience_ids.includes(experience.id ?? '')),
       )

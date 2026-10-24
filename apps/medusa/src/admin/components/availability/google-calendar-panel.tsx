@@ -92,15 +92,6 @@ export default function GoogleCalendarPanel({
           )}
         </div>
       )}
-      {data && data.status !== 'not_connected' && (
-        <details className="text-sm">
-          <summary className="cursor-pointer">Connection details</summary>
-          <Text size="small" className="mt-2 break-all">
-            Calendar: {data.calendarId || 'Primary calendar'}
-          </Text>
-          {data.lastSyncError && <Text size="small">{data.lastSyncError}</Text>}
-        </details>
-      )}
     </Container>
   );
 }

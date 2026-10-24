@@ -75,6 +75,7 @@ test('closures replace weekly hours and bounds prevent out-of-range dates or loo
   settings.overrides['2026-11-02'] = [];
   experience.requires_advance_notice = true;
   experience.advance_notice_days = 7;
+  settings.notice_rules = [{ enabled: true, days: 7, scope: 'all', experience_ids: [] }];
   const month = await availableCalendar(container, 'exp');
   expect(month.month).toBe('2026-11');
   expect(month.minDate).toBe('2026-11-06');
@@ -145,12 +146,13 @@ test('seven-day notice on October 24 plus weekdays starts November 2; reducing n
     requires_advance_notice: true,
     advance_notice_days: 7,
   };
+  settings.notice_rules = [{ enabled: true, days: 7, scope: 'all', experience_ids: [] }];
   const october = await availableCalendar(container, 'exp', '2026-10');
   expect(october.minDate).toBe('2026-10-31');
   expect(october.dates.some((day) => day.available)).toBe(false);
   const november = await availableCalendar(container, 'exp', '2026-11');
   expect(november.dates.find((day) => day.available)?.date).toBe('2026-11-02');
-  experience.advance_notice_days = 0;
+  settings.notice_rules = [];
   expect((await availableCalendar(container, 'exp', '2026-10')).dates.find((day) => day.available)?.date).toBe(
     '2026-10-26',
   );
@@ -189,3 +191,26 @@ test('central notice scope drives month, day, submission and acceptance validati
   settings.notice_rules = [];
   expect((await availableSlots(container, '2026-11-02', 'exp')).slots.length).toBeGreaterThan(0);
 });
+
+test.each([undefined, null, [], [{ enabled: false, days: 7, scope: 'all' as const, experience_ids: [] }]])(
+  'notice off (%j) ignores hidden legacy rules; same-day requests still require open hours', async (notice_rules) => {
+    LuxonSettings.now = () => Date.parse('2026-10-24T17:00:00Z'); // Saturday noon in Chicago.
+    settings = {
+      timezone: 'America/Chicago', google_mode: 'internal_only', notice_rules,
+      overrides: {},
+      weekly: Object.fromEntries(['1', '2', '3', '4', '5'].map((day) => [day, [{ start: '09:01', end: '21:02' }]])),
+    };
+    experience = { ...experience, id: 'exp', requires_advance_notice: true, advance_notice_days: 7 };
+    const month = await availableCalendar(container, 'exp', '2026-10');
+    expect(month.minDate).toBe('2026-10-24');
+    expect(month.dates.find((day) => day.date === '2026-10-24')?.available).toBe(false);
+    expect(month.dates.find((day) => day.available)?.date).toBe('2026-10-26');
+    // A special-hours exception permits today without changing the normal workweek.
+    settings.overrides['2026-10-24'] = [{ start: '09:01', end: '21:02' }];
+    const today = await availableSlots(container, '2026-10-24', 'exp');
+    expect(today.slots.length).toBeGreaterThan(0);
+    expect(today.slots.every((slot) => Date.parse(slot.start) > LuxonSettings.now())).toBe(true);
+    expect((await availableCalendar(container, 'exp', '2026-10')).dates.find((day) => day.date === '2026-10-24')?.available).toBe(true);
+    await expect(requireSlot(container, '2026-10-24', 'exp', today.slots[0].start)).resolves.toBeDefined();
+  },
+);
