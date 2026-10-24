@@ -234,9 +234,12 @@ export function WorkingDays({
               {error}
             </Text>
           )}
+          <Text size="small" className="text-ui-fg-subtle">
+            Apply these changes, then select Save availability to publish them.
+          </Text>
           <div className="flex gap-2">
             <Button type="button" size="small" onClick={apply}>
-              {mode === 'add' ? 'Add days to draft' : 'Apply copy'}
+              {mode === 'add' ? 'Apply working days' : 'Apply copy'}
             </Button>
             <Button type="button" size="small" variant="secondary" onClick={close}>
               Cancel

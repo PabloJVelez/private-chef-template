@@ -267,15 +267,15 @@ test('multi-day add excludes configured days, validates, creates independent row
   expect(document.activeElement?.tagName).toBe('FIELDSET');
   expect([...host.querySelectorAll('fieldset label')].some((node) => node.textContent === 'Monday')).toBe(false);
   expect((host.querySelector('[aria-label="New working days start 1"]') as HTMLInputElement).value).toBe('');
-  await click('Add days to draft');
+  await click('Apply working days');
   expect(host.textContent).toContain('Select at least one day');
   await checkDay('Tuesday');
   await checkDay('Wednesday');
-  await click('Add days to draft');
+  await click('Apply working days');
   expect(host.textContent).toContain('Enter valid hours');
   await change(host.querySelector('[aria-label="New working days start 1"]')!, '09:00');
   await change(host.querySelector('[aria-label="New working days end 1"]')!, '17:00');
-  await click('Add days to draft');
+  await click('Apply working days');
   await change(host.querySelector('[aria-label="Tuesday start 1"]')!, '10:00');
   expect((host.querySelector('[aria-label="Wednesday start 1"]') as HTMLInputElement).value).toBe('09:00');
   expect(api.save).not.toHaveBeenCalled();
@@ -433,5 +433,26 @@ test('removing Sunday submits a six-day snapshot and remains removed after save 
   await render(React.createElement(AvailabilityPage));
   await act(settle);
   expect(host.querySelector('[aria-label="Sunday working hours"]')).toBeNull();
+  expect(host.textContent).toContain('All changes saved');
+});
+
+test('adding Saturday exposes save guidance before applying and persists the new hours after applying', async () => {
+  api.save.mockImplementation(async (settings) => ({ settings }));
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  await click('Add working day');
+  const saveButton = () => [...host.querySelectorAll('button')].find((node) => node.textContent === 'Save availability')!;
+  expect(saveButton()).toBeDefined();
+  expect(saveButton().disabled).toBe(true);
+  expect(host.textContent).toContain('Apply the working-day changes below, then save availability.');
+  await checkDay('Saturday');
+  await change(host.querySelector('[aria-label="New working days start 1"]')!, '09:00');
+  await change(host.querySelector('[aria-label="New working days end 1"]')!, '21:37');
+  await act(async () => Simulate.submit(host.querySelector('form')!));
+  expect(api.save).not.toHaveBeenCalled();
+  await click('Apply working days');
+  expect(saveButton().disabled).toBe(false);
+  await click('Save availability');
+  expect(api.save).toHaveBeenCalledWith(expect.objectContaining({ weekly: { ...saved.weekly, '6': [{ start: '09:00', end: '21:37' }] } }));
   expect(host.textContent).toContain('All changes saved');
 });

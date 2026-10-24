@@ -90,7 +90,7 @@ const AvailabilityPage = () => {
     );
   return (
     <div className="relative space-y-4 pb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-ui-bg-base p-3 shadow-sm">
         <div>
           <Heading>Availability</Heading>
           <Text size="small" role="status">
@@ -103,7 +103,7 @@ const AvailabilityPage = () => {
                   : 'All changes saved'}
           </Text>
         </div>
-        {(dirty || state.saving) && (
+        {(dirty || state.saving || exceptionOpen || workingOpen) && (
           <div className="flex flex-wrap items-center justify-end gap-2">
             {state.error && (
               <Text className="w-full text-ui-fg-error" size="small" role="alert">
@@ -112,9 +112,11 @@ const AvailabilityPage = () => {
             )}
             {(exceptionOpen || workingOpen || !validation.success) && (
               <Text size="small" className="w-full text-ui-fg-subtle" role="status">
-                {exceptionOpen || workingOpen
-                  ? 'Apply or cancel the open editor before saving.'
-                  : 'Check the highlighted availability settings before saving.'}
+                {workingOpen
+                  ? 'Apply the working-day changes below, then save availability.'
+                  : exceptionOpen
+                    ? 'Apply or cancel the date editor below, then save availability.'
+                    : 'Check the highlighted availability settings before saving.'}
               </Text>
             )}
             <Button
