@@ -45,12 +45,12 @@ test('lookup failure is an error, never an empty available day or leaked calenda
   expect(JSON.stringify(res.json.mock.calls)).not.toContain('private calendar detail');
 });
 
-test('admin preview explains the missing required connection while remaining unavailable', async () => {
+test('admin preview asks for retry when a connection disappears during a lookup', async () => {
   calculate.mockRejectedValue(new GoogleAvailabilityError('google_not_connected'));
   const res = response();
   await GET({ query: { date: '2026-11-01', experience_id: 'experience' }, scope: {} } as any, res);
   expect(res.status).toHaveBeenCalledWith(503);
   expect(res.json).toHaveBeenCalledWith({
-    message: expect.stringContaining('Connect Google Calendar in Availability settings.'),
+    message: expect.stringContaining('The Google Calendar connection changed during this lookup.'),
   });
 });

@@ -6,7 +6,7 @@ import type { Interval } from './slots';
 export class GoogleAvailabilityError extends Error {
   constructor(public readonly code: 'google_not_connected' | 'google_connection_unavailable') {
     super(code === 'google_not_connected'
-      ? 'Connect Google Calendar in Availability settings. Required Google checks keep storefront dates unavailable until connected.'
+      ? 'The Google Calendar connection changed during this lookup. Refresh availability to use the current connection settings.'
       : 'Reconnect or resolve the Google Calendar sync error in Availability settings.');
     this.name = 'GoogleAvailabilityError';
   }

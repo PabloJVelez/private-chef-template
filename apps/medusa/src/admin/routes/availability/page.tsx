@@ -208,7 +208,7 @@ const AvailabilityPage = () => {
           <ExceptionsEditor key={discardVersion} settings={settings} onChange={edit} onEditing={setExceptionOpen} />
         </Container>
         <GoogleCalendarPanel
-          required={settings.google_mode === 'required'}
+          checkWhenConnected={settings.google_mode === 'required'}
           unsaved={dirty || exceptionOpen || workingOpen}
         >
           <label className="block text-sm">
@@ -218,13 +218,13 @@ const AvailabilityPage = () => {
               value={settings.google_mode}
               onChange={(e) => edit({ ...settings, google_mode: e.target.value as Settings['google_mode'] })}
             >
-              <option value="required">Bookings and Google Calendar</option>
+              <option value="required">Bookings and Google Calendar (when connected)</option>
               <option value="internal_only">Bookings only — ignore Google conflicts</option>
             </select>
           </label>
           <Text size="small" className="text-ui-fg-subtle">
-            Only the connected calendar is checked. If Google is required and cannot be checked, clients cannot request
-            those times.
+            Google Calendar is optional. Without a connection, only bookings are checked. When connected and enabled,
+            calendar lookup failures pause availability until resolved or switched to bookings only.
           </Text>
         </GoogleCalendarPanel>
       </form>

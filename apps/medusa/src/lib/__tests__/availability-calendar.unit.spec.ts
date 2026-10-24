@@ -1,5 +1,5 @@
 import { DateTime, Settings as LuxonSettings } from 'luxon';
-import { availableCalendar, availableSlots } from '../availability/query';
+import { availableCalendar, availableSlots, requireSlot } from '../availability/query';
 import { googleBusy } from '../availability/google-busy';
 import type { Settings } from '../availability/slots';
 import { GET } from '../../api/store/availability/calendar/route';
@@ -10,7 +10,7 @@ let experience: any;
 let events: any[];
 const listEvents = jest.fn(async () => events);
 const maps = jest.fn(async () => [] as any[]);
-const google = { getPrimaryConnection: async () => ({ id: 'connection' }), listGoogleCalendarSyncMaps: maps };
+const google = { getPrimaryConnection: jest.fn(async (): Promise<any> => ({ id: 'connection' })), listGoogleCalendarSyncMaps: maps };
 const container: any = {
   resolve: (key: string) =>
     ({
@@ -35,6 +35,7 @@ beforeEach(() => {
   events = [];
   jest.clearAllMocks();
   lookup.mockResolvedValue([]);
+  google.getPrimaryConnection.mockResolvedValue({ id: 'connection' });
 });
 afterEach(() => {
   LuxonSettings.now = () => Date.now();
@@ -100,4 +101,51 @@ test('Google failure is an unavailable service, never a free month; invalid mont
   await GET({ query: { experience_id: 'exp', month: '2026-13' }, scope: container } as any, res);
   expect(res.status).toHaveBeenCalledWith(400);
   expect(lookup).not.toHaveBeenCalled();
+});
+
+test('no connection permits monthly, daily and acceptance validation while retaining internal conflicts', async () => {
+  google.getPrimaryConnection.mockResolvedValue(null);
+  lookup.mockRejectedValue(new Error('must not query Google without a connection'));
+  const month = await availableCalendar(container, 'exp', '2026-11');
+  expect(month.dates.find((d) => d.date === '2026-11-02')?.available).toBe(true);
+  const day = await availableSlots(container, '2026-11-02', 'exp');
+  await expect(requireSlot(container, '2026-11-02', 'exp', day.slots[0].start)).resolves.toHaveProperty('slot');
+  events = [
+    {
+      id: 'accepted',
+      status: 'confirmed',
+      occupiedStart: '2026-11-02T14:00:00Z',
+      occupiedEnd: '2026-11-02T18:00:00Z',
+    },
+  ];
+  await expect(requireSlot(container, '2026-11-02', 'exp', day.slots[0].start)).rejects.toThrow('no longer available');
+  expect(maps).not.toHaveBeenCalled();
+  expect(lookup).not.toHaveBeenCalled();
+});
+test('connection state lookup failures do not silently fall back to bookings only', async () => {
+  google.getPrimaryConnection.mockRejectedValueOnce(new Error('connection lookup failed'));
+  await expect(availableCalendar(container, 'exp', '2026-11')).rejects.toThrow('connection lookup failed');
+});
+test('seven-day notice on October 24 plus weekdays starts November 2; reducing notice opens October', async () => {
+  LuxonSettings.now = () => Date.parse('2026-10-24T17:00:00Z');
+  settings = {
+    timezone: 'America/Chicago',
+    google_mode: 'internal_only',
+    overrides: {},
+    weekly: Object.fromEntries(['1', '2', '3', '4', '5'].map((day) => [day, [{ start: '09:01', end: '21:02' }]])),
+  };
+  experience = {
+    ...experience,
+    requires_advance_notice: true,
+    advance_notice_days: 7,
+  };
+  const october = await availableCalendar(container, 'exp', '2026-10');
+  expect(october.minDate).toBe('2026-10-31');
+  expect(october.dates.some((day) => day.available)).toBe(false);
+  const november = await availableCalendar(container, 'exp', '2026-11');
+  expect(november.dates.find((day) => day.available)?.date).toBe('2026-11-02');
+  experience.advance_notice_days = 0;
+  expect((await availableCalendar(container, 'exp', '2026-10')).dates.find((day) => day.available)?.date).toBe(
+    '2026-10-26',
+  );
 });

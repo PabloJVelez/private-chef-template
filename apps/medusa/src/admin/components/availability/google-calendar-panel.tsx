@@ -13,10 +13,14 @@ const labels: Record<GoogleCalendarStatus, string> = {
   sync_error: 'Needs attention',
 };
 export default function GoogleCalendarPanel({
-  required = false,
+  checkWhenConnected = false,
   unsaved = false,
   children,
-}: { required?: boolean; unsaved?: boolean; children?: ReactNode }) {
+}: {
+  checkWhenConnected?: boolean;
+  unsaved?: boolean;
+  children?: ReactNode;
+}) {
   const status = useGoogleCalendarStatus();
   const connect = useGoogleCalendarConnectMutation();
   const disconnect = useGoogleCalendarDisconnectMutation();
@@ -54,10 +58,25 @@ export default function GoogleCalendarPanel({
           </button>
         </Text>
       )}
-      {required && !status.isLoading && (status.isError || data?.status !== 'active') && (
-        <Text role="alert" size="small" className="text-ui-fg-error">
-          Google checks are required. Connect or fix the calendar connection before offering times that need a conflict
-          check.
+      {checkWhenConnected &&
+        !status.isLoading &&
+        (status.isError || (data && data.status !== 'active' && data.status !== 'not_connected')) && (
+          <Text role="alert" size="small" className="text-ui-fg-error">
+            Google conflict checks are enabled but unavailable. Reconnect or fix the connection, or choose bookings only
+            to resume availability without Google conflict checks.
+          </Text>
+        )}
+      {!status.isLoading && !status.isError && data?.status === 'not_connected' && (
+        <Text role="status" size="small" className="text-ui-fg-subtle">
+          Google Calendar is optional and is not connected. Clients can request times based on your working hours and
+          bookings, but personal calendar conflicts are not checked. Connect Google Calendar to help prevent double
+          bookings with appointments outside this app.
+        </Text>
+      )}
+      {!status.isLoading && !status.isError && data?.status === 'active' && !checkWhenConnected && (
+        <Text role="status" size="small" className="text-ui-fg-subtle">
+          Google Calendar is connected, but conflict checks are off. Enable Google conflict checks to help prevent
+          double bookings with your other appointments.
         </Text>
       )}
       {unsaved && (

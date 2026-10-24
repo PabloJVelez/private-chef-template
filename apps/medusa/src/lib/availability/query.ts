@@ -72,18 +72,23 @@ async function calculateDates(
   if (settings.google_mode === 'required') {
     const google = container.resolve<GoogleCalendarConnectionModuleService>(GOOGLE_CALENDAR_CONNECTION_MODULE);
     const connection = await google.getPrimaryConnection();
-    const ignored = new Set<string>();
-    for (let skip = 0; ; skip += 250) {
-      const maps = await google.listGoogleCalendarSyncMaps({}, { skip, take: 250 });
-      for (const map of maps)
-        if (map.connectionId === connection?.id && pending.has(map.chefEventId)) ignored.add(map.googleEventId);
-      if (maps.length < 250) break;
+    // Google is optional. No connection (including an explicit disconnect) uses
+    // internal bookings only. A configured connection must still fail closed on
+    // lookup/auth errors; never silently ignore an enabled calendar outage.
+    if (connection) {
+      const ignored = new Set<string>();
+      for (let skip = 0; ; skip += 250) {
+        const maps = await google.listGoogleCalendarSyncMaps({}, { skip, take: 250 });
+        for (const map of maps)
+          if (map.connectionId === connection?.id && pending.has(map.chefEventId)) ignored.add(map.googleEventId);
+        if (maps.length < 250) break;
+      }
+      const first = DateTime.fromISO(dates[0], { zone: settings.timezone }).startOf('day');
+      const last = DateTime.fromISO(dates[dates.length - 1], { zone: settings.timezone })
+        .plus({ days: 1 })
+        .startOf('day');
+      busy.push(...(await googleBusy(google, first.toUTC().toISO()!, last.toUTC().toISO()!, ignored)));
     }
-    const first = DateTime.fromISO(dates[0], { zone: settings.timezone }).startOf('day');
-    const last = DateTime.fromISO(dates[dates.length - 1], { zone: settings.timezone })
-      .plus({ days: 1 })
-      .startOf('day');
-    busy.push(...(await googleBusy(google, first.toUTC().toISO()!, last.toUTC().toISO()!, ignored)));
   }
   return candidates.map(({ date, slots }) => ({
     date,

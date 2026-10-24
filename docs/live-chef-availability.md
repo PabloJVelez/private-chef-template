@@ -304,3 +304,20 @@ range copies, cancellation, replacement confirmation, split-range removal, nativ
 menu keyboard/Escape focus, and exact timezone preservation. Wide/narrow visual
 verification remains manual: the in-app browser was unavailable, and Dia was not
 used to avoid repeating its app-approval loop.
+
+## Optional Google Calendar — 2026-10-24
+
+This supersedes the earlier missing-connection policy. Google integration is optional:
+when no connection exists, availability uses working hours, experience rules and
+internal bookings/claims. The admin explains that personal appointments are not
+checked and recommends connecting Google to help avoid double bookings.
+The existing `required` storage value now means check Google **when connected**;
+`internal_only` continues to explicitly disable Google checks. No data migration is
+needed. Existing connected calendars remain checked. Connection lookup errors,
+auth failures and API failures still block when checks are enabled; they are not
+silently treated as disconnected. A disconnect during a lookup requires a retry.
+
+Advance notice remains experience-specific. With seven days of notice, a chef-local
+current date of October 24, 2026, and Monday–Friday hours, October 31 is the minimum
+date but November 2 is the first working day. Reduce the experience's Advance Notice
+(days) only if shorter lead times are desired. This is not a month-navigation rule.
