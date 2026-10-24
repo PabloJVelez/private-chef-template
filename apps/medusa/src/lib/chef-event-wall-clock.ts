@@ -56,7 +56,7 @@ export function wallClockToUtcJsDate(
     },
     { zone },
   );
-  if (!dt.isValid) {
+  if (!dt.isValid || dt.getPossibleOffsets().length > 1 || dt.toFormat("yyyy-MM-dd") !== calendarIsoDate || dt.toFormat("HH:mm") !== hhmm) {
     return null;
   }
   return dt.toUTC().toJSDate();

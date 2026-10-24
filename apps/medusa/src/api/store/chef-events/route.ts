@@ -25,6 +25,7 @@ const attributionSchema = z.object({
 }).passthrough()
 
 const createStoreChefEventSchema = z.object({
+  slotStart: z.string().datetime(),
   requestedDate: z.string().min(1, "Requested date is required"),
   requestedTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
   partySize: z.number().min(2, "Minimum party size is 2").max(50, "Maximum party size is 50"),

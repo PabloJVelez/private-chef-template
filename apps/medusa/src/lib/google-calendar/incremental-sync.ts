@@ -66,6 +66,12 @@ function toRequestedDateAndTime(
   };
 }
 
+/** Preserve Google's explicit UTC offset, including the second occurrence in a DST fold. */
+export function googleStartInstant(dateTime: string): Date | null {
+  const instant = DateTime.fromISO(dateTime, { setZone: true });
+  return instant.isValid ? instant.toJSDate() : null;
+}
+
 function toEstimatedDurationMinutes(start?: string, end?: string) {
   if (!start || !end) {
     return undefined;
@@ -211,11 +217,9 @@ async function applyGoogleEventToChefEvent(
   };
 
   if (requested?.requestedDate) {
-    const asDate = wallClockToUtcJsDate(
-      requested.requestedDate,
-      requested.requestedTime || "00:00",
-      zone,
-    );
+    const asDate = event.start?.dateTime
+      ? googleStartInstant(event.start.dateTime)
+      : wallClockToUtcJsDate(requested.requestedDate, requested.requestedTime || "00:00", zone);
     if (asDate) {
       updatePayload.requestedDate = asDate;
     }
@@ -230,7 +234,17 @@ async function applyGoogleEventToChefEvent(
     updatePayload.estimatedDuration = estimatedDuration;
   }
 
-  await chefEventService.updateChefEvents(updatePayload);
+  try {
+    await chefEventService.updateChefEvents(updatePayload);
+  } catch (error) {
+    // A direct Google reschedule must not bypass the accepted booking snapshot.
+    const connection = await googleSvc.getPrimaryConnection();
+    if (connection) await googleSvc.updateGoogleCalendarConnections({
+      id: connection.id, status: 'sync_error',
+      lastSyncError: `Could not apply Google schedule change to ${chefEventId}. Accepted bookings must be cancelled and requested again; restore the Google event time to resume sync.`,
+    });
+    throw error;
+  }
 }
 
 export async function runIncrementalSync(

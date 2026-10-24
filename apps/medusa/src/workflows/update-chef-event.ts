@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { 
   createStep,
   createWorkflow,
@@ -68,8 +69,8 @@ const updateChefEventStep = createStep(
         "Template menu cannot be changed after deriving an event menu"
       )
     }
-    if (input.requestedDate) {
-      const raw = String(input.requestedDate)
+    if (input.requestedDate || input.requestedTime) {
+      const raw = input.requestedDate ?? DateTime.fromJSDate(new Date(existing.requestedDate)).setZone(existing.timeZone).toISODate()!
       const datePart = raw.includes("T") ? raw.split("T")[0]! : raw.slice(0, 10)
       const timePart =
         input.requestedTime ??
@@ -80,11 +81,14 @@ const updateChefEventStep = createStep(
         (existing as { timeZone?: string }).timeZone,
         process.env.GOOGLE_CALENDAR_DEFAULT_TIMEZONE ?? "America/Chicago",
       )
-      const parsed = wallClockToUtcJsDate(datePart, timePart, zone)
+      const priorLocal = DateTime.fromJSDate(new Date(existing.requestedDate)).setZone(zone)
+      const parsed = priorLocal.toISODate() === datePart && priorLocal.toFormat("HH:mm") === timePart
+        ? new Date(existing.requestedDate)
+        : wallClockToUtcJsDate(datePart, timePart, zone)
       if (parsed) {
         updateData.requestedDate = parsed
       } else {
-        updateData.requestedDate = new Date(input.requestedDate)
+        throw new Error('Invalid, nonexistent or ambiguous local arrival time.')
       }
     }
 

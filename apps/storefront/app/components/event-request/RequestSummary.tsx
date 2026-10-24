@@ -39,6 +39,8 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
     partySize: watch('partySize'),
     requestedDate: watch('requestedDate'),
     requestedTime: watch('requestedTime'),
+    slotTimezone: watch('slotTimezone'),
+    slotLabel: watch('slotLabel'),
     locationAddress: watch('locationAddress'),
     firstName: watch('firstName'),
     lastName: watch('lastName'),
@@ -66,8 +68,7 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
           menuId: formData.menuId,
         })
       : null;
-  const totalPrice =
-    pricePerPerson != null ? pricePerPerson * (formData.partySize || 0) : null;
+  const totalPrice = pricePerPerson != null ? pricePerPerson * (formData.partySize || 0) : null;
   const showTbdPricingCopy =
     !!(formData.menuId && formData.experienceTypeId && formData.eventType && formData.partySize) &&
     pricePerPerson === null;
@@ -196,7 +197,8 @@ export const RequestSummary: FC<RequestSummaryProps> = ({
             <div>
               <p className="text-sm font-medium text-primary-700">Start Time</p>
               <p className="text-primary-900">
-                {formData.requestedTime ? formatTimeForDisplay(formData.requestedTime) : 'Not selected'}
+                {formData.slotLabel ||
+                  (formData.requestedTime ? formatTimeForDisplay(formData.requestedTime) : 'Not selected')}
               </p>
             </div>
           </div>

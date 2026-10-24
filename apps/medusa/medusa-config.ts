@@ -34,6 +34,7 @@ const GOOGLE_CALENDAR_DEFAULT_TIMEZONE =
   process.env.GOOGLE_CALENDAR_DEFAULT_TIMEZONE;
 
 const customModules = [
+  { resolve: './src/modules/availability', options: {} },
   {
     resolve: './src/modules/menu',
     options: {},

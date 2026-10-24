@@ -1,4 +1,6 @@
-import { MedusaError, MedusaService } from "@medusajs/framework/utils"
+import type { Context } from '@medusajs/framework/types';
+import type { EntityManager } from '@mikro-orm/knex';
+import { InjectManager, InjectTransactionManager, MedusaContext, MedusaError, MedusaService } from "@medusajs/framework/utils"
 import ChefEventModel from "./models/chef-event"
 import type { ChefEventAdditionalCharge } from "./models/chef-event"
 
@@ -20,6 +22,74 @@ type MarkChargePaidInput = {
 class ChefEventModuleService extends MedusaService({
   ChefEvent: ChefEventModel
 }){
+  @InjectManager()
+  async claimAcceptance(
+    input: {
+      id: string;
+      token: string;
+      updatedAt: Date;
+      start: string;
+      end: string;
+      snapshot: Record<string, unknown>;
+    },
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    return this.claimAcceptance_(input, context);
+  }
+
+  @InjectTransactionManager()
+  protected async claimAcceptance_(
+    input: {
+      id: string;
+      token: string;
+      updatedAt: Date;
+      start: string;
+      end: string;
+      snapshot: Record<string, unknown>;
+    },
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    const rows = await context.transactionManager!.execute(
+      `update chef_event set "estimatedDuration" = ?, "timeZone" = ?, "acceptanceToken" = ?, "occupiedStart" = ?, "occupiedEnd" = ?, "availabilitySnapshot" = ?::jsonb, updated_at = now() where id = ? and status = 'pending' and "acceptanceToken" is null and "productId" is null and deleted_at is null and date_trunc('milliseconds', updated_at) = ? returning id`,
+      [
+        input.snapshot.duration_minutes,
+        input.snapshot.timezone,
+        input.token,
+        input.start,
+        input.end,
+        JSON.stringify(input.snapshot),
+        input.id,
+        input.updatedAt,
+      ],
+    );
+    if (!rows.length)
+      throw new MedusaError(
+        MedusaError.Types.NOT_ALLOWED,
+        'Event changed or acceptance is already in progress. Reload before accepting.',
+      );
+  }
+
+  @InjectManager()
+  async releaseAcceptance(
+    id: string,
+    token: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    return this.releaseAcceptance_(id, token, context);
+  }
+
+  @InjectTransactionManager()
+  protected async releaseAcceptance_(
+    id: string,
+    token: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    await context.transactionManager!.execute(
+      `update chef_event set "acceptanceToken" = null, "occupiedStart" = null, "occupiedEnd" = null, "availabilitySnapshot" = null, updated_at = now() where id = ? and "acceptanceToken" = ? and status = 'pending' and "productId" is null`,
+      [id, token],
+    );
+  }
+
   private normalizeExistingCharges(raw: unknown): ChefEventAdditionalCharge[] {
     if (!Array.isArray(raw)) {
       return []

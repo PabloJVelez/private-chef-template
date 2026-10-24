@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@app/components/common/buttons/Button';
 import { ActionList } from '@app/components/common/actions-list/ActionList';
 import type { StoreMenuDTO } from '@app/../types/menus';
-import type { EventRequestFormData } from '@app/routes/request._index';
+import type { EventRequestFormData } from './schema';
 import { RemixFormProvider, useRemixForm } from 'remix-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { eventRequestSchema } from '@app/routes/request._index';
+import { eventRequestSchema } from './schema';
 import { useActionData, useLocation } from 'react-router';
 import clsx from 'clsx';
 import type { FC } from 'react';
@@ -41,8 +41,16 @@ interface ActionResponse {
 }
 
 const STEPS = [
-  { id: 1, title: 'Experience & Menu', subtitle: 'Choose your culinary experience, select a menu template, and tell us how many guests' },
-  { id: 2, title: 'Schedule, Contact & Location', subtitle: 'Select date/time, provide contact info, and enter the event address' },
+  {
+    id: 1,
+    title: 'Experience & Menu',
+    subtitle: 'Choose your culinary experience, select a menu template, and tell us how many guests',
+  },
+  {
+    id: 2,
+    title: 'Schedule, Contact & Location',
+    subtitle: 'Select date/time, provide contact info, and enter the event address',
+  },
   { id: 3, title: 'Special Requests', subtitle: 'Any dietary restrictions or notes?' },
   { id: 4, title: 'Review & Submit', subtitle: 'Confirm your event details' },
 ];
@@ -82,21 +90,17 @@ function mergeExperienceDefaults(
 
   return {
     eventType: initialValues.eventType ?? 'plated_dinner',
-    experienceTypeId: initialValues.experienceTypeId ?? '',
+    experienceTypeId: '',
   };
 }
 
-export const EventRequestForm: FC<EventRequestFormProps> = ({ 
-  menus,
-  experienceTypes = [],
-  initialValues = {} 
-}) => {
+export const EventRequestForm: FC<EventRequestFormProps> = ({ menus, experienceTypes = [], initialValues = {} }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [attributionValue, setAttributionValue] = useState('');
   const attributionInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const actionData = useActionData() as ActionResponse;
-  
+
   const form = useRemixForm<EventRequestFormData>({
     resolver: zodResolver(eventRequestSchema),
     defaultValues: {
@@ -108,10 +112,18 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
     mode: 'onChange', // Validate on change for better UX
   });
 
-  // Handle action data errors
   useEffect(() => {
-    // Process action data if present
-  }, [actionData]);
+    if (actionData?.errors?.root?.message) form.setError('root', { message: actionData.errors.root.message });
+  }, [actionData, form.setError]);
+  const selectedExperience = form.watch('experienceTypeId');
+  form.watch('slotValidated');
+  useEffect(() => {
+    form.setValue('slotStart', '');
+    form.setValue('requestedTime', '');
+    form.setValue('slotValidated', false);
+    form.setValue('slotTimezone', '');
+    form.setValue('slotLabel', '');
+  }, [selectedExperience, form.setValue]);
 
   // Scroll to top whenever step changes
   useEffect(() => {
@@ -161,12 +173,13 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
   const canProceed = () => {
     const values = form.getValues();
     const errors = form.formState.errors;
-    
+
     switch (currentStep) {
       case 1:
         // Experience required, party size required
         return (
           !!values.eventType &&
+          !!values.experienceTypeId &&
           !errors.eventType &&
           !!values.menuId &&
           values.partySize >= 2 &&
@@ -178,6 +191,8 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
         return (
           !!values.requestedDate &&
           !!values.requestedTime &&
+          !!values.slotStart &&
+          values.slotValidated === true &&
           !errors.requestedDate &&
           !errors.requestedTime &&
           !!values.firstName &&
@@ -208,12 +223,20 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
     const step1 =
       !!v.menuId &&
       !!v.eventType &&
+      !!v.experienceTypeId &&
       !e.eventType &&
       v.partySize >= 2 &&
       v.partySize <= 50 &&
       !e.partySize;
-    const step2Date = !!v.requestedDate && !!v.requestedTime && !e.requestedDate && !e.requestedTime;
-    const step2Contact = !!v.firstName && !!v.lastName && !!v.email && !!v.phone && !e.firstName && !e.lastName && !e.email && !e.phone;
+    const step2Date =
+      !!v.requestedDate &&
+      !!v.requestedTime &&
+      !!v.slotStart &&
+      v.slotValidated === true &&
+      !e.requestedDate &&
+      !e.requestedTime;
+    const step2Contact =
+      !!v.firstName && !!v.lastName && !!v.email && !!v.phone && !e.firstName && !e.lastName && !e.email && !e.phone;
     const step2Location = !!v.locationAddress && v.locationAddress.length >= 10 && !e.locationAddress;
     return step1 && step2Date && step2Contact && step2Location; // step3 (special requests) is optional
   };
@@ -227,8 +250,8 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
           opts?.optional
             ? 'border-gray-300 text-gray-600'
             : opts?.complete
-            ? 'border-green-300 text-green-700 bg-green-50'
-            : 'border-gray-300 text-gray-600 bg-gray-50'
+              ? 'border-green-300 text-green-700 bg-green-50'
+              : 'border-gray-300 text-gray-600 bg-gray-50',
         )}
       >
         {opts?.optional ? 'Optional' : opts?.complete ? 'Complete' : 'Incomplete'}
@@ -236,33 +259,27 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
     </div>
   );
 
-  const renderDisclosure = (
-    args: {
-      defaultOpen?: boolean;
-      header: React.ReactNode;
-      children: React.ReactNode;
-      key?: string;
-    }
-  ) => (
+  const renderDisclosure = (args: {
+    defaultOpen?: boolean;
+    header: React.ReactNode;
+    children: React.ReactNode;
+    key?: string;
+  }) => (
     <Disclosure key={args.key} defaultOpen={args.defaultOpen}>
       {({ open }) => (
         <div
           className={clsx(
             'rounded-lg border bg-white transition-colors shadow-sm',
-            open ? 'border-accent-300 ring-1 ring-accent-200' : 'border-gray-200 hover:border-gray-300'
+            open ? 'border-accent-300 ring-1 ring-accent-200' : 'border-gray-200 hover:border-gray-300',
           )}
         >
           <Disclosure.Button className="w-full px-4 py-3 text-left">
             <div className="flex items-center justify-between">
               <div>{args.header}</div>
-              <ChevronDownIcon
-                className={clsx('h-5 w-5 text-gray-500 transition-transform', open && 'rotate-180')}
-              />
+              <ChevronDownIcon className={clsx('h-5 w-5 text-gray-500 transition-transform', open && 'rotate-180')} />
             </div>
           </Disclosure.Button>
-          <Disclosure.Panel className="px-4 pb-4">
-            {args.children}
-          </Disclosure.Panel>
+          <Disclosure.Panel className="px-4 pb-4">{args.children}</Disclosure.Panel>
         </div>
       )}
     </Disclosure>
@@ -273,10 +290,16 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
       case 1:
         return (
           <div className="space-y-6">
+            {!selectedExperience && (
+              <p role="alert">
+                The experience catalog is unavailable or no experience is selected. Reload the page or contact the chef
+                before continuing.
+              </p>
+            )}
             {(() => {
               const v = form.getValues();
               const e = form.formState.errors;
-              const isEventTypeComplete = !!v.eventType && !e.eventType;
+              const isEventTypeComplete = !!v.eventType && !!v.experienceTypeId && !e.eventType;
               const isPartySizeComplete = v.partySize >= 2 && v.partySize <= 50 && !e.partySize;
               const isMenuSelected = !!v.menuId;
 
@@ -313,8 +336,22 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
             {(() => {
               const v = form.getValues();
               const e = form.formState.errors;
-              const isDateComplete = !!v.requestedDate && !!v.requestedTime && !e.requestedDate && !e.requestedTime;
-              const isContactComplete = !!v.firstName && !!v.lastName && !!v.email && !!v.phone && !e.firstName && !e.lastName && !e.email && !e.phone;
+              const isDateComplete =
+                !!v.requestedDate &&
+                !!v.requestedTime &&
+                !!v.slotStart &&
+                v.slotValidated === true &&
+                !e.requestedDate &&
+                !e.requestedTime;
+              const isContactComplete =
+                !!v.firstName &&
+                !!v.lastName &&
+                !!v.email &&
+                !!v.phone &&
+                !e.firstName &&
+                !e.lastName &&
+                !e.email &&
+                !e.phone;
               const isLocationComplete = !!v.locationAddress && v.locationAddress.length >= 10 && !e.locationAddress;
 
               return (
@@ -348,7 +385,7 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
         return <SpecialRequests />;
       case 4:
         return (
-          <RequestSummary 
+          <RequestSummary
             menus={menus}
             experienceTypes={experienceTypes}
             onEditStep={(step: number, section?: string) => {
@@ -372,9 +409,10 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
                 if (!labels) return;
                 // Find disclosure button by header text and click to open
                 labels.forEach((text) => {
-                  const btn = Array.from(document.querySelectorAll('button'))
-                    .find((b) => b.textContent?.trim().startsWith(text));
-                  if (btn) (btn as HTMLButtonElement).click();
+                  const btn = Array.from(document.querySelectorAll('button')).find((b) =>
+                    b.textContent?.trim().startsWith(text),
+                  );
+                  if (btn?.getAttribute('aria-expanded') === 'false') (btn as HTMLButtonElement).click();
                 });
               }, 0);
             }}
@@ -387,17 +425,11 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
                 const input = document.querySelector(`input[name="${key}"]`) as HTMLInputElement;
                 if (input && input.type === 'hidden') {
                   let processedValue = String(value || '');
-                  
-                  if (key === 'requestedDate' && value) {
-                    const requestedTime = formValues.requestedTime || '12:00';
-                    const dateTime = new Date(`${value}T${requestedTime}:00`);
-                    processedValue = dateTime.toISOString();
-                  }
-                  
+
                   input.value = processedValue;
                 }
               });
-              
+
               const form_element = document.querySelector('form') as HTMLFormElement;
               if (form_element) {
                 form_element.requestSubmit();
@@ -413,67 +445,56 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto">
+      {form.formState.errors.root?.message && (
+        <p role="alert" className="mb-4 rounded bg-red-50 p-4 text-red-700">
+          {form.formState.errors.root.message}
+        </p>
+      )}
       {/* Progress Indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           {STEPS.map((step, index) => (
-            <div
-              key={step.id}
-              className={clsx(
-                'flex items-center',
-                index < STEPS.length - 1 && 'flex-1'
-              )}
-            >
+            <div key={step.id} className={clsx('flex items-center', index < STEPS.length - 1 && 'flex-1')}>
               <button
                 className={clsx(
                   'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
-                  currentStep >= step.id
-                    ? 'bg-accent-500 text-white'
-                    : 'bg-gray-200 text-gray-600'
+                  currentStep >= step.id ? 'bg-accent-500 text-white' : 'bg-gray-200 text-gray-600',
                 )}
+                disabled={step.id > currentStep && !(step.id === currentStep + 1 ? canProceed() : isAllComplete())}
                 onClick={() => setCurrentStep(step.id)}
               >
                 {step.id}
               </button>
               {index < STEPS.length - 1 && (
-                <div
-                  className={clsx(
-                    'flex-1 h-0.5 mx-4',
-                    currentStep > step.id ? 'bg-accent-500' : 'bg-gray-200'
-                  )}
-                />
+                <div className={clsx('flex-1 h-0.5 mx-4', currentStep > step.id ? 'bg-accent-500' : 'bg-gray-200')} />
               )}
             </div>
           ))}
         </div>
-        
+
         <div className="text-center">
-          <h2 className="text-2xl font-semibold text-primary-900 mb-1">
-            {STEPS[currentStep - 1].title}
-          </h2>
-          <p className="text-primary-600">
-            {STEPS[currentStep - 1].subtitle}
-          </p>
+          <h2 className="text-2xl font-semibold text-primary-900 mb-1">{STEPS[currentStep - 1].title}</h2>
+          <p className="text-primary-600">{STEPS[currentStep - 1].subtitle}</p>
         </div>
       </div>
 
       {/* Form Content */}
       <RemixFormProvider {...form}>
-        <form 
-          method="post" 
+        <form
+          method="post"
           className="space-y-8"
           onSubmit={(e) => {
             // Don't prevent default - let remix-hook-form handle it
           }}
-
         >
           <input type="hidden" name="currentStep" value={currentStep} />
-          
+
           {/* Hidden inputs to ensure form data is properly submitted */}
           <input type="hidden" name="menuId" value={form.watch('menuId') || ''} />
           <input type="hidden" name="eventType" value={form.watch('eventType') || ''} />
           <input type="hidden" name="experienceTypeId" value={form.watch('experienceTypeId' as any) || ''} />
           <input type="hidden" name="requestedDate" value={form.watch('requestedDate') || ''} />
+          <input type="hidden" name="slotStart" value={form.watch('slotStart') || ''} />
           <input type="hidden" name="requestedTime" value={form.watch('requestedTime') || ''} />
           <input type="hidden" name="partySize" value={form.watch('partySize') || ''} />
           <input type="hidden" name="locationAddress" value={form.watch('locationAddress') || ''} />
@@ -484,32 +505,22 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
           <input type="hidden" name="specialRequirements" value={form.watch('specialRequirements') || ''} />
           <input type="hidden" name="notes" value={form.watch('notes') || ''} />
           <input ref={attributionInputRef} type="hidden" name="attribution" value={attributionValue} readOnly />
-          
-          <div className="bg-white rounded-lg shadow-md p-8">
-            {renderStepContent()}
-          </div>
+
+          <div className="bg-white rounded-lg shadow-md p-8">{renderStepContent()}</div>
 
           {/* Navigation Buttons */}
           <div className="flex justify-between">
             <div>
               {currentStep > 1 && (
-                <Button
-                  type="button"
-                  variant="default"
-                  onClick={prevStep}
-                >
+                <Button type="button" variant="default" onClick={prevStep}>
                   Previous
                 </Button>
               )}
             </div>
-            
+
             <div className="flex gap-4">
               {currentStep < STEPS.length && (
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  disabled={!canProceed()}
-                >
+                <Button type="button" onClick={nextStep} disabled={!canProceed()}>
                   Next Step
                 </Button>
               )}
@@ -532,4 +543,4 @@ export const EventRequestForm: FC<EventRequestFormProps> = ({
   );
 };
 
-export default EventRequestForm; 
+export default EventRequestForm;

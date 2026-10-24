@@ -26,6 +26,7 @@ function rawStatusesToParts(raw: unknown): string[] {
 
 const createChefEventSchema = z.object({
   status: z.enum(['pending', 'confirmed', 'cancelled', 'completed']).default('pending'),
+  slotStart: z.string().datetime().optional(),
   requestedDate: z.string(),
   requestedTime: z.string(),
   partySize: z.number().min(1).max(50),
