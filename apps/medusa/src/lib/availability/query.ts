@@ -8,7 +8,7 @@ import GoogleCalendarConnectionModuleService from '../../modules/google-calendar
 import { GOOGLE_CALENDAR_CONNECTION_MODULE } from '../../modules/google-calendar-connection';
 import { EXPERIENCE_TYPE_MODULE } from '../../modules/experience-type';
 import { CHEF_EVENT_MODULE } from '../../modules/chef-event';
-import { availabilitySettingsSchema, calculateSlots, overlaps, type Interval } from './slots';
+import { advanceNoticeDays, availabilitySettingsSchema, calculateSlots, overlaps, type Interval } from './slots';
 import { googleBusy } from './google-busy';
 
 /** Bound advisory reads below storefront proxy timeouts, including token refresh and pagination. */
@@ -47,7 +47,7 @@ async function loadSchedule(container: MedusaContainer, experienceId: string) {
     experience,
     now,
     minDate: today
-      .plus({ days: experience.requires_advance_notice ? (experience.advance_notice_days ?? 7) : 0 })
+      .plus({ days: advanceNoticeDays(settings, experience) })
       .toISODate()!,
     maxDate: today.plus({ months: 6 }).toISODate()!,
   };

@@ -21,6 +21,8 @@ jest.mock('../../admin/components/availability/google-calendar-panel', () => ({
   __esModule: true,
   default: ({ children }: any) => React.createElement('section', null, children),
 }));
+class TestResizeObserver { observe() {} unobserve() {} disconnect() {} }
+beforeAll(() => { globalThis.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver; });
 const api = sdk.admin.availability as jest.Mocked<typeof sdk.admin.availability>;
 const list = sdk.admin.experienceTypes.list as jest.Mock;
 const saved: Settings = {
@@ -217,12 +219,13 @@ test('working-day and period actions never submit the availability form', async 
   expect(api.save).not.toHaveBeenCalled();
 });
 
-test('availability omits the admin preview and the standalone experience settings strip', async () => {
+test('availability loads experiences for notice rules without the old preview/settings strip', async () => {
   await render(React.createElement(AvailabilityPage));
   await act(settle);
   expect(host.textContent).not.toContain('What clients can request');
   expect(host.querySelector('#preview-heading')).toBeNull();
-  expect(list).not.toHaveBeenCalled();
+  expect(list).toHaveBeenCalledTimes(1);
+  expect(host.textContent).toContain('Advance notice');
   const link = host.querySelector('a[href="/experience-types"]');
   expect(link).toBeNull();
   expect(host.textContent).not.toContain('Set experience duration, preparation, travel and cleanup in Experiences.');
@@ -290,11 +293,11 @@ test('cancel and Escape discard only the new-day editor and restore focus', asyn
   expect(host.querySelector('[aria-label="Tuesday start 1"]')).toBeNull();
   await click('Add working day');
   await act(async () => {
-    host.querySelector('fieldset')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    host.querySelector('fieldset[tabindex]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await settle();
   });
   expect(document.activeElement?.textContent).toBe('Add working day');
-  expect(host.querySelector('fieldset')).toBeNull();
+  expect(host.querySelector('fieldset[tabindex]')).toBeNull();
   expect(api.save).not.toHaveBeenCalled();
 });
 test('native day menu opens from keyboard, closes with Escape and returns focus', async () => {

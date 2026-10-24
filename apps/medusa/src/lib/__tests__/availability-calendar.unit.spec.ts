@@ -167,3 +167,25 @@ test('a stalled Google read falls back before the storefront proxy timeout', asy
     jest.useRealTimers();
   }
 });
+
+test('central notice scope drives month, day, submission and acceptance validation', async () => {
+  experience.id = 'exp';
+  experience.requires_advance_notice = true;
+  experience.advance_notice_days = 30; // Central rules replace legacy values.
+  settings.notice_rules = [{ enabled: true, days: 4, scope: 'selected', experience_ids: ['exp'] }];
+  expect((await availableCalendar(container, 'exp', '2026-11')).minDate).toBe('2026-11-03');
+  expect((await availableSlots(container, '2026-11-02', 'exp')).slots).toEqual([]);
+  await expect(requireSlot(container, '2026-11-02', 'exp', '2026-11-02T14:00:00Z')).rejects.toThrow('no longer available');
+  // Unselected experiences do not inherit the old hidden rule.
+  settings.notice_rules[0].experience_ids = ['other'];
+  expect((await availableSlots(container, '2026-11-02', 'exp')).slots.length).toBeGreaterThan(0);
+  expect((await availableCalendar(container, 'exp', '2026-11')).minDate).toBe('2026-10-30');
+  // All includes newly-created experiences, and overlaps use the longest notice.
+  settings.notice_rules.push({ enabled: true, days: 4, scope: 'all', experience_ids: [] });
+  experience.id = 'new-experience';
+  expect((await availableSlots(container, '2026-11-02', 'new-experience')).slots).toEqual([]);
+  settings.notice_rules[1].enabled = false;
+  expect((await requireSlot(container, '2026-11-02', 'new-experience', '2026-11-02T14:00:00Z')).slot).toBeDefined();
+  settings.notice_rules = [];
+  expect((await availableSlots(container, '2026-11-02', 'exp')).slots.length).toBeGreaterThan(0);
+});

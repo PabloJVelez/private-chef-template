@@ -4,6 +4,7 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { sdk } from '../../../sdk';
 import { availabilitySettingsSchema, type Settings } from '../../../lib/availability/slots';
+import { NoticeRules } from '../../components/availability/notice-rules';
 import GoogleCalendarPanel from '../../components/availability/google-calendar-panel';
 import { ExceptionsEditor } from '../../components/availability/exceptions-editor';
 import { HelpTip } from '../../components/availability/help-tip';
@@ -11,7 +12,8 @@ import { WorkingDays } from '../../components/availability/working-days';
 import { editorReducer, equalSettings, initialEditor } from '../../components/availability/editor';
 
 const timezoneNames = (() => {
-  const supported = (Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
+  const supported = (Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] })
+    .supportedValuesOf;
   return [
     'UTC',
     ...(supported?.('timeZone') || [
@@ -23,11 +25,19 @@ const timezoneNames = (() => {
     ]),
   ];
 })();
-const friendlyZone = (zone: string) => `${zone.split('/').slice(1).join(' / ').replace(/_/g, ' ') || zone} · ${zone}`;
+const friendlyZone = (zone: string) =>
+  `${zone.split('/').slice(1).join(' / ').replace(/_/g, ' ') || zone} · ${zone}`;
 
 const AvailabilityPage = () => {
   const client = useQueryClient();
-  const query = useQuery({ queryKey: ['availability'], queryFn: () => sdk.admin.availability.get() });
+  const query = useQuery({
+    queryKey: ['availability'],
+    queryFn: () => sdk.admin.availability.get(),
+  });
+  const experiences = useQuery({
+    queryKey: ['experience-types', 'availability'],
+    queryFn: () => sdk.admin.experienceTypes.list(),
+  });
   const [state, dispatch] = useReducer(editorReducer, undefined, initialEditor);
   const saveId = useRef(0);
   const [exceptionOpen, setExceptionOpen] = useState(false);
@@ -65,7 +75,9 @@ const AvailabilityPage = () => {
         type: 'failed',
         id,
         message:
-          error instanceof Error ? error.message : 'Could not save. Your changes are still here; please try again.',
+          error instanceof Error
+            ? error.message
+            : 'Could not save. Your changes are still here; please try again.',
       });
     }
   };
@@ -102,7 +114,7 @@ const AvailabilityPage = () => {
               <Text size="small" className="w-full text-ui-fg-subtle" role="status">
                 {exceptionOpen || workingOpen
                   ? 'Apply or cancel the open editor before saving.'
-                  : 'Check the highlighted timezone or hours before saving.'}
+                  : 'Check the highlighted availability settings before saving.'}
               </Text>
             )}
             <Button
@@ -146,7 +158,8 @@ const AvailabilityPage = () => {
       >
         {!state.saved && (
           <Text>
-            No arrival times are offered until you save your schedule. Start with your timezone and usual hours.
+            No arrival times are offered until you save your schedule. Start with your timezone and usual
+            hours.
           </Text>
         )}
         <Container className="space-y-4">
@@ -205,8 +218,30 @@ const AvailabilityPage = () => {
           <WorkingDays key={discardVersion} settings={settings} onChange={edit} onEditing={setWorkingOpen} />
         </Container>
         <Container>
-          <ExceptionsEditor key={discardVersion} settings={settings} onChange={edit} onEditing={setExceptionOpen} />
+          <ExceptionsEditor
+            key={discardVersion}
+            settings={settings}
+            onChange={edit}
+            onEditing={setExceptionOpen}
+          />
         </Container>
+        {experiences.data ? (
+          <NoticeRules
+            rules={settings.notice_rules ?? []}
+            experiences={experiences.data.experience_types}
+            onChange={(notice_rules) => edit({ ...settings, notice_rules })}
+          />
+        ) : (
+          <Container>
+            <Heading level="h2">Advance notice</Heading>
+            <Text>{experiences.isError ? 'Unable to load experiences.' : 'Loading experiences…'}</Text>
+            {experiences.isError && (
+              <Button type="button" onClick={() => experiences.refetch()}>
+                Retry
+              </Button>
+            )}
+          </Container>
+        )}
         <GoogleCalendarPanel
           checkWhenConnected={settings.google_mode === 'required'}
           unsaved={dirty || exceptionOpen || workingOpen}
@@ -216,7 +251,12 @@ const AvailabilityPage = () => {
             <select
               className="mt-1 block w-full rounded border p-2"
               value={settings.google_mode}
-              onChange={(e) => edit({ ...settings, google_mode: e.target.value as Settings['google_mode'] })}
+              onChange={(e) =>
+                edit({
+                  ...settings,
+                  google_mode: e.target.value as Settings['google_mode'],
+                })
+              }
             >
               <option value="required">Bookings and Google Calendar (when connected)</option>
               <option value="internal_only">Bookings only — ignore Google conflicts</option>

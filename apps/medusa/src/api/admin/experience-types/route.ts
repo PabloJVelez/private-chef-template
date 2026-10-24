@@ -45,7 +45,12 @@ const slugify = (val: string) =>
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const svc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService;
 
-  const experienceTypes = await svc.listExperienceTypes({}, { order: { sort_order: 'ASC' } });
+  const experienceTypes = [];
+  for (let skip = 0; ; skip += 100) {
+    const page = await svc.listExperienceTypes({}, { order: { sort_order: 'ASC', id: 'ASC' }, skip, take: 100 });
+    experienceTypes.push(...page);
+    if (page.length < 100) break;
+  }
 
   res.status(200).json({ experience_types: experienceTypes });
 }

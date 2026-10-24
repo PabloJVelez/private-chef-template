@@ -1,6 +1,6 @@
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Label, Switch, Text } from '@medusajs/ui';
+import { Button, Input, Label, Text } from '@medusajs/ui';
 import type {
   AdminCreateExperienceTypeDTO,
   AdminExperienceTypeDTO,
@@ -59,8 +59,6 @@ export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading 
       duration_display: values.duration_display || undefined,
       location_type: values.location_type,
       fixed_location_address: values.location_type === 'fixed' ? values.fixed_location_address : null,
-      requires_advance_notice: values.requires_advance_notice,
-      advance_notice_days: values.requires_advance_notice ? values.advance_notice_days : undefined,
       available_time_slots: csvToArray(values.available_time_slots_input).map((v) => to24Hour(v) || v),
       time_slot_start: to24Hour(values.time_slot_start_display ?? '') || undefined,
       time_slot_end: to24Hour(values.time_slot_end_display ?? '') || undefined,
@@ -182,31 +180,7 @@ export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading 
         )}
       </Section>
 
-      <Section title="Scheduling" description="Configure advance notice and available time windows.">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="requires-advance-notice"
-                checked={form.watch('requires_advance_notice')}
-                onCheckedChange={(checked) => form.setValue('requires_advance_notice', checked, { shouldDirty: true, shouldValidate: true })}
-              />
-              <Label htmlFor="requires-advance-notice">Require advance notice</Label>
-            </div>
-            <Text size="small" className="text-ui-fg-subtle">
-              {form.watch('requires_advance_notice')
-                ? 'Choose how many days ahead clients must request this experience.'
-                : 'Clients can request same-day arrivals when your schedule has room.'}
-            </Text>
-          </div>
-          {form.watch('requires_advance_notice') && (
-            <Field label="Advance notice (days)" error={form.formState.errors.advance_notice_days?.message}>
-              <Input aria-label="Advance notice (days)" type="number" min={1} step={1}
-                {...form.register('advance_notice_days', { valueAsNumber: true })} />
-            </Field>
-          )}
-        </div>
-
+      <Section title="Scheduling" description="Configure available time windows. Advance notice is managed on the Availability page.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Field label="Available From" error={form.formState.errors.time_slot_start_display?.message}>
             <Input placeholder="9:00 AM" {...form.register('time_slot_start_display')} />

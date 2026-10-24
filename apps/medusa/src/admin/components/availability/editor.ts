@@ -3,11 +3,23 @@ import { availabilitySettingsSchema, type Settings } from '../../../lib/availabi
 
 export type Hours = { start: string; end: string }[];
 export const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-export const emptySettings = (): Settings => ({ timezone: '', weekly: {}, overrides: {}, google_mode: 'required' });
+export const emptySettings = (): Settings => ({
+  timezone: '',
+  weekly: {},
+  overrides: {},
+  google_mode: 'required',
+  notice_rules: [],
+});
 export const cloneHours = (hours: Hours): Hours => hours.map((window) => ({ ...window }));
 export const equalSettings = (a: Settings | null, b: Settings) => JSON.stringify(a) === JSON.stringify(b);
 export function cleanSettings(value: Settings): Settings {
-  return { timezone: value.timezone, weekly: value.weekly, overrides: value.overrides, google_mode: value.google_mode };
+  return {
+    timezone: value.timezone,
+    weekly: value.weekly,
+    overrides: value.overrides,
+    google_mode: value.google_mode,
+    ...(value.notice_rules !== undefined ? { notice_rules: value.notice_rules } : {}),
+  };
 }
 export type EditorState = {
   initialized: boolean;
@@ -49,20 +61,35 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const hours = state.draft.weekly[action.day as '1'] || [];
       return {
         ...state,
-        remembered: hours.length ? { ...state.remembered, [action.day]: cloneHours(hours) } : state.remembered,
+        remembered: hours.length
+          ? { ...state.remembered, [action.day]: cloneHours(hours) }
+          : state.remembered,
         draft: {
           ...state.draft,
           weekly: {
             ...state.draft.weekly,
-            [action.day]: action.enabled ? cloneHours(state.remembered[action.day] || [{ start: '', end: '' }]) : [],
+            [action.day]: action.enabled
+              ? cloneHours(state.remembered[action.day] || [{ start: '', end: '' }])
+              : [],
           },
         },
       };
     }
     case 'discard':
-      return state.saving ? state : { ...state, draft: state.saved || emptySettings(), remembered: {}, error: '' };
+      return state.saving
+        ? state
+        : {
+            ...state,
+            draft: state.saved || emptySettings(),
+            remembered: {},
+            error: '',
+          };
     case 'saving':
-      return { ...state, saving: { id: action.id, snapshot: action.snapshot }, error: '' };
+      return {
+        ...state,
+        saving: { id: action.id, snapshot: action.snapshot },
+        error: '',
+      };
     case 'saved': {
       if (state.saving?.id !== action.id) return state;
       const saved = cleanSettings(action.settings);
@@ -120,7 +147,12 @@ export function dateRange(start: string, end: string): string[] {
   if (count > 366) throw new Error('Choose a range of at most 366 dates.');
   return Array.from({ length: count }, (_, index) => first.plus({ days: index }).toISODate()!);
 }
-export function applyException(settings: Settings, dates: string[], hours: Hours, replace: boolean): Settings {
+export function applyException(
+  settings: Settings,
+  dates: string[],
+  hours: Hours,
+  replace: boolean,
+): Settings {
   if (!validHours(hours)) throw new Error('Check the special hours before applying.');
   if (!replace && dates.some((date) => date in settings.overrides))
     throw new Error('These dates already have exceptions. Confirm replacement to continue.');
