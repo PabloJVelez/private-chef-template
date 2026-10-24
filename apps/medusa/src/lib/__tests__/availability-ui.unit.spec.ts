@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import React from 'react';
-import { TooltipProvider } from '@medusajs/ui';
+import { TooltipProvider, toast } from '@medusajs/ui';
 import { act, Simulate } from 'react-dom/test-utils';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -455,4 +455,21 @@ test('adding Saturday exposes save guidance before applying and persists the new
   await click('Save availability');
   expect(api.save).toHaveBeenCalledWith(expect.objectContaining({ weekly: { ...saved.weekly, '6': [{ start: '09:00', end: '21:37' }] } }));
   expect(host.textContent).toContain('All changes saved');
+});
+
+test('JSONB key ordering does not leave a successful save dirty and uses Medusa confirmation', async () => {
+  const success = jest.spyOn(toast, 'success').mockImplementation(() => 'saved');
+  const loaded = { ...saved, weekly: { '1': [{ end: '21:02', start: '09:01' }] }, notice_rules: [{ days: 7, scope: 'all' as const, enabled: true, experience_ids: [] }] };
+  api.get.mockResolvedValue({ settings: loaded });
+  api.save.mockImplementation(async (settings) => ({ settings: { ...settings, weekly: { '1': [{ end: '21:02', start: '09:01' }] } } }));
+  try {
+    await render(React.createElement(AvailabilityPage));
+    await act(settle);
+    await click('Change timezone');
+    await change(host.querySelector('input[list=chef-timezones]')!, 'America/New_York');
+    await click('Save availability');
+    expect(host.textContent).toContain('All changes saved');
+    expect([...host.querySelectorAll('button')].some((node) => node.textContent === 'Save availability')).toBe(false);
+    expect(success).toHaveBeenCalledWith('Availability saved');
+  } finally { success.mockRestore(); }
 });

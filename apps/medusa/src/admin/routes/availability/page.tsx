@@ -1,5 +1,5 @@
 import { defineRouteConfig } from '@medusajs/admin-sdk';
-import { Button, Container, Heading, Input, Text } from '@medusajs/ui';
+import { Button, Container, Heading, Input, Text, toast } from '@medusajs/ui';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { sdk } from '../../../sdk';
@@ -70,6 +70,7 @@ const AvailabilityPage = () => {
       const response = await sdk.admin.availability.save(snapshot);
       dispatch({ type: 'saved', id, settings: response.settings });
       client.setQueryData(['availability'], response);
+      toast.success('Availability saved');
     } catch (error) {
       dispatch({
         type: 'failed',

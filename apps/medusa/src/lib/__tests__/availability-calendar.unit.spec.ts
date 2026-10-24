@@ -214,3 +214,27 @@ test.each([undefined, null, [], [{ enabled: false, days: 7, scope: 'all' as cons
     await expect(requireSlot(container, '2026-10-24', 'exp', today.slots[0].start)).resolves.toBeDefined();
   },
 );
+
+test('Private Dinner with all saved weekdays and seven-day notice offers only October 31', async () => {
+  LuxonSettings.now = () => Date.parse('2026-10-24T17:00:00Z');
+  settings = {
+    timezone: 'America/Chicago', google_mode: 'internal_only', overrides: {},
+    weekly: {
+      ...Object.fromEntries(['1', '2', '3', '4', '5'].map((day) => [day, [{ end: '21:02', start: '09:01' }]])),
+      '6': [{ end: '21:42', start: '09:00' }],
+      '7': [{ end: '21:43', start: '09:43' }],
+    },
+    notice_rules: [{ enabled: true, days: 7, scope: 'all', experience_ids: [] }],
+  };
+  experience = { ...experience, id: 'private-dinner', duration_minutes: 150 };
+  const october = await availableCalendar(container, 'private-dinner', '2026-10');
+  expect(october.minDate).toBe('2026-10-31');
+  expect(october.dates.filter((day) => day.available).map((day) => day.date)).toEqual(['2026-10-31']);
+  const november = await availableCalendar(container, 'private-dinner', '2026-11');
+  for (const date of ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06'])
+    expect(november.dates.find((day) => day.date === date)?.available).toBe(true);
+  settings.notice_rules![0].enabled = false;
+  const noNotice = await availableCalendar(container, 'private-dinner', '2026-10');
+  for (const date of ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30'])
+    expect(noNotice.dates.find((day) => day.date === date)?.available).toBe(true);
+});

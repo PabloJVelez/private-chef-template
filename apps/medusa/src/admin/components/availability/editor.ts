@@ -11,7 +11,14 @@ export const emptySettings = (): Settings => ({
   notice_rules: [],
 });
 export const cloneHours = (hours: Hours): Hours => hours.map((window) => ({ ...window }));
-export const equalSettings = (a: Settings | null, b: Settings) => JSON.stringify(a) === JSON.stringify(b);
+// JSONB and schema parsing can reorder object keys without changing a schedule.
+// Keep array ordering significant and compare only the editable settings fields.
+const settingsKey = (value: Settings) => JSON.stringify(cleanSettings(value), (_key, item) =>
+  item && typeof item === 'object' && !Array.isArray(item)
+    ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, item[key]]))
+    : item,
+);
+export const equalSettings = (a: Settings | null, b: Settings) => a !== null && settingsKey(a) === settingsKey(b);
 export function cleanSettings(value: Settings): Settings {
   return {
     timezone: value.timezone,
