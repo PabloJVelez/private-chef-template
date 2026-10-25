@@ -132,6 +132,7 @@ export const ChefEventForm = ({
 
   const watchedStatus = watch("status")
   const currentStatus = initialData?.status
+  const scheduleLocked = currentStatus === "confirmed" || currentStatus === "completed" || !!initialData?.acceptanceToken
   const derivedEventMenuId = (
     initialData?.eventMenuId ??
     initialData?.event_menu_id ??
@@ -193,11 +194,11 @@ export const ChefEventForm = ({
   }
 
   const getAvailableStatusOptions = () => {
-    if (!isEditing || !currentStatus) return statusOptions
+    if (!isEditing || !currentStatus) return statusOptions.filter(option => option.value === "pending")
     
     // Allow current status plus valid transitions
     const validTransitions: Record<string, string[]> = {
-      pending: ['pending', 'confirmed', 'cancelled'],
+      pending: ['pending', 'cancelled'],
       confirmed: ['confirmed', 'completed', 'cancelled'],
       cancelled: ['cancelled'],
       completed: ['completed']
@@ -261,6 +262,7 @@ export const ChefEventForm = ({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      <p className="text-sm text-ui-fg-subtle">{scheduleLocked ? 'Accepted or accepting schedules are locked. To change the date, cancel the booking and create a new request.' : 'Choose a catalog experience and an available chef arrival time. Save as Pending, then use Accept to approve and create tickets.'}</p>
       <Tabs defaultValue="general">
         <Tabs.List className="border-b">
           <Tabs.Trigger value="general">General Info</Tabs.Trigger>
@@ -278,6 +280,7 @@ export const ChefEventForm = ({
               <Label htmlFor="requestedDate">Event Date *</Label>
               <Input
                 id="requestedDate"
+                readOnly={scheduleLocked}
                 type="date"
                 {...register("requestedDate")}
               />
@@ -289,6 +292,7 @@ export const ChefEventForm = ({
               <Label htmlFor="requestedTime">Event Time *</Label>
               <Input
                 id="requestedTime"
+                readOnly={scheduleLocked}
                 type="time"
                 {...register("requestedTime")}
               />
@@ -314,7 +318,7 @@ export const ChefEventForm = ({
             </div>
             <div>
               <Label htmlFor="experience-event-type">Experience / Event Type *</Label>
-              <Select value={experienceSelectValue} onValueChange={handleExperienceSelect}>
+              <Select disabled={scheduleLocked} value={experienceSelectValue} onValueChange={handleExperienceSelect}>
                 <Select.Trigger id="experience-event-type">
                   <Select.Value placeholder="Select experience or workflow type" />
                 </Select.Trigger>
@@ -386,6 +390,7 @@ export const ChefEventForm = ({
               <Label htmlFor="estimatedDuration">Duration (minutes)</Label>
               <Input
                 id="estimatedDuration"
+                readOnly={scheduleLocked}
                 type="number"
                 min="30"
                 {...register("estimatedDuration", { valueAsNumber: true })}

@@ -1,3 +1,5 @@
+import { availabilitySettingsSidebar } from './src/lib/admin-settings-sidebar';
+import { settingsRoutePrefixFix } from './src/lib/admin-settings-route-prefix';
 import { unlock } from '@unlockable/vite-plugin-unlock';
 import { medusa as unlockMedusa } from '@unlockable/vite-plugin-unlock/medusa';
 import { defineConfig, loadEnv } from '@medusajs/framework/utils';
@@ -34,6 +36,7 @@ const GOOGLE_CALENDAR_DEFAULT_TIMEZONE =
   process.env.GOOGLE_CALENDAR_DEFAULT_TIMEZONE;
 
 const customModules = [
+  { resolve: './src/modules/availability', options: {} },
   {
     resolve: './src/modules/menu',
     options: {},
@@ -214,6 +217,8 @@ module.exports = defineConfig({
     backendUrl: process.env.ADMIN_BACKEND_URL,
     vite: () => ({
       plugins: [
+        settingsRoutePrefixFix(),
+        availabilitySettingsSidebar(),
         unlock(
           unlockMedusa({
             overrides: './src/admin/overrides',

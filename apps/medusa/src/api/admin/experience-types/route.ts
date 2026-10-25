@@ -14,7 +14,10 @@ const createSchema = z.object({
   ideal_for: z.string().optional().nullable(),
   pricing_type: z.enum(['per_person', 'per_item', 'product_based']).optional(),
   price_per_unit: z.number().optional().nullable(),
-  duration_minutes: z.number().optional().nullable(),
+  preparation_minutes: z.number().int().min(0).max(1440).optional(),
+  travel_minutes: z.number().int().min(0).max(1440).optional(),
+  cleanup_minutes: z.number().int().min(0).max(1440).optional(),
+  duration_minutes: z.number().int().min(1).max(1440).optional().nullable(),
   duration_display: z.string().optional().nullable(),
   is_product_based: z.boolean().optional(),
   location_type: z.enum(['customer', 'fixed']).optional(),
@@ -24,7 +27,7 @@ const createSchema = z.object({
   available_time_slots: z.array(z.string()).optional(),
   time_slot_start: z.string().optional().nullable(),
   time_slot_end: z.string().optional().nullable(),
-  time_slot_interval_minutes: z.number().optional(),
+  time_slot_interval_minutes: z.number().int().min(5).max(1440).optional(),
   min_party_size: z.number().optional(),
   max_party_size: z.number().optional().nullable(),
   is_active: z.boolean().optional(),
@@ -42,10 +45,12 @@ const slugify = (val: string) =>
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const svc = req.scope.resolve(EXPERIENCE_TYPE_MODULE) as ExperienceTypeModuleService;
 
-  const experienceTypes = await svc.listExperienceTypes(
-    {},
-    { order: { sort_order: 'ASC' } },
-  );
+  const experienceTypes = [];
+  for (let skip = 0; ; skip += 100) {
+    const page = await svc.listExperienceTypes({}, { order: { sort_order: 'ASC', id: 'ASC' }, skip, take: 100 });
+    experienceTypes.push(...page);
+    if (page.length < 100) break;
+  }
 
   res.status(200).json({ experience_types: experienceTypes });
 }

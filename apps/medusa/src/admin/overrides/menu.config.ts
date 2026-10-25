@@ -31,7 +31,15 @@ const config: MenuConfig = {
       to: '/social-gallery',
     },
   ],
-  order: ['/chef-events', '/orders', '/menus', '/experience-types', '/social-gallery', '/customers', '/promotions'],
+  order: [
+    '/chef-events',
+    '/orders',
+    '/menus',
+    '/experience-types',
+    '/social-gallery',
+    '/customers',
+    '/promotions',
+  ],
 };
 
 export default config;

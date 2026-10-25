@@ -76,6 +76,7 @@ export function toGoogleEventBody(event: ChefEventShape, connectionId: string) {
     location: event.locationAddress || "",
     description: event.notes || "",
     status: googleStatus,
+    transparency: event.status === 'pending' ? 'transparent' : 'opaque',
     colorId: chefEventStatusToGoogleColorId(event.status),
     ...toGoogleDateTimes(event),
     extendedProperties: {

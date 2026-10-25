@@ -17,6 +17,7 @@
     "start": "react-router-serve ./build/server/index.js",
     "remix-serve": "react-router-serve",
     "typecheck": "tsc --noEmit",
+    "test:unit": "jest --config jest.config.cjs --runInBand",
     "format": "biome format --write ."
   },
   "repository": {

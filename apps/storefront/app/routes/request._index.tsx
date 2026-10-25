@@ -10,90 +10,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { EventRequestForm } from '@app/components/event-request/EventRequestForm';
 
-const formString = z.coerce.string();
-
-// Form validation schema
-export const eventRequestSchema = z.object({
-  // Step 1: Menu Selection (optional)
-  menuId: formString.optional(),
-
-  // Step 2: Event Type Selection
-  eventType: formString.min(1, 'Please select an experience type'),
-  experienceTypeId: formString.optional(),
-
-  // Step 3: Date & Time
-  requestedDate: formString
-    .min(1, 'Please select a date')
-    .refine((date) => {
-      const selectedDate = new Date(date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Must be at least 7 days from now
-      const minDate = new Date();
-      minDate.setDate(minDate.getDate() + 7);
-      minDate.setHours(0, 0, 0, 0);
-
-      return selectedDate >= minDate;
-    }, 'Events must be scheduled at least 7 days in advance')
-    .refine((date) => {
-      const selectedDate = new Date(date);
-      const maxDate = new Date();
-      maxDate.setMonth(maxDate.getMonth() + 6);
-
-      return selectedDate <= maxDate;
-    }, 'Events cannot be scheduled more than 6 months in advance'),
-
-  requestedTime: formString
-    .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Please enter a valid time (HH:MM format)')
-    .refine((time) => {
-      const [hours, minutes] = time.split(':').map(Number);
-      // Business hours: 10:00 AM to 8:30 PM
-      const startTime = 10 * 60; // 10:00 AM in minutes
-      const endTime = 20 * 60 + 30; // 8:30 PM in minutes
-      const timeInMinutes = hours * 60 + minutes;
-
-      return timeInMinutes >= startTime && timeInMinutes <= endTime;
-    }, 'Please select a time between 10:00 AM and 8:30 PM'),
-
-  // Step 4: Party Size
-  partySize: z.coerce.number().min(2, 'Minimum 2 guests required').max(50, 'Maximum 50 guests allowed'),
-
-  // Step 5: Location (now only customer location)
-  locationAddress: formString.min(10, 'Please provide a complete address').max(500, 'Address is too long'),
-
-  // Step 6: Contact Details
-  firstName: formString.min(1, 'First name is required').max(50, 'First name is too long'),
-  lastName: formString.min(1, 'Last name is required').max(50, 'Last name is too long'),
-  email: formString.email('Please enter a valid email address').max(255, 'Email address is too long'),
-  phone: formString
-    .min(1, 'Phone number is required')
-    .refine((phone) => {
-      // Remove all non-digits to check length
-      const digitsOnly = phone.replace(/\D/g, '');
-      return digitsOnly.length === 10;
-    }, 'Please enter a valid 10-digit phone number'),
-
-  // Step 7: Special Requests
-  specialRequirements: formString
-    .optional()
-    .refine((req) => {
-      if (!req) return true;
-      return req.length <= 1000;
-    }, 'Special requirements must be less than 1000 characters'),
-  notes: formString
-    .optional()
-    .refine((notes) => {
-      if (!notes) return true;
-      return notes.length <= 1000;
-    }, 'Notes must be less than 1000 characters'),
-  attribution: formString.optional(),
-
-  // Hidden fields
-  currentStep: z.coerce.number().optional(),
-});
-
-export type EventRequestFormData = z.infer<typeof eventRequestSchema>;
+import { eventRequestSchema } from '@app/components/event-request/schema';
+import type { EventRequestFormData } from '@app/components/event-request/schema';
+export { eventRequestSchema };
+export type { EventRequestFormData };
 
 const attributionTouchSchema = z
   .object({
@@ -129,10 +49,7 @@ function parseAttribution(value?: string) {
 
 export const loader = async (args: LoaderFunctionArgs) => {
   try {
-    const [menusData, experienceTypesData] = await Promise.all([
-      fetchMenus({ limit: 20 }),
-      fetchExperienceTypes(),
-    ]);
+    const [menusData, experienceTypesData] = await Promise.all([fetchMenus({ limit: 20 }), fetchExperienceTypes()]);
     return {
       menus: menusData.menus || [],
       experienceTypes: experienceTypesData.experience_types || [],
@@ -163,6 +80,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 
     const response = await createChefEventRequest({
       requestedDate: data.requestedDate,
+      slotStart: data.slotStart,
       requestedTime: data.requestedTime,
       partySize: data.partySize,
       eventType: data.eventType,
@@ -191,7 +109,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
     return {
       errors: {
         root: {
-          message: 'Failed to submit request. Please try again.',
+          message: 'The selected time could not be booked. Return to Schedule, choose an available time and try again.',
         },
       },
       status: 500,

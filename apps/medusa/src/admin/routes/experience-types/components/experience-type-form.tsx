@@ -5,7 +5,12 @@ import type {
   AdminCreateExperienceTypeDTO,
   AdminExperienceTypeDTO,
 } from '../../../../sdk/admin/admin-experience-types';
-import { experienceTypeSchema, getDefaultExperienceTypeValues, to24Hour, type ExperienceTypeFormValues } from '../schemas';
+import {
+  experienceTypeSchema,
+  getDefaultExperienceTypeValues,
+  to24Hour,
+  type ExperienceTypeFormValues,
+} from '../schemas';
 
 interface ExperienceTypeFormProps {
   initialData?: AdminExperienceTypeDTO;
@@ -47,13 +52,14 @@ export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading 
       ideal_for: values.ideal_for || undefined,
       pricing_type: values.pricing_type,
       price_per_unit: dollarsToCents(values.price_dollars),
+      preparation_minutes: values.preparation_minutes,
+      travel_minutes: values.travel_minutes,
+      cleanup_minutes: values.cleanup_minutes,
       duration_minutes: hoursToMinutes(values.duration_hours),
       duration_display: values.duration_display || undefined,
       location_type: values.location_type,
       fixed_location_address: values.location_type === 'fixed' ? values.fixed_location_address : null,
-      requires_advance_notice: values.requires_advance_notice,
-      advance_notice_days: values.requires_advance_notice ? values.advance_notice_days : undefined,
-      available_time_slots: csvToArray(values.available_time_slots_input),
+      available_time_slots: csvToArray(values.available_time_slots_input).map((v) => to24Hour(v) || v),
       time_slot_start: to24Hour(values.time_slot_start_display ?? '') || undefined,
       time_slot_end: to24Hour(values.time_slot_end_display ?? '') || undefined,
       time_slot_interval_minutes: values.time_slot_interval_minutes,
@@ -145,6 +151,20 @@ export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading 
         </Field>
       </Section>
 
+      <Section
+        title="Availability buffers"
+        description="Duration above runs from chef arrival through the end of the experience, including on-site preparation. These are additional occupied minutes."
+      >
+        <Field label="Off-site preparation (minutes)" error={form.formState.errors.preparation_minutes?.message}>
+          <Input type="number" min={0} {...form.register('preparation_minutes', { valueAsNumber: true })} />
+        </Field>
+        <Field label="Travel each way (minutes)" error={form.formState.errors.travel_minutes?.message}>
+          <Input type="number" min={0} {...form.register('travel_minutes', { valueAsNumber: true })} />
+        </Field>
+        <Field label="Additional cleanup (minutes)" error={form.formState.errors.cleanup_minutes?.message}>
+          <Input type="number" min={0} {...form.register('cleanup_minutes', { valueAsNumber: true })} />
+        </Field>
+      </Section>
       <Section title="Location" description="Where the experience happens.">
         <Field label="Location Type" error={form.formState.errors.location_type?.message}>
           <select className="w-full rounded border px-3 py-2 text-sm" {...form.register('location_type')}>
@@ -160,18 +180,7 @@ export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading 
         )}
       </Section>
 
-      <Section title="Scheduling" description="Configure advance notice and available time windows.">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <CheckboxField
-            label="Requires Advance Notice"
-            description="Enforce lead time before booking."
-            registration={form.register('requires_advance_notice')}
-          />
-          <Field label="Advance Notice (days)" error={form.formState.errors.advance_notice_days?.message}>
-            <Input type="number" min={0} {...form.register('advance_notice_days', { valueAsNumber: true })} />
-          </Field>
-        </div>
-
+      <Section title="Scheduling" description="Configure available time windows. Advance notice is managed on the Availability page.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Field label="Available From" error={form.formState.errors.time_slot_start_display?.message}>
             <Input placeholder="9:00 AM" {...form.register('time_slot_start_display')} />

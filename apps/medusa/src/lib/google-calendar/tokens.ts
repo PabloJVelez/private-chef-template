@@ -1,9 +1,11 @@
-import { decryptSecret, encryptSecret } from "./crypto";
+import { decryptSecret, encryptSecret } from './crypto';
 
 type RefreshTokenResponse = {
   access_token: string;
   expires_in: number;
 };
+
+class PermanentTokenError extends Error {}
 
 const REFRESH_RETRY_ATTEMPTS = 3;
 const REFRESH_RETRY_BASE_DELAY_MS = 250;
@@ -20,44 +22,41 @@ function delay(ms: number): Promise<void> {
  * jitter; permanent failures (4xx other than 429) bubble up immediately so
  * the calling code can flip the connection to `reauthorization_required`.
  */
-export async function refreshAccessToken(
-  refreshToken: string,
-): Promise<RefreshTokenResponse> {
+export async function refreshAccessToken(refreshToken: string): Promise<RefreshTokenResponse> {
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    throw new Error("Missing Google OAuth client credentials");
+    throw new Error('Missing Google OAuth client credentials');
   }
 
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= REFRESH_RETRY_ATTEMPTS; attempt += 1) {
     try {
-      const response = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        signal: AbortSignal.timeout(10000),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_id: clientId,
           client_secret: clientSecret,
           refresh_token: refreshToken,
-          grant_type: "refresh_token",
+          grant_type: 'refresh_token',
         }),
       });
 
       if (response.ok) {
-        return (await response.json()) as RefreshTokenResponse;
+        const result = (await response.json()) as RefreshTokenResponse;
+        if (!result.access_token || !Number.isFinite(result.expires_in) || result.expires_in <= 0)
+          throw new Error('Invalid token refresh response');
+        return result;
       }
 
-      const text = await response.text();
       const isRetryable = response.status >= 500 || response.status === 429;
-      if (!isRetryable || attempt === REFRESH_RETRY_ATTEMPTS) {
-        throw new Error(`Google token refresh failed: ${text}`);
-      }
-      lastError = new Error(text);
+      if (!isRetryable) throw new PermanentTokenError('Google authorization expired. Reconnect Google Calendar.');
+      throw new Error('Google token service is temporarily unavailable.');
     } catch (error) {
-      if (attempt === REFRESH_RETRY_ATTEMPTS) {
-        throw error;
-      }
+      if (error instanceof PermanentTokenError || attempt === REFRESH_RETRY_ATTEMPTS) throw error;
       lastError = error;
     }
 
@@ -65,9 +64,7 @@ export async function refreshAccessToken(
     await delay(REFRESH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) + jitter);
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Google token refresh failed");
+  throw lastError instanceof Error ? lastError : new Error('Google token refresh failed');
 }
 
 export async function ensureValidAccessToken(
@@ -84,7 +81,7 @@ export async function ensureValidAccessToken(
   }
 
   if (!encryptedRefresh) {
-    throw new Error("Refresh token is unavailable");
+    throw new Error('Refresh token is unavailable');
   }
 
   try {
@@ -92,16 +89,15 @@ export async function ensureValidAccessToken(
     await persist({
       accessTokenEnc: encryptSecret(refreshed.access_token),
       accessTokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000),
-      status: "active",
+      status: 'active',
       lastSyncError: null,
     });
 
     return refreshed.access_token;
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown token refresh error";
+    const message = error instanceof Error ? error.message : 'Unknown token refresh error';
     await persist({
-      status: "reauthorization_required",
+      status: error instanceof PermanentTokenError ? 'reauthorization_required' : 'sync_error',
       lastSyncError: message,
     });
     throw error;
