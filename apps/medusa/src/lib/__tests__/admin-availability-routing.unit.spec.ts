@@ -154,3 +154,51 @@ test('Settings sidebar places Availability immediately after Store, without dupl
   expect(sections(render([availability])).some((s) => s.label === 'app.nav.common.extensions')).toBe(false);
   expect(general).toEqual([{ to: '/settings/store' }, { to: '/settings/users' }]);
 });
+
+// Exercise both HTTP handlers and resolve their return destination against the
+// generated admin routes; no Google requests or real credentials are used.
+jest.mock('../google-calendar/oauth-state', () => ({
+  buildState: jest.fn(() => 'signed-test-state'),
+  parseAndVerifyState: jest.fn(() => ({ nonce: 'test', ts: 1 })),
+}));
+jest.mock('../google-calendar/crypto', () => ({ encryptSecret: jest.fn(() => 'encrypted-test-token') }));
+jest.mock('../google-calendar/ensure-watch', () => ({
+  ensureGoogleCalendarWatchAndBootstrapSync: jest.fn().mockResolvedValue(undefined),
+}));
+
+test('Google connect and successful callback return to the generated Availability settings page', async () => {
+  const { POST } = require('../../api/admin/google-calendar/connect/route');
+  const { GET } = require('../../api/admin/google-calendar/callback/route');
+  const { buildState } = require('../google-calendar/oauth-state');
+  const service = {
+    getConfig: jest.fn().mockResolvedValue({
+      clientId: 'test-client', clientSecret: 'test-secret',
+      redirectUri: 'https://example.test/admin/google-calendar/callback',
+    }),
+    upsertPrimaryConnection: jest.fn().mockResolvedValue(undefined),
+  };
+  const scope = { resolve: jest.fn(() => service) };
+  const res: any = { status: jest.fn(), json: jest.fn(), redirect: jest.fn() };
+  res.status.mockReturnValue(res);
+  await POST({ scope } as any, res);
+  expect(buildState).toHaveBeenCalledWith(expect.objectContaining({ returnTo: '/app/settings/availability' }));
+  const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+    ok: true,
+    json: async () => ({ access_token: 'test-token', expires_in: 3600 }),
+  } as Response);
+  try {
+    await GET({ scope, query: { code: 'test-code', state: 'signed-test-state' } } as any, res);
+    expect(service.upsertPrimaryConnection).toHaveBeenCalledTimes(1);
+    expect(res.redirect).toHaveBeenCalledWith('/app/settings/availability');
+    const router = createMemoryRouter(routes, { basename: '/app', initialEntries: ['/app/chef-events'] });
+    try {
+      await router.navigate(res.redirect.mock.calls[0][0].slice('/app'.length));
+      expect(router.state.errors).toBeNull();
+      expect(((router.state.matches.at(-1)?.route as RouteObject)?.element as ReactElement)?.type).toBe(availabilityComponent);
+    } finally {
+      router.dispose();
+    }
+  } finally {
+    fetchMock.mockRestore();
+  }
+});
