@@ -118,3 +118,39 @@ test('prefix fix is scoped and tolerates an upstream correction', () => {
   expect(plugin.transform(dashboardSource, '/unrelated/dashboard-app.tsx')).toBeNull();
   expect(plugin.transform(transformed, '/node_modules/@medusajs/dashboard/src/dashboard-app/dashboard-app.tsx')).toBeNull();
 });
+
+// Render the actual transformed sidebar with lightweight layout/hook stand-ins.
+// This checks which section receives each entry, not just generated routes.
+test('Settings sidebar places Availability immediately after Store, without duplicating it', () => {
+  const { availabilitySettingsSidebar } = require('../admin-settings-sidebar');
+  const filename = '/node_modules/@medusajs/dashboard/src/components/layout/settings-layout/settings-layout.tsx';
+  const source = fs.readFileSync(path.join(path.dirname(require.resolve('@medusajs/dashboard/package.json')),
+    'src/components/layout/settings-layout/settings-layout.tsx'), 'utf8');
+  const plugin = availabilitySettingsSidebar();
+  expect(plugin.transform(source, '/unrelated/settings-layout.tsx')).toBeNull();
+  expect(() => plugin.transform('changed', filename)).toThrow('sidebar changed');
+  const transformed = plugin.transform(source, filename).code;
+  const sidebar = transformed.slice(transformed.indexOf('const SettingsSidebar ='), transformed.indexOf('const Header ='));
+  const compiled = require('@swc/core').transformSync(sidebar, {
+    jsc: { parser: { syntax: 'typescript', tsx: true }, target: 'es2022', transform: { react: { runtime: 'classic' } } },
+  }).code;
+  const general = [{ to: '/settings/store' }, { to: '/settings/users' }];
+  const availability = { to: '/settings/availability', label: 'Availability' };
+  const other = { to: '/settings/other', label: 'Other' };
+  const render = (extensions: any[]) => vm.runInNewContext(`${compiled}; SettingsSidebar()`, {
+    React: require('react'), Fragment: 'fragment', Header: 'header', Divider: 'divider', UserSection: 'user',
+    RadixCollapsibleSection: 'section', useTranslation: () => ({ t: (key: string) => key }),
+    useExtension: () => ({ getMenu: () => extensions }), useSettingRoutes: () => general,
+    useDeveloperRoutes: () => [], useMyAccountRoutes: () => [],
+  });
+  const sections = (node: any): any[] => !node || typeof node !== 'object' ? [] : [
+    ...(node.type === 'section' ? [node.props] : []),
+    ...require('react').Children.toArray(node.props?.children).flatMap(sections),
+  ];
+  const rendered = sections(render([availability, other]));
+  expect(rendered.find((s) => s.label === 'app.nav.settings.general').items.map((i: any) => i.to))
+    .toEqual(['/settings/store', '/settings/availability', '/settings/users']);
+  expect(rendered.find((s) => s.label === 'app.nav.common.extensions').items).toEqual([other]);
+  expect(sections(render([availability])).some((s) => s.label === 'app.nav.common.extensions')).toBe(false);
+  expect(general).toEqual([{ to: '/settings/store' }, { to: '/settings/users' }]);
+});

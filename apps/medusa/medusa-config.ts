@@ -1,3 +1,4 @@
+import { availabilitySettingsSidebar } from './src/lib/admin-settings-sidebar';
 import { settingsRoutePrefixFix } from './src/lib/admin-settings-route-prefix';
 import { unlock } from '@unlockable/vite-plugin-unlock';
 import { medusa as unlockMedusa } from '@unlockable/vite-plugin-unlock/medusa';
@@ -217,6 +218,7 @@ module.exports = defineConfig({
     vite: () => ({
       plugins: [
         settingsRoutePrefixFix(),
+        availabilitySettingsSidebar(),
         unlock(
           unlockMedusa({
             overrides: './src/admin/overrides',
