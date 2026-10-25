@@ -112,30 +112,48 @@ export function calculateSlots(
   const allowed = Array.isArray(experience.available_time_slots)
     ? (experience.available_time_slots as string[])
     : [];
+  // Resolve the real timeline once per day. A window can produce multiple runs
+  // across a fall-back transition; never merge runs belonging to different windows.
+  // This preserves the old every-occupied-minute rule without walking the entire
+  // duration again for every arrival (and every day of a calendar request).
+  const dayEnd = day.plus({ days: 1 }).toMillis();
+  const minutes: { instant: DateTime; wallMinute: number }[] = [];
+  for (let millis = day.toMillis(); millis < dayEnd; millis += 60000) {
+    const instant = DateTime.fromMillis(millis, { zone: settings.timezone });
+    minutes.push({ instant, wallMinute: instant.hour * 60 + instant.minute });
+  }
+  const clockMinutes = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3));
+  const runs: { start: number; end: number }[] = [];
+  for (const window of work) {
+    const from = clockMinutes(window.start), to = clockMinutes(window.end);
+    let runStart: number | null = null;
+    for (const { instant, wallMinute } of minutes) {
+      const inside = wallMinute >= from && wallMinute < to;
+      if (inside && runStart === null) runStart = instant.toMillis();
+      if (!inside && runStart !== null) {
+        runs.push({ start: runStart, end: instant.toMillis() });
+        runStart = null;
+      }
+    }
+    if (runStart !== null) runs.push({ start: runStart, end: dayEnd });
+  }
+  const busyTimes = busy.map((interval) => ({ start: Date.parse(interval.start), end: Date.parse(interval.end) }));
   const result: Slot[] = [];
-  for (let start = day; start < day.plus({ days: 1 }); start = start.plus({ minutes: 1 })) {
+  for (const { instant: start, wallMinute } of minutes) {
+    if (wallMinute % interval !== 0 || start <= now) continue;
+    const occupiedFrom = start.toMillis() - (prep + travel) * 60000;
+    const occupiedTo = start.toMillis() + (duration + cleanup + travel) * 60000;
+    if (!runs.some((run) => occupiedFrom >= run.start && occupiedTo <= run.end)) continue;
+    if (busyTimes.some((busy) => occupiedFrom < busy.end && busy.start < occupiedTo)) continue;
     const time = start.toFormat('HH:mm');
-    if ((start.hour * 60 + start.minute) % interval !== 0 || start <= now) continue;
     if (allowed.length && !allowed.includes(time)) continue;
     if (experience.time_slot_start && time < experience.time_slot_start) continue;
     if (experience.time_slot_end && time > experience.time_slot_end) continue;
-    const occupiedStart = start.minus({ minutes: prep + travel });
     const end = start.plus({ minutes: duration });
-    const occupiedEnd = end.plus({ minutes: cleanup + travel });
-    // Require every occupied minute to be in the SAME working window. No DST wall-time normalization.
-    const fits = work.some((w) => {
-      for (let t = occupiedStart; t < occupiedEnd; t = t.plus({ minutes: 1 })) {
-        if (t.toISODate() !== date || t.toFormat('HH:mm') < w.start || t.toFormat('HH:mm') >= w.end)
-          return false;
-      }
-      return true;
-    });
-    if (!fits) continue;
     const occupied = {
-      start: occupiedStart.toUTC().toISO()!,
-      end: occupiedEnd.toUTC().toISO()!,
+      start: DateTime.fromMillis(occupiedFrom, { zone: 'UTC' }).toISO()!,
+      end: DateTime.fromMillis(occupiedTo, { zone: 'UTC' }).toISO()!,
     };
-    if (busy.some((b) => overlaps(occupied, b))) continue;
     result.push({
       start: start.toUTC().toISO()!,
       end: end.toUTC().toISO()!,

@@ -337,3 +337,36 @@ Advance notice remains per experience under Experiences → Scheduling. A switch
 reveals the required whole-number day count only when enabled; disabling it removes
 lead-time filtering, while all other availability rules remain active. Existing
 saved settings and the seven-day default are preserved. No migration is needed.
+
+## PR #15 review fixes — 2026-10-25
+
+This section supersedes the earlier statements that notice controls remain under
+Experiences. Availability is now the sole notice-policy authority. Existing saved
+empty, null or disabled rules do not fall back to legacy experience fields.
+
+When upgrading from main, the availability table has no settings row, so the
+notice migration alone cannot copy existing experience policies. The admin GET
+now supplies separate `initial_notice_rules` through the experience module service
+(after migrations have completed). First setup displays those policies for review,
+including mixed day counts and inactive experiences, without inventing working
+hours or creating a saved schedule. Each inherited rule targets its original
+experience IDs, not future experiences. Saving persists the reviewed rules through
+the existing workflow. For older clients that omit rules on their first save, the
+workflow reads the same initial policies. An explicitly submitted empty array is
+an intentional removal. Once a schedule exists, these initialization defaults are
+never loaded again. No additional migration is required for this fix; the PR's
+existing module migrations are still required when upgrading from main.
+
+The slot calculator now resolves valid working intervals once per day instead of
+walking every occupied minute for every candidate arrival. Intervals remain tied
+to their original working window. Repeated-hour holes, spring gaps, split windows,
+buffers and explicit arrival restrictions retain their existing behavior.
+
+The review's November 2026 fixture (America/Chicago, daily 08:00–22:00,
+150-minute duration, five-minute interval) improved from 21.1s to approximately
+1.2s on the review host, with the same 4,170 slots. These are isolated calculator
+timings, not live API latency. The regression suite enforces a generous five-second
+CPU budget for this fixture. Additional exact-output comparison against the prior
+calculator passed 18 fixtures across New York spring/fall DST, Lord Howe's half-hour
+transitions, Kathmandu and UTC. Browser and live-provider behavior remain separate
+verification tasks.

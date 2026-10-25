@@ -63,7 +63,10 @@ const AvailabilityPage = () => {
     if (query.data && !initialized.current) {
       initialized.current = true;
       setHasSaved(!!query.data.settings);
-      form.reset(query.data.settings ? cleanSettings(query.data.settings) : emptySettings());
+      form.reset(query.data.settings ? cleanSettings(query.data.settings) : {
+        ...emptySettings(),
+        notice_rules: query.data.initial_notice_rules ?? [],
+      });
     }
   }, [query.data, form.reset]);
   useEffect(() => {
@@ -175,6 +178,7 @@ const AvailabilityPage = () => {
           <Text>
             No arrival times are offered until you save your schedule. Start with your timezone and usual
             hours.
+            {!!query.data?.initial_notice_rules?.length && ' Your existing advance-notice requirements are included below. Review them before saving your first schedule.'}
           </Text>
         )}
         <Container className="space-y-4">

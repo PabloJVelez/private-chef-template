@@ -7,6 +7,7 @@ import { AdminAvailabilityResource } from '../../src/sdk/admin/admin-availabilit
 // eslint-disable-next-line @medusajs/no-mikroorm-direct-import
 import { createContainer, asValue } from 'awilix';
 import { AvailabilitySetting } from '../../src/modules/availability/models/availability-setting';
+import { EXPERIENCE_TYPE_MODULE } from '../../src/modules/experience-type';
 import { GET, POST } from '../../src/api/admin/availability/route';
 
 const url = process.env.AVAILABILITY_TEST_DATABASE_URL;
@@ -26,6 +27,10 @@ if (url) {
       it('replaces complete schedules through SDK/HTTP/workflow and persists weekday and exception deletions', async () => {
         const scope = createContainer();
         scope.register('availability', asValue(service));
+        const initialRules = [{ enabled: true, days: 7, scope: 'selected', experience_ids: ['legacy-dinner'] }];
+        scope.register(EXPERIENCE_TYPE_MODULE, asValue({
+          listExperienceTypes: async () => [{ id: 'legacy-dinner', requires_advance_notice: true, advance_notice_days: 7 }],
+        }));
         const server = createServer(async (request, response) => {
           const reply = {
             status(code: number) {
@@ -62,13 +67,18 @@ if (url) {
         const save = async (body: Parameters<typeof api.save>[0]) => (await api.save(body)).settings;
         try {
           expect(await read()).toBeNull();
+          expect((await api.get()).initial_notice_rules).toEqual(initialRules);
           const initial = {
             timezone: 'America/Chicago',
             weekly: { '1': [{ start: '09:00', end: '21:00' }] },
             overrides: {},
             google_mode: 'required' as const,
           };
-          expect(await save(initial)).toMatchObject(initial);
+          expect(await save(initial)).toMatchObject({ ...initial, notice_rules: initialRules });
+          expect((await read())?.notice_rules).toEqual(initialRules);
+          await save({ ...initial, notice_rules: [] });
+          expect((await api.get()).initial_notice_rules).toBeUndefined();
+          expect((await read())?.notice_rules).toEqual([]);
           const changed = { ...initial, weekly: { '1': [{ start: '09:01', end: '21:02' }] } };
           expect(await save(changed)).toMatchObject(changed);
           expect(await read()).toMatchObject(changed);

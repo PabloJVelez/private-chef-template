@@ -504,3 +504,17 @@ test('reverting an edit clears form dirtiness and invalid timezone cannot submit
   expect(host.textContent).toContain('All changes saved');
   expect([...host.querySelectorAll('button')].some((node) => node.textContent === 'Save availability')).toBe(false);
 });
+
+test('first setup displays and saves imported notice requirements instead of silently turning them off', async () => {
+  const notice_rules = [{ enabled: true, days: 7, scope: 'selected' as const, experience_ids: ['exp'] }];
+  api.get.mockResolvedValue({ settings: null, initial_notice_rules: notice_rules });
+  api.save.mockImplementation(async (settings) => ({ settings }));
+  await render(React.createElement(AvailabilityPage));
+  await act(settle);
+  expect(host.textContent).toContain('Your existing advance-notice requirements are included below');
+  expect(host.textContent).toContain('No arrival times are offered until you save');
+  await change(host.querySelector('input[list=chef-timezones]')!, 'America/Chicago');
+  await click('Save availability');
+  expect(api.save.mock.calls[0][0]).toMatchObject({ notice_rules, weekly: {}, overrides: {} });
+  expect(host.textContent).toContain('All changes saved');
+});

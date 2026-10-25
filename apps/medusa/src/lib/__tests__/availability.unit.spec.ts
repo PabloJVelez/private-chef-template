@@ -90,3 +90,35 @@ describe('chef availability', () => {
     expect(slots('2026-11-01', { ...settings, weekly: {} })).toEqual([]);
   });
 });
+
+describe('precomputed working intervals', () => {
+  it('does not bridge a fall-back hole inside one wall-clock window', () => {
+    const s = { ...settings, weekly: { '7': [{ start: '01:30', end: '02:30' }] } };
+    const result = slots('2026-11-01', s, { ...exp, duration_minutes: 60 });
+    // First 01:30 crosses back to 01:00, outside the window; second 01:30 fits.
+    expect(result.filter((slot) => slot.time === '01:30').map((slot) => slot.start))
+      .toEqual(['2026-11-01T06:30:00.000Z']);
+  });
+  it('allows a continuous window through the repeated hour and through the spring gap', () => {
+    const fall = slots('2026-11-01', { ...settings, weekly: { '7': [{ start: '01:00', end: '02:00' }] } }, { ...exp, duration_minutes: 90 });
+    expect(fall.map((slot) => slot.start)).toEqual(['2026-11-01T05:00:00.000Z', '2026-11-01T05:30:00.000Z']);
+    const spring = slots('2027-03-14', { ...settings, weekly: { '7': [{ start: '01:30', end: '03:30' }] } }, { ...exp, duration_minutes: 60 });
+    expect(spring.map((slot) => slot.time)).toEqual(['01:30']);
+  });
+  it('never combines adjacent working windows to fit a longer visit', () => {
+    const result = slots('2026-11-02', { ...settings, overrides: { '2026-11-02': [{ start: '09:00', end: '10:00' }, { start: '10:00', end: '11:00' }] } }, { ...exp, duration_minutes: 90 });
+    expect(result).toEqual([]);
+  });
+  it('calculates a month of five-minute arrivals well below the 20-second proxy deadline', () => {
+    const s: Settings = { timezone: 'America/Chicago', weekly: Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((day) => [day, [{ start: '08:00', end: '22:00' }]])), overrides: {}, google_mode: 'internal_only' };
+    const now = DateTime.fromISO('2026-10-24T12:00:00Z');
+    const start = performance.now();
+    let count = 0;
+    for (let day = 1; day <= 30; day++) {
+      count += calculateSlots(`2026-11-${String(day).padStart(2, '0')}`, s, { duration_minutes: 150, time_slot_interval_minutes: 5 }, [], now).length;
+    }
+    expect(count).toBe(4170);
+    // Generous CPU budget for CI, leaving room for database/Google reads.
+    expect(performance.now() - start).toBeLessThan(5000);
+  }, 15000);
+});
