@@ -28314,6 +28314,7 @@ __metadata:
     "@types/node": "npm:^17.0.8"
     "@types/react": "npm:^18.3.2"
     "@types/react-big-calendar": "npm:^1"
+    "@types/react-dom": "npm:^18.2.14"
     "@unlockable/vite-plugin-unlock": "npm:^0.1.6"
     awilix: "npm:^8.0.1"
     concurrently: "npm:^9.2.1"
