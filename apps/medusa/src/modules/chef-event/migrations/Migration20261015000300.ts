@@ -17,7 +17,7 @@ export class Migration20261015000300 extends Migration {
       `update chef_event set "occupiedStart" = "requestedDate", "occupiedEnd" = "requestedDate" + "estimatedDuration" * interval '1 minute', "availabilitySnapshot" = jsonb_build_object('legacy', true, 'duration_minutes', "estimatedDuration", 'timezone', "timeZone", 'preparation_minutes', 0, 'travel_minutes', 0, 'cleanup_minutes', 0) where status in ('confirmed','completed') and deleted_at is null;`,
     );
     this.addSql(
-      `alter table chef_event add constraint chef_event_occupied_valid check ((status not in ('confirmed','completed') and "acceptanceToken" is null) or ("occupiedStart" is not null and "occupiedEnd" is not null and "occupiedEnd" > "occupiedStart")), add constraint chef_event_no_overlap exclude using gist (tstzrange("occupiedStart", "occupiedEnd", '[)') with &&) where (deleted_at is null and (status in ('confirmed','completed') or "acceptanceToken" is not null));`,
+      `alter table chef_event add constraint chef_event_occupied_valid check (deleted_at is not null or (status not in ('confirmed','completed') and "acceptanceToken" is null) or ("occupiedStart" is not null and "occupiedEnd" is not null and "occupiedEnd" > "occupiedStart")), add constraint chef_event_no_overlap exclude using gist (tstzrange("occupiedStart", "occupiedEnd", '[)') with &&) where (deleted_at is null and (status in ('confirmed','completed') or "acceptanceToken" is not null));`,
     );
     this.addSql(`create function guard_chef_availability() returns trigger language plpgsql as $$ begin
     if TG_OP = 'DELETE' then
