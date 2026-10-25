@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import { createMemoryRouter, matchRoutes, type RouteObject } from 'react-router-dom';
 import type { ReactElement } from 'react';
 import menuConfig from '../../admin/overrides/menu.config';
+import { settingsRoutePrefixFix } from '../admin-settings-route-prefix';
 
 // Exercise the installed, pinned Medusa router, not a duplicate of its algorithm.
 // Upgrade this adapter with Medusa: it intentionally fails if its internals move.
@@ -20,9 +21,10 @@ const dashboardSource = fs.readFileSync(
   path.join(path.dirname(require.resolve('@medusajs/dashboard/package.json')), 'src/dashboard-app/dashboard-app.tsx'),
   'utf8',
 );
-const sourceMethod = dashboardSource.slice(
-  dashboardSource.indexOf('  private populateRoutes('),
-  dashboardSource.indexOf('  private populateWidgets('),
+const transformed = settingsRoutePrefixFix().transform(dashboardSource, '/node_modules/@medusajs/dashboard/src/dashboard-app/dashboard-app.tsx')!.code;
+const sourceMethod = transformed.slice(
+  transformed.indexOf('  private populateRoutes('),
+  transformed.indexOf('  private populateWidgets('),
 );
 const compiledMethod = require('@swc/core').transformSync(`class Routes { ${sourceMethod} }`, {
   jsc: { parser: { syntax: 'typescript', tsx: true }, target: 'es2022' },
@@ -52,15 +54,15 @@ let routes: any[];
 let availabilityComponent: any;
 beforeAll(async () => {
   const routeModule = await generatedModule('virtual:medusa/routes');
-  availabilityComponent = routeModule.routes.find((route: any) => route.path === '/availability').Component;
+  availabilityComponent = routeModule.routes.find((route: any) => route.path === '/settings/availability').Component;
   const { coreRoutes, settingsRoutes } = populate([{ routeModule }]);
   // Medusa's core route tree mounts settings extensions inside /settings.
   expect(dashboard).toMatch(/path: "\/settings"/);
   routes = [...coreRoutes, { path: '/settings', children: settingsRoutes }];
 });
 
-test('generated Availability page resolves on direct /app/availability navigation', async () => {
-  const router = createMemoryRouter(routes, { basename: '/app', initialEntries: ['/app/availability'] });
+test('generated Availability page resolves on direct /app/settings/availability navigation', async () => {
+  const router = createMemoryRouter(routes, { basename: '/app', initialEntries: ['/app/settings/availability'] });
   if (!router.state.initialized) {
     await new Promise<void>((resolve) => {
       const unsubscribe = router.subscribe((state) => {
@@ -78,16 +80,17 @@ test('generated Availability page resolves on direct /app/availability navigatio
   router.dispose();
 });
 
-test('primary sidebar Availability target navigates to the generated page', async () => {
+test('settings sidebar Availability target navigates to the generated page', async () => {
   const menu = await generatedModule('virtual:medusa/menu-items');
-  const generated = menu.menuItems.find((entry: any) => entry.path === '/availability');
+  const generated = menu.menuItems.find((entry: any) => entry.path === '/settings/availability');
   expect(generated).toBeDefined();
-  const item = menuConfig.add?.find((entry) => entry.to === '/availability');
-  expect(item?.label).toBe('Availability');
-  expect(menuConfig.order?.indexOf('/availability')).toBe((menuConfig.order?.indexOf('/chef-events') ?? -2) + 1);
+  expect(generated.label).toBe('Availability');
+  expect(menuConfig.add?.some((entry) => entry.to.includes('availability'))).toBe(false);
+  expect(menuConfig.order).not.toContain('/availability');
+  expect(menu.menuItems.some((entry: any) => entry.path === '/availability')).toBe(false);
   const router = createMemoryRouter(routes, { basename: '/app', initialEntries: ['/app/chef-events'] });
-  await router.navigate(item!.to);
-  expect(router.state.location.pathname).toBe('/app/availability');
+  await router.navigate(generated.path);
+  expect(router.state.location.pathname).toBe('/app/settings/availability');
   expect(router.state.errors).toBeNull();
   expect(((router.state.matches.at(-1)?.route as RouteObject)?.element as ReactElement)?.type).toBe(
     availabilityComponent,
@@ -95,8 +98,9 @@ test('primary sidebar Availability target navigates to the generated page', asyn
   router.dispose();
 });
 
-test('only the top-level Availability route exists and other pages still resolve', () => {
-  expect(matchRoutes(routes, '/settings/availability')).toBeNull();
+test('Availability mounts once under settings and other pages still resolve', () => {
+  expect(matchRoutes(routes, '/settings/availability')).not.toBeNull();
+  expect(matchRoutes(routes, '/availability')).toBeNull();
   expect(matchRoutes(routes, '/settings/settings/availability')).toBeNull();
   expect(matchRoutes(routes, '/chef-events')).not.toBeNull();
 });
@@ -107,4 +111,10 @@ test('Medusa source and bundles are unpatched', () => {
     expect(code).toContain('createRouteMap(filteredSettingsRoutes)');
     expect(code).not.toContain('createRouteMap(filteredSettingsRoutes, "/settings")');
   }
+});
+
+test('prefix fix is scoped and tolerates an upstream correction', () => {
+  const plugin = settingsRoutePrefixFix();
+  expect(plugin.transform(dashboardSource, '/unrelated/dashboard-app.tsx')).toBeNull();
+  expect(plugin.transform(transformed, '/node_modules/@medusajs/dashboard/src/dashboard-app/dashboard-app.tsx')).toBeNull();
 });

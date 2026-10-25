@@ -59,7 +59,7 @@ References checked against installed Medusa 2.7 conventions: [module transaction
 
 ### Availability navigation
 
-Availability is a top-level admin page at `/app/availability`, placed immediately
+Availability is a top-level admin page at `/app/settings/availability`, placed immediately
 below Events using the existing primary-sidebar menu configuration. Working hours,
 date exceptions and Google Calendar controls remain together on this page. Events,
 the Store shortcut and the Google OAuth return path all use this canonical URL.
@@ -122,7 +122,7 @@ backend/admin production builds passed. Changed-file ESLint has zero errors and 
 existing-style Zod import-source warning. Browser discovery returned no connected
 browsers; jsdom tests do not establish visual browser QA.
 
-Manual review after pulling: open `/app/availability` at desktop and narrow widths;
+Manual review after pulling: open `/app/settings/availability` at desktop and narrow widths;
 set a split weekday, toggle it off/on, copy into an existing day with replacement;
 edit a duplicate exception and an overlapping date range; save/discard; choose an
 experience/date and compare the saved preview before/after a schedule change. Verify
@@ -182,7 +182,7 @@ not shipped. No real booking was submitted and no live Google calendar was acces
 
 For manual testing, pull this commit and rebuild/restart the template's backend/admin
 and storefront. This incremental pass adds no migration, environment variable or
-package dependency. Check `/app/availability` with a saved split schedule and an empty
+package dependency. Check `/app/settings/availability` with a saved split schedule and an empty
 schedule, then `/request` with a configured active experience. Check a closed date,
 open override, fully booked date, month boundary, timezone offset, return from review,
 and retry after calendar failure. Desktop and narrow-width visual QA remain required.
@@ -370,3 +370,17 @@ CPU budget for this fixture. Additional exact-output comparison against the prio
 calculator passed 18 fixtures across New York spring/fall DST, Lord Howe's half-hour
 transitions, Kathmandu and UTC. Browser and live-provider behavior remain separate
 verification tasks.
+
+## Availability navigation — 2026-10-25
+
+Availability now lives in the Settings sidebar at `/app/settings/availability`,
+not the main sidebar. The Events header no longer links to it; the existing
+Store settings notice links to the new location.
+
+Medusa 2.7 leaves the `/settings` prefix in extension routes even though they
+are mounted under that parent. `settingsRoutePrefixFix` applies a narrowly scoped
+Vite transform to the dashboard source loaded by Unlock, passing `/settings`
+to `createRouteMap` so the URL is not doubled. Installed dependencies remain
+unchanged. Remove this compatibility shim when upgrading to a dashboard that
+handles the prefix itself. Routing tests exercise the generated route/menu and
+the installed dashboard route-map implementation with the transform applied.

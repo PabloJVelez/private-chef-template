@@ -26,11 +26,6 @@ const config: MenuConfig = {
       to: '/chef-events',
     },
     {
-      icon: Calendar,
-      label: 'Availability',
-      to: '/availability',
-    },
-    {
       icon: SquaresPlus,
       label: 'Social Gallery',
       to: '/social-gallery',
@@ -38,7 +33,6 @@ const config: MenuConfig = {
   ],
   order: [
     '/chef-events',
-    '/availability',
     '/orders',
     '/menus',
     '/experience-types',

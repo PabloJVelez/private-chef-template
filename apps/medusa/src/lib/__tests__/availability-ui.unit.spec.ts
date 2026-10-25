@@ -6,7 +6,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ExceptionsEditor } from '../../admin/components/availability/exceptions-editor';
-import AvailabilityPage from '../../admin/routes/availability/page';
+import AvailabilityPage from '../../admin/routes/settings/availability/page';
 import { sdk } from '../../sdk';
 import type { Settings } from '../availability/slots';
 jest.mock('../../sdk', () => ({

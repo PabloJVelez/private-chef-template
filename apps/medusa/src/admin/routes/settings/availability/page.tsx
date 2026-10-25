@@ -3,15 +3,15 @@ import { Button, Container, Heading, Input, Text, toast } from '@medusajs/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAdminAvailability, useAdminSaveAvailabilityMutation } from '../../hooks/availability';
-import { useAdminListExperienceTypes } from '../../hooks/experience-types';
-import { availabilitySettingsSchema, type Settings } from '../../../lib/availability/slots';
-import { NoticeRules } from '../../components/availability/notice-rules';
-import GoogleCalendarPanel from '../../components/availability/google-calendar-panel';
-import { ExceptionsEditor } from '../../components/availability/exceptions-editor';
-import { HelpTip } from '../../components/availability/help-tip';
-import { WorkingDays } from '../../components/availability/working-days';
-import { cleanSettings, emptySettings } from '../../components/availability/editor';
+import { useAdminAvailability, useAdminSaveAvailabilityMutation } from '../../../hooks/availability';
+import { useAdminListExperienceTypes } from '../../../hooks/experience-types';
+import { availabilitySettingsSchema, type Settings } from '../../../../lib/availability/slots';
+import { NoticeRules } from '../../../components/availability/notice-rules';
+import GoogleCalendarPanel from '../../../components/availability/google-calendar-panel';
+import { ExceptionsEditor } from '../../../components/availability/exceptions-editor';
+import { HelpTip } from '../../../components/availability/help-tip';
+import { WorkingDays } from '../../../components/availability/working-days';
+import { cleanSettings, emptySettings } from '../../../components/availability/editor';
 
 const timezoneNames = (() => {
   const supported = (Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] })

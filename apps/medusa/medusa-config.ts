@@ -1,3 +1,4 @@
+import { settingsRoutePrefixFix } from './src/lib/admin-settings-route-prefix';
 import { unlock } from '@unlockable/vite-plugin-unlock';
 import { medusa as unlockMedusa } from '@unlockable/vite-plugin-unlock/medusa';
 import { defineConfig, loadEnv } from '@medusajs/framework/utils';
@@ -215,6 +216,7 @@ module.exports = defineConfig({
     backendUrl: process.env.ADMIN_BACKEND_URL,
     vite: () => ({
       plugins: [
+        settingsRoutePrefixFix(),
         unlock(
           unlockMedusa({
             overrides: './src/admin/overrides',
