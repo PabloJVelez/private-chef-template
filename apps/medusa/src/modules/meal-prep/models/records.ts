@@ -69,3 +69,41 @@ export const MealPrepCommand = model.define("meal_prep_command", {
   request_hash: model.text(),
   result: model.json(),
 });
+
+// Private internal capture records. Generated CRUD must never be exposed as APIs.
+export const MealPrepCapture = model.define("meal_prep_capture", {
+  id: model.id().primaryKey(),
+  chef_id: model.text(),
+  customer_id: model.text().nullable(),
+  kind: model.enum(["offer", "household", "selection"]),
+  household_id: model.text().nullable(),
+  version: model.number().default(0),
+});
+export const MealPrepCaptureSnapshot = model.define(
+  "meal_prep_capture_snapshot",
+  {
+    id: model.id().primaryKey(),
+    capture_id: model.text(),
+    chef_id: model.text(),
+    kind: model.enum(["offer", "household", "selection"]),
+    revision_number: model.number(),
+    body: model.json(),
+    offer_revision_id: model.text().nullable(),
+    intake_revision_id: model.text().nullable(),
+    availability_version: model.number().nullable(),
+    contract_version: model.text(),
+    created_by: model.text(),
+  },
+);
+export const MealPrepCaptureReceipt = model.define(
+  "meal_prep_capture_receipt",
+  {
+    id: model.id().primaryKey(),
+    capture_id: model.text(),
+    revision_id: model.text(),
+    actor_id: model.text(),
+    idempotency_key: model.text(),
+    request_hash: model.text(),
+    result: model.json(),
+  },
+);
