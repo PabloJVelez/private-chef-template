@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { isSharedConnectionSymbol } from "@medusajs/framework/utils";
 import { Migration20261015000100 } from "../../src/modules/availability/migrations/Migration20261015000100";
+import { Migration20261030000300 } from "../../src/modules/availability/migrations/Migration20261030000300";
 import { Migration20261024000100 } from "../../src/modules/availability/migrations/Migration20261024000100";
 import { Migration20261015000200 } from "../../src/modules/experience-type/migrations/Migration20261015000200";
 import { Migration20261015000300 } from "../../src/modules/chef-event/migrations/Migration20261015000300";
@@ -104,11 +105,11 @@ suite("shared occupied-time protection on PostgreSQL", () => {
     id: "block",
     chefId: "chef-1",
     expectedVersion: 1,
-    expectedAvailabilityUpdatedAt: (
+    expectedAvailabilityVersion: (
       await pool.query(
-        `select updated_at from availability_setting where id='chef-default'`,
+        `select version from availability_setting where id='chef-default'`,
       )
-    ).rows[0].updated_at.toISOString(),
+    ).rows[0].version,
     start: "2026-11-02T12:00:00Z",
     end: "2026-11-02T13:00:00Z",
     ...extra,
@@ -134,6 +135,7 @@ suite("shared occupied-time protection on PostgreSQL", () => {
       Migration20261015000100,
       Migration20261015000200,
       Migration20261024000100,
+      Migration20261030000300,
       Migration20261015000300,
       Migration20261030000100,
     ])
@@ -277,10 +279,15 @@ suite("shared occupied-time protection on PostgreSQL", () => {
       block("b", pool, start, end, "in_home"),
     ]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(
-      (results.find((r) => r.status === "rejected") as PromiseRejectedResult)
-        .reason.code,
-    ).toBe("23P01");
+    // Concurrent GiST exclusion insertions can report a deadlock victim rather
+    // than an exclusion violation; both must roll back the losing source write.
+    expect(['23P01', '40P01']).toContain(
+      (results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason.code,
+    );
+    expect(await active()).toHaveLength(1);
+    const loser = results[0].status === 'rejected' ? 'a' : 'b';
+    expect((await pool.query('select id from chef_work_block where id=$1', [loser])).rows).toEqual([]);
+    await expect(block(loser, pool, start, end, 'in_home')).rejects.toMatchObject({ code: '23P01' });
     await block("adjacent", pool, end, "2026-11-02T12:00Z");
     expect(await active()).toHaveLength(2);
   });
@@ -326,6 +333,11 @@ suite("shared occupied-time protection on PostgreSQL", () => {
       (await pool.query("select count(*) from chef_work_block_occurrence"))
         .rows[0].count,
     ).toBe("30");
+    expect(await service.reviewWorkBlocks({ start, end })).toEqual([{
+      id: 'block', purpose: 'preparation', start: new Date(start).toISOString(), end: new Date(end).toISOString(), linked_occurrences: 30,
+    }]);
+    expect(await service.reviewWorkBlocks({ start: end, end: '2026-11-02T12:00:00Z' })).toEqual([]);
+    expect(await active()).toHaveLength(1);
   });
   it("in-home work is exclusive to one occurrence; forged cross-owner/arrangement links fail", async () => {
     await subjects();
@@ -565,7 +577,7 @@ suite("shared occupied-time protection on PostgreSQL", () => {
       }),
     ).rejects.toThrow("global working availability");
     await pool.query(
-      `update availability_setting set overrides='{"2026-11-02":[]}',updated_at=now()`,
+      `update availability_setting set overrides='{"2026-11-02":[]}'`,
     );
     await expect(service.replaceUnlinkedWorkBlock(input)).rejects.toThrow(
       "Availability changed",
@@ -597,6 +609,7 @@ suite("shared occupied-time protection on PostgreSQL", () => {
         .saveSchedule(
           {
             timezone: "UTC",
+            version: (await pool.query("select version from availability_setting where id='chef-default'")).rows[0].version,
             weekly: {},
             overrides: {},
             google_mode: "internal_only",

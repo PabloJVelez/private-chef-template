@@ -5,7 +5,7 @@ const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const windowSchema = z
   .object({ start: clock, end: clock })
   .refine((w) => w.start < w.end, 'End must follow start (split overnight windows across dates).');
-const windows = z
+export const windows = z
   .array(windowSchema)
   .max(12)
   .superRefine((rows, ctx) => {
@@ -26,7 +26,83 @@ export const noticeRuleSchema = z
   );
 export type NoticeRule = z.infer<typeof noticeRuleSchema>;
 
+const methodSchedule = z
+  .object({
+    enabled: z.boolean(),
+    weekly: z.record(z.enum(['1', '2', '3', '4', '5', '6', '7']), windows),
+    dates: z
+      .record(
+        z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .refine((d) => DateTime.fromISO(d).isValid),
+        windows,
+      )
+      .refine((v) => Object.keys(v).length <= 366),
+  })
+  .strict();
+
+// Draft inputs only. Neither simultaneous storage nor empty windows establish
+// eligibility, closure precedence, location validity, or any fulfillment policy.
+export const mealPrepSetupSchema = z
+  .object({
+    methods: z.object({ in_home: methodSchedule, delivery: methodSchedule, pickup: methodSchedule }).strict(),
+    selection_styles: z
+      .object({
+        individual_dishes: z.boolean(),
+        package: z.boolean(),
+        chosen_menu: z.boolean(),
+        tailored_plan: z.boolean(),
+      })
+      .strict(),
+    delivery_area: z
+      .object({
+        radius: z
+          .object({
+            address: z.string().trim().min(1).max(1000),
+            distance: z.number().finite().positive(),
+            unit: z.enum(['mi', 'km']),
+          })
+          .strict()
+          .nullable(),
+        zip_codes: z
+          .array(z.string().regex(/^\d{5}(-\d{4})?$/, 'Use a five-digit ZIP or ZIP+4.'))
+          .max(5000)
+          .refine((v) => new Set(v).size === v.length, 'Remove duplicate ZIP codes.'),
+      })
+      .strict(),
+    work_plans: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(100),
+            purpose: z.enum(['in_home', 'preparation', 'delivery', 'handoff']),
+            start: z.string().datetime({ offset: true }),
+            end: z.string().datetime({ offset: true }),
+          })
+          .strict()
+          .refine((v) => Date.parse(v.end) > Date.parse(v.start), 'Work must end after it starts.'),
+      )
+      .max(366)
+      .refine((v) => new Set(v.map((b) => b.id)).size === v.length, 'Work plan IDs must be unique.'),
+  })
+  .strict();
+export type MealPrepSetup = z.infer<typeof mealPrepSetupSchema>;
+export const emptyMealPrepSetup = (): MealPrepSetup => ({
+  methods: {
+    in_home: { enabled: false, weekly: {}, dates: {} },
+    delivery: { enabled: false, weekly: {}, dates: {} },
+    pickup: { enabled: false, weekly: {}, dates: {} },
+  },
+  selection_styles: { individual_dishes: false, package: false, chosen_menu: false, tailored_plan: false },
+  delivery_area: { radius: null, zip_codes: [] },
+  work_plans: [],
+});
+
 export const availabilitySettingsSchema = z.object({
+  // Optional for legacy read/calculation callers. The HTTP write boundary requires it.
+  version: z.number().int().nonnegative().max(2147483646).optional(),
+  meal_prep: mealPrepSetupSchema.nullable().optional(),
   timezone: z.string().refine((zone) => DateTime.now().setZone(zone).isValid, 'Use a valid IANA timezone.'),
   weekly: z.record(z.enum(['1', '2', '3', '4', '5', '6', '7']), windows),
   overrides: z
