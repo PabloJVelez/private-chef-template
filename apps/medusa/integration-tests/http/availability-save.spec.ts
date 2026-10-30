@@ -8,6 +8,7 @@ import { AdminAvailabilityResource } from '../../src/sdk/admin/admin-availabilit
 import { createContainer, asValue } from 'awilix';
 import { AvailabilitySetting } from '../../src/modules/availability/models/availability-setting';
 import { EXPERIENCE_TYPE_MODULE } from '../../src/modules/experience-type';
+import { emptyMealPrepSetup } from '../../src/lib/availability/slots';
 import { GET, POST } from '../../src/api/admin/availability/route';
 
 const url = process.env.AVAILABILITY_TEST_DATABASE_URL;
@@ -50,9 +51,9 @@ if (url) {
             if (request.method === 'POST') {
               let body = '';
               for await (const chunk of request) body += chunk;
-              await POST({ scope, body: JSON.parse(body) } as never, reply as never);
+              await POST({ scope, auth_context: { actor_type: 'user', actor_id: 'admin' }, body: JSON.parse(body) } as never, reply as never);
             } else {
-              await GET({ scope } as never, reply as never);
+              await GET({ scope, auth_context: { actor_type: 'user', actor_id: 'admin' } } as never, reply as never);
             }
           } catch (error) {
             reply.status(500).json({ message: String(error) });
@@ -64,7 +65,8 @@ if (url) {
           new Client({ baseUrl: `http://127.0.0.1:${port}`, auth: { type: 'session' } }),
         );
         const read = async () => (await api.get()).settings;
-        const save = async (body: Parameters<typeof api.save>[0]) => (await api.save(body)).settings;
+        const save = async (body: Parameters<typeof api.save>[0]) =>
+          (await api.save({ ...body, version: (await read())?.version ?? 0 })).settings;
         try {
           expect(await read()).toBeNull();
           expect((await api.get()).initial_notice_rules).toEqual(initialRules);
@@ -74,6 +76,11 @@ if (url) {
             overrides: {},
             google_mode: 'required' as const,
           };
+          const firstRace = await Promise.allSettled([api.save({ ...initial, version: 0 }), api.save({ ...initial, version: 0 })]);
+          expect(firstRace.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+          const firstConflict = firstRace.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+          expect(firstConflict.reason.status).toBe(409);
+          expect((await read())?.version).toBe(1);
           expect(await save(initial)).toMatchObject({ ...initial, notice_rules: initialRules });
           expect((await read())?.notice_rules).toEqual(initialRules);
           await save({ ...initial, notice_rules: [] });
@@ -108,6 +115,41 @@ if (url) {
           await save(changed);
           await expect(save({ ...changed, timezone: 'not-a-timezone' })).rejects.toThrow();
           expect(await read()).toMatchObject(changed);
+          const setup = emptyMealPrepSetup();
+          setup.methods.delivery.enabled = true;
+          setup.methods.pickup.enabled = true;
+          setup.selection_styles.package = true;
+          setup.methods.delivery.weekly = { '1': [{ start: '10:00', end: '12:00' }], '2': [{ start: '11:00', end: '13:00' }] };
+          setup.methods.pickup.dates = { '2026-11-02': [], '2026-11-03': [{ start: '12:00', end: '14:00' }] };
+          setup.delivery_area = { radius: { address: 'Draft address', distance: 12.5, unit: 'mi' }, zip_codes: ['00501', '10001'] };
+          setup.work_plans = [{ id: 'draft', purpose: 'handoff', start: '2026-11-02T10:00:00Z', end: '2026-11-02T11:00:00Z' }];
+          expect((await save({ ...changed, meal_prep: setup })).meal_prep).toEqual(setup);
+          expect((await read())?.meal_prep).toEqual(setup);
+          const loaded = (await read())!;
+          const race = await Promise.allSettled([
+            api.save({ ...changed, version: loaded.version, timezone: 'UTC', meal_prep: setup }),
+            api.save({ ...changed, version: loaded.version, timezone: 'Europe/London', meal_prep: setup }),
+          ]);
+          expect(race.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+          expect((race.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason.status).toBe(409);
+          expect((await read())?.version).toBe(loaded.version! + 1);
+          // Omitted setup from a compatible versioned caller preserves it.
+          await save(changed);
+          expect((await read())?.meal_prep).toEqual(setup);
+          delete setup.methods.delivery.weekly['2'];
+          delete setup.methods.pickup.dates['2026-11-02'];
+          setup.delivery_area = { radius: null, zip_codes: [] };
+          setup.work_plans = [];
+          await save({ ...changed, meal_prep: setup });
+          expect((await read())?.meal_prep).toEqual(setup);
+          await save({ ...changed, meal_prep: emptyMealPrepSetup() });
+          expect((await read())?.meal_prep).toEqual(emptyMealPrepSetup());
+          const beforeInvalid = await read();
+          await expect(api.save({ ...changed, version: beforeInvalid!.version, meal_prep: { ...setup, max_orders: 1 } } as never)).rejects.toThrow();
+          await expect(api.save(changed)).rejects.toThrow();
+          expect(await read()).toEqual(beforeInvalid);
+          await save({ ...changed, meal_prep: null });
+          expect((await read())?.meal_prep).toBeNull();
         } finally {
           await new Promise<void>((done, fail) => server.close((error) => (error ? fail(error) : done())));
         }

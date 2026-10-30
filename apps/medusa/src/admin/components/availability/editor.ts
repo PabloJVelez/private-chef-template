@@ -5,6 +5,7 @@ export type Hours = { start: string; end: string }[];
 export const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 export const emptySettings = (): Settings => ({
   timezone: '',
+  version: 0,
   weekly: {},
   overrides: {},
   google_mode: 'required',
@@ -14,6 +15,8 @@ export const cloneHours = (hours: Hours): Hours => hours.map((window) => ({ ...w
 export function cleanSettings(value: Settings): Settings {
   return {
     timezone: value.timezone,
+    ...(value.version !== undefined ? { version: value.version } : {}),
+    ...(value.meal_prep !== undefined ? { meal_prep: value.meal_prep } : {}),
     weekly: value.weekly,
     overrides: value.overrides,
     google_mode: value.google_mode,

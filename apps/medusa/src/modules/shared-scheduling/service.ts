@@ -16,7 +16,7 @@ const replacement = z
     id: z.string().min(1),
     chefId: z.string().min(1),
     expectedVersion: z.number().int().positive(),
-    expectedAvailabilityUpdatedAt: z.string().datetime({ offset: true }),
+    expectedAvailabilityVersion: z.number().int().nonnegative(),
     start: z.string().datetime({ offset: true }),
     end: z.string().datetime({ offset: true }),
   })
@@ -47,13 +47,34 @@ export default class SharedSchedulingService extends MedusaService({
     }));
   }
 
+  /** Admin-only facts for manual review. Opaque foundation menu drafts are not
+   * approved serving/order data and are deliberately not counted as such. */
   @InjectManager()
-  async reservationDrift(
+  async reviewWorkBlocks(
+    input: { start: string; end: string },
     @MedusaContext() context: Context<EntityManager> = {},
   ) {
-    return context.manager!.execute(
-      "select source_kind, source_id from chef_time_reservation_drift",
+    const rows = await context.manager!.execute(
+      `select b.id, b.purpose, b.starts_at, b.ends_at, count(l.occurrence_id)::integer as linked_occurrences
+       from chef_work_block b
+       join chef_time_reservation r on r.source_kind = 'meal_prep_work' and r.source_id = b.id and r.active
+       left join chef_work_block_occurrence l on l.block_id = b.id
+       where r.resource_id = 'chef-default' and tstzrange(r.starts_at, r.ends_at, '[)') && tstzrange(?, ?, '[)')
+       group by b.id order by b.starts_at, b.id`,
+      [input.start, input.end],
     );
+    return rows.map((r) => ({
+      id: r.id,
+      purpose: r.purpose,
+      start: new Date(r.starts_at).toISOString(),
+      end: new Date(r.ends_at).toISOString(),
+      linked_occurrences: r.linked_occurrences,
+    }));
+  }
+
+  @InjectManager()
+  async reservationDrift(@MedusaContext() context: Context<EntityManager> = {}) {
+    return context.manager!.execute("select source_kind, source_id from chef_time_reservation_drift");
   }
 
   /** Internal transaction primitive only; no route/job invokes it. It does NOT
@@ -77,17 +98,11 @@ export default class SharedSchedulingService extends MedusaService({
     // updates. Hold until the reservation replacement commits or rolls back.
     const [settings] = await context.transactionManager!.execute(
       `select * from availability_setting where id = 'chef-default' and deleted_at is null
-       and date_trunc('milliseconds', updated_at) = ?::timestamptz for share`,
-      [input.expectedAvailabilityUpdatedAt],
+       and version = ? for share`,
+      [input.expectedAvailabilityVersion],
     );
     if (!settings) throw new Error("Availability changed or is not configured");
-    if (
-      !withinGlobalHours(
-        input.start,
-        input.end,
-        availabilitySettingsSchema.parse(settings),
-      )
-    )
+    if (!withinGlobalHours(input.start, input.end, availabilitySettingsSchema.parse(settings)))
       throw new Error("Work interval is outside global working availability");
     const rows = await context.transactionManager!.execute(
       `update chef_work_block set starts_at = ?, ends_at = ?, version = version + 1, updated_at = now()

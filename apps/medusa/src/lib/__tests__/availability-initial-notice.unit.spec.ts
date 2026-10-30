@@ -30,7 +30,7 @@ beforeEach(() => {
 });
 const get = async () => {
   const json = jest.fn();
-  await GET({ scope } as never, { json } as never);
+  await GET({ scope, auth_context: { actor_type: 'user', actor_id: 'admin' } } as never, { json } as never);
   return json.mock.calls[0][0];
 };
 test('an upgrade with no settings row presents mixed legacy policies without inventing or saving hours', async () => {

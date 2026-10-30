@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ExceptionsEditor } from '../../admin/components/availability/exceptions-editor';
 import AvailabilityPage from '../../admin/routes/settings/availability/page';
 import { sdk } from '../../sdk';
-import type { Settings } from '../availability/slots';
+import { emptyMealPrepSetup, type Settings } from '../availability/slots';
 jest.mock('../../sdk', () => ({
   sdk: {
     admin: {
@@ -517,4 +517,81 @@ test('first setup displays and saves imported notice requirements instead of sil
   await click('Save availability');
   expect(api.save.mock.calls[0][0]).toMatchObject({ notice_rules, weekly: {}, overrides: {} });
   expect(host.textContent).toContain('All changes saved');
+});
+
+test('meal prep draft methods/styles save together, discard, and keep revisions during in-flight edits', async () => {
+  const meal_prep = emptyMealPrepSetup();
+  api.get.mockResolvedValue({ settings: { ...saved, version: 4, meal_prep } });
+  const saving = deferred<any>();
+  api.save.mockReturnValueOnce(saving.promise);
+  await render(React.createElement(AvailabilityPage)); await act(settle);
+  const toggle = async (label: string) => {
+    await act(async () => { (host.querySelector(`[aria-label="Enable ${label}"]`) as HTMLInputElement).click(); await settle(); });
+  };
+  await toggle('Delivery'); await toggle('Pickup');
+  await click('Save availability');
+  expect(api.save.mock.calls[0][0]).toMatchObject({ version: 4, meal_prep: { methods: { delivery: { enabled: true }, pickup: { enabled: true }, in_home: { enabled: false } } } });
+  await toggle('In-home cooking');
+  await act(async () => { saving.resolve({ settings: { ...api.save.mock.calls[0][0], version: 5 } }); await settle(); });
+  api.save.mockRejectedValueOnce(new Error('Availability changed in another editor.'));
+  await click('Save availability');
+  expect(api.save.mock.calls[1][0]).toMatchObject({ version: 5, meal_prep: { methods: { in_home: { enabled: true } } } });
+  expect((host.querySelector('[aria-label="Enable In-home cooking"]') as HTMLInputElement).checked).toBe(true);
+  expect(host.textContent).toContain('Reload saved settings (discard draft)');
+  await click('Discard');
+  expect((host.querySelector('[aria-label="Enable In-home cooking"]') as HTMLInputElement).checked).toBe(false);
+  expect((host.querySelector('[aria-label="Enable Delivery"]') as HTMLInputElement).checked).toBe(true);
+  expect(host.textContent).toContain('Unknown totals are not zero');
+  expect(host.textContent).toContain('meal prep is not available to customers yet');
+});
+
+test('meal prep window deletion and radius/ZIP clearing survive save and reload without changing global time off', async () => {
+  const meal_prep = emptyMealPrepSetup();
+  meal_prep.methods.delivery.weekly = { '1': [{ start: '09:00', end: '11:00' }] };
+  meal_prep.methods.pickup.dates = { '2026-11-02': [] };
+  meal_prep.delivery_area = { radius: { address: 'Draft center', distance: 5, unit: 'mi' }, zip_codes: ['00501'] };
+  api.get.mockResolvedValue({ settings: { ...saved, version: 3, meal_prep } });
+  api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 4 } }));
+  await render(React.createElement(AvailabilityPage)); await act(settle);
+  await act(async () => { (host.querySelector('[aria-label="Delivery Monday"]') as HTMLInputElement).click(); await settle(); });
+  await click('Remove Pickup date 2026-11-02');
+  await click('Clear ZIP codes');
+  const radius = [...host.querySelectorAll('label')].find((n) => n.textContent?.includes('Draft radius around an address'))!.querySelector('input')!;
+  await act(async () => { radius.click(); await settle(); });
+  await click('Save availability');
+  expect(api.save.mock.calls[0][0]).toMatchObject({ version: 3, overrides: saved.overrides,
+    meal_prep: { methods: { delivery: { weekly: {} }, pickup: { dates: {} } }, delivery_area: { radius: null, zip_codes: [] } },
+  });
+  expect(host.querySelector('[aria-label="Delivery Monday start 1"]')).toBeNull();
+  expect(host.textContent).toContain('All changes saved');
+});
+
+test('explicit stale-settings reload replaces the draft only on success', async () => {
+  api.get.mockResolvedValue({ settings: { ...saved, version: 1 } });
+  api.save.mockRejectedValueOnce(new Error('Availability changed in another editor.'));
+  await render(React.createElement(AvailabilityPage)); await act(settle);
+  await click('Change timezone'); await change(host.querySelector('input[list=chef-timezones]')!, 'UTC');
+  await click('Save availability');
+  api.get.mockResolvedValue({ settings: { ...saved, timezone: 'Europe/Paris', version: 2 } });
+  await click('Reload saved settings (discard draft)');
+  expect(host.textContent).toContain('Europe/Paris');
+  expect(host.textContent).toContain('All changes saved');
+});
+
+test('input entered while reloading a conflict keeps its draft and adopts the refreshed revision', async () => {
+  api.get.mockResolvedValue({ settings: { ...saved, version: 1 } });
+  api.save.mockRejectedValueOnce(new Error('Availability changed in another editor.'));
+  await render(React.createElement(AvailabilityPage)); await act(settle);
+  await click('Change timezone'); await change(host.querySelector('input[list=chef-timezones]')!, 'UTC');
+  await click('Save availability');
+  const reloading = deferred<any>();
+  api.get.mockReturnValueOnce(reloading.promise);
+  await click('Reload saved settings (discard draft)');
+  await change(host.querySelector('input[list=chef-timezones]')!, 'Europe/London');
+  await act(async () => { reloading.resolve({ settings: { ...saved, timezone: 'Europe/Paris', version: 2 } }); await settle(); });
+  expect(host.textContent).toContain('Europe/London');
+  expect(host.textContent).toContain('Unsaved changes');
+  api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 3 } }));
+  await click('Save availability');
+  expect(api.save.mock.calls[1][0]).toMatchObject({ timezone: 'Europe/London', version: 2 });
 });

@@ -7,6 +7,7 @@ import { useAdminAvailability, useAdminSaveAvailabilityMutation } from '../../..
 import { useAdminListExperienceTypes } from '../../../hooks/experience-types';
 import { availabilitySettingsSchema, type Settings } from '../../../../lib/availability/slots';
 import { NoticeRules } from '../../../components/availability/notice-rules';
+import { MealPrepSetupEditor } from '../../../components/availability/meal-prep-setup';
 import GoogleCalendarPanel from '../../../components/availability/google-calendar-panel';
 import { ExceptionsEditor } from '../../../components/availability/exceptions-editor';
 import { HelpTip } from '../../../components/availability/help-tip';
@@ -88,7 +89,7 @@ const AvailabilityPage = () => {
       // Advance the saved baseline without losing input made during the request.
       // RHF performs structural dirty checks, independent of JSON object key order.
       if (editVersion.current !== submittedVersion) {
-        form.reset(current, { keepDefaultValues: true });
+        form.reset({ ...current, version: response.settings.version }, { keepDefaultValues: true });
       }
       setHasSaved(true);
       toast.success('Availability saved');
@@ -97,6 +98,25 @@ const AvailabilityPage = () => {
         ? error.message
         : 'Could not save. Your changes are still here; please try again.';
       toast.error('Save failed', { description: message, duration: 5000 });
+    }
+  };
+  const reloadSaved = async () => {
+    const requestedVersion = editVersion.current;
+    const response = await query.refetch();
+    if (response.data && !response.isError) {
+      const current = form.getValues();
+      const baseline = response.data.settings
+        ? cleanSettings(response.data.settings)
+        : { ...emptySettings(), notice_rules: response.data.initial_notice_rules ?? [] };
+      form.reset(baseline);
+      if (editVersion.current !== requestedVersion)
+        form.reset({ ...current, version: baseline.version }, { keepDefaultValues: true });
+      setHasSaved(!!response.data.settings);
+      mutation.reset();
+      setDiscardVersion((v) => v + 1);
+      setWorkingOpen(false);
+      setExceptionOpen(false);
+      setTimezoneEditing(false);
     }
   };
   if (!initialized.current)
@@ -136,6 +156,11 @@ const AvailabilityPage = () => {
                     ? 'Apply or cancel the date editor below, then save availability.'
                     : 'Check the highlighted availability settings before saving.'}
               </Text>
+            )}
+            {error && (
+              <Button type="button" variant="secondary" disabled={!!saving} onClick={reloadSaved}>
+                Reload saved settings (discard draft)
+              </Button>
             )}
             <Button
               type="button"
@@ -261,6 +286,11 @@ const AvailabilityPage = () => {
             )}
           </Container>
         )}
+        <MealPrepSetupEditor
+          key={discardVersion}
+          value={settings.meal_prep}
+          onChange={(meal_prep) => edit({ ...settings, meal_prep })}
+        />
         <GoogleCalendarPanel
           checkWhenConnected={settings.google_mode === 'required'}
           unsaved={dirty || exceptionOpen || workingOpen}
