@@ -1,0 +1,57 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openai/gpt-5.6-sol",
+        "fallbacks": []
+      },
+      "models": {
+        "openai/gpt-5.6-sol": {
+          "agentRuntime": {
+            "id": "openclaw"
+          }
+        }
+      },
+      "skills": [
+        "pr-review"
+      ],
+      "embeddedAgent": {
+        "cyberFailover": {
+          "mode": "off"
+        }
+      }
+    }
+  },
+  "plugins": {
+    "allow": [
+      "openai"
+    ],
+    "entries": {
+      "openai": {
+        "enabled": true
+      }
+    }
+  },
+  "tools": {
+    "deny": [
+      "*"
+    ],
+    "codeMode": {
+      "enabled": false
+    }
+  },
+  "skills": {
+    "allowBundled": [],
+    "load": {
+      "watch": false
+    }
+  },
+  "browser": {
+    "enabled": false
+  },
+  "auth": {
+    "order": {
+      "openai": []
+    }
+  }
+}

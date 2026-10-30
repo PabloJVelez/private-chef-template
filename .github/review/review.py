@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Tool-free PR review. Standard library only; never execute or check out PR code."""
+"""Trusted evidence and COMMENT transport for the installed OpenClaw pr-review skill."""
 
-import argparse
 import hashlib
 import json
 import os
@@ -9,9 +8,9 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import tempfile
-from urllib import error, parse, request
+from urllib import error, request
 
-POLICY = "v1"
+POLICY = "openclaw-v2"
 MAX_FILE = 32_000
 MAX_CONTEXT = 300_000
 MAX_REVIEW = 40_000
@@ -88,9 +87,10 @@ def marker(contract):
     return f"<!-- auto-pr-review:{POLICY}:{digest} -->"
 
 
-def duplicate(reviews, contract):
-    return next((r for r in reviews if r.get("user", {}).get("login") == "github-actions[bot]"
-                 and r.get("user", {}).get("type") == "Bot"
+def duplicate(reviews, contract, actor_id=None):
+    return next((r for r in reviews if (r.get("user", {}).get("id") == actor_id if actor_id is not None else
+                     r.get("user", {}).get("login") == "github-actions[bot]"
+                     and r.get("user", {}).get("type") == "Bot")
                  and r.get("state") == "COMMENTED" and r.get("commit_id") == contract["head_sha"]
                  and marker(contract) in (r.get("body") or "")), None)
 
@@ -191,7 +191,7 @@ def prepare(api, number, event, directory):
         write_json(directory / "result.json", {"skip": "Event revisions are stale; use a new event or manual dispatch"})
         return
     reviews = api.pages(f"pulls/{number}/reviews")
-    if duplicate(reviews, contract):
+    if duplicate(reviews, contract, getattr(api, "actor_id", None)):
         write_json(directory / "result.json", {"skip": "This revision pair already has a review"})
         return
     with tempfile.TemporaryDirectory(prefix="pr-review-objects-") as temp:
@@ -231,42 +231,6 @@ def prepare(api, number, event, directory):
     print(f"Prepared PR #{number} at {contract['head_sha']} against {contract['base_sha']}")
 
 
-def response_text(response):
-    require(response.get("status") == "completed", "Model response incomplete; nothing will be published")
-    parts = []
-    for item in response.get("output", []):
-        require(item.get("type") in ("message", "reasoning"), "Unexpected model tool output")
-        if item.get("type") == "message":
-            for content in item.get("content", []):
-                require(content.get("type") == "output_text", "Model refused or returned unsupported output")
-                parts.append(content["text"])
-    text = "\n".join(parts).strip()
-    require(0 < len(text.encode()) <= MAX_REVIEW, "Empty or oversized model review")
-    return text
-
-
-def generate(directory):
-    if (directory / "result.json").exists():
-        print("Review skipped by preparation gate")
-        return
-    key = os.environ.get("OPENAI_API_KEY", "")
-    require(key, "Set OPENAI_API_KEY in the main-only pr-review GitHub environment")
-    payload = {"model": os.environ.get("REVIEW_MODEL") or "gpt-5.4-mini-2026-03-17",
-               "instructions": Path(__file__).with_name("prompt.md").read_text(),
-               "input": (directory / "input.json").read_text(),
-               "tools": [], "store": False, "max_output_tokens": 6000}
-    # Only evidence and the public prompt go to the model. No credentials in input,
-    # no agent runtime, no shell/browser/read tools, no automatic API retries.
-    result = http_json("https://api.openai.com/v1/responses", key, payload)
-    review = response_text(result)
-    require(key not in review, "Unexpected credential in output")
-    write_json(directory / "result.json", {
-        "contract": json.loads((directory / "contract.json").read_text()),
-        "review": review, "model": payload["model"],
-    })
-    print("Generated bounded review artifact; publication is a separate job")
-
-
 def publish(api, number, result, run_url):
     if "skip" in result:
         print("Review skipped by preparation gate")
@@ -275,7 +239,7 @@ def publish(api, number, result, run_url):
     require(contract["number"] == number and contract["repository"] == api.repository, "Wrong review target")
     require(isinstance(review, str) and 0 < len(review.encode()) <= MAX_REVIEW, "Invalid review text")
     reviews = api.pages(f"pulls/{number}/reviews")
-    if duplicate(reviews, contract):
+    if duplicate(reviews, contract, getattr(api, "actor_id", None)):
         print("Already published; no duplicate review")
         return
     # Final live read after pagination, as close as possible to the write.
@@ -293,41 +257,8 @@ def publish(api, number, result, run_url):
         posted = api.post_review(number, {"commit_id": contract["head_sha"], "event": "COMMENT", "body": body})
     except (Failure, OSError):
         # A timeout may mean the write succeeded. Reconcile once; never retry POST.
-        posted = duplicate(api.pages(f"pulls/{number}/reviews"), contract)
+        posted = duplicate(api.pages(f"pulls/{number}/reviews"), contract, getattr(api, "actor_id", None))
         require(posted, "Publication failed or is uncertain. Check remote reviews before rerunning; POST was not retried")
     require(posted.get("html_url"), "Publication returned no review URL")
     print(f"Published COMMENT: {posted['html_url']}")
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=("prepare", "generate", "publish"))
-    parser.add_argument("--directory", type=Path, required=True)
-    args = parser.parse_args()
-    args.directory.mkdir(parents=True, exist_ok=True)
-    if args.phase == "generate":
-        generate(args.directory)
-        return
-    raw_number = os.environ.get("PR_NUMBER", "")
-    require(re.fullmatch(r"[1-9][0-9]*", raw_number), "PR_NUMBER must be a positive integer without leading zeros")
-    api = GitHub(os.environ["GITHUB_REPOSITORY"], os.environ["GH_TOKEN"])
-    if args.phase == "prepare":
-        event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-        prepare(api, int(raw_number), event, args.directory)
-    else:
-        path = args.directory / "result.json"
-        require(path.stat().st_size <= 100_000, "Oversized review artifact")
-        run_url = f"https://github.com/{api.repository}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
-        publish(api, int(raw_number), json.loads(path.read_text()), run_url)
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except (Failure, OSError, ValueError, KeyError, TypeError):
-        # Tracebacks / HTTP responses may contain PR-controlled strings. Only fixed
-        # Failure messages are safe; print other exception types without their data.
-        import sys
-        exc = sys.exc_info()[1]
-        print(str(exc) if isinstance(exc, Failure) else f"Review failed: {type(exc).__name__}", file=sys.stderr)
-        sys.exit(1)
+    return posted["html_url"]

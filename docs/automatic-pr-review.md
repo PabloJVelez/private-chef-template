@@ -1,155 +1,212 @@
-# Automatic PR review
+# Automatic OpenClaw PR review
 
-One GitHub Actions workflow, GitHub-hosted runners, the built-in `GITHUB_TOKEN`,
-and one OpenAI API key. No GitHub Apps, PATs, OpenClaw gateway, self-hosted runner,
-package installs or production access are required.
+PR #21 replaces its separate OpenAI Responses reviewer with the **existing installed
+OpenClaw `pr-review` skill**. The worker reads `SKILL.md` and
+`references/inspection-lenses.md` verbatim from the operator's private installation.
+There is no second review prompt, model API client, or public copy of the skill.
+The Python code only transports events, supplies evidence, and publishes the result.
 
-**Not active until the infrastructure PR is merged into `main`, the key is set,
-and the live dispatch/event tests below pass.** Existing PRs do not receive a
-retroactive event when this workflow is installed.
+**Not active.** This workflow must be merged to `main`, the host worker activated,
+and a real PR event verified before automatic review can be called operational.
+This change does not merge, deploy, or edit Meal Prep branches.
 
-## Finish setup
+## Design and boundaries
 
-The `pr-review` GitHub environment has been created with a custom branch policy
-allowing only the branch `main`. It has no required reviewer or wait timer.
-The workflow uses `deployment: false`, so reviews do not create deployments.
-Keep the key in this environment, not in repository-wide Actions secrets:
-same-repository PR workflows could otherwise read it.
+1. GitHub-hosted Actions handles `opened`, `synchronize`, `reopened`,
+   `ready_for_review`, and `edited` (retargeting), plus manual dispatch. It writes
+   a small `request.json` artifact with repository/PR identity, exact base/head
+   SHAs, base ref, draft state, workflow SHA and run attempt. It has only PR-read
+   permission, no checkout, model credential, webhook secret or host connection.
+2. A dedicated container on the existing OpenClaw host polls GitHub's authenticated
+   artifact queue every two minutes. No public endpoint, tunnel, self-hosted Actions
+   registration, new server, or inbound firewall change is required. A successful
+   workflow means **queued**, not reviewed; host logs track completion/failure.
+3. Before accepting an artifact, the worker checks repository IDs, workflow ID/path,
+   successful event type, activation timestamp, run attempt, exact workflow Git blob
+   at the run's source SHA, artifact name/size/digest and request identity. Signed
+   artifact redirects never receive the GitHub credential. ZIP members are read as
+   bounded data, never extracted. Fork `pull_request` test artifacts cannot enter
+   this queue. Dispatch from any branch other than `main` is rejected.
+4. The worker rechecks the live PR against the event snapshot, then uses a temporary
+   bare Git repository to read blobs. The diff is
+   `merge-base(actual base SHA, head SHA)..head SHA`, including stacked PRs whose base
+   is another feature branch. Base guidance comes from the actual pinned base.
+   No PR checkout, filters, hooks, package installs, scripts, tests or submodules run.
+5. `openclaw agent exec --config … --cwd … --message-file … --model openai/gpt-5.6-sol
+   --thinking high --timeout 600 --json` runs the existing skill with the evidence.
+   The pinned config explicitly chooses OpenClaw's built-in runtime, disables all
+   tools (`deny: ["*"]`), Code Mode and browser, allows only the OpenAI provider
+   plugin, and has no model or cyber-escalation fallback. Activation pins auth ordering to the
+   existing OAuth profile only; the unactivated template selects no auth profiles. The skill's supplied-diff/partial-review
+   behavior applies because independent tool investigation is unavailable. Publication
+   transport is delegated to the deterministic controller, not to a model tool.
+6. The publisher checks the current state/base/head/base ref/draft again and submits
+   **COMMENT**, tied to the reviewed head. It never approves, requests changes,
+   pushes, resolves threads or merges. The review includes scope, findings,
+   reconciliation, verification gaps, recommendation and the skill's required
+   `Merge confidence: X/10`. Generation fails if the confidence rating is absent.
 
-The only missing credential is a budget-limited OpenAI project API key with
-Responses API access. Enter it privately at the prompt; do not paste it into chat:
+GitHub currently documents `pull_request_target` as running at the last commit of
+the **default branch**, including for stacked PRs. The workflow and consumer both
+fail closed if source identity differs. This source commit is distinct from the
+reviewed PR's base SHA. There are no author, draft, bot, base or path exclusions.
+
+## Host isolation and authentication
+
+The worker is a non-root Docker container, with a read-only root filesystem, all
+Linux capabilities dropped, no privilege escalation, default seccomp/AppArmor,
+private temporary storage, and CPU/memory/PID limits. Its immutable image is pinned
+by local image ID; the Node base image is pinned by digest. Activation snapshots the
+already installed OpenClaw 2026.9.7 runtime and private skill locally and mounts them
+read-only. It never installs dependencies from a PR. Skill content is hash-pinned;
+changes require operator review and a deliberate reinstall/repin.
+
+The container has no host project directories, SSH keys, gateway configuration,
+agent history, browser profiles, Docker socket, host PID/network namespace, or
+production deployment access. Its only writable host mounts are its private queue
+state and OpenClaw's existing **shared auth store directory**. The latter is necessary
+for supported SQLite locking and OAuth refresh; it is sensitive trusted runtime
+access, not a promise that the process contains no credentials. No untrusted PR
+code runs in that process, and the model has no filesystem, shell, HTTP, messaging,
+subagent or other tools. This boundary relies on the pinned trusted OpenClaw runtime
+and tool policy; prompt instructions alone are not the security control.
+
+The model subprocess receives an explicit minimal environment without GitHub tokens,
+API keys or ambient CLI settings. The controller reads its GitHub token from a
+private mounted file. The trusted runtime can read the shared model auth store;
+neither credential is put in the prompt. Source/discussion can still influence
+review prose and is sent to the model provider, so reviews remain advisory.
+
+Host inspection found a usable OpenAI OAuth profile in the shared SQLite store,
+with no OpenAI API-key profile. OpenClaw documents the built-in runtime's supported
+OAuth transport. Reusing that store avoids copying refresh tokens or making a
+second login compete with the existing host. A credential-readiness check inside the restricted container also found the shared
+OAuth profile with networking disabled and the auth store mounted read-only. A live
+provider call has **not** been verified; token expiry, subscription limits or provider policy
+can still block generation. There is no silent fallback to separately billed API
+credentials. Existing hosting is reused, but **zero model/API charges are not
+verified**; subscription usage/paid credits and GitHub Actions quotas still apply.
+
+## One host activation action, after merge
+
+From a clean checkout of the exact merged `main` commit on the existing host, run:
 
 ```bash
-gh secret set OPENAI_API_KEY --repo PabloJVelez/private-chef-template --env pr-review
+python3 .github/review/host/activate.py
 ```
 
-The default model is `gpt-5.4-mini-2026-03-17`. If your account requires another
-Responses-compatible text model, set environment variable `PR_REVIEW_MODEL` in
-the GitHub environment's **Variables** settings. Account access cannot be
-verified without the key. Configure the provider's spend controls/alerts: public
-PR activity can incur model cost. Each run makes at most one model request with
-bounded input and 6,000 maximum output tokens; there is no automatic API retry.
+The command prompts privately for a **fine-grained GitHub PAT** restricted to
+`PabloJVelez/private-chef-template`, with:
 
-A maintainer then merges the infrastructure PR into `main`. This implementation
-does not merge anything or change branch protections. Keep `main` and its review
-workflow under trusted maintainer control. No Meal Prep branch needs an edit.
+- Actions: read (queue run/artifact metadata and downloads).
+- Contents: read (trusted workflow identity; Git fetch itself is public/anonymous).
+- Pull requests: write (metadata, discussion, and COMMENT reviews).
+- Checks and Commit statuses: read for CI evidence; unavailable CI is disclosed.
+- Metadata: read (GitHub's required default).
 
-## Test PR #20 after installation
+Use a dedicated bot/account if a distinct review identity is desired. Reviews are
+posted as the PAT owner, **not** `github-actions[bot]`. The owner must be allowed to
+review the repository. Do not reuse the host's broad `gh` credential, add write
+access to contents, or grant administration permission. GitHub's permission model
+cannot restrict PR-write tokens to COMMENT alone; the fixed publisher enforces that
+state. Never paste the token into chat. Token creation/approval is the only new
+credential prerequisite; no webhook or model API secret is needed.
 
-First generate a review without posting:
+Activation verifies repository/workflow identity against merged `main`, reruns tests
+and a credential-free real-runtime smoke test, copies the existing runtime/skill,
+writes private files under `~/.local/share/openclaw-pr-review`, and enables
+`openclaw-pr-review.service` with user systemd. It refuses an existing installation
+rather than overwriting it. Docker and user-service lingering were verified on this
+host (`Linger=yes`); no sudo or added hosting is needed here. OAuth is reused only
+through the supported OpenClaw shared store. Neither the installer nor service has
+been activated as part of PR development.
+
+The old `OPENAI_API_KEY` / `PR_REVIEW_MODEL` workflow settings are no longer used.
+The earlier `pr-review` GitHub environment is not required by this implementation.
+
+## Verify before calling it active
+
+After activation, request an existing stacked PR as a dry run:
 
 ```bash
 gh workflow run auto-pr-review.yml --repo PabloJVelez/private-chef-template \
   --ref main -f pr_number=20 -f dry_run=true
-gh run list --repo PabloJVelez/private-chef-template --workflow auto-pr-review.yml --limit 5
+journalctl --user -u openclaw-pr-review.service --since '10 minutes ago'
 ```
 
-Inspect the successful run's `pr-review-result` artifact (`result.json`), including
-the base/head SHAs and review quality. PR #20 is stacked: its base is
-`feat/meal-prep-v1-dated-offers-intake`, not `main`. The workflow resolves its live
-base each time. Then publish through the same guarded workflow:
+The completed draft is retained privately in the `reviews.result` JSON column of
+`~/.local/share/openclaw-pr-review/state/queue.sqlite`. Inspect it locally (do not
+upload the database, which contains private review text). Confirm actual base/head,
+partial coverage, findings, and confidence. Then dispatch with `dry_run=false`.
+The worker reuses the completed output and rechecks freshness before posting.
+Confirm the COMMENT's URL, author and commit, then dispatch again to verify no
+second review and no second model invocation for that revision pair.
 
-```bash
-gh workflow run auto-pr-review.yml --repo PabloJVelez/private-chef-template \
-  --ref main -f pr_number=20 -f dry_run=false
-```
+Finally open/update a **disposable PR**, verify the automatic workflow and host
+completion, and repeat with a fork if external contributions are used. Test a
+stacked base too. Manual dispatch does not prove event routing. Do not change any
+Meal Prep branch to generate a test event. Existing PRs receive no retrospective
+open event after installation; use manual dispatch.
 
-Confirm a `github-actions[bot]` **COMMENT** review with the recorded head commit,
-base SHA, and workflow-run link. Dispatch again and confirm it skips the duplicate.
-The repository's “Allow GitHub Actions to create and approve pull requests” option
-need not be enabled: the publisher does not create PRs or submit APPROVE reviews.
-An API/policy error fails the job explicitly; do not broaden permissions blindly.
+## Deduplication, recovery and operating limits
 
-Finally verify a real opened or synchronize event on a disposable PR, and a fork
-PR if external contributions are used. Manual dispatch proves generation and
-publication; it does not by itself prove automatic event routing. Do not call the
-integration active until the default-branch automatic trigger is also verified.
-No live model call, hosted publication or dispatch was possible before installation.
+The queue persists run-ID/attempt claims before work. A process lock enforces a
+single consumer. Reviews deduplicate by repository, PR, exact base/head, base ref,
+draft state, policy version and installed skill hash, using both a durable ledger
+and remote reviews from the configured numeric GitHub actor ID. Contributor-authored
+markers do not suppress reviews. A maximum of 20 revision pairs per UTC day bounds
+model use; no automatic retry of model failures or quota-denied deliveries occurs.
+Dispatch again after addressing the cause. Anyone trusted to use the publisher's
+GitHub identity could forge its marker; this is not an identity security boundary.
 
-## How it works
+A completed dry-run result survives restarts. Before publishing, the worker saves
+`publishing`; after an ambiguous failure it checks remote reviews once and never
+blindly retries POST. `started`, `publishing`, or `uncertain` ledger entries left by
+failures/crashes are quarantined. An operator must stop the service, inspect the
+matching remote review and local result, and reconcile that entry before rerunning;
+do not delete the ledger or blindly retry a possibly accepted write. Ordinary
+transport failures before generation can use a new manual workflow dispatch.
 
-- `pull_request_target` runs trusted default-branch workflow code on opened,
-  synchronize, reopened, ready-for-review and edited events. There are no path,
-  base-branch, author, bot or draft exclusions. Edited events handle retargeting;
-  same-revision metadata edits deduplicate. Manual dispatch must use `main`.
-- Both jobs check out only the trusted `github.workflow_sha`, with persisted
-  credentials disabled. All third-party Actions are pinned to commit SHAs.
-- Preparation has read-only permissions. It reads PR metadata, feedback and
-  head-commit checks, then fetches exact revisions into a temporary **bare Git
-  repository**. PR objects never become a working tree. The fetch is anonymous
-  because this repository is public; private forks of this template need a
-  separately reviewed authenticated-fetch implementation.
-- The diff is `merge-base(actual base SHA, head SHA)..head SHA`, preserving stacked
-  PR scope. Base guidance comes from the actual base SHA. Regular blobs become JSON
-  data; symlinks/submodules are not followed. Git hooks, external diff and textconv
-  are disabled. PR scripts, filters, dependencies and tests never run with secrets.
-- A separate step sends evidence to OpenAI Responses with `tools: []` and
-  `store: false`. The key is an HTTP authentication header, never prompt text.
-  There is no agent runtime or tool executor. The model cannot read runner files,
-  execute commands, fetch URLs, access GitHub or obtain environment credentials.
-- A fresh publisher job gets only a bounded JSON result from this run's artifact
-  ID. It has `pull-requests: write` and `contents: read` for its trusted helper;
-  no model key. It rechecks the PR state, draft status, head, base SHA and base ref
-  immediately before posting a COMMENT tied to the reviewed head. It cannot push
-  commits, approve, request changes, resolve threads or merge.
-- A per-PR workflow concurrency group covers both jobs. A marker covering the
-  repository, PR, revisions, base ref, draft state and policy version suppresses
-  duplicates from `github-actions[bot]`. User-authored markers do not count. An
-  ambiguous write is reconciled by reading reviews once; POST is never retried.
-  Deduplication is operational, not a security boundary against trusted repository
-  writers who can use the shared Actions bot identity in other workflows.
-- Only final review text and revision metadata are uploaded, retained for three
-  days. Source bundles, API keys and HTTP response bodies are not logged/uploaded.
-  Review/comment events are not triggers, so publication cannot loop.
+The queue retains request artifacts for seven days and scans the most recent six,
+starting at activation. Longer outages require manual dispatch. Workflow-file
+changes intentionally stop admission until the operator updates the installed
+workflow hash after reviewing the change. An installation upgrade should preserve
+the private state/ledger, rotate or retain the scoped token deliberately, and
+re-run isolated tests before restarting. Never mount a live working tree as code.
 
-The existing private OpenClaw `pr-review` skill informed the review criteria:
-pin revisions, establish evidence, check consequential defects and simplicity,
-reconcile feedback, disclose gaps, and state merge confidence. This is a small,
-tool-free adaptation, **not an invocation of that skill**. Its private files and
-host OAuth credentials are not copied to this public repository. Running the exact
-private skill would require more runtime and private-repository access; neither is
-needed for this implementation.
+Evidence is bounded: up to 3,000 changed paths, 32 KB per regular text file, 300 KB
+source context, and 40 KB per discussion category. Binary/large files, symlinks,
+submodules, missing unchanged consumers, inaccessible requirements and resolved
+thread state are disclosed. PR tests are never run. Review output is bounded to
+40 KB. Freshness checks cannot be atomic with GitHub's review write; pinned SHAs
+always identify what was actually reviewed. Base-only pushes need manual dispatch
+if no PR event follows. GitHub can suppress Actions-token-generated events and
+certain branch names. No comment/review event triggers this workflow.
 
-## Coverage and operational limits
-
-Reviews are explicitly **partial**. Input includes changed-file patches and source,
-base `AGENTS.md`/`REVIEW.md` guidance, discussion, prior reviews and reported CI.
-Unchanged consumers, linked requirements and resolved-thread state are not fully
-available. Files over 32 KB, binary/non-UTF-8 files, symlinks and submodules are
-marked omitted. Source context is budgeted to 300 KB; oversized discussion sections
-are omitted with a limitation. More than 3,000 changed paths fail explicitly.
-The model's absence of findings is never proof a change is safe to merge.
-
-Freshness checks cannot be atomic with GitHub's review write; the review always
-states its pinned revisions. Base-only pushes do not emit a PR synchronize event:
-dispatch manually after such movement if no PR event follows. GitHub may suppress
-certain SHA-like branch names, Actions-token-generated events, or runs under its
-own security/billing policies. These platform limits also require manual dispatch.
-Missing keys, provider failures and stale fetches are visible run failures, not
-successful clean reviews. Pending events may coalesce under concurrency.
-
-Prompt injection can affect review prose even though it cannot execute code or
-retrieve secrets. Repository source and discussions are sent to the configured
-model provider. `store: false` disables response storage, not every provider data
-retention policy. Use a suitable API project and treat findings as advisory.
-
-Disable via **Actions → Automatic PR review → Disable workflow**, or
+Monitor the host journal as well as Actions. Stop with
+`systemctl --user disable --now openclaw-pr-review.service`; disable the queue with
 `gh workflow disable auto-pr-review.yml --repo PabloJVelez/private-chef-template`.
-Remove the environment key to revoke model access.
+Revoke the dedicated PAT to remove publication/queue access. Do not revoke the
+shared OAuth login just to disable this worker; other host agents use it.
 
-## Validation
+## Validation and references
 
 ```bash
 python3 -m unittest discover -s .github/review -p 'test_*.py' -v
 actionlint .github/workflows/auto-pr-review.yml .github/workflows/auto-pr-review-tests.yml
 ```
 
-The unprivileged helper-test workflow exercises Git fixtures, fork/stack targeting,
-stale snapshots, hostile filenames, symlinks, binary/large files, context limits,
-pagination, credential canaries, model refusal/tool output, deduplication and
-uncertain publication. It has no environment or model credential access.
+Offline tests cover real stacked Git fixtures, hostile paths, unsafe object types,
+source bounds, queue provenance, skill drift, credential canaries, parser failures,
+stale events, deduplication, draft reuse and crash/ambiguous-write quarantine. The
+host smoke test runs the **actual installed OpenClaw CLI** against a local fake
+provider inside the restricted container with `--network none`, verifies no tool
+definitions were sent, and mounts no host credentials. This is runtime/isolation
+evidence, not proof of live provider access, billing, publication or event routing.
 
-References: [GitHub event semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target),
-[safe use of pull_request_target](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target),
-[environment syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idenvironment),
-[OpenAI Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create).
+References: [OpenClaw headless exec](https://docs.openclaw.ai/cli/agent#agent-exec),
+[OpenClaw OAuth/shared store](https://docs.openclaw.ai/concepts/oauth),
+[OpenClaw runtime policy](https://docs.openclaw.ai/concepts/agent-runtimes),
+[GitHub event semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target),
+[OpenAI authentication](https://developers.openai.com/codex/auth),
+[OpenAI subscription usage and pricing](https://developers.openai.com/codex/pricing).
