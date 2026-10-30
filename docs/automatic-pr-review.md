@@ -6,9 +6,10 @@ OpenClaw `pr-review` skill**. The worker reads `SKILL.md` and
 There is no second review prompt, model API client, or public copy of the skill.
 The Python code only transports events, supplies evidence, and publishes the result.
 
-**Not active.** This workflow must be merged to `main`, the host worker activated,
-and a real PR event verified before automatic review can be called operational.
-This change does not merge, deploy, or edit Meal Prep branches.
+**Installed, but not operational.** The October 30 manual requests for PR #20
+queued successfully, but the installed worker failed during generation. This fix
+is not deployed. See [diagnosis and approved-upgrade steps](pr-review-oauth-recovery.md).
+A successful local dry run alone does not establish publication or event routing.
 
 ## Design and boundaries
 
@@ -32,8 +33,15 @@ This change does not merge, deploy, or edit Meal Prep branches.
    `merge-base(actual base SHA, head SHA)..head SHA`, including stacked PRs whose base
    is another feature branch. Base guidance comes from the actual pinned base.
    No PR checkout, filters, hooks, package installs, scripts, tests or submodules run.
-5. `openclaw agent exec --config … --cwd … --message-file … --model openai/gpt-5.6-sol
+5. `openclaw agent --local --session-id … --message-file … --model openai/gpt-6-astra
    --thinking high --timeout 600 --json` runs the existing skill with the evidence.
+   All reviews require **GPT-6 Astra / High**, with no silent model fallback.
+   Cached results from another model or reasoning setting cannot be published.
+   Each invocation gets a fresh session, private temporary agent state/workspace,
+   and a pinned `OPENCLAW_CONFIG_PATH`; bootstrap and login-shell import are disabled.
+   Only its shared-state directory links to the existing mounted auth store.
+   OpenClaw 2026.9.7's `agent exec` scopes shared auth to static credentials and
+   excludes OAuth, so it is unsuitable for this installation.
    The pinned config explicitly chooses OpenClaw's built-in runtime, disables all
    tools (`deny: ["*"]`), Code Mode and browser, allows only the OpenAI provider
    plugin, and has no model or cyber-escalation fallback. Activation pins auth ordering to the
@@ -81,9 +89,10 @@ Host inspection found a usable OpenAI OAuth profile in the shared SQLite store,
 with no OpenAI API-key profile. OpenClaw documents the built-in runtime's supported
 OAuth transport. Reusing that store avoids copying refresh tokens or making a
 second login compete with the existing host. A credential-readiness check inside the restricted container also found the shared
-OAuth profile with networking disabled and the auth store mounted read-only. A live
-provider call has **not** been verified; token expiry, subscription limits or provider policy
-can still block generation. There is no silent fallback to separately billed API
+OAuth profile with networking disabled and the auth store mounted read-only. A restricted local invocation with an unexpired, access-only OAuth credential
+in disposable state has succeeded with the configured model. The production auth
+store was mounted read-only and no refresh token was copied. Token expiry,
+subscription limits or provider policy can still block later generation. There is no silent fallback to separately billed API
 credentials. Existing hosting is reused, but **zero model/API charges are not
 verified**; subscription usage/paid credits and GitHub Actions quotas still apply.
 
@@ -118,8 +127,8 @@ writes private files under `~/.local/share/openclaw-pr-review`, and enables
 `openclaw-pr-review.service` with user systemd. It refuses an existing installation
 rather than overwriting it. Docker and user-service lingering were verified on this
 host (`Linger=yes`); no sudo or added hosting is needed here. OAuth is reused only
-through the supported OpenClaw shared store. Neither the installer nor service has
-been activated as part of PR development.
+through the supported OpenClaw shared store. Do not run this initial installer to upgrade an existing installation; use the
+explicit recovery steps linked above after approval.
 
 The old `OPENAI_API_KEY` / `PR_REVIEW_MODEL` workflow settings are no longer used.
 The earlier `pr-review` GitHub environment is not required by this implementation.
@@ -199,12 +208,12 @@ actionlint .github/workflows/auto-pr-review.yml .github/workflows/auto-pr-review
 Offline tests cover real stacked Git fixtures, hostile paths, unsafe object types,
 source bounds, queue provenance, skill drift, credential canaries, parser failures,
 stale events, deduplication, draft reuse and crash/ambiguous-write quarantine. The
-host smoke test runs the **actual installed OpenClaw CLI** against a local fake
+host smoke test runs the **actual installed OpenClaw CLI and production invocation/parser** against a local fake
 provider inside the restricted container with `--network none`, verifies no tool
 definitions were sent, and mounts no host credentials. This is runtime/isolation
 evidence, not proof of live provider access, billing, publication or event routing.
 
-References: [OpenClaw headless exec](https://docs.openclaw.ai/cli/agent#agent-exec),
+References: [OpenClaw local agent CLI](https://docs.openclaw.ai/cli/agent),
 [OpenClaw OAuth/shared store](https://docs.openclaw.ai/concepts/oauth),
 [OpenClaw runtime policy](https://docs.openclaw.ai/concepts/agent-runtimes),
 [GitHub event semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target),

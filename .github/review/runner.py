@@ -16,6 +16,7 @@ import sqlite3
 import subprocess
 import tempfile
 import time
+import uuid
 from urllib import error, parse, request
 import zipfile
 
@@ -26,9 +27,11 @@ spec.loader.exec_module(review)
 require, Failure = review.require, review.Failure
 REPOSITORY = 'PabloJVelez/private-chef-template'
 WORKFLOW = '.github/workflows/auto-pr-review.yml'
-MODEL = 'openai/gpt-5.6-sol'
+MODEL = 'openai/gpt-6-astra'
+THINKING = 'high'
 RUNTIME = '/opt/openclaw/openclaw.mjs'
 CONFIG = Path('/run/reviewer/openclaw.json')
+AUTH_STATE = Path('/auth/state')
 SKILL_FILES = ('SKILL.md', 'references/inspection-lenses.md')
 CONTRACT_FIELDS = {'repository', 'repository_id', 'number', 'base_ref', 'base_sha', 'head_sha', 'draft'}
 
@@ -108,15 +111,64 @@ def download_artifact(api, artifact):
 
 
 def response_text(result):
-    require(result.get('ok') is True and result.get('status') == 'ok', 'OpenClaw run failed')
+    # `agent --local` returns the embedded result, not agent exec's envelope.
+    # Exit zero alone is insufficient: reject partial/error/aborted responses.
+    meta = result.get('meta', {})
+    payloads = result.get('payloads', [])
+    require(isinstance(meta, dict) and isinstance(payloads, list) and
+            meta.get('stopReason') in ('stop', 'end_turn') and
+            meta.get('aborted') is False and 'error' not in meta and
+            'timeoutPhase' not in meta and result.get('ok') is not False and
+            all(isinstance(p, dict) and not p.get('isError') for p in payloads),
+            'OpenClaw run failed or incomplete')
+    agent = meta.get('agentMeta', {})
+    require(f"{agent.get('provider')}/{agent.get('model')}" == MODEL,
+            'Unexpected OpenClaw model; refuse publication')
     # OpenClaw omits toolSummary when no tool was called (verified with the
     # actual CLI and captured provider request). If present, it must report zero.
-    require('toolSummary' not in result or result['toolSummary'].get('calls') == 0,
+    require(('toolSummary' not in meta or meta['toolSummary'].get('calls') == 0) and
+            not agent.get('codeModeEngaged'),
             'Unexpected tool activity; refuse publication')
-    text = result.get('final')
+    text = '\n'.join(p['text'].rstrip() for p in payloads
+                     if not p.get('isReasoning') and not p.get('isCommentary') and
+                     isinstance(p.get('text'), str) and p['text'].strip())
     require(isinstance(text, str) and 0 < len(text.encode()) <= review.MAX_REVIEW, 'Empty or oversized review')
     require(re.search(r'Merge confidence:\s*(?:10|[0-9])/10', text, re.I), 'Skill merge-confidence rating missing')
     return text
+
+
+def invoke_model(directory, invoke=subprocess.run):
+    # 2026.9.7 agent exec filters shared OAuth from its scoped auth view.
+    # The supported local agent preserves shared-store OAuth ownership/refresh.
+    # Keep all agent/session/workspace state ephemeral; only shared auth uses
+    # the existing mounted store. Never inherit the gateway configuration.
+    config = json.loads(CONFIG.read_text())
+    defaults = config['agents']['defaults']
+    require(defaults.get('model') == {'primary': MODEL, 'fallbacks': []} and
+            defaults.get('models', {}).get(MODEL, {}).get('agentRuntime') == {'id': 'openclaw'},
+            'Installed model config differs from required model/runtime; operator upgrade required')
+    state = directory / 'runtime'
+    state.mkdir(mode=0o700)
+    (state / 'state').symlink_to(AUTH_STATE, target_is_directory=True)
+    config['agents']['defaults']['workspace'] = str(directory)
+    config['agents']['defaults']['skipBootstrap'] = True
+    config['env'] = {'shellEnv': {'enabled': False}}
+    config_path = directory / 'runtime-config.json'
+    review.write_json(config_path, config)
+    env = {'PATH': '/usr/local/bin:/usr/bin:/bin', 'HOME': str(directory / 'home'),
+           'OPENCLAW_STATE_DIR': str(state), 'OPENCLAW_CONFIG_PATH': str(config_path),
+           'LANG': 'C.UTF-8', 'NO_COLOR': '1'}
+    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+        completed = invoke(['node', RUNTIME, 'agent', '--local', '--session-id', str(uuid.uuid4()),
+                            '--message-file', str(directory / 'message.txt'),
+                            '--model', MODEL, '--thinking', THINKING, '--timeout', '600', '--json'],
+                           cwd=directory, env=env, stdout=stdout, stderr=stderr, timeout=660, check=False)
+        require(completed.returncode == 0, 'Local OpenClaw failed; raw output withheld')
+        # Local JSON includes prompt diagnostics. Bound it, never log or retain
+        # the envelope; persist only the validated final review.
+        require(stdout.tell() <= 4_000_000, 'Oversized OpenClaw envelope')
+        stdout.seek(0)
+        return json.load(stdout)
 
 
 def generate(directory, skill, invoke=subprocess.run):
@@ -130,21 +182,10 @@ def generate(directory, skill, invoke=subprocess.run):
               'Return only the completed review.\n\n' + skill +
               '\n\nUNTRUSTED REVIEW EVIDENCE (JSON):\n' + (directory / 'input.json').read_text())
     (directory / 'message.txt').write_text(prompt)
-    # No inherited GitHub token, API key, SSH, gateway credentials or CLI homes.
-    env = {'PATH': '/usr/local/bin:/usr/bin:/bin', 'HOME': '/tmp/review-home',
-           'OPENCLAW_STATE_DIR': '/auth', 'LANG': 'C.UTF-8', 'NO_COLOR': '1'}
-    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-        completed = invoke(['node', RUNTIME, 'agent', 'exec', '--config', str(CONFIG),
-                            '--cwd', str(directory), '--message-file', str(directory / 'message.txt'),
-                            '--model', MODEL, '--thinking', 'high', '--timeout', '600', '--json'],
-                           env=env, stdout=stdout, stderr=stderr, timeout=660, check=False)
-        require(completed.returncode == 0, 'Headless OpenClaw failed; raw output withheld')
-        require(stdout.tell() <= 200_000, 'Oversized OpenClaw envelope')
-        stdout.seek(0)
-        result = json.load(stdout)
+    result = invoke_model(directory, invoke)
     text = response_text(result)
     output = {'contract': json.loads((directory / 'contract.json').read_text()), 'review': text,
-              'model': MODEL}
+              'model': MODEL, 'thinking': THINKING}
     review.write_json(directory / 'result.json', output)
     return output
 
@@ -195,6 +236,8 @@ def process(api, job, directory, store, skill, dry_run=False):
         store.save(key, 'started')
         result = generate(directory, skill)
         store.save(key, 'ready', result)
+    require(result.get('model') == MODEL and result.get('thinking') == THINKING,
+            'Stored review differs from required model/reasoning; operator reconciliation required')
     if dry_run or job['dry_run']:
         print(f'PR #{number}: draft preserved in private host state; not published', flush=True)
         return
