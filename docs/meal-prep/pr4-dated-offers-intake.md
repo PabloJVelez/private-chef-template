@@ -7,7 +7,7 @@ Authority: the full [Requirements Contract v1.1, artifact revision 4](requiremen
 - Origin: `git@github.com:PabloJVelez/private-chef-template.git`.
 - Isolated worktree: `/home/openclaw/.t3/worktrees/private-chef-template/feat-meal-prep-v1-dated-offers-intake`.
 - Base: `feat/meal-prep-v1-availability-setup`, open [PR #18](https://github.com/PabloJVelez/private-chef-template/pull/18).
-- Exact parent: **`6a5f44235eefa00319a394b4e05021fb3d04b225`**. Initial clean HEAD, local parent, live remote branch, GitHub head and merge-base all matched before edits. Existing Availability at `/app/settings/availability`, its migration fix, and stack ancestry were verified.
+- Exact current parent: **`ab93979c6295c6c57fd2a5ebf920a1441d2a861e`**. Restacked after review from the original parent `6a5f44235eefa00319a394b4e05021fb3d04b225`; the updated parent includes the exclusive conflict-reload correction. Live remote parent and ancestry were reverified. The original clean checkout/provenance checks applied to the original parent.
 - Ancestors: shared scheduling `e8d1acc59df55ab4b7185dad50558cb718382bf1`; foundations `d301128119e3c7667a48b48ca3a4f4070e14152a`.
 - Head: `feat/meal-prep-v1-dated-offers-intake`. The resulting exact SHA and PR URL are recorded in the GitHub PR and final handoff, avoiding a self-referential commit hash in this file.
 
@@ -82,7 +82,7 @@ Downgrade takes exclusive locks and refuses any populated capture root, includin
 - **R18 and ownership → T11:** customer/chef scoping, same-owner different-household reference rejection, forged references, inactive households, unauthorized receipt replay, immutable identity/direct-write protection and reference-only audit. Card fields are rejected; no provider action is reachable.
 - **R08/R09/R19 → T04/T06/T07/T12/T13 regression:** 20 large-serving requests do not cause count rejection or alter global time off; capture commands do not create reservations. Existing shared-time/private-event races, Availability save/version/closure behavior, Google/Availability rendered tests and event-ticket tests pass. No private-event implementation change.
 
-## Validation — 2026-10-30
+## Original implementation validation — 2026-10-30
 
 All installs/tests/builds used **Node 24.22.1**, **Yarn 4.5.0**, with immutable dependency installation. Shell default Node 24.16.0 was not used for validation. PostgreSQL **16** ran in a newly created disposable container on loopback port 55439, separate from PR #18's review database and other development services.
 
@@ -126,3 +126,56 @@ The module runner creates/drops its own named database; other suites use random 
 3. PR 5 binds exact request/offer/intake revisions to occurrences, revalidates within approval transactions, constructs separately approved immutable menus, and preserves pending-versus-confirmed state. An intake or offer revision does not itself reapprove or rewrite an occurrence. All four recurrence patterns remain required later.
 4. Later reviewed adapters must derive trusted principals, preserve private DTO separation, add account/link credential tests and implement approved policy versions before any customer access, availability eligibility, billing or payment activation. Existing menu-editor integration, household-sharing/access lifecycle, intake-completeness decisions and final package composition remain outside this internal request layer.
 5. Final stack-tip owner testing, disposable provider resources, hosted CI and production-scale migration rehearsal remain gates from the delivery plan. This PR does not authorize merge, deployment or feature activation.
+
+
+## Post-review restack and verification — 2026-10-30
+
+The prior review of `9bb92a6b1cd9bf29f529c1da79fed55ae934b454` identified a known
+inherited conflict-reload data-loss path and an unmet parent restack gate. The
+capture commit was replayed without conflicts onto `ab93979c6295c6c57fd2a5ebf920a1441d2a861e`,
+producing implementation commit `1c39a2f50595911d1137cdc56ac346f510991de0`.
+`git range-diff` confirms the capture patch is unchanged. The subsequent handoff
+update is documentation-only; the published review records the final head SHA.
+The parent branch was not modified.
+
+Independent checks used a fresh detached checkout with no reused `node_modules`,
+Node **24.22.1**, Yarn **4.5.0**, and a successful `yarn install --immutable`.
+Both workspace typechecks and full production builds passed, including Medusa
+backend/admin and storefront client/server output.
+
+- Medusa unit/rendered: **20 suites / 212 tests passed**, including pending-reload
+  edit/action locks, remote time-off preservation, failed reload and retry.
+- Storefront unit/rendered: **2 suites / 15 tests passed**.
+- PostgreSQL 16 integration: **5 files / 68 tests passed**, none skipped,
+  including capture/foundation ownership, immutability, idempotency, concurrent
+  edits, Availability version conflicts and shared scheduling.
+- Legacy migration regressions: **4 tests passed**. Total automated suite cases:
+  **299 passed**.
+- Full Medusa migration runner: fresh installation, `db:rollback --modules mealPrep`
+  (empty capture migration), and reapplication passed. The integration suite also
+  verified populated upgrades preserve existing settings/foundation records and
+  rollback refuses populated or soft-deleted capture roots.
+- Real headless Chromium: two authenticated tabs of the production-built admin at
+  `/app/settings/availability`, using the real local Medusa API and disposable
+  PostgreSQL, passed the conflict-recovery scenario. Tab A saved a closed day;
+  stale Tab B received HTTP 409. Delaying its real reload GET proved editor,
+  Save, Discard and duplicate Reload were disabled. After reload, a timezone edit
+  saved successfully without losing Tab A's closed day. A deliberately injected
+  GET 503 preserved the other tab's draft and stale revision (unchanged save still
+  received 409); removing the failure let Reload succeed. No API payloads were
+  mocked in the successful path. Only reload timing/failure were intercepted.
+- `git diff --check` passed. No dependency/lockfile or runtime feature changes
+  were needed beyond inheriting the existing parent correction.
+
+Verification setup recovery: the first integration invocation shared a database
+with the full migration runner. Three schema-isolation rollback assertions found
+public-schema tables through `search_path`. The suite was rerun unchanged in a
+separate empty database and all 68 cases passed. The initial browser script's
+ambiguous date-input selector was narrowed to the date-exception editor; no
+application change was required. The built server was launched from `.medusa/server`,
+not the source directory, so the generated admin assets were served correctly.
+
+This establishes local combined-stack readiness, not production-scale migration,
+real provider behavior, hosted CI, final owner acceptance of the entire future
+stack, or approval of unresolved product decisions. Existing peer/toolchain
+warnings remain. No merge, deployment, provider action or feature activation occurred.
