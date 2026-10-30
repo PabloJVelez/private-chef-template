@@ -578,7 +578,7 @@ test('explicit stale-settings reload replaces the draft only on success', async 
   expect(host.textContent).toContain('All changes saved');
 });
 
-test('input entered while reloading a conflict keeps its draft and adopts the refreshed revision', async () => {
+test('conflict reload blocks edits and actions and preserves unrelated remote changes in the next save', async () => {
   api.get.mockResolvedValue({ settings: { ...saved, version: 1 } });
   api.save.mockRejectedValueOnce(new Error('Availability changed in another editor.'));
   await render(React.createElement(AvailabilityPage)); await act(settle);
@@ -586,12 +586,53 @@ test('input entered while reloading a conflict keeps its draft and adopts the re
   await click('Save availability');
   const reloading = deferred<any>();
   api.get.mockReturnValueOnce(reloading.promise);
+  const reads = api.get.mock.calls.length;
   await click('Reload saved settings (discard draft)');
+  expect(host.textContent).toContain('Reloading saved settings');
+  expect(host.querySelector('input[list=chef-timezones]')!.matches(':disabled')).toBe(true);
+  for (const label of ['Save availability', 'Discard', 'Reload saved settings (discard draft)']) {
+    const button = [...host.querySelectorAll('button')].find((node) => node.textContent === label)!;
+    expect(button.disabled).toBe(true);
+    // Bypass native disabled handling to exercise synchronous handler guards too.
+    await act(async () => { Simulate.click(button); await settle(); });
+  }
   await change(host.querySelector('input[list=chef-timezones]')!, 'Europe/London');
-  await act(async () => { reloading.resolve({ settings: { ...saved, timezone: 'Europe/Paris', version: 2 } }); await settle(); });
-  expect(host.textContent).toContain('Europe/London');
-  expect(host.textContent).toContain('Unsaved changes');
+  await act(async () => { Simulate.submit(host.querySelector('form')!); await settle(); });
+  expect(api.save).toHaveBeenCalledTimes(1);
+  expect(api.get).toHaveBeenCalledTimes(reads + 1);
+  const meal_prep = emptyMealPrepSetup();
+  meal_prep.methods.delivery.enabled = true;
+  meal_prep.delivery_area.zip_codes = ['00501'];
+  const remote = { ...saved, timezone: 'Europe/Paris', version: 2,
+    overrides: { ...saved.overrides, '2026-11-03': [] }, meal_prep };
+  await act(async () => { reloading.resolve({ settings: remote }); await settle(); });
+  expect(host.textContent).toContain('Europe/Paris');
+  expect(host.textContent).toContain('All changes saved');
+  expect((host.querySelector('[aria-label="Enable Delivery"]') as HTMLInputElement).checked).toBe(true);
+  await click('Change timezone');
+  await change(host.querySelector('input[list=chef-timezones]')!, 'Europe/London');
   api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 3 } }));
   await click('Save availability');
-  expect(api.save.mock.calls[1][0]).toMatchObject({ timezone: 'Europe/London', version: 2 });
+  expect(api.save.mock.calls[1][0]).toMatchObject({ ...remote, timezone: 'Europe/London' });
+});
+
+test('failed conflict reload preserves the draft and revision and permits an unchanged retry', async () => {
+  const failure = jest.spyOn(toast, 'error');
+  api.get.mockResolvedValue({ settings: { ...saved, version: 1 } });
+  api.save.mockRejectedValue(new Error('Availability changed in another editor.'));
+  await render(React.createElement(AvailabilityPage)); await act(settle);
+  await click('Change timezone'); await change(host.querySelector('input[list=chef-timezones]')!, 'UTC');
+  await click('Save availability');
+  api.get.mockRejectedValueOnce(new Error('Network unavailable'));
+  await click('Reload saved settings (discard draft)');
+  expect(failure).toHaveBeenCalledWith('Reload failed', expect.objectContaining({ description: 'Network unavailable' }));
+  expect((host.querySelector('input[list=chef-timezones]') as HTMLInputElement).value).toBe('UTC');
+  expect(host.querySelector('input[list=chef-timezones]')!.matches(':disabled')).toBe(false);
+  await click('Save availability');
+  expect(api.save.mock.calls[1][0]).toMatchObject({ timezone: 'UTC', version: 1 });
+  api.get.mockResolvedValue({ settings: { ...saved, version: 2, timezone: 'Europe/Paris' } });
+  await click('Reload saved settings (discard draft)');
+  expect(host.textContent).toContain('All changes saved');
+  expect(host.textContent).toContain('Europe/Paris');
+  failure.mockRestore();
 });

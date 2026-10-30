@@ -42,6 +42,8 @@ const AvailabilityPage = () => {
   });
   const initialized = useRef(false);
   const editVersion = useRef(0);
+  const reloadInFlight = useRef(false);
+  const [reloading, setReloading] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
   const { isDirty: dirty, isValid, isSubmitting } = form.formState;
   const saving = mutation.isPending || isSubmitting;
@@ -53,6 +55,7 @@ const AvailabilityPage = () => {
   const settings = form.watch();
   const timezoneValid = availabilitySettingsSchema.shape.timezone.safeParse(settings.timezone).success;
   const edit = (next: Settings) => {
+    if (reloadInFlight.current) return;
     editVersion.current += 1;
     if (mutation.isError) mutation.reset();
     // Nested schedule editors supply complete field values, including deletions.
@@ -80,7 +83,7 @@ const AvailabilityPage = () => {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, exceptionOpen, workingOpen]);
   const save = async (snapshot: Settings) => {
-    if (!dirty || mutation.isPending || exceptionOpen || workingOpen) return;
+    if (reloadInFlight.current || !dirty || mutation.isPending || exceptionOpen || workingOpen) return;
     const submittedVersion = editVersion.current;
     try {
       const response = await mutation.mutateAsync(snapshot);
@@ -101,22 +104,31 @@ const AvailabilityPage = () => {
     }
   };
   const reloadSaved = async () => {
-    const requestedVersion = editVersion.current;
-    const response = await query.refetch();
-    if (response.data && !response.isError) {
-      const current = form.getValues();
-      const baseline = response.data.settings
+    if (reloadInFlight.current || saving) return;
+    // Reload discards the whole draft. Never attach a fresh revision to stale values.
+    reloadInFlight.current = true;
+    setReloading(true);
+    try {
+      const response = await query.refetch();
+      if (response.isError) throw response.error;
+      if (!response.data) throw new Error('No saved settings were returned.');
+      form.reset(response.data.settings
         ? cleanSettings(response.data.settings)
-        : { ...emptySettings(), notice_rules: response.data.initial_notice_rules ?? [] };
-      form.reset(baseline);
-      if (editVersion.current !== requestedVersion)
-        form.reset({ ...current, version: baseline.version }, { keepDefaultValues: true });
+        : { ...emptySettings(), notice_rules: response.data.initial_notice_rules ?? [] });
       setHasSaved(!!response.data.settings);
       mutation.reset();
       setDiscardVersion((v) => v + 1);
       setWorkingOpen(false);
       setExceptionOpen(false);
       setTimezoneEditing(false);
+    } catch (error) {
+      toast.error('Reload failed', {
+        description: error instanceof Error ? error.message : 'Your draft is still here; please try again.',
+        duration: 5000,
+      });
+    } finally {
+      reloadInFlight.current = false;
+      setReloading(false);
     }
   };
   if (!initialized.current)
@@ -132,7 +144,9 @@ const AvailabilityPage = () => {
         <div>
           <Heading>Availability</Heading>
           <Text size="small" role="status">
-            {saving
+            {reloading
+              ? 'Reloading saved settings…'
+              : saving
               ? 'Saving… You can keep editing.'
               : error
                 ? 'Not saved — try again'
@@ -158,15 +172,16 @@ const AvailabilityPage = () => {
               </Text>
             )}
             {error && (
-              <Button type="button" variant="secondary" disabled={!!saving} onClick={reloadSaved}>
+              <Button type="button" variant="secondary" disabled={!!saving || reloading} onClick={reloadSaved}>
                 Reload saved settings (discard draft)
               </Button>
             )}
             <Button
               type="button"
               variant="secondary"
-              disabled={!!saving}
+              disabled={!!saving || reloading}
               onClick={() => {
+                if (reloadInFlight.current || saving) return;
                 form.reset();
                 mutation.reset();
                 setWorkingOpen(false);
@@ -181,7 +196,7 @@ const AvailabilityPage = () => {
               type="submit"
               form="availability-settings"
               isLoading={!!saving}
-              disabled={!dirty || !!saving || !isValid || exceptionOpen || workingOpen}
+              disabled={reloading || !dirty || !!saving || !isValid || exceptionOpen || workingOpen}
             >
               Save availability
             </Button>
@@ -197,8 +212,19 @@ const AvailabilityPage = () => {
         id="availability-settings"
         aria-label="Availability settings"
         className="space-y-4"
-        onSubmit={form.handleSubmit(save)}
+        aria-busy={reloading}
+        onClickCapture={(event) => {
+          if (reloadInFlight.current) { event.preventDefault(); event.stopPropagation(); }
+        }}
+        onChangeCapture={(event) => {
+          if (reloadInFlight.current) { event.preventDefault(); event.stopPropagation(); }
+        }}
+        onSubmit={(event) => {
+          if (reloadInFlight.current) { event.preventDefault(); return; }
+          void form.handleSubmit(save)(event);
+        }}
       >
+        <fieldset disabled={reloading} className="min-w-0 space-y-4">
         {!hasSaved && (
           <Text>
             No arrival times are offered until you save your schedule. Start with your timezone and usual
@@ -312,6 +338,7 @@ const AvailabilityPage = () => {
             </select>
           </label>
         </GoogleCalendarPanel>
+        </fieldset>
       </form>
     </div>
   );

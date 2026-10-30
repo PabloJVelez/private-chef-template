@@ -106,3 +106,30 @@ The module integration runner creates/drops its own named database; the remainin
 Review this additive migration, the stricter versioned save contract, and the staged summary/work-plan boundaries. Keep all stack layers unmerged and undeployed. PR 4 branches from this PR's exact committed head; restack if PR #17 changes and rerun affected tests.
 
 ChatGPT should transfer this document and the exact PR/SHAs/results to BTS-5. Carry D02/D03/D12 (and pricing gates) to BTS-2 through the authorized participant; no decision is inferred from these editable drafts. Later PRs must connect approved occurrence/order/serving facts to the manual review panel and provide approval-time validation/reservation of work plans before any production scheduling activation. Final integrated owner testing still requires all three fulfillment methods and all four recurrence patterns, reviewed policies, disposable provider resources and explicit merge/deployment authorization.
+
+## PR review correction: exclusive conflict reload (2026-10-30)
+
+The review reproduced a lost-update path when an edit during explicit reload retained
+an entire stale snapshot but adopted the newly fetched revision. Reload now locks
+editing, Save, Discard and duplicate Reload actions synchronously. A successful
+reload resets only to the fetched snapshot; failure preserves the draft and revision,
+shows an error toast and releases the lock for retry. Editing during Save is unchanged.
+
+Rendered regression coverage attempts edits, submission, Discard and repeated Reload
+while the fetch is pending, then verifies another editor's global time off and meal-prep
+configuration are retained in the next save. Failure coverage verifies the unchanged
+draft/revision and a successful retry.
+
+Verification for this correction (Node 24.16.0, Yarn 4.5.0):
+
+- Medusa: 19 suites / 193 unit and rendered tests passed.
+- Disposable PostgreSQL 16: 5 suites / 51 integration tests passed, none skipped,
+  including stale-save 409 races, migration preservation and shared scheduling.
+- Medusa and storefront typechecks passed.
+- Medusa backend/admin and storefront client/server production builds passed.
+- No real-browser two-tab check or full migration-runner rehearsal was repeated.
+  The review runtime is older than the repository's pinned Node 24.22.1.
+
+No merge, deployment, feature activation or downstream-stack restacking is included.
+PR 4 remains based on the previous PR 3 head and needs this correction incorporated
+before its next integrated review.
