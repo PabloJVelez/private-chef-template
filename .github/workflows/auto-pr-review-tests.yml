@@ -1,0 +1,26 @@
+name: PR review helper tests
+
+on:
+  pull_request:
+    paths:
+      - .github/review/**
+      - .github/workflows/auto-pr-review*.yml
+  push:
+    branches: [main, chore/auto-pr-review-simple]
+    paths:
+      - .github/review/**
+      - .github/workflows/auto-pr-review*.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # This unprivileged job deliberately tests PR code without secrets/environment access.
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s .github/review -p 'test_*.py' -v
