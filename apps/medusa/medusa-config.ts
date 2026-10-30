@@ -78,6 +78,10 @@ const customModules = [
       defaultTimezone: GOOGLE_CALENDAR_DEFAULT_TIMEZONE,
     },
   },
+  // Integration migration must run AFTER meal-prep, Availability and chef-event.
+  // Medusa 2.7 runs module migrations in registration order; prerequisites also
+  // fail closed in SQL if someone invokes this module's migration out of order.
+  { resolve: './src/modules/shared-scheduling', options: {} },
 ];
 
 // Temporarily use in-memory modules to avoid Redis authentication issues

@@ -10,6 +10,7 @@ import { EXPERIENCE_TYPE_MODULE } from '../../modules/experience-type';
 import { CHEF_EVENT_MODULE } from '../../modules/chef-event';
 import { advanceNoticeDays, availabilitySettingsSchema, calculateSlots, overlaps, type Interval } from './slots';
 import { googleBusy } from './google-busy';
+import type SharedSchedulingService from '../../modules/shared-scheduling/service';
 
 /** Bound advisory reads below storefront proxy timeouts, including token refresh and pagination. */
 async function advisoryGoogleRead(read: () => Promise<Interval[]>): Promise<Interval[]> {
@@ -64,23 +65,18 @@ async function calculateDates(
   const candidates = dates.map((date) => ({ date, slots: calculateSlots(date, settings, experience, [], now) }));
   if (!candidates.some((day) => day.slots.length)) return candidates;
   const chef = container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
-  const busy: Interval[] = [];
+  const first = DateTime.fromISO(dates[0], { zone: settings.timezone }).startOf('day');
+  const last = DateTime.fromISO(dates[dates.length - 1], { zone: settings.timezone }).plus({ days: 1 }).startOf('day');
+  // The synchronous projection includes event claims AND explicit meal-prep work.
+  // Always read it, even when meal-prep entry points are disabled: disabling a
+  // feature must not hide already-reserved obligations.
+  const busy: Interval[] = await container.resolve<SharedSchedulingService>('sharedScheduling')
+    .listOccupiedIntervals({ start: first.toUTC().toISO()!, end: last.toUTC().toISO()!, ignoreEventId });
   const pending = new Set<string>();
   for (let skip = 0; ; skip += 250) {
     const events = await chef.listChefEvents({}, { skip, take: 250 });
     for (const event of events) {
       if (event.status === 'pending' && !event.acceptanceToken) pending.add(event.id);
-      if (
-        event.id !== ignoreEventId &&
-        (event.status === 'confirmed' || event.status === 'completed' || event.acceptanceToken)
-      ) {
-        if (!event.occupiedStart || !event.occupiedEnd)
-          throw new Error('An existing booking needs an availability backfill.');
-        busy.push({
-          start: new Date(event.occupiedStart).toISOString(),
-          end: new Date(event.occupiedEnd).toISOString(),
-        });
-      }
     }
     if (events.length < 250) break;
   }
@@ -99,10 +95,6 @@ async function calculateDates(
               if (map.connectionId === connection?.id && pending.has(map.chefEventId)) ignored.add(map.googleEventId);
             if (maps.length < 250) break;
           }
-          const first = DateTime.fromISO(dates[0], { zone: settings.timezone }).startOf('day');
-          const last = DateTime.fromISO(dates[dates.length - 1], { zone: settings.timezone })
-            .plus({ days: 1 })
-            .startOf('day');
           return googleBusy(google, first.toUTC().toISO()!, last.toUTC().toISO()!, ignored);
         }
         return [];
