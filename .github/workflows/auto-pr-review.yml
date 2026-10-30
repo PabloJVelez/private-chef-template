@@ -1,0 +1,68 @@
+name: Queue OpenClaw PR review
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+        type: string
+      dry_run:
+        description: Generate on the host without posting a review
+        default: true
+        type: boolean
+
+permissions: {}
+
+jobs:
+  queue:
+    # GitHub runs pull_request_target from the default branch. Fail closed if
+    # platform semantics change; do not execute workflow code from a PR base.
+    if: github.workflow_ref == 'PabloJVelez/private-chef-template/.github/workflows/auto-pr-review.yml@refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    steps:
+      # No checkout, repository code, model key, webhook secret or host access.
+      - name: Pin the requested revisions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          python3 -I - <<'PY'
+          import json, os, pathlib, re, urllib.request
+          number = os.environ['PR_NUMBER']
+          assert re.fullmatch(r'[1-9][0-9]*', number), 'Invalid PR number'
+          repo = os.environ['GITHUB_REPOSITORY']
+          event = json.loads(pathlib.Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          if os.environ['GITHUB_EVENT_NAME'] == 'pull_request_target':
+              pr = event['pull_request']
+          else:
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/pulls/{number}',
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                           'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  pr = json.load(response)
+          assert pr['number'] == int(number)
+          assert pr['base']['repo']['full_name'] == repo
+          payload = {'repository': repo, 'repository_id': pr['base']['repo']['id'],
+                     'number': pr['number'], 'base_ref': pr['base']['ref'],
+                     'base_sha': pr['base']['sha'], 'head_sha': pr['head']['sha'],
+                     'draft': pr['draft'], 'dry_run': os.environ['DRY_RUN'] == 'true',
+                     'workflow_sha': os.environ['WORKFLOW_SHA'],
+                     'run_id': int(os.environ['GITHUB_RUN_ID']),
+                     'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT'])}
+          pathlib.Path(os.environ['RUNNER_TEMP'], 'request.json').write_text(json.dumps(payload))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: openclaw-review-request-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/request.json
+          if-no-files-found: error
+          retention-days: 7
