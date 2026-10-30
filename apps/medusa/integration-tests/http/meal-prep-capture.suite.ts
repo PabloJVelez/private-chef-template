@@ -1,3 +1,8 @@
+import { Migration20261015000200 } from "../../src/modules/experience-type/migrations/Migration20261015000200";
+import { Migration20261015000300 } from "../../src/modules/chef-event/migrations/Migration20261015000300";
+import { Migration20261030000200 } from "../../src/modules/shared-scheduling/migrations/Migration20261030000200";
+import { approvalTests } from "./meal-prep-approvals.suite";
+import { Migration20261030000500 } from "../../src/modules/meal-prep/migrations/Migration20261030000500";
 /** Real PostgreSQL + actual Medusa service; explicit disposable server only. */
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
@@ -50,10 +55,17 @@ const url = process.env.MEAL_PREP_TEST_DATABASE_URL;
         connectionString: url,
         options: `-c search_path=${schema},public`,
       });
+      await pool.query(
+        `create table chef_event(id text primary key,status text not null default 'pending',"requestedDate" timestamptz not null,"requestedTime" text not null,"estimatedDuration" int,"productId" text,updated_at timestamptz default now(),deleted_at timestamptz)`,
+      );
+      await pool.query("create table experience_type(id text primary key)");
       for (const Class of [
         Migration20261015000100,
         Migration20261030000300,
         Migration20261030000100,
+        Migration20261015000200,
+        Migration20261015000300,
+        Migration20261030000200,
       ])
         await migrate(Class);
       // Populated upgrade fixture: existing settings and foundation draft remain byte-for-byte intact.
@@ -75,6 +87,9 @@ const url = process.env.MEAL_PREP_TEST_DATABASE_URL;
       ).toEqual([{ id: "legacy" }]);
       await migrate(Migration20261030000400, "down");
       await migrate(Migration20261030000400);
+      await migrate(Migration20261030000500);
+      await migrate(Migration20261030000500, "down");
+      await migrate(Migration20261030000500);
       const loaded = await initModules({
         databaseConfig: { clientUrl: url, schema },
         modulesConfig: {
@@ -107,6 +122,7 @@ const url = process.env.MEAL_PREP_TEST_DATABASE_URL;
         await admin.end();
       }
     });
+    approvalTests(() => ({ service, pool, offerId, intakeId, migrate }));
     const count = async (table: string) =>
       Number(
         (await pool.query(`select count(*) from meal_prep_${table}`)).rows[0]

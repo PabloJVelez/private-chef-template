@@ -107,3 +107,11 @@ export const MealPrepCaptureReceipt = model.define(
     result: model.json(),
   },
 );
+
+export const MealPrepApprovalState = model.define("meal_prep_approval_state", {
+  id: model.id().primaryKey(),
+  subject_id: model.text(),
+  revision_id: model.text(),
+  version: model.number(),
+  body: model.json(),
+});
