@@ -1,3 +1,5 @@
+// Keep both real-service suites in one Jest realm: Medusa caches generated DML metadata.
+import "./meal-prep-capture.suite";
 /** Explicit disposable test server only. Never reads DATABASE_URL. */
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";

@@ -9,6 +9,12 @@ import {
 } from "@medusajs/framework/utils";
 import * as models from "./models/records";
 import {
+  parseCapture,
+  localDateSchema,
+  MealPrepCaptureError,
+} from "./capture-contracts";
+import { saveCapture, readCapture, revalidateCapture } from "./capture-storage";
+import {
   MEAL_PREP_CONTRACT,
   principalSchema,
   stageRevisionSchema,
@@ -43,6 +49,65 @@ export function canonicalJson(value: JsonValue): string {
 }
 
 export default class MealPrepModuleService extends MedusaService(models) {
+  /** Internal command boundary only. The principal is supplied by a trusted resolver,
+   * never request JSON. D10 customer adapters remain absent/disabled. */
+  @InjectTransactionManager()
+  async saveCapture(
+    input: unknown,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    const actor = principalSchema.safeParse(principal);
+    if (!actor.success) throw new MealPrepCaptureError("NOT_FOUND");
+    return saveCapture(
+      context.transactionManager!,
+      parseCapture(input),
+      actor.data,
+    );
+  }
+
+  @InjectTransactionManager()
+  async readCaptureSnapshot(
+    revisionId: string,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    const actor = principalSchema.safeParse(principal);
+    if (
+      !actor.success ||
+      typeof revisionId !== "string" ||
+      !revisionId ||
+      revisionId.length > 200
+    )
+      throw new MealPrepCaptureError("NOT_FOUND");
+    return readCapture(context.transactionManager!, revisionId, actor.data);
+  }
+
+  @InjectTransactionManager()
+  async revalidateSelectionRequest(
+    revisionId: string,
+    agreedDate: string,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    const actor = principalSchema.safeParse(principal);
+    if (!actor.success || actor.data.role !== "chef")
+      throw new MealPrepCaptureError("NOT_FOUND");
+    if (
+      !localDateSchema.safeParse(agreedDate).success ||
+      typeof revisionId !== "string" ||
+      !revisionId ||
+      revisionId.length > 200
+    )
+      throw new MealPrepCaptureError("INVALID_INPUT");
+    return revalidateCapture(
+      context.transactionManager!,
+      revisionId,
+      agreedDate,
+      actor.data,
+    );
+  }
+
   /** Internal draft storage only. Principal must come from a trusted identity
    * resolver, never from request JSON. No routes/jobs use this in PR 1. */
   @InjectManager()
