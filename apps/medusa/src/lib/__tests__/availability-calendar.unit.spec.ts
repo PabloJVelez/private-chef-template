@@ -9,6 +9,9 @@ let settings: Settings;
 let experience: any;
 let events: any[];
 const listEvents = jest.fn(async () => events);
+const reservations = jest.fn(async ({ ignoreEventId }: { ignoreEventId?: string }) => events
+  .filter((e) => e.id !== ignoreEventId && (e.status === 'confirmed' || e.status === 'completed' || e.acceptanceToken))
+  .map((e) => ({ start: e.occupiedStart, end: e.occupiedEnd })));
 const maps = jest.fn(async () => [] as any[]);
 const google = { getPrimaryConnection: jest.fn(async (): Promise<any> => ({ id: 'connection' })), listGoogleCalendarSyncMaps: maps };
 const container: any = {
@@ -17,6 +20,7 @@ const container: any = {
       availability: { listAvailabilitySettings: async () => [settings] },
       experienceTypeModuleService: { retrieveExperienceType: async () => experience },
       chefEventModuleService: { listChefEvents: listEvents },
+      sharedScheduling: { listOccupiedIntervals: reservations },
       googleCalendarConnectionModuleService: google,
     })[key],
 };
@@ -132,6 +136,14 @@ test('no connection permits monthly, daily and acceptance validation while retai
 test('connection state lookup failures still allow internal availability', async () => {
   google.getPrimaryConnection.mockRejectedValueOnce(new Error('connection lookup failed'));
   expect((await availableCalendar(container, 'exp', '2026-11')).dates.some((day) => day.available)).toBe(true);
+});
+
+test('shared meal-prep work blocks hide slots even when Google fails; projection read failures propagate', async () => {
+  lookup.mockRejectedValue(new Error('Google unavailable'));
+  reservations.mockResolvedValueOnce([{ start: '2026-11-02T14:00:00Z', end: '2026-11-02T18:00:00Z' }]);
+  expect((await availableSlots(container, '2026-11-02', 'exp')).slots).toEqual([]);
+  reservations.mockRejectedValueOnce(new Error('Projection unavailable'));
+  await expect(availableSlots(container, '2026-11-02', 'exp')).rejects.toThrow('Projection unavailable');
 });
 test('seven-day notice on October 24 plus weekdays starts November 2; reducing notice opens October', async () => {
   LuxonSettings.now = () => Date.parse('2026-10-24T17:00:00Z');
