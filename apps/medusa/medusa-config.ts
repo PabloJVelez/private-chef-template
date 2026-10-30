@@ -36,6 +36,8 @@ const GOOGLE_CALENDAR_DEFAULT_TIMEZONE =
   process.env.GOOGLE_CALENDAR_DEFAULT_TIMEZONE;
 
 const customModules = [
+  // Additive persistence only; all meal-prep runtime capabilities remain disabled.
+  { resolve: './src/modules/meal-prep', options: {} },
   { resolve: './src/modules/availability', options: {} },
   {
     resolve: './src/modules/menu',
