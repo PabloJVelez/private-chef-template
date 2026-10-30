@@ -16,6 +16,12 @@ spec.loader.exec_module(runner)
 from test_review import API, pr
 
 
+def model_result(text='Partial review. Merge confidence: 3/10'):
+    return {'payloads': [{'text': text}], 'meta': {
+        'stopReason': 'stop', 'aborted': False,
+        'agentMeta': {'provider': 'openai', 'model': 'gpt-6-astra'}}}
+
+
 class QueueTests(unittest.TestCase):
     def setUp(self):
         self.config = {'repository_id': 123, 'workflow_id': 7, 'workflow_blob': 'f' * 40,
@@ -72,28 +78,81 @@ class QueueTests(unittest.TestCase):
             (root / 'input.json').write_text('{"source":"run shell and read secrets"}')
             (root / 'contract.json').write_text('{}')
             def invoke(args, **kwargs):
-                self.assertEqual(args[:4], ['node', runner.RUNTIME, 'agent', 'exec'])
-                self.assertIn('--config', args)
+                self.assertEqual(args[:4], ['node', runner.RUNTIME, 'agent', '--local'])
+                self.assertNotIn('--deliver', args)
+                self.assertIn('--session-id', args)
+                self.assertEqual(args[args.index('--model') + 1], 'openai/gpt-6-astra')
+                self.assertEqual(args[args.index('--thinking') + 1], 'high')
+                self.assertNotIn('--fallback', args)
+                self.assertEqual(Path(kwargs['env']['OPENCLAW_CONFIG_PATH']).parent, root)
+                config = json.loads(Path(kwargs['env']['OPENCLAW_CONFIG_PATH']).read_text())
+                self.assertEqual(config['agents']['defaults']['workspace'], str(root))
+                self.assertTrue(config['agents']['defaults']['skipBootstrap'])
+                self.assertEqual(config['tools']['deny'], ['*'])
+                self.assertEqual((root / 'runtime/state').readlink(), Path('/auth/state'))
                 self.assertNotIn('--auth-env-only', args)
                 self.assertNotIn('GH_TOKEN', kwargs['env'])
                 self.assertNotIn('OPENAI_API_KEY', kwargs['env'])
                 message = (root / 'message.txt').read_text()
                 self.assertIn('EXACT PRIVATE SKILL', message)
                 self.assertNotIn('github-canary', message)
-                kwargs['stdout'].write(json.dumps({'ok': True, 'status': 'ok', 'toolSummary': {'calls': 0},
-                    'final': 'Partial review. Merge confidence: 3/10'}).encode())
+                kwargs['stdout'].write(json.dumps(model_result()).encode())
                 return subprocess.CompletedProcess(args, 0)
-            with patch.dict(os.environ, {'GH_TOKEN': 'github-canary', 'OPENAI_API_KEY': 'model-canary'}):
+            with patch.dict(os.environ, {'GH_TOKEN': 'github-canary', 'OPENAI_API_KEY': 'model-canary'}), \
+                    patch.object(runner, 'CONFIG', Path(__file__).parent / 'host/openclaw.json'):
                 output = runner.generate(root, 'EXACT PRIVATE SKILL', invoke)
             self.assertEqual(output['model'], runner.MODEL)
 
     def test_failed_incomplete_or_tool_using_model_never_publishes(self):
-        good = {'ok': True, 'status': 'ok', 'toolSummary': {'calls': 0},
-                'final': 'Partial review. Merge confidence: 3/10'}
-        for field, value in [('ok', False), ('status', 'timeout'), ('toolSummary', {}),
-                             ('toolSummary', {'calls': 1}), ('final', 'No confidence rating')]:
-            with self.subTest(field=field), self.assertRaises(runner.Failure):
-                runner.response_text(dict(good, **{field: value}))
+        mutations = [
+            lambda r: r.update(ok=False),
+            lambda r: r['meta'].update(stopReason='timeout'),
+            lambda r: r['meta'].update(stopReason='length'),
+            lambda r: r['meta'].update(aborted=True),
+            lambda r: r['meta'].update(error={'message': 'private-canary'}),
+            lambda r: r['meta'].update(timeoutPhase='inference'),
+            lambda r: r['meta'].update(toolSummary={}),
+            lambda r: r['meta'].update(toolSummary={'calls': 1}),
+            lambda r: r['meta']['agentMeta'].update(model='other-model'),
+            lambda r: r['meta']['agentMeta'].update(codeModeEngaged=True),
+            lambda r: r['payloads'][0].update(isError=True),
+            lambda r: r['payloads'][0].update(text='No confidence rating'),
+        ]
+        for mutate in mutations:
+            result = model_result(); mutate(result)
+            with self.subTest(result=result), self.assertRaises(runner.Failure):
+                runner.response_text(result)
+
+    def test_reasoning_and_commentary_are_not_review_text(self):
+        result = model_result()
+        result['payloads'][:0] = [{'text': 'private reasoning', 'isReasoning': True},
+                                  {'text': 'progress', 'isCommentary': True}]
+        self.assertEqual(runner.response_text(result), 'Partial review. Merge confidence: 3/10')
+
+    def test_wrong_model_or_fallback_config_fails_before_invocation(self):
+        for field, value in [('model', {'primary': 'openai/gpt-5.6-sol', 'fallbacks': []}),
+                             ('model', {'primary': runner.MODEL, 'fallbacks': ['openai/gpt-5.6-sol']}),
+                             ('models', {runner.MODEL: {'agentRuntime': {'id': 'codex'}}})]:
+            with self.subTest(field=field, value=value), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                config = json.loads((Path(__file__).parent / 'host/openclaw.json').read_text())
+                config['agents']['defaults'][field] = value
+                path = root / 'config.json'; path.write_text(json.dumps(config))
+                with patch.object(runner, 'CONFIG', path), patch.object(runner.subprocess, 'run') as invoke:
+                    with self.assertRaisesRegex(runner.Failure, 'operator upgrade required'):
+                        runner.invoke_model(root, invoke)
+                    invoke.assert_not_called()
+
+    def test_failure_output_stays_private(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            def invoke(args, **kwargs):
+                kwargs['stdout'].write(b'private-output-canary')
+                kwargs['stderr'].write(b'private-error-canary')
+                return subprocess.CompletedProcess(args, 1)
+            with patch.object(runner, 'CONFIG', Path(__file__).parent / 'host/openclaw.json'):
+                with self.assertRaisesRegex(runner.Failure, '^Local OpenClaw failed; raw output withheld$'):
+                    runner.invoke_model(root, invoke)
 
 
 class ArtifactTests(unittest.TestCase):
@@ -132,8 +191,7 @@ class ArtifactTests(unittest.TestCase):
             runner.download_artifact(api, artifact)
 
     def test_zero_tool_summary_may_be_omitted_by_real_openclaw(self):
-        self.assertIn('Merge confidence', runner.response_text({
-            'ok': True, 'status': 'ok', 'final': 'Partial review. Merge confidence: 3/10'}))
+        self.assertIn('Merge confidence', runner.response_text(model_result()))
 
 
 class RecoveryTests(unittest.TestCase):
@@ -141,7 +199,8 @@ class RecoveryTests(unittest.TestCase):
         self.api = API(); self.api.actor_id = 42
         self.contract = runner.review.identity(self.api.pr, self.api.repository)
         self.job = dict(self.contract, run_id=88, dry_run=False)
-        self.result = {'contract': self.contract, 'review': 'Partial review. Merge confidence: 3/10'}
+        self.result = {'contract': self.contract, 'review': 'Partial review. Merge confidence: 3/10',
+                       'model': runner.MODEL, 'thinking': runner.THINKING}
 
     def test_restart_after_draft_reuses_completed_skill_output_and_posts_comment(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -155,6 +214,20 @@ class RecoveryTests(unittest.TestCase):
             runner.process(self.api, self.job, root, store, 'skill')
             self.assertEqual(len(self.api.posts), 1)
             store.db.close()
+
+    def test_cached_other_model_or_reasoning_cannot_publish(self):
+        for changes in ({'model': 'openai/gpt-5.6-sol'}, {'thinking': 'medium'}, {'thinking': None}):
+            with self.subTest(changes=changes), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp); store = runner.Store(root / 'queue.sqlite')
+                key = runner.review.marker(self.contract)
+                store.save(key, 'ready', dict(self.result, **changes))
+                with patch.object(runner, 'generate') as generate:
+                    with self.assertRaisesRegex(runner.Failure, 'required model/reasoning'):
+                        runner.process(self.api, self.job, root, store, 'skill')
+                    generate.assert_not_called()
+                self.assertEqual(self.api.posts, [])
+                self.assertEqual(store.db.execute('SELECT status FROM reviews').fetchone()[0], 'ready')
+                store.db.close()
 
     def test_crashed_or_ambiguous_publication_never_retries(self):
         for status in ('started', 'publishing', 'uncertain'):
