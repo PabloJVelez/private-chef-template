@@ -6,6 +6,7 @@ export const mealPrepFeatures = Object.freeze({
   scheduling: false,
   approvalExecution: false,
   paymentCollection: false,
+  manualPaymentLinks: false,
   autopay: false,
   outboxDispatch: false,
 } as const);

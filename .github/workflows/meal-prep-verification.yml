@@ -2,8 +2,8 @@ name: Meal prep verification
 
 on:
   pull_request:
-    # PR5's stacked parent; this is not a general repository deployment workflow.
-    branches: ['feat/meal-prep-v1-dated-offers-intake']
+    # PR6's stacked parent; this is not a general repository deployment workflow.
+    branches: ['feat/meal-prep-v1-arrangements-approvals']
     paths:
       - 'apps/**'
       - 'packages/**'

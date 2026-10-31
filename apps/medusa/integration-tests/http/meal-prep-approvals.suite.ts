@@ -1,4 +1,5 @@
 import { Migration20261030000500 } from "../../src/modules/meal-prep/migrations/Migration20261030000500";
+import { billingTests } from "./meal-prep-billing.suite";
 import { generateCandidates } from "../../src/modules/meal-prep/recurrence";
 import {
   chef,
@@ -131,6 +132,15 @@ export function approvalTests(
       });
       return proposed;
     };
+    billingTests(() => ({
+      service,
+      pool,
+      occurrence,
+      menu,
+      approveMenu,
+      run,
+      migrate: get().migrate,
+    }));
     it("separates arrangement approval, candidate identity and every initial menu/quote review", async () => {
       expect((await state()).state).toMatchObject({
         arrangementApproved: true,

@@ -405,6 +405,11 @@ export async function executeApprovalCommand(
           throw new Failure("POLICY_REQUIRED", ["D06", "D09"]);
         if (change.type === "reschedule")
           throw new Failure("POLICY_REQUIRED", ["D03", "D06", "D09"]);
+        const [billed] = await manager.execute(
+          `select id from meal_prep_bill where subject_id=?`,
+          [s.id],
+        );
+        if (billed) throw new Failure("POLICY_REQUIRED", ["D06"]);
         if (r.body.baseMenuRevisionId !== state.confirmedMenuRevisionId)
           throw new Failure("STALE_VERSION");
         const old = await manager.execute(
