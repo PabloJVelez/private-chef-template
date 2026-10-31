@@ -159,3 +159,64 @@ No browser flow changed, so no browser E2E was repeated. No production-scale
 migration, live provider, notification dispatch, payment or full checkout E2E is
 claimed. Existing peer/toolchain warnings and unresolved product decisions remain.
 Nothing was merged, deployed or activated.
+
+## Second review: executable evidence and omitted dependency context
+
+The [follow-up review of `9996f7e`](https://github.com/PabloJVelez/private-chef-template/pull/20#pullrequestreview-5720561794)
+confirmed the timestamp correction and found **no new demonstrated defect**. Its
+6/10 assessment is explicitly partial: no tool execution and omitted unchanged
+sources, contract, dependencies and activation controls. No further application
+patch is justified by that review. This follow-up adds the
+[executable verification harness](../../scripts/verify-meal-prep/README.md) and an
+exact-head GitHub Actions verification job, separate from the review queue.
+
+### Applicable authority and dependency inspection
+
+Authority remains Requirements Contract **v1.1 / r4**, exact parent `a973be1`.
+R10–R13 require four recurrence patterns, arrangement approval distinct from each
+occurrence's menu approval, pending changes preserving confirmed details, and
+missed-selection follow-up without automatic repeat/substitution/cancellation.
+R09/R19 preserve actual-chef-time protection and existing private-event behavior.
+D06/D07/D09 still block price-changing/skip/reschedule/pause application and
+production recurrence policies. D10 blocks production customer access. This
+verification follow-up does not resolve or activate any product policy.
+
+The dependency inspection at `9996f7e` covered these omitted sources and callers:
+
+| Concern | Inspected implementation and observable regression |
+| --- | --- |
+| Capture ownership | `capture-storage.ts` authorizes chef/customer and nondeleted ownership; `ownedHousehold` checks household kind/customer; receipts are looked up only after authorization. `approval-storage.ts:validateMenu` separately compares the capture's customer and household with the occurrence before using chef scope for validation. Capture and approval suites reject cross-owner access/replay and revoked households. |
+| Approval-time revalidation | `revalidateCapture` requires a selection, current capture version, and requested date equal to the occurrence date. `validateReferences` share-locks current Availability and offer/intake roots, rejects stale snapshots, checks the intake method, then invokes `validateSelection`. That function enforces enabled method/style, offer date and permitted dish/menu/package membership. Capture races wait for concurrent Availability/offer edits; approval of a superseded offer rolls back. |
+| Transaction boundary | `service.ts:executeApprovalCommand` uses `@InjectTransactionManager`, validates principal/command and passes that same manager into approval storage. The same manager flows into capture validation and work linking; revision/state/audit/outbox/receipt writes share the transaction. Final-receipt fault injection rolls all writes back. No external provider action occurs inside it. |
+| Scheduling guards | `Migration20261030000200` synchronously projects event/work intervals into one exclusion-constrained reservation table. Source-owned projection and truncate guards remain. `guard_chef_work_block` rejects changes/releases to any linked block; `guard_chef_work_link` permits inserts only and locks block before occurrence. `lockOccurrenceWork` takes settings then block locks before approval storage locks the subject. Cross-domain conflicts, concurrent links/releases, failed replacement preservation and direct-write bypasses run against PostgreSQL. |
+| Activation and consumers | `feature-controls.ts` freezes **administration, customerAccess, scheduling, approvalExecution, paymentCollection, autopay and outboxDispatch to false**; `requireMealPrepFeature` throws. Existing unit coverage attempts environment activation and verifies it still throws. Search of API routes, jobs, subscribers and storefront found no `executeApprovalCommand` or `selection_follow_up` consumer. These internal service methods intentionally remain callable by tests/trusted internal code; the flags are not an authorization wrapper around those methods. No public adapter or dispatch job is introduced. |
+| Dependency/runtime versions | `.nvmrc` pins Node 24.22.1; packageManager pins Yarn 4.5.0; Medusa framework/CLI/test-utils are 2.7.0 and MikroORM core/knex/PostgreSQL are 6.4.3. Root/workspace manifests and lockfile are unchanged from the exact parent; this follow-up changes neither dependencies nor application sources. |
+
+Relevant unchanged source is in `apps/medusa/src/modules/meal-prep/{capture-storage,capture-contracts,feature-controls}.ts`,
+`apps/medusa/src/modules/shared-scheduling/{service,occurrence-work}.ts`, the shared
+scheduling migration, and `apps/medusa/medusa-config.ts`. Execution coverage is in
+`meal-prep-capture.suite.ts`, `meal-prep-approvals.suite.ts`,
+`shared-scheduling.spec.ts` and `contracts.unit.spec.ts`. The full source remains
+authoritative; this matrix is an inspection record, not a substitute for an
+independent reviewer obtaining those files.
+
+### Evidence boundaries
+
+The new harness records Jest JSON, refuses skipped suites, runs both workspace
+typechecks/builds, and repeats the actual-runner fresh/upgrade/rollback/reapply
+rehearsal with row-hash checks. GitHub artifacts identify the exact checked-out
+head. Local verification and hosted-job results must be reported separately.
+The isolated automated reviewer still cannot run commands or fetch omitted
+sources; a higher automated score is not guaranteed. A complete independent
+review should inspect the named sources and the verification job/artifacts.
+Nothing is merged, deployed, enabled, paid or notified by this follow-up.
+
+Local rerun of this harness on 2026-10-31 passed **330 tests, none skipped**,
+both typechecks, Medusa backend/admin and storefront client/server builds, and
+the migration rehearsal with unchanged fixture row hashes. Node 24.22.1 and
+PostgreSQL 16 were used; this rerun reused the installed dependencies. Missing
+explicit database configuration was also verified to fail before test execution.
+YAML parsing, Bash/Node syntax checks and `git diff --check` passed. The first
+attempt found an expired disposable database port; a new dedicated container was
+created and the complete test harness rerun successfully. Hosted CI results are
+not implied by these local results and are linked separately in the PR.
