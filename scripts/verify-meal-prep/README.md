@@ -1,7 +1,7 @@
-# PR7 executable verification
+# PR8 executable verification
 
 This harness addresses PR #20 review `5720561794`: successful review-queue jobs
-are not application verification. PR7 extends it for opt-in autopay, reminders and the new migration; runtime flags remain disabled.
+are not application verification. PR8 extends it for fulfillment, operational reporting and the final migration; runtime flags remain disabled.
 
 Use Node **24.22.1** (`.nvmrc`), the checked-in Yarn **4.5.0** runner, and a
 **disposable PostgreSQL 16 server**. Do not supply production credentials.
@@ -24,7 +24,7 @@ node scripts/verify-meal-prep/migrations.cjs
 rejects skipped, empty, todo or runtime-error suites in Jest JSON results. Run
 from any directory. Reports default to `artifacts/meal-prep-verification`; set
 `REPORT_DIR` to an absolute path to override. The full combined suite includes
-capture/approval/billing/autopay tests imported into the foundation realm, avoiding Medusa's
+capture/approval/billing/autopay/fulfillment tests imported into the foundation realm, avoiding Medusa's
 cross-realm DML metadata conflict.
 
 The migration harness never reads ambient `DATABASE_URL`: it creates two uniquely
@@ -34,10 +34,10 @@ application tables. The server user needs CREATE DATABASE permission. No existin
 database is dropped. Locally, remove the disposable container after inspecting the
 reports; CI removes its service with the runner.
 
-It migrates an empty database, archives exact PR7 parent `7d11dc33b9392f3b8082ab23b70e7c93b15a56dc`,
+It migrates an empty database, archives exact PR8 parent `f4557fab9d75b515611645be44bbabeb0bda1b10`,
 migrates that parent in the second database, seeds draft/revision/outbox/Availability
-and collected PR6 billing rows, upgrades them, compares row hashes, rolls back only
-PR7 while its consent/trigger history is empty, and reapplies it. Existing PR6
+and populated PR6/PR7 financial and notification rows, upgrades them, compares row hashes, rolls back only
+PR8 while its fulfillment history is empty, and reapplies it. Existing PR6/PR7
 financial history remains populated throughout. Table removal/restoration and unchanged
 parent row hashes are asserted. Populated-history rollback refusal runs in the
 integration suite. Migration scripts/link synchronization are intentionally skipped.
@@ -60,3 +60,5 @@ through its bounded evidence collector; it does not execute PR code itself. The 
 account selection, authorization and capture with mocked Stripe transport.
 There is no guaranteed confidence score, live provider
 proof, production-scale migration, payment/notification E2E or deployment here.
+
+See [final owner setup and manual checklist](../../docs/meal-prep/final-owner-testing.md) and the [full requirements-to-tests matrix](../../docs/meal-prep/requirements-to-tests.md). The complete run also writes 12 reference-only method/recurrence operation snapshots under `owner-scenarios/`. These are test fixtures, not enabled customer E2E or release approval.

@@ -10,8 +10,8 @@ const root = path.resolve(__dirname, '../..');
 const { Client } = createRequire(path.join(root, 'apps/medusa/package.json'))('pg');
 const report = process.env.REPORT_DIR || path.join(root, 'artifacts/meal-prep-verification');
 fs.mkdirSync(report, { recursive: true });
-// PR7's exact manual-payment parent, not a moving branch or synthetic merge ref.
-const parent = '7d11dc33b9392f3b8082ab23b70e7c93b15a56dc';
+// PR8's exact autopay/reminders parent, not a moving branch or synthetic merge ref.
+const parent = 'f4557fab9d75b515611645be44bbabeb0bda1b10';
 for (const key of ['PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD']) {
   if (!process.env[key]) throw new Error(`Set ${key} for an explicitly disposable PostgreSQL server`);
 }
@@ -70,17 +70,17 @@ async function main() {
   fs.writeFileSync(path.join(report, 'upgrade-before.json'), before);
   migration('upgrade', root, url(upgrade));
   if (await hashes() !== before) throw new Error('Upgrade altered existing parent rows');
-  // Only PR7 ran in this module's last batch; PR6 financial history must survive.
+  // Only PR8 ran in this module's last batch; PR6/PR7 financial history must survive.
   migration('empty-state-rollback', root, url(upgrade), ['db:rollback', '--modules', 'mealPrep']);
   await client(url(upgrade), async db => {
-    const r = await db.query("select to_regclass('public.meal_prep_autopay_consent') as name");
-    if (r.rows[0].name !== null) throw new Error('Autopay-consent table remains after rollback');
+    const r = await db.query("select to_regclass('public.meal_prep_fulfillment_event') as name");
+    if (r.rows[0].name !== null) throw new Error('Fulfillment-event table remains after rollback');
   });
   if (await hashes() !== before) throw new Error('Rollback altered existing parent rows');
   migration('reapply', root, url(upgrade));
   await client(url(upgrade), async db => {
-    const r = await db.query("select to_regclass('public.meal_prep_autopay_consent') as name");
-    if (!r.rows[0].name) throw new Error('Autopay-consent table missing after reapply');
+    const r = await db.query("select to_regclass('public.meal_prep_fulfillment_event') as name");
+    if (!r.rows[0].name) throw new Error('Fulfillment-event table missing after reapply');
   });
   const after = await hashes();
   fs.writeFileSync(path.join(report, 'upgrade-after.json'), after);

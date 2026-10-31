@@ -541,6 +541,21 @@ export function autopayTests(
           )
         ).rows[0];
         expect(n.state).toBe("pending");
+        const operations = await service.readTestOperations(
+          { subjectIds: [occurrence.subjectId] },
+          chef,
+        );
+        expect(operations.occurrences[0]).toMatchObject({
+          fulfillment: { status: "unplanned" },
+          followUp: { payment: true },
+          payment: {
+            collected: false,
+            autopay_state: state,
+            pending_notifications: 1,
+          },
+          candidate: before.state.candidate,
+          confirmedMenuRevisionId: before.state.confirmedMenuRevisionId,
+        });
         await expect(manual()).rejects.toThrow(
           "Autopay reconciliation required",
         );
