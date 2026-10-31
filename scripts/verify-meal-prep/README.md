@@ -1,7 +1,7 @@
-# PR5 executable verification
+# PR6 executable verification
 
 This harness addresses PR #20 review `5720561794`: successful review-queue jobs
-are not application verification. It changes no application behavior or flags.
+are not application verification. PR6 extends it for billing tests and the new migration; runtime flags remain disabled.
 
 Use Node **24.22.1** (`.nvmrc`), the checked-in Yarn **4.5.0** runner, and a
 **disposable PostgreSQL 16 server**. Do not supply production credentials.
@@ -24,7 +24,7 @@ node scripts/verify-meal-prep/migrations.cjs
 rejects skipped, empty, todo or runtime-error suites in Jest JSON results. Run
 from any directory. Reports default to `artifacts/meal-prep-verification`; set
 `REPORT_DIR` to an absolute path to override. The full combined suite includes
-capture/approval tests imported into the foundation realm, avoiding Medusa's
+capture/approval/billing tests imported into the foundation realm, avoiding Medusa's
 cross-realm DML metadata conflict.
 
 The migration harness never reads ambient `DATABASE_URL`: it creates two uniquely
@@ -34,10 +34,10 @@ application tables. The server user needs CREATE DATABASE permission. No existin
 database is dropped. Locally, remove the disposable container after inspecting the
 reports; CI removes its service with the runner.
 
-It migrates an empty database, archives exact PR5 parent `a973be19824f0d14cd8ed0f3a49fe29de181f810`,
+It migrates an empty database, archives exact PR6 parent `f53912525d0250f09d81b6cb4ddb445cbdf5ff3a`,
 migrates that parent in the second database, seeds draft/revision/outbox/Availability
 rows, upgrades them, compares row hashes, rolls back the last mealPrep batch while
-approval history is empty, and reapplies it. Table removal/restoration and unchanged
+billing history is empty, and reapplies it. Table removal/restoration and unchanged
 parent row hashes are asserted. Populated-history rollback refusal runs in the
 integration suite. Migration scripts/link synchronization are intentionally skipped.
 Parent dependencies reuse the head install **only after all workspace manifests,

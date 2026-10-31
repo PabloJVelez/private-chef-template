@@ -29,6 +29,13 @@ import {
   MealPrepApprovalError,
 } from "./approval-contracts";
 import { executeApprovalCommand, readApprovalState } from "./approval-storage";
+import * as billing from "./billing-storage";
+import {
+  billingQuoteSchema,
+  authorizePaymentSchema,
+  requireBillingTestMode,
+  type PaymentObservation,
+} from "./billing-contracts";
 
 export class MealPrepFoundationError extends Error {
   constructor(
@@ -55,6 +62,131 @@ export function canonicalJson(value: JsonValue): string {
 }
 
 export default class MealPrepModuleService extends MedusaService(models) {
+  // Explicit test harness boundaries only. No route/job resolves these methods.
+  // Production activation requires policy decisions plus a reviewed access/commerce adapter.
+  @InjectTransactionManager()
+  async approveTestBillingQuote(
+    input: unknown,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return billing.approveBillingQuote(
+      context.transactionManager!,
+      billingQuoteSchema.parse(input),
+      principalSchema.parse(principal),
+    );
+  }
+  @InjectTransactionManager()
+  async authorizeTestManualPayment(
+    input: unknown,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return billing.authorizeManualPayment(
+      context.transactionManager!,
+      authorizePaymentSchema.parse(input),
+      principalSchema.parse(principal),
+    );
+  }
+  @InjectTransactionManager()
+  async readTestBill(
+    subjectId: string,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return billing.readBill(
+      context.transactionManager!,
+      subjectId,
+      principalSchema.parse(principal),
+    );
+  }
+  @InjectTransactionManager()
+  async prepareTestPaymentDispatch(
+    attemptId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return billing.prepareDispatch(context.transactionManager!, attemptId);
+  }
+  @InjectTransactionManager()
+  async readTestPaymentRequest(
+    attemptId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return billing.paymentRequest(
+      await billing.attempt(context.transactionManager!, attemptId),
+    );
+  }
+  @InjectTransactionManager()
+  async recordTestPaymentObservation(
+    attemptId: string,
+    observation: PaymentObservation,
+    event?: { eventId: string; accountId: string; payloadHash: string },
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return billing.recordObservation(
+      context.transactionManager!,
+      attemptId,
+      observation,
+      event,
+    );
+  }
+  @InjectTransactionManager()
+  async flagTestPaymentTransportFailure(
+    attemptId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    const row = await billing.attempt(context.transactionManager!, attemptId);
+    if (row.state !== "succeeded")
+      await context.transactionManager!.execute(
+        `update meal_prep_payment_attempt set follow_up=true,updated_at=now() where id=?`,
+        [attemptId],
+      );
+  }
+  @InjectTransactionManager()
+  async prepareTestPaymentNotification(
+    billId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return billing.prepareNotification(context.transactionManager!, billId);
+  }
+  @InjectTransactionManager()
+  async finishTestPaymentNotification(
+    billId: string,
+    delivered: boolean,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return billing.finishNotification(
+      context.transactionManager!,
+      billId,
+      delivered,
+    );
+  }
+  @InjectTransactionManager()
+  async claimTestCommerceResource(
+    billId: string,
+    kind: "order" | "collection",
+    resourceId?: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    if (!["order", "collection"].includes(kind))
+      throw new Error("INVALID_COMMERCE_KIND");
+    return billing.commerceResource(
+      context.transactionManager!,
+      billId,
+      kind,
+      resourceId,
+    );
+  }
   /** Trusted internal commands only; production execution and access remain disabled. */
   @InjectTransactionManager()
   async executeApprovalCommand(

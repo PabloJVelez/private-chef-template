@@ -2,6 +2,7 @@ import { Migration20261015000200 } from "../../src/modules/experience-type/migra
 import { Migration20261015000300 } from "../../src/modules/chef-event/migrations/Migration20261015000300";
 import { Migration20261030000200 } from "../../src/modules/shared-scheduling/migrations/Migration20261030000200";
 import { approvalTests } from "./meal-prep-approvals.suite";
+import { Migration20261031000600 } from "../../src/modules/meal-prep/migrations/Migration20261031000600";
 import { Migration20261030000500 } from "../../src/modules/meal-prep/migrations/Migration20261030000500";
 /** Real PostgreSQL + actual Medusa service; explicit disposable server only. */
 import { randomUUID } from "node:crypto";
@@ -90,6 +91,9 @@ const url = process.env.MEAL_PREP_TEST_DATABASE_URL;
       await migrate(Migration20261030000500);
       await migrate(Migration20261030000500, "down");
       await migrate(Migration20261030000500);
+      await migrate(Migration20261031000600);
+      await migrate(Migration20261031000600, "down");
+      await migrate(Migration20261031000600);
       const loaded = await initModules({
         databaseConfig: { clientUrl: url, schema },
         modulesConfig: {

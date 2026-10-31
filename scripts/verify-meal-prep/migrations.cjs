@@ -10,8 +10,8 @@ const root = path.resolve(__dirname, '../..');
 const { Client } = createRequire(path.join(root, 'apps/medusa/package.json'))('pg');
 const report = process.env.REPORT_DIR || path.join(root, 'artifacts/meal-prep-verification');
 fs.mkdirSync(report, { recursive: true });
-// PR5's exact pre-approval-state parent, not a moving branch or the PR merge ref.
-const parent = 'a973be19824f0d14cd8ed0f3a49fe29de181f810';
+// PR6's exact pre-billing parent, not a moving branch or the PR merge ref.
+const parent = 'f53912525d0250f09d81b6cb4ddb445cbdf5ff3a';
 for (const key of ['PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD']) {
   if (!process.env[key]) throw new Error(`Set ${key} for an explicitly disposable PostgreSQL server`);
 }
@@ -59,6 +59,7 @@ async function main() {
   });
   fs.writeFileSync(path.join(report, 'migration-databases.txt'), `${fresh}\n${upgrade}\n`);
   migration('fresh-migrate', root, url(fresh));
+  migration('installed-medusa-adapter', root, url(fresh), ['exec', './src/scripts/verify-meal-prep-billing-adapter.ts']);
   migration('parent-migrate', scratch, url(upgrade));
   await client(url(upgrade), db => db.query(fs.readFileSync(path.join(__dirname, 'parent-fixture.sql'), 'utf8')));
   const hashes = async () => client(url(upgrade), async db => {
@@ -69,17 +70,17 @@ async function main() {
   fs.writeFileSync(path.join(report, 'upgrade-before.json'), before);
   migration('upgrade', root, url(upgrade));
   if (await hashes() !== before) throw new Error('Upgrade altered existing parent rows');
-  // Only PR5 ran in this module's last batch: never roll back populated history.
+  // Only PR6 ran in this module's last batch: never roll back populated history.
   migration('empty-state-rollback', root, url(upgrade), ['db:rollback', '--modules', 'mealPrep']);
   await client(url(upgrade), async db => {
-    const r = await db.query("select to_regclass('public.meal_prep_approval_state') as name");
-    if (r.rows[0].name !== null) throw new Error('Approval-state table remains after rollback');
+    const r = await db.query("select to_regclass('public.meal_prep_billing_quote') as name");
+    if (r.rows[0].name !== null) throw new Error('Billing-quote table remains after rollback');
   });
   if (await hashes() !== before) throw new Error('Rollback altered existing parent rows');
   migration('reapply', root, url(upgrade));
   await client(url(upgrade), async db => {
-    const r = await db.query("select to_regclass('public.meal_prep_approval_state') as name");
-    if (!r.rows[0].name) throw new Error('Approval-state table missing after reapply');
+    const r = await db.query("select to_regclass('public.meal_prep_billing_quote') as name");
+    if (!r.rows[0].name) throw new Error('Billing-quote table missing after reapply');
   });
   const after = await hashes();
   fs.writeFileSync(path.join(report, 'upgrade-after.json'), after);
