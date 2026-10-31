@@ -232,6 +232,7 @@ def generate(directory, skill, invoke=subprocess.run, reserve_call=None):
             continue
         output = {'contract': json.loads((directory / 'contract.json').read_text()), 'review': text,
                   'ci_fingerprint': evidence['ci_fingerprint'], 'model': MODEL, 'thinking': THINKING,
+                  'evidence_sha256': hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest(),
                   'evidence_summary': {'changed_paths': len(evidence.get('changed_paths', [])),
                       'omitted_changed_paths': evidence.get('coverage', {}).get('omitted_changed_paths', []),
                       'investigation_rounds': round_number,

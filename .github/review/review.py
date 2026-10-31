@@ -543,6 +543,7 @@ def prepare(api, number, event, directory, ci=None):
         if len(json.dumps(evidence.get(key)).encode()) > (120_000 if key == "verification" else 40_000):
             evidence.pop(key, None)
             evidence["limitations"].append(f"{key} omitted: exceeds 40 KB context budget.")
+    require(len(json.dumps(evidence).encode()) <= MAX_INVESTIGATION, "Combined evidence exceeds budget; operator review required")
     write_json(directory / "input.json", evidence)
     write_json(directory / "contract.json", contract)
     require(not evidence.get("coverage", {}).get("omitted_changed_paths"),

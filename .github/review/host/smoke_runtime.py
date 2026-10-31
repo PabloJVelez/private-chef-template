@@ -62,6 +62,7 @@ with tempfile.TemporaryDirectory() as tmp:
         (source / 'guard.ts').write_text('export const guard = true;')
         git('add', '.'); git('commit', '-m', 'fixture'); sha = git('rev-parse', 'HEAD')
         generated = root / 'generated'; generated.mkdir()
+        (generated / 'objects').mkdir()
         objects = runner.review.Objects(generated / 'objects')
         objects.run('fetch', str(source), sha)
         contract = {'head_sha': sha, 'base_sha': sha}
