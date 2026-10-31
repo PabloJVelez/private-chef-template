@@ -1,3 +1,4 @@
+import { fulfillmentTests } from "./meal-prep-fulfillment.suite";
 import { autopayTests } from "./meal-prep-autopay.suite";
 import { Migration20261030000500 } from "../../src/modules/meal-prep/migrations/Migration20261030000500";
 import { billingTests } from "./meal-prep-billing.suite";
@@ -133,6 +134,17 @@ export function approvalTests(
       });
       return proposed;
     };
+    fulfillmentTests(() => ({
+      service,
+      pool,
+      occurrence,
+      menu,
+      approveMenu,
+      run,
+      offerId: get().offerId,
+      intakeId: get().intakeId,
+      migrate: get().migrate,
+    }));
     autopayTests(() => ({
       service,
       pool,

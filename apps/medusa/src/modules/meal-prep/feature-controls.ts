@@ -2,6 +2,8 @@
 // incomplete flows. Enabling a capability requires a reviewed implementation.
 export const mealPrepFeatures = Object.freeze({
   administration: false,
+  fulfillmentExecution: false,
+  operationalReporting: false,
   customerAccess: false,
   scheduling: false,
   approvalExecution: false,

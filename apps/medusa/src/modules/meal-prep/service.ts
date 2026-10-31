@@ -44,6 +44,13 @@ import {
   type AutopayObservation,
 } from "./autopay-contracts";
 
+import * as fulfillment from "./fulfillment-storage";
+import {
+  fulfillmentCommandSchema,
+  operationsQuerySchema,
+  requireFulfillmentTestMode,
+} from "./fulfillment-contracts";
+
 export class MealPrepFoundationError extends Error {
   constructor(
     public readonly code:
@@ -69,6 +76,33 @@ export function canonicalJson(value: JsonValue): string {
 }
 
 export default class MealPrepModuleService extends MedusaService(models) {
+  @InjectTransactionManager()
+  async executeTestFulfillmentCommand(
+    input: unknown,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireFulfillmentTestMode();
+    return fulfillment.command(
+      context.transactionManager!,
+      fulfillmentCommandSchema.parse(input),
+      principalSchema.parse(principal),
+    );
+  }
+  @InjectTransactionManager()
+  async readTestOperations(
+    input: unknown,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireFulfillmentTestMode();
+    return fulfillment.operations(
+      context.transactionManager!,
+      operationsQuerySchema.parse(input).subjectIds,
+      principalSchema.parse(principal),
+    );
+  }
+
   @InjectTransactionManager()
   async executeTestAutopayCommand(
     input: unknown,
