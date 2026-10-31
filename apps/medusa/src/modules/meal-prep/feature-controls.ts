@@ -8,6 +8,8 @@ export const mealPrepFeatures = Object.freeze({
   paymentCollection: false,
   manualPaymentLinks: false,
   autopay: false,
+  timedReminders: false,
+  savedPaymentMethods: false,
   outboxDispatch: false,
 } as const);
 

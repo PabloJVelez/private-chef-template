@@ -37,6 +37,13 @@ import {
   type PaymentObservation,
 } from "./billing-contracts";
 
+import * as autopay from "./autopay-storage";
+import {
+  autopayCommandSchema,
+  type SetupObservation,
+  type AutopayObservation,
+} from "./autopay-contracts";
+
 export class MealPrepFoundationError extends Error {
   constructor(
     public readonly code:
@@ -62,6 +69,126 @@ export function canonicalJson(value: JsonValue): string {
 }
 
 export default class MealPrepModuleService extends MedusaService(models) {
+  @InjectTransactionManager()
+  async executeTestAutopayCommand(
+    input: unknown,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.command(
+      context.transactionManager!,
+      autopayCommandSchema.parse(input),
+      principalSchema.parse(principal),
+    );
+  }
+  @InjectTransactionManager()
+  async prepareTestMethodSetup(
+    setupId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.setupRequest(context.transactionManager!, setupId, true);
+  }
+  @InjectTransactionManager()
+  async recordTestMethodSetup(
+    setupId: string,
+    observation: SetupObservation,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.recordSetup(
+      context.transactionManager!,
+      setupId,
+      observation,
+    );
+  }
+  @InjectTransactionManager()
+  async prepareTestAutopayDispatch(
+    attemptId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.prepareAutopay(context.transactionManager!, attemptId);
+  }
+  @InjectTransactionManager()
+  async readTestAutopayRequest(
+    attemptId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.autoRow(context.transactionManager!, attemptId);
+  }
+  @InjectTransactionManager()
+  async recordTestAutopayObservation(
+    attemptId: string,
+    observation: AutopayObservation,
+    event?: { eventId: string; accountId: string; payloadHash: string },
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.recordAutopay(
+      context.transactionManager!,
+      attemptId,
+      observation,
+      event,
+    );
+  }
+  @InjectTransactionManager()
+  async flagTestAutopayTransportFailure(
+    attemptId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.transportFailure(context.transactionManager!, attemptId);
+  }
+  @InjectTransactionManager()
+  async prepareTestAutopayFallback(
+    attemptId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.prepareFallback(context.transactionManager!, attemptId);
+  }
+  @InjectTransactionManager()
+  async claimTestTimedNotification(
+    notificationId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.claimNotification(
+      context.transactionManager!,
+      notificationId,
+    );
+  }
+  @InjectTransactionManager()
+  async authorizeTestTimedNotification(
+    notificationId: string,
+    dispatchId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.authorizeNotification(
+      context.transactionManager!,
+      notificationId,
+      dispatchId,
+    );
+  }
+  @InjectTransactionManager()
+  async finishTestTimedNotification(
+    notificationId: string,
+    dispatchId: string,
+    outcome: "sent" | "retry" | "suppressed",
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.finishNotification(
+      context.transactionManager!,
+      notificationId,
+      dispatchId,
+      outcome,
+    );
+  }
   // Explicit test harness boundaries only. No route/job resolves these methods.
   // Production activation requires policy decisions plus a reviewed access/commerce adapter.
   @InjectTransactionManager()
