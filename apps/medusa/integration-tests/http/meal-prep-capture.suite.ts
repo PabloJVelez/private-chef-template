@@ -1,3 +1,4 @@
+import { Migration20261031000700 } from "../../src/modules/meal-prep/migrations/Migration20261031000700";
 import { Migration20261015000200 } from "../../src/modules/experience-type/migrations/Migration20261015000200";
 import { Migration20261015000300 } from "../../src/modules/chef-event/migrations/Migration20261015000300";
 import { Migration20261030000200 } from "../../src/modules/shared-scheduling/migrations/Migration20261030000200";
@@ -94,6 +95,9 @@ const url = process.env.MEAL_PREP_TEST_DATABASE_URL;
       await migrate(Migration20261031000600);
       await migrate(Migration20261031000600, "down");
       await migrate(Migration20261031000600);
+      await migrate(Migration20261031000700);
+      await migrate(Migration20261031000700, "down");
+      await migrate(Migration20261031000700);
       const loaded = await initModules({
         databaseConfig: { clientUrl: url, schema },
         modulesConfig: {
