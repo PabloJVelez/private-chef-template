@@ -24,7 +24,7 @@ export function cleanSettings(value: Settings): Settings {
   };
 }
 /** Add independent schedules without overwriting any configured day. */
-export function addWorkingDays(settings: Settings, targets: string[], hours: Hours): Settings {
+export function addWorkingDays<T extends Pick<Settings, 'weekly'>>(settings: T, targets: string[], hours: Hours): T {
   const selected = [...new Set(targets)];
   if (!selected.length) throw new Error('Select at least one day.');
   if (selected.some((day) => !/^[1-7]$/.test(day))) throw new Error('Choose valid weekdays.');
@@ -37,7 +37,7 @@ export function addWorkingDays(settings: Settings, targets: string[], hours: Hou
   });
   return { ...settings, weekly };
 }
-export function copyDays(settings: Settings, source: string, targets: string[], replace: boolean): Settings {
+export function copyDays<T extends Pick<Settings, 'weekly'>>(settings: T, source: string, targets: string[], replace: boolean): T {
   const hours = settings.weekly[source as '1'] || [];
   if (!hours.length || !validHours(hours)) throw new Error('Enter valid hours on the source day first.');
   const selected = [...new Set(targets)].filter((day) => day !== source);
