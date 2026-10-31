@@ -418,6 +418,20 @@ export function billingTests(
       ).rejects.toThrow("PROVIDER_MISMATCH");
       expect(provider.retrieve).not.toHaveBeenCalled();
     });
+    it("treats a worker restart after collection as a completed no-op without another provider call", async () => {
+      const a = await setup();
+      await dispatchTestManualPayment(service, provider, a.attemptId);
+      observation!.state = "succeeded";
+      observation!.intentId = "pi_exact";
+      await webhook(a.attemptId);
+      const calls = (provider.retrieve as jest.Mock).mock.calls.length;
+      await expect(
+        dispatchTestManualPayment(service, provider, a.attemptId),
+      ).resolves.toBeUndefined();
+      expect(createCount).toBe(1);
+      expect(provider.retrieve).toHaveBeenCalledTimes(calls);
+      expect(await count("payment_collection")).toBe(1);
+    });
     it.each(["failed", "requires_action", "expired"] as const)(
       "preserves scheduling and flags follow-up on %s",
       async (state) => {

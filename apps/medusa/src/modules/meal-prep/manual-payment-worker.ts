@@ -13,8 +13,9 @@ export async function dispatchTestManualPayment(
   attemptId: string,
 ) {
   requireBillingTestMode();
-  const { request, sessionId } =
+  const { request, sessionId, complete } =
     await service.prepareTestPaymentDispatch(attemptId);
+  if (complete) return;
   try {
     const observation = sessionId
       ? await provider.retrieve(request, sessionId)

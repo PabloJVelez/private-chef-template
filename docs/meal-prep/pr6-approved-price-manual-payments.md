@@ -67,13 +67,15 @@ Empty billing rollback is allowed, with a lock preventing a concurrent quote ins
 
 Clean immutable dependency install with **Node 24.22.1 / Yarn 4.5.0**; host Node 24.16.0 was not used for checks. Real **PostgreSQL 16**, disposable loopback-only container `meal-prep-pr6-test`, separate random schemas/databases; no production credentials.
 
-- **393 tests passed, none skipped:** Medusa **22 suites / 246 tests**, storefront **2 suites / 15 tests**, PostgreSQL **5 suites / 128 tests**, legacy migration **1 suite / 4 tests**.
+- Full run: **393 tests passed, none skipped:** Medusa **22 suites / 246 tests**, storefront **2 suites / 15 tests**, PostgreSQL **5 suites / 128 tests**, legacy migration **1 suite / 4 tests**. Final review added one worker-restart regression: the affected foundation/capture/approval/billing suite then passed **91 tests**, bringing final unique coverage to **394** (129 across the five PostgreSQL suites). A worker restarted after collection now completes without another provider call. Backend typecheck and backend/admin build were repeated successfully after this change.
 - Both workspace typechecks and Medusa backend/admin + storefront client/server builds passed.
 - Actual Medusa migration runner: fresh install, exact `f539125…` parent migration, populated-parent upgrade, empty billing rollback/reapply. Existing parent row hashes were unchanged throughout. Populated billing downgrade refusal is covered by PostgreSQL tests.
 - Actual installed Medusa order/unpaid-collection round trips passed for 1, 1000 and 1050 minor units. Stripe API transport is mocked; real SDK HMAC verification runs locally. No network Stripe sandbox or Google E2E is claimed.
 - `git diff --check` passed. Reports are in ignored `artifacts/meal-prep-verification/`; the [repeatable harness](../../scripts/verify-meal-prep/README.md) rejects skipped suites and is also run by exact-head CI. Hosted results are reported separately with the PR head SHA and job URL.
 
 Inherited/nonblocking warnings: Yarn peers, React `act`, experimental Jest VM/force-exit, stale Browserslist data and the existing Vite unlock override warning. No UI or browser flow changed; no new browser E2E is claimed. Full private-event checkout/payment E2E, actual provider/email delivery, production-scale migration and final-stack owner testing remain gates.
+
+GitHub also reports push-triggered failures for the inherited, fully commented-out `.github/workflows/barrio.yaml` and `.github/workflows/pr-checks.yaml`, with zero jobs. Their contents match the exact parent byte-for-byte; neither ran deployment or verification. They are retained unchanged and are reported separately from the active `Meal prep verification` exact-head job. An OpenClaw queue success confirms triggering only, not a completed substantive review.
 
 ## ChatGPT → Arbor handoff and unresolved gates
 

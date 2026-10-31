@@ -224,8 +224,13 @@ export async function prepareDispatch(
   attemptId: string,
 ) {
   const row = await attempt(manager, attemptId);
-  if (row.state === "succeeded" || row.state === "expired")
-    throw new BillingError("LINK_TERMINAL");
+  if (row.state === "succeeded")
+    return {
+      request: paymentRequest(row),
+      sessionId: row.session_id as string,
+      complete: true,
+    };
+  if (row.state === "expired") throw new BillingError("LINK_TERMINAL");
   // Revocation prevents new dispatch. Reconciliation of an already dispatched payment must still run.
   const [owner] = await manager.execute(
     `select s.id from meal_prep_subject s join meal_prep_approval_state st on st.subject_id=s.id
@@ -248,6 +253,7 @@ export async function prepareDispatch(
   return {
     request: paymentRequest(row),
     sessionId: row.session_id as string | null,
+    complete: false,
   };
 }
 export async function recordObservation(
