@@ -44,7 +44,7 @@ while the exact-head application checks were still running.
 python3 -m unittest discover -s .github/review -p 'test_*.py'
 ```
 
-54 offline tests passed: real Git fixtures cover late `.cjs`/`.sql` source,
+55 offline tests passed: real Git fixtures cover late `.cjs`/`.sql` source,
 budget skipping, requirement/import discovery, base instructions and symlink/path
 isolation. Queue tests cover pending/failed/absent CI, newest legacy statuses,
 wrong SHAs, metadata failures, wait persistence/timeout, cached-result invalidation,
@@ -84,3 +84,9 @@ Prove the upgraded worker with a fresh manual dry run after PR #20's CI settles:
 check source coverage and hosted metadata, confirm no publication, then perform an
 authorized published rerun. Do not enable model tools, PR execution, fallback
 models, approval/merge authority or bypass ambiguous-write reconciliation.
+
+Pre-merge review correction: legacy commit-status responses do not contain a SHA.
+Their provenance is the validated exact-SHA request endpoint, recorded as
+`queried_head_sha`; check runs still validate returned `head_sha`. Realistic
+SHA-less status fixtures reproduced the failure before the correction and pass
+after it, including newest-success processing and pending-status deferral.

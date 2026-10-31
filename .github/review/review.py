@@ -245,6 +245,7 @@ def source_context(objects, contract):
 
 def ci_snapshot(api, sha):
     """Authenticated metadata only; never interpret a queue success as tests."""
+    require(isinstance(sha, str) and SHA.fullmatch(sha), "Invalid CI revision")
     checks = api.pages(f"commits/{sha}/check-runs?filter=latest", "check_runs")
     statuses = api.pages(f"commits/{sha}/statuses")
     latest = {}
@@ -253,11 +254,12 @@ def ci_snapshot(api, sha):
     result = {
         "checks": [{k: r.get(k) for k in ("id", "name", "status", "conclusion", "details_url", "head_sha")}
                    for r in checks],
-        "statuses": [{k: r.get(k) for k in ("id", "context", "state", "target_url", "sha")}
+        # Legacy status objects have no SHA; provenance is the pinned request.
+        "queried_head_sha": sha,
+        "statuses": [{k: r.get(k) for k in ("id", "context", "state", "target_url")}
                      for r in latest.values()],
     }
-    require(all(r.get("head_sha") == sha for r in checks) and
-            all(r.get("sha") == sha for r in latest.values()), "CI metadata revision mismatch")
+    require(all(r.get("head_sha") == sha for r in checks), "CI metadata revision mismatch")
     result["pending"] = any(r.get("status") != "completed" for r in checks) or any(
         r.get("state") == "pending" for r in latest.values())
     result["fingerprint"] = hashlib.sha256(json.dumps(result, sort_keys=True).encode()).hexdigest()

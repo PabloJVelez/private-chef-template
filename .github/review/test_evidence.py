@@ -116,11 +116,24 @@ class CIWaitTests(unittest.TestCase):
             self.assertFalse(runner.settled_ci(self.api, self.contract, self.store)['pending'])
 
     def test_only_newest_legacy_status_controls_wait(self):
-        self.api.statuses = [{'id': 2, 'context': 'ci', 'state': 'success', 'sha': 'b' * 40},
-                             {'id': 1, 'context': 'ci', 'state': 'pending', 'sha': 'b' * 40}]
+        self.api.statuses = [{'id': 2, 'context': 'ci', 'state': 'success'},
+                             {'id': 1, 'context': 'ci', 'state': 'pending'}]
         self.assertFalse(runner.settled_ci(self.api, self.contract, self.store)['pending'])
         self.api.statuses[0]['state'] = 'pending'
         with self.assertRaises(runner.WaitingForCI): runner.settled_ci(self.api, self.contract, self.store)
+
+    def test_legacy_status_provenance_comes_from_validated_endpoint(self):
+        self.api.checks = []
+        self.api.statuses = [{'id': 42, 'context': 'external-ci', 'state': 'success',
+                             'target_url': 'https://ci.example.invalid/build/42'}]
+        with patch.object(self.api, 'pages', wraps=self.api.pages) as pages:
+            result = runner.settled_ci(self.api, self.contract, self.store)
+        self.assertEqual(result['queried_head_sha'], self.contract['head_sha'])
+        self.assertNotIn('sha', result['statuses'][0])
+        self.assertEqual(pages.call_args_list[1].args[0], f"commits/{self.contract['head_sha']}/statuses")
+        with patch.object(self.api, 'pages') as pages, self.assertRaisesRegex(runner.Failure, 'Invalid CI revision'):
+            runner.review.ci_snapshot(self.api, 'main?ref=other')
+        pages.assert_not_called()
 
     def test_wrong_sha_or_failed_metadata_lookup_never_generates(self):
         self.api.checks[0]['head_sha'] = 'c' * 40
