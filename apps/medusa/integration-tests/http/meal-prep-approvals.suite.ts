@@ -415,6 +415,122 @@ export function approvalTests(
         }),
       ).rejects.toMatchObject({ code: "INVALID_STATE" });
     });
+    it.each([
+      ["before", "2026-12-30T11:59:59.000Z", false],
+      ["at", "2026-12-30T12:00:00.000Z", false],
+      ["after", "2026-12-30T12:00:00.001Z", true],
+    ] as const)(
+      "uses the first valid selection %s the deadline after a later replacement",
+      async (_label, firstSubmittedAt, missed) => {
+        // Freeze Date only; database I/O and pool timeouts must keep real timers.
+        jest.useFakeTimers({
+          doNotFake: [
+            "hrtime",
+            "nextTick",
+            "performance",
+            "queueMicrotask",
+            "setImmediate",
+            "clearImmediate",
+            "setInterval",
+            "clearInterval",
+            "setTimeout",
+            "clearTimeout",
+          ],
+        });
+        try {
+          await run(occurrence.subjectId, 1, "set_selection_deadline", {
+            deadline: "2026-12-30T12:00:00Z",
+          });
+          jest.setSystemTime(new Date(firstSubmittedAt));
+          const first = await run(
+            occurrence.subjectId,
+            2,
+            "propose_menu",
+            { menu },
+            customer,
+          );
+          const firstState = await state();
+          const changed = request(get().offerId, get().intakeId);
+          changed.body.selection.lines[0].servings = 11;
+          const selection = await service.saveCapture(
+            {
+              ...changed,
+              expectedVersion: 1,
+              idempotencyKey: "late-selection-edit",
+            },
+            customer,
+          );
+          const replacement = {
+            ...menu,
+            selectionRevisionId: selection.revisionId,
+          };
+          jest.setSystemTime(new Date("2026-12-30T12:01:00Z"));
+          const replace = () =>
+            run(
+              occurrence.subjectId,
+              3,
+              "propose_menu",
+              { menu: replacement },
+              customer,
+            );
+          const revised = await replace();
+          expect(await replace()).toEqual(revised);
+          const beforeCheck = await state();
+          expect(beforeCheck.state).toMatchObject({
+            selectionSubmittedAt: firstSubmittedAt,
+            proposedMenuRevisionId: revised.revisionId,
+            confirmedMenuRevisionId: null,
+            followUp: false,
+          });
+          const history = await pool.query(
+            "select body from meal_prep_approval_state where revision_id=$1",
+            [first.revisionId],
+          );
+          expect(history.rows[0].body).toEqual(firstState.state);
+          const proposal = await pool.query(
+            "select body from meal_prep_revision where id=$1",
+            [revised.revisionId],
+          );
+          expect(proposal.rows[0].body).toEqual(replacement);
+          const counts = () =>
+            pool.query(
+              `select (select count(*) from meal_prep_revision) as revisions,
+              (select count(*) from meal_prep_approval_state) as states,
+              (select count(*) from meal_prep_command) as receipts,
+              (select count(*) from meal_prep_audit) as audits,
+              (select count(*) from meal_prep_outbox) as events`,
+            );
+          const beforeCounts = (await counts()).rows;
+          const check = () =>
+            run(occurrence.subjectId, 4, "flag_missed_selection", {
+              now: "2026-12-30T12:02:00Z",
+            });
+          if (missed) {
+            const flagged = await check();
+            expect(await check()).toEqual(flagged);
+            expect((await state()).state).toEqual({
+              ...beforeCheck.state,
+              followUp: true,
+            });
+          } else {
+            await expect(check()).rejects.toMatchObject({
+              code: "INVALID_STATE",
+            });
+            expect(await state()).toEqual(beforeCheck);
+            expect((await counts()).rows).toEqual(beforeCounts);
+          }
+          expect(
+            (
+              await pool.query(
+                "select * from meal_prep_outbox where topic='meal_prep.selection_follow_up'",
+              )
+            ).rows,
+          ).toHaveLength(missed ? 1 : 0);
+        } finally {
+          jest.useRealTimers();
+        }
+      },
+    );
     it("checks customer/chef/household ownership before command receipts and private reads", async () => {
       for (const actor of [
         { ...customer, customerId: "other" },

@@ -103,3 +103,59 @@ The actual Medusa service and PostgreSQL transactions run in random disposable s
 ## ChatGPT → Arbor handoff
 
 Publish the final head SHA, PR URL, exact parent and this evidence to BTS-6. Request the named product decisions in BTS-2 separately; technical review does not approve them. Review this layer while disabled, including state guards, transaction lock order and non-payable quote semantics. Preserve the PR #17 linked-block freeze. PR 6 should branch from this layer's reviewed exact head, introduce policy-validated payable quote/billing state, and revalidate changes against that state. No merge or deployment until explicit owner review and final-stack local manual testing.
+
+## Review correction: preserve initial selection time (2026-10-31)
+
+The [automated review of `1afa94a`](https://github.com/PabloJVelez/private-chef-template/pull/20#pullrequestreview-5720219843)
+found that replacing a pending menu overwrote `selectionSubmittedAt`. An on-time
+submission could therefore become a missed selection after a post-deadline edit.
+
+`selectionSubmittedAt` now means the first successfully validated menu submission
+for the occurrence and is assigned only when null. Each replacement still advances
+the aggregate version, points to the new immutable proposal and records its own
+revision `created_at`; the initial timestamp is not reused as the edit timestamp.
+Validation, expected-version checks, authorization and receipt replay precede this
+assignment, and state/history/audit/outbox/receipt writes retain the existing atomic
+transaction. No schema, policy, public API or activation change is needed. This is
+an unreleased internal workflow correction, not a backfill or mutation of historical
+approval snapshots from exploratory test runs.
+
+Three controlled-clock real-PostgreSQL regressions first failed on the original
+assignment, then passed with this correction. They cover first submission before,
+exactly at, and one millisecond after the deadline, followed by a real capture
+revision and pending-menu replacement after the deadline. Assertions cover:
+
+- preserved first timestamp and the current replacement proposal;
+- idempotent replacement retry and unchanged immutable earlier history;
+- no missed flag, version change, audit, receipt or outbox write for on-time cases;
+- genuinely late first submission still produces exactly one durable follow-up,
+  with an idempotent retry and no automatic menu/schedule change.
+
+Verification used a fresh detached checkout without reused `node_modules`,
+**Node 24.22.1 / Yarn 4.5.0**, and a successful immutable install:
+
+- **221 Medusa unit/rendered tests**, **15 storefront tests**, **90 PostgreSQL
+  integration tests** across all five files, and **4 legacy migration tests**:
+  **330 passed**, with no skipped tests in the full integration run.
+- Both workspace typechecks and full production builds passed (Medusa backend/admin,
+  storefront client/server). `git diff --check` passed.
+- Full migration runner: fresh database passed; a separate database was migrated
+  from exact parent `a973be19824f0d14cd8ed0f3a49fe29de181f810`, seeded with existing
+  arrangement/revision/outbox/Availability rows, and upgraded. Row-JSON hashes were
+  unchanged after upgrade and again after empty approval-state rollback/reapply.
+  Populated approval-state downgrade refusal remains covered by the integration suite.
+- Inspection completed the automated review's omitted dependency context: the
+  requirements contract, service transaction/principal boundary, capture ownership
+  and current-reference/date/method checks, shared-work locking and linked-block
+  freeze, and disabled feature controls. No production route, subscriber or job
+  invokes these approval commands or dispatches the follow-up topic.
+
+The source and tests above were verified together before committing; the only
+subsequent edit was this evidence document. No dependency or migration change was
+introduced. Local logs are retained in `artifacts/pr20-verification-20261031` in the
+agent workspace. This is fix verification and dependency inspection, not a new
+independent full-PR review or a guarantee of the next review's numeric score.
+No browser flow changed, so no browser E2E was repeated. No production-scale
+migration, live provider, notification dispatch, payment or full checkout E2E is
+claimed. Existing peer/toolchain warnings and unresolved product decisions remain.
+Nothing was merged, deployed or activated.

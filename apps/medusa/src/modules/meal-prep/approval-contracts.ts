@@ -155,6 +155,8 @@ export type ApprovalState = {
   confirmedMenuRevisionId: string | null;
   pendingChangeRevisionId: string | null;
   selectionDeadline: string | null;
+  /** First successfully validated menu submission; replacements must preserve it.
+   * Individual proposal timestamps remain on their immutable revision records. */
   selectionSubmittedAt: string | null;
   followUp: boolean;
   workBlockIds: string[];

@@ -351,7 +351,9 @@ export async function executeApprovalCommand(
       kind = "menu";
       body = input.menu;
       state.proposedMenuRevisionId = revisionId;
-      state.selectionSubmittedAt = new Date().toISOString();
+      // Deadline eligibility belongs to the first valid submission, not its edits.
+      // Each replacement still has its own immutable menu revision/created_at.
+      state.selectionSubmittedAt ??= new Date().toISOString();
       break;
     case "decide_menu": {
       if (
