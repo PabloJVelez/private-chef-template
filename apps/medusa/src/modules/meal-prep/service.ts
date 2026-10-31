@@ -24,6 +24,12 @@ import {
   type StageRevisionResult,
 } from "./contracts";
 
+import {
+  approvalCommandSchema,
+  MealPrepApprovalError,
+} from "./approval-contracts";
+import { executeApprovalCommand, readApprovalState } from "./approval-storage";
+
 export class MealPrepFoundationError extends Error {
   constructor(
     public readonly code:
@@ -49,6 +55,45 @@ export function canonicalJson(value: JsonValue): string {
 }
 
 export default class MealPrepModuleService extends MedusaService(models) {
+  /** Trusted internal commands only; production execution and access remain disabled. */
+  @InjectTransactionManager()
+  async executeApprovalCommand(
+    input: unknown,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    const actor = principalSchema.safeParse(principal);
+    if (!actor.success) throw new MealPrepApprovalError("NOT_FOUND");
+    const command = approvalCommandSchema.safeParse(input);
+    if (!command.success) throw new MealPrepApprovalError("INVALID_INPUT");
+    return executeApprovalCommand(
+      context.transactionManager!,
+      command.data,
+      actor.data,
+    );
+  }
+
+  @InjectTransactionManager()
+  async readApprovalState(
+    subjectId: string,
+    principal: MealPrepPrincipal,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    const actor = principalSchema.safeParse(principal);
+    if (
+      !actor.success ||
+      typeof subjectId !== "string" ||
+      !subjectId ||
+      subjectId.length > 200
+    )
+      throw new MealPrepApprovalError("NOT_FOUND");
+    return readApprovalState(
+      context.transactionManager!,
+      subjectId,
+      actor.data,
+    );
+  }
+
   /** Internal command boundary only. The principal is supplied by a trusted resolver,
    * never request JSON. D10 customer adapters remain absent/disabled. */
   @InjectTransactionManager()

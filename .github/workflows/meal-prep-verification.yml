@@ -1,0 +1,87 @@
+name: Meal prep verification
+
+on:
+  pull_request:
+    # PR5's stacked parent; this is not a general repository deployment workflow.
+    branches: ['feat/meal-prep-v1-dated-offers-intake']
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarn/**'
+      - '.yarnrc.yml'
+      - '.nvmrc'
+      - 'scripts/verify-meal-prep/**'
+      - '.github/workflows/meal-prep-verification.yml'
+      - 'docs/meal-prep/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meal-prep-verification-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: integration
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d integration"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      NODE_ENV: test
+      MEAL_PREP_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:5432/integration
+      AVAILABILITY_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:5432/integration
+      TEST_DATABASE_URL: postgres://test:test@127.0.0.1:5432/integration
+      FILE_PROVIDER: local
+      STRIPE_API_KEY: sk_test_verification_only
+      STRIPE_WEBHOOK_SECRET: whsec_verification_only
+      RESEND_API_KEY: re_verification_only
+      RESEND_FROM_EMAIL: test@example.invalid
+      MEDUSA_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Record exact source and toolchain
+        run: |
+          mkdir -p artifacts/meal-prep-verification
+          git rev-parse HEAD > artifacts/meal-prep-verification/head.txt
+          node --version
+          node .yarn/releases/yarn-4.5.0.cjs --version
+      - name: Immutable clean install
+        run: node .yarn/releases/yarn-4.5.0.cjs install --immutable
+      - name: Units and PostgreSQL regressions (no skipped tests)
+        run: bash scripts/verify-meal-prep/checks.sh tests
+      - name: Both typechecks and production builds
+        run: bash scripts/verify-meal-prep/checks.sh builds
+      - name: Migration upgrade, preservation and rollback rehearsal
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: test
+          PGPASSWORD: test
+          PGPORT: '5432'
+        run: node scripts/verify-meal-prep/migrations.cjs
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meal-prep-verification-${{ github.event.pull_request.head.sha }}
+          path: artifacts/meal-prep-verification/
+          retention-days: 14
