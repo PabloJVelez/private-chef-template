@@ -1,12 +1,16 @@
 import { Button, Container, Heading, Input, Text } from '@medusajs/ui';
 import { useState } from 'react';
 import { emptyMealPrepSetup, mealPrepSetupSchema, type MealPrepSetup } from '../../../lib/availability/slots';
-import { dayNames } from './editor';
+import { WeeklyHours } from './weekly-hours';
 import { HoursEditor } from './hours-editor';
 import { sdk } from '../../../sdk';
 import type { MealPrepWorkReview } from '../../../sdk/admin/admin-availability';
 
-const methodNames = { in_home: 'In-home cooking', delivery: 'Delivery', pickup: 'Pickup' } as const;
+const methodNames = {
+  in_home: 'In-home cooking',
+  delivery: 'Delivery',
+  pickup: 'Pickup',
+} as const;
 const styleNames = {
   individual_dishes: 'Individual dishes and quantities',
   package: 'Packages',
@@ -17,46 +21,51 @@ const styleNames = {
 export function MealPrepSetupEditor({
   value,
   onChange,
+  onEditing,
 }: {
   value: MealPrepSetup | null | undefined;
   onChange: (value: MealPrepSetup) => void;
+  onEditing: (method: keyof MealPrepSetup['methods'], editing: boolean) => void;
 }) {
   const setup = value ?? emptyMealPrepSetup();
   const validation = mealPrepSetupSchema.safeParse(setup);
   return (
-    <Container className="space-y-4">
+    <div className="space-y-4">
       <Heading level="h2">Meal prep setup</Heading>
       <Text>
-        Draft setup — meal prep is not available to customers yet. Save these preferences with your
-        availability.
+        Draft setup — meal prep is not available to customers yet. Save these preferences with your availability.
       </Text>
-      <fieldset className="space-y-2">
-        <legend>Supported selection styles</legend>
-        {Object.entries(styleNames).map(([key, label]) => (
-          <label className="block" key={key}>
-            <input
-              type="checkbox"
-              checked={setup.selection_styles[key as keyof typeof styleNames]}
-              onChange={(e) =>
-                onChange({
-                  ...setup,
-                  selection_styles: { ...setup.selection_styles, [key]: e.target.checked },
-                })
-              }
-            />{' '}
-            {label}
-          </label>
-        ))}
-      </fieldset>
-      <Text size="small">Package and tailored-plan pricing will require a separate approved setup.</Text>
+      <Container className="space-y-4">
+        <fieldset className="space-y-2">
+          <legend>Supported selection styles</legend>
+          {Object.entries(styleNames).map(([key, label]) => (
+            <label className="block" key={key}>
+              <input
+                type="checkbox"
+                checked={setup.selection_styles[key as keyof typeof styleNames]}
+                onChange={(e) =>
+                  onChange({
+                    ...setup,
+                    selection_styles: {
+                      ...setup.selection_styles,
+                      [key]: e.target.checked,
+                    },
+                  })
+                }
+              />{' '}
+              {label}
+            </label>
+          ))}
+        </fieldset>
+        <Text size="small">Package and tailored-plan pricing will require a separate approved setup.</Text>
+      </Container>
       {Object.entries(methodNames).map(([key, label]) => {
         const method = key as keyof typeof methodNames;
         const schedule = setup.methods[method];
-        const change = (next: typeof schedule) =>
-          onChange({ ...setup, methods: { ...setup.methods, [method]: next } });
+        const change = (next: typeof schedule) => onChange({ ...setup, methods: { ...setup.methods, [method]: next } });
         return (
-          <details key={key} className="rounded border p-3">
-            <summary>{label} setup</summary>
+          <Container key={key} role="region" aria-label={`${label} setup`} className="space-y-4">
+            <Heading level="h3">{label} setup</Heading>
             <div className="mt-3 space-y-3">
               <label className="block">
                 <input
@@ -68,56 +77,28 @@ export function MealPrepSetupEditor({
                 Enable {label} in draft setup
               </label>
               <Text size="small">
-                Proposed windows use your Availability timezone. They do not offer customer times, override
-                global time off, or reserve chef work.
+                Proposed windows use your Availability timezone. They do not offer customer times, override global time
+                off, or reserve chef work.
               </Text>
-              {dayNames.map((day, i) => {
-                const dayKey = String(i + 1) as '1';
-                const hours = schedule.weekly[dayKey];
-                return (
-                  <div key={day} className="space-y-2">
-                    <label>
-                      <input
-                        type="checkbox"
-                        aria-label={`${label} ${day}`}
-                        checked={hours !== undefined}
-                        onChange={(e) => {
-                          const weekly = { ...schedule.weekly };
-                          if (e.target.checked) weekly[dayKey] = [{ start: '', end: '' }];
-                          else delete weekly[dayKey];
-                          change({ ...schedule, weekly });
-                        }}
-                      />{' '}
-                      {day}
-                    </label>
-                    {hours && (
-                      <HoursEditor
-                        label={`${label} ${day}`}
-                        value={hours}
-                        onChange={(hours) =>
-                          change({ ...schedule, weekly: { ...schedule.weekly, [dayKey]: hours } })
-                        }
-                      />
-                    )}
-                  </div>
-                );
-              })}
-              <MethodDates
+              <WeeklyHours
                 label={label}
-                dates={schedule.dates}
-                onChange={(dates) => change({ ...schedule, dates })}
+                draft
+                weekly={schedule.weekly}
+                onChange={(weekly) => change({ ...schedule, weekly })}
+                onEditing={(editing) => onEditing(method, editing)}
               />
+              <MethodDates label={label} dates={schedule.dates} onChange={(dates) => change({ ...schedule, dates })} />
             </div>
-          </details>
+          </Container>
         );
       })}
-      <details className="rounded border p-3">
-        <summary>Delivery area drafts</summary>
+      <Container className="space-y-4">
+        <Heading level="h3">Delivery area drafts</Heading>
         <div className="mt-3 space-y-3">
           <Text size="small">
-            Delivery within the chef’s approved area is free. Radius and ZIP inputs are saved for review; they
-            are not active eligibility rules. Combining them, address verification and out-of-area handling
-            still need decisions.
+            Delivery within the chef’s approved area is free. Radius and ZIP inputs are saved for review; they are not
+            active eligibility rules. Combining them, address verification and out-of-area handling still need
+            decisions.
           </Text>
           <label className="block">
             <input
@@ -146,7 +127,10 @@ export function MealPrepSetupEditor({
                       ...setup,
                       delivery_area: {
                         ...setup.delivery_area,
-                        radius: { ...setup.delivery_area.radius!, address: e.target.value },
+                        radius: {
+                          ...setup.delivery_area.radius!,
+                          address: e.target.value,
+                        },
                       },
                     })
                   }
@@ -164,7 +148,10 @@ export function MealPrepSetupEditor({
                       ...setup,
                       delivery_area: {
                         ...setup.delivery_area,
-                        radius: { ...setup.delivery_area.radius!, distance: Number(e.target.value) },
+                        radius: {
+                          ...setup.delivery_area.radius!,
+                          distance: Number(e.target.value),
+                        },
                       },
                     })
                   }
@@ -179,7 +166,10 @@ export function MealPrepSetupEditor({
                       ...setup,
                       delivery_area: {
                         ...setup.delivery_area,
-                        radius: { ...setup.delivery_area.radius!, unit: e.target.value as 'mi' | 'km' },
+                        radius: {
+                          ...setup.delivery_area.radius!,
+                          unit: e.target.value as 'mi' | 'km',
+                        },
                       },
                     })
                   }
@@ -209,19 +199,24 @@ export function MealPrepSetupEditor({
           <Button
             type="button"
             variant="secondary"
-            onClick={() => onChange({ ...setup, delivery_area: { ...setup.delivery_area, zip_codes: [] } })}
+            onClick={() =>
+              onChange({
+                ...setup,
+                delivery_area: { ...setup.delivery_area, zip_codes: [] },
+              })
+            }
           >
             Clear ZIP codes
           </Button>
         </div>
-      </details>
-      <details className="rounded border p-3">
-        <summary>Chef work planning</summary>
+      </Container>
+      <Container className="space-y-4">
+        <Heading level="h3">Chef work planning</Heading>
         <div className="mt-3 space-y-3">
           <Text>
             Plan actual preparation, travel, cooking or handoff time explicitly. These drafts do not create
-            reservations. Activating work plans requires a later approval workflow and conflict check. A
-            pickup window does not create an exclusive appointment.
+            reservations. Activating work plans requires a later approval workflow and conflict check. A pickup window
+            does not create an exclusive appointment.
           </Text>
           {setup.work_plans.map((plan, i) => {
             const patch = (values: Partial<typeof plan>) =>
@@ -250,12 +245,12 @@ export function MealPrepSetupEditor({
                     type="datetime-local"
                     step={1}
                     value={
-                      Number.isFinite(Date.parse(plan.start))
-                        ? new Date(plan.start).toISOString().slice(0, 19)
-                        : ''
+                      Number.isFinite(Date.parse(plan.start)) ? new Date(plan.start).toISOString().slice(0, 19) : ''
                     }
                     onChange={(e) =>
-                      patch({ start: e.target.value ? new Date(`${e.target.value}Z`).toISOString() : '' })
+                      patch({
+                        start: e.target.value ? new Date(`${e.target.value}Z`).toISOString() : '',
+                      })
                     }
                   />
                 </label>
@@ -264,13 +259,11 @@ export function MealPrepSetupEditor({
                   <Input
                     type="datetime-local"
                     step={1}
-                    value={
-                      Number.isFinite(Date.parse(plan.end))
-                        ? new Date(plan.end).toISOString().slice(0, 19)
-                        : ''
-                    }
+                    value={Number.isFinite(Date.parse(plan.end)) ? new Date(plan.end).toISOString().slice(0, 19) : ''}
                     onChange={(e) =>
-                      patch({ end: e.target.value ? new Date(`${e.target.value}Z`).toISOString() : '' })
+                      patch({
+                        end: e.target.value ? new Date(`${e.target.value}Z`).toISOString() : '',
+                      })
                     }
                   />
                 </label>
@@ -278,7 +271,10 @@ export function MealPrepSetupEditor({
                   type="button"
                   variant="secondary"
                   onClick={() =>
-                    onChange({ ...setup, work_plans: setup.work_plans.filter((_, j) => j !== i) })
+                    onChange({
+                      ...setup,
+                      work_plans: setup.work_plans.filter((_, j) => j !== i),
+                    })
                   }
                 >
                   Remove draft work {i + 1}
@@ -294,7 +290,12 @@ export function MealPrepSetupEditor({
                 ...setup,
                 work_plans: [
                   ...setup.work_plans,
-                  { id: crypto.randomUUID(), purpose: 'preparation', start: '', end: '' },
+                  {
+                    id: crypto.randomUUID(),
+                    purpose: 'preparation',
+                    start: '',
+                    end: '',
+                  },
                 ],
               })
             }
@@ -302,14 +303,14 @@ export function MealPrepSetupEditor({
             Add draft work
           </Button>
         </div>
-      </details>
+      </Container>
       {!validation.success && (
         <Text role="alert" className="text-ui-fg-error">
           {validation.error.issues.map((i) => `${i.path.join(' / ')}: ${i.message}`).join(' ')}
         </Text>
       )}
       <WorkReview />
-    </Container>
+    </div>
   );
 }
 
@@ -373,16 +374,16 @@ function WorkReview() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   return (
-    <details className="rounded border p-3">
-      <summary>Chef review: work, orders and servings</summary>
+    <Container className="space-y-4">
+      <Heading level="h3">Chef review: work, orders and servings</Heading>
       <div className="mt-3 space-y-3">
         <Text>
-          Review workload manually. Order and serving totals never limit acceptance. Actual reserved chef work
-          still prevents double-booking.
+          Review workload manually. Order and serving totals never limit acceptance. Actual reserved chef work still
+          prevents double-booking.
         </Text>
         <Text>
-          Order and serving totals are unavailable until approved occurrence menus and orders are implemented.
-          Unknown totals are not zero.
+          Order and serving totals are unavailable until approved occurrence menus and orders are implemented. Unknown
+          totals are not zero.
         </Text>
         <label className="block">
           Review actual work on date (UTC)
@@ -435,6 +436,6 @@ function WorkReview() {
           </>
         )}
       </div>
-    </details>
+    </Container>
   );
 }

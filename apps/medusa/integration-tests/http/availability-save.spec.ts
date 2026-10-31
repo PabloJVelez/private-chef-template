@@ -9,6 +9,7 @@ import { createContainer, asValue } from 'awilix';
 import { AvailabilitySetting } from '../../src/modules/availability/models/availability-setting';
 import { EXPERIENCE_TYPE_MODULE } from '../../src/modules/experience-type';
 import { emptyMealPrepSetup } from '../../src/lib/availability/slots';
+import { cleanSettings } from '../../src/admin/components/availability/editor';
 import { GET, POST } from '../../src/api/admin/availability/route';
 
 const url = process.env.AVAILABILITY_TEST_DATABASE_URL;
@@ -142,6 +143,28 @@ if (url) {
           setup.work_plans = [];
           await save({ ...changed, meal_prep: setup });
           expect((await read())?.meal_prep).toEqual(setup);
+          // The tabbed editor submits one snapshot, including the inactive experience.
+          const acrossTabs = await save({
+            ...changed,
+            timezone: 'Europe/London',
+            google_mode: 'internal_only',
+            overrides: { '2026-11-04': [] },
+            notice_rules: [{ enabled: true, days: 4, scope: 'all', experience_ids: [] }],
+            meal_prep: setup,
+          });
+          const methodEdit = structuredClone(cleanSettings(acrossTabs));
+          methodEdit.meal_prep!.methods.pickup.weekly = { '3': [{ start: '12:15', end: '15:45' }] };
+          methodEdit.meal_prep!.methods.in_home.enabled = true;
+          const fromMealTab = (await api.save(methodEdit)).settings;
+          expect(await read()).toMatchObject({ ...methodEdit, version: acrossTabs.version! + 1 });
+          // Returning to private events must preserve the entire saved method draft.
+          const eventEdit = { ...cleanSettings(fromMealTab), notice_rules: [], weekly: {} };
+          const fromEventTab = (await api.save(eventEdit)).settings;
+          expect(await read()).toMatchObject({ ...eventEdit, version: fromMealTab.version! + 1 });
+          expect(fromEventTab.meal_prep).toEqual(methodEdit.meal_prep);
+          // A stale snapshot from either experience cannot restore deleted event hours or rules.
+          await expect(api.save(methodEdit)).rejects.toMatchObject({ status: 409 });
+          expect(await read()).toEqual(fromEventTab);
           await save({ ...changed, meal_prep: emptyMealPrepSetup() });
           expect((await read())?.meal_prep).toEqual(emptyMealPrepSetup());
           const beforeInvalid = await read();
