@@ -6,10 +6,12 @@ OpenClaw `pr-review` skill**. The worker reads `SKILL.md` and
 There is no second review prompt, model API client, or public copy of the skill.
 The Python code only transports events, supplies evidence, and publishes the result.
 
-**Installed, but not operational.** The October 30 manual requests for PR #20
-queued successfully, but the installed worker failed during generation. This fix
-is not deployed. See [diagnosis and approved-upgrade steps](pr-review-oauth-recovery.md).
-A successful local dry run alone does not establish publication or event routing.
+**Manual publication verified; automatic event admission needs an upgrade.** The
+OAuth/Astra fix was installed and PR #20's October 31 manual dry run and publication
+succeeded. Automatic deliveries then failed because the worker confused the PR
+head with the workflow source SHA. See the [404 diagnosis and image-only rollout](pr-review-event-404.md).
+The earlier [OAuth recovery](pr-review-oauth-recovery.md) is historical; do not repeat
+its ledger reconciliation or model-config changes for this incident.
 
 ## Design and boundaries
 
@@ -23,8 +25,9 @@ A successful local dry run alone does not establish publication or event routing
    registration, new server, or inbound firewall change is required. A successful
    workflow means **queued**, not reviewed; host logs track completion/failure.
 3. Before accepting an artifact, the worker checks repository IDs, workflow ID/path,
-   successful event type, activation timestamp, run attempt, exact workflow Git blob
-   at the run's source SHA, artifact name/size/digest and request identity. Signed
+   successful event type, activation timestamp, run attempt, workflow commit in
+   authenticated `main` history, exact installed workflow Git blob at the artifact's
+   workflow SHA, artifact name/size/digest and request identity. Signed
    artifact redirects never receive the GitHub credential. ZIP members are read as
    bounded data, never extracted. Fork `pull_request` test artifacts cannot enter
    this queue. Dispatch from any branch other than `main` is rejected.
@@ -54,10 +57,15 @@ A successful local dry run alone does not establish publication or event routing
    reconciliation, verification gaps, recommendation and the skill's required
    `Merge confidence: X/10`. Generation fails if the confidence rating is absent.
 
-GitHub currently documents `pull_request_target` as running at the last commit of
-the **default branch**, including for stacked PRs. The workflow and consumer both
-fail closed if source identity differs. This source commit is distinct from the
-reviewed PR's base SHA. There are no author, draft, bot, base or path exclusions.
+`pull_request_target` executes the **default-branch workflow**, including for stacked
+PRs, but Actions REST `head_sha` identifies the **PR head** in the observed runs.
+The artifact records `github.workflow_sha` separately. The consumer binds REST
+`head_sha` to the requested PR head for automatic events, and to the workflow SHA
+for dispatches from `main`. It verifies that the workflow SHA is in authenticated
+`main` history and that its file matches the installed blob pin. Default-branch
+workflow writers are trusted; this is not a signed execution attestation. A source
+removed by a force-push fails closed. Existing source-repository checks remain;
+fork routing has not been verified. There are no author, draft, bot, base or path exclusions.
 
 ## Host isolation and authentication
 

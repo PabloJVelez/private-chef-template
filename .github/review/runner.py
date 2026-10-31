@@ -54,7 +54,7 @@ def load_skill(path, expected):
     return '\n\n'.join(parts)
 
 
-def validate_delivery(run, job, artifact, config, workflow_blob):
+def validate_delivery(run, job, artifact, config):
     require(run['repository']['full_name'] == REPOSITORY and
             run['repository']['id'] == config['repository_id'], 'Wrong run repository')
     require(run['head_repository']['id'] == config['repository_id'], 'Wrong workflow source repository')
@@ -63,11 +63,14 @@ def validate_delivery(run, job, artifact, config, workflow_blob):
     require(run['event'] in ('pull_request_target', 'workflow_dispatch') and
             run['status'] == 'completed' and run['conclusion'] == 'success', 'Untrusted or incomplete event')
     require(run['created_at'] >= config['enabled_after'], 'Delivery predates activation')
-    require(workflow_blob == config['workflow_blob'], 'Workflow source differs from installed version')
-    # On current GitHub pull_request_target semantics both identify the trusted
-    # default-branch commit. Never trust a SHA asserted only inside an artifact.
-    require(job['workflow_sha'] == run['head_sha'] and review.SHA.fullmatch(run['head_sha']),
-            'Workflow source commit mismatch')
+    require(isinstance(job['workflow_sha'], str) and review.SHA.fullmatch(job['workflow_sha']),
+            'Invalid workflow revision')
+    # REST head_sha is the PR head for pull_request_target, not workflow_sha.
+    # Dispatch runs instead identify the selected workflow branch/revision.
+    expected_head = job['head_sha'] if run['event'] == 'pull_request_target' else job['workflow_sha']
+    require(run['head_sha'] == expected_head, 'Run source commit mismatch')
+    if run['event'] == 'workflow_dispatch':
+        require(run['head_branch'] == 'main', 'Dispatch must originate from main')
     require(job['run_id'] == run['id'] and job['run_attempt'] == run['run_attempt'], 'Wrong run attempt')
     require(artifact['name'] == f"openclaw-review-request-{run['run_attempt']}" and
             not artifact['expired'] and artifact['size_in_bytes'] <= 16_384, 'Invalid request artifact')
@@ -79,6 +82,29 @@ def validate_delivery(run, job, artifact, config, workflow_blob):
     require(type(job['draft']) is bool and type(job['dry_run']) is bool, 'Invalid request flags')
     require(isinstance(job['base_ref'], str) and 0 < len(job['base_ref']) <= 1024, 'Invalid base ref')
     require(run['event'] == 'workflow_dispatch' or not job['dry_run'], 'Automatic delivery cannot be dry-run')
+
+
+def validate_workflow_source(api, run, job, artifact, config):
+    # Validate all artifact-controlled fields before interpolating any API path.
+    validate_delivery(run, job, artifact, config)
+    sha = job['workflow_sha']
+    # The authenticated artifact is produced by a trusted default-branch
+    # workflow, but its SHA must also belong to main and contain the pinned blob.
+    # Resolve main once; a subsequent advance must not change this comparison.
+    main = api.get('commits/main')['sha']
+    require(isinstance(main, str) and review.SHA.fullmatch(main), 'Invalid main revision')
+    if sha != main:
+        comparison = api.get(f'compare/{sha}...{main}')
+        require(comparison['status'] in ('ahead', 'identical') and
+                comparison['merge_base_commit']['sha'] == sha,
+                'Workflow revision is not in main history')
+    try:
+        source = api.get(f'contents/{WORKFLOW}?ref={sha}')
+    except Failure as exc:
+        # Both path and SHA are fixed/validated; no bodies, headers or signed URLs.
+        raise Failure(f'GET contents/{WORKFLOW}?ref={sha}: {exc}') from None
+    require(source['type'] == 'file' and source['sha'] == config['workflow_blob'],
+            'Workflow source differs from installed version')
 
 
 def download_artifact(api, artifact):
@@ -273,9 +299,7 @@ def poll(api, config, state, skill):
                 matches = [a for a in artifacts if a['name'] == f'openclaw-review-request-{run["run_attempt"]}']
                 require(len(matches) == 1, 'Expected exactly one request artifact')
                 job = download_artifact(api, matches[0])
-                require(review.SHA.fullmatch(run['head_sha']), 'Invalid workflow revision')
-                source = api.get(f'contents/{WORKFLOW}?ref={run["head_sha"]}')
-                validate_delivery(run, job, matches[0], config, source['sha'])
+                validate_workflow_source(api, run, job, matches[0], config)
                 with tempfile.TemporaryDirectory(prefix='review-') as tmp:
                     process(api, job, Path(tmp), store, skill)
                 store.delivery(delivery, 'done')
