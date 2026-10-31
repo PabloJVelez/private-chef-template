@@ -181,7 +181,7 @@ class CIWaitTests(unittest.TestCase):
         snapshot = runner.review.ci_snapshot(self.api, self.contract['head_sha'])
         result = {'contract': self.contract, 'review': 'Review. Merge confidence: 7/10',
                   'model': runner.MODEL, 'thinking': runner.THINKING, 'ci_fingerprint': snapshot['fingerprint']}
-        def generate(*args):
+        def generate(*args, **kwargs):
             self.api.checks[0]['status'] = 'in_progress'
             return result
         with patch.object(runner.review, 'prepare'), patch.object(runner, 'generate', side_effect=generate):
@@ -213,4 +213,4 @@ class HostedEvidenceTests(unittest.TestCase):
         self.assertEqual(r['workflow_runs'][0]['jobs'][0]['steps'][0]['conclusion'], 'success')
         self.assertEqual(r['workflow_runs'][0]['artifacts'][0]['digest'], 'sha256:example')
         self.assertTrue(all('/zip' not in p and '/logs' not in p for p in calls))
-        self.assertIn('not downloaded', r['limitations'][0])
+        self.assertIn('workflow/head mismatch', r['limitations'][0])
