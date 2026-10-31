@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type MealPrepModuleService from "./service";
 import { BillingError, requireBillingTestMode } from "./billing-contracts";
+import { AutopayPreCreateRejection } from "./autopay-contracts";
 import type { AutopayProvider, SavedMethodProvider } from "./autopay-contracts";
 
 /** Test harness only: no route, cron, subscriber or production registration. */
@@ -32,7 +33,13 @@ export async function dispatchTestAutopay(
         ? await provider.retrieve(dispatch.request, dispatch.intentId)
         : await provider.create(dispatch.request);
     await service.recordTestAutopayObservation(attemptId, o);
-  } catch {
+  } catch (error) {
+    if (
+      dispatch.action === "create" &&
+      error instanceof AutopayPreCreateRejection &&
+      (await service.recordTestAutopayPreCreateRejection(attemptId))
+    )
+      return;
     await service.flagTestAutopayTransportFailure(attemptId);
     throw new BillingError("AUTOPAY_RECONCILIATION_REQUIRED");
   }

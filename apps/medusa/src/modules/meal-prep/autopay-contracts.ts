@@ -83,6 +83,14 @@ export type AutopayObservation = AutopayRequest & {
   livemode: false;
   state: "processing" | "requires_action" | "failed" | "succeeded" | "canceled";
 };
+/** Provider attests that this invocation rejected the method before any create request.
+ * This says nothing about earlier/concurrent invocations of the same attempt.
+ */
+export class AutopayPreCreateRejection extends BillingError {
+  constructor() {
+    super("SAVED_METHOD_INVALID");
+  }
+}
 export interface AutopayProvider {
   create(request: AutopayRequest): Promise<AutopayObservation>;
   retrieve(

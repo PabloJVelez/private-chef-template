@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { BillingError, requireBillingTestMode } from "./billing-contracts";
+import { AutopayPreCreateRejection } from "./autopay-contracts";
 import type {
   AutopayProvider,
   AutopayRequest,
@@ -159,11 +160,22 @@ export class StripeTestAutopayProvider
   async create(r: AutopayRequest): Promise<AutopayObservation> {
     requireBillingTestMode();
     if (r.provider !== "stripe") throw new BillingError("PROVIDER_MISMATCH");
-    await this.verifyMethod(
-      r.accountId,
-      r.providerCustomerId,
-      r.paymentMethodId,
-    );
+    try {
+      await this.verifyMethod(
+        r.accountId,
+        r.providerCustomerId,
+        r.paymentMethodId,
+      );
+    } catch (error) {
+      // Only the explicit validated-method rejection proves this invocation did
+      // not reach create. Lookup/network failures remain reconciliation errors.
+      if (
+        error instanceof BillingError &&
+        error.code === "SAVED_METHOD_INVALID"
+      )
+        throw new AutopayPreCreateRejection();
+      throw error;
+    }
     let intentId: string;
     try {
       const p = await this.stripe.paymentIntents.create(

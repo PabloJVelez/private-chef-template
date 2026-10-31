@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { StripeTestAutopayProvider } from "../stripe-test-autopay-provider";
 import { mealPrepFeatures } from "../feature-controls";
 import {
+  AutopayPreCreateRejection,
   autopayCommandSchema,
   type AutopayRequest,
   type SetupRequest,
@@ -92,14 +93,12 @@ describe("isolated Stripe Connect test setup and autopay", () => {
     jest
       .spyOn(stripe.checkout.sessions, "retrieve")
       .mockResolvedValue(session());
-    jest
-      .spyOn(stripe.paymentMethods, "retrieve")
-      .mockResolvedValue({
-        id: "pm_card",
-        customer: "cus_customer",
-        type: "card",
-        livemode: false,
-      });
+    jest.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue({
+      id: "pm_card",
+      customer: "cus_customer",
+      type: "card",
+      livemode: false,
+    });
     jest.spyOn(stripe.paymentIntents, "create").mockResolvedValue(pi());
     jest.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(pi());
     jest
@@ -164,6 +163,7 @@ describe("isolated Stripe Connect test setup and autopay", () => {
     );
   });
   it.each([
+    { customer: null },
     { customer: "cus_other" },
     { livemode: true },
     { type: "bank_account" },
@@ -175,7 +175,13 @@ describe("isolated Stripe Connect test setup and autopay", () => {
       livemode: false,
       ...extra,
     });
-    await expect(p.create(r)).rejects.toThrow("SAVED_METHOD_INVALID");
+    await expect(p.create(r)).rejects.toBeInstanceOf(AutopayPreCreateRejection);
+    expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+  });
+  it("does not classify a method lookup timeout as a definitive rejection", async () => {
+    const timeout = new Error("lookup timeout");
+    stripe.paymentMethods.retrieve.mockRejectedValue(timeout);
+    await expect(p.create(r)).rejects.toBe(timeout);
     expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
   });
   it("uses exact approved minor units, explicit off-session confirmation and account-scoped idempotency", async () => {

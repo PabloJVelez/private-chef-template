@@ -38,6 +38,36 @@ Declines and authentication requirements persist a manual-fallback outbox intent
 
 Fallback preserves PR6's explicit customer authorization before hosted manual Checkout creation. The exact approved quote is reused. Integration tests run the full failure → provider cancellation → customer manual authorization → hosted-link path. The durable fallback intent is prepared immediately; real authenticated link delivery is still blocked by D10. There is no invented public-access mechanism, automatic replacement charge or automatic cancellation of service.
 
+### PR #27 detached-method review correction
+
+A verified detached/reassigned/invalid saved method now raises a typed
+`AutopayPreCreateRejection` before the Stripe adapter calls PaymentIntent creation.
+The controller records cancellation and the fallback outbox atomically under the
+existing occurrence lock **only when the attempt is unknown, has no intent, and
+has exactly one durable dispatch**. A later dispatch then sees a terminal attempt
+and cannot create a charge. The original consent and dispatch history remain intact;
+manual Checkout still requires the customer's exact-quote authorization.
+
+A rejection proves only that invocation did not create. If another invocation was
+previously or concurrently dispatched, its charge may exist, so manual collection
+remains blocked pending canonical reconciliation. Lookup timeouts, untyped error
+messages, bound intents and prior successful collection never use this shortcut.
+This deliberately does not infer no-charge from multiple failed worker calls.
+A canceled no-intent attempt requires no provider cancellation.
+
+Regression coverage uses real PostgreSQL and the Stripe adapter with SDK transport
+mocked for detached method → dispatch → notification → exact manual Checkout.
+Additional tests cover an earlier timeout after success, concurrent rejection before
+and after success persistence, untyped errors, and transactional outbox failure.
+No real Stripe call, charge, email, activation, or migration change is introduced.
+
+Correction validation on Node 24.22.1 / PostgreSQL 16: **469 unique tests passed,
+none skipped** (280 Medusa, 15 storefront, 170 PostgreSQL, 4 legacy). Both workspace
+typechecks and backend/admin/storefront builds passed. Fresh install, populated
+parent upgrade, empty PR7 rollback/reapply and installed Medusa adapter rehearsal
+passed with unchanged parent financial hashes. Hosted exact-head results remain
+separate from these local checks.
+
 ## Explicit triggers and notification outbox
 
 Scheduling accepts an explicit timestamp with offset, policy reference, approval reference and the fixture marker `test-only-unresolved-D01`. Only the chef can record it. No worker derives the timestamp from service start, local midnight, a timezone, DST or an elapsed-hours rule. Missing provenance and non-future approval timestamps fail closed; no late-approval catch-up policy is selected. Existing approved jobs can retry after interruption using their original timestamp and identity.

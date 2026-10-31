@@ -55,8 +55,8 @@ a changed parent still requires combined-stack verification. Retargeting this PR
 requires revisiting the workflow branch filter and pinned migration baseline.
 
 This supplies reproducible evidence, not a claim that the automated reviewer has
-executed tests or inspected artifact contents. Its tool-disabled partial-review
-boundary is unchanged. The added provider regressions also verify existing private-event initiation, fees,
+executed tests or inspected artifact contents. The shared review worker supplies authenticated artifact contents and pinned source
+through its bounded evidence collector; it does not execute PR code itself. The added provider regressions also verify existing private-event initiation, fees,
 account selection, authorization and capture with mocked Stripe transport.
 There is no guaranteed confidence score, live provider
 proof, production-scale migration, payment/notification E2E or deployment here.

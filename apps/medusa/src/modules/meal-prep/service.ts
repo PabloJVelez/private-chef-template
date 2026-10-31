@@ -135,6 +135,14 @@ export default class MealPrepModuleService extends MedusaService(models) {
     );
   }
   @InjectTransactionManager()
+  async recordTestAutopayPreCreateRejection(
+    attemptId: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    requireBillingTestMode();
+    return autopay.preCreateRejection(context.transactionManager!, attemptId);
+  }
+  @InjectTransactionManager()
   async flagTestAutopayTransportFailure(
     attemptId: string,
     @MedusaContext() context: Context<EntityManager> = {},

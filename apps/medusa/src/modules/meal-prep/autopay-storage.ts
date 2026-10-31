@@ -425,6 +425,20 @@ export async function prepareAutopay(m: EntityManager, attemptId: string) {
   );
   return { request, intentId: null, action: "create" as const };
 }
+export async function preCreateRejection(m: EntityManager, attemptId: string) {
+  const { row, b } = await autoRow(m, attemptId);
+  // The occurrence lock serializes this decision against dispatch and manual
+  // authorization. Never erase a prior dispatch marker: an earlier call may
+  // have created an intent even if this invocation never reached the provider.
+  if (row.state !== "unknown" || row.intent_id || row.dispatch_count !== 1)
+    return false;
+  await m.execute(
+    `update meal_prep_autopay_attempt set state='canceled',follow_up=true,updated_at=now() where id=?`,
+    [attemptId],
+  );
+  await enqueue(m, b, "autopay_fallback", null);
+  return true;
+}
 export async function transportFailure(m: EntityManager, attemptId: string) {
   const { row } = await autoRow(m, attemptId);
   if (row.state !== "succeeded")
@@ -503,6 +517,8 @@ export async function recordAutopay(
 export async function prepareFallback(m: EntityManager, attemptId: string) {
   const { row, b, request } = await autoRow(m, attemptId);
   if (row.state === "succeeded") return null;
+  // Includes proven no-create rejection and undispatched opt-out/invalidation.
+  if (row.state === "canceled" && !row.intent_id) return null;
   if (
     !row.intent_id ||
     !["failed", "requires_action", "canceled"].includes(row.state)

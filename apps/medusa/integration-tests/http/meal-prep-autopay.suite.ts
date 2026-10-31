@@ -1,3 +1,5 @@
+import { StripeTestAutopayProvider } from "../../src/modules/meal-prep/stripe-test-autopay-provider";
+import { AutopayPreCreateRejection } from "../../src/modules/meal-prep/autopay-contracts";
 import type MealPrepModuleService from "../../src/modules/meal-prep/service";
 import {
   chef,
@@ -141,7 +143,7 @@ export function autopayTests(
       observation = undefined;
       const ready = (r: any) => ({
         ...r,
-        provider: "mock",
+        provider: "stripe",
         providerCustomerId: "cus_fixture",
         sessionId: "setup_fixture",
         paymentMethodId: "pm_fixture",
@@ -272,6 +274,193 @@ export function autopayTests(
       expect(await count("autopay_attempt")).toBe(1);
       await expect(manual()).rejects.toThrow("Autopay reconciliation required");
     });
+    it("recovers a detached Stripe method without an intent and permits exact manual checkout", async () => {
+      const before = await service.readApprovalState(
+        occurrence.subjectId,
+        customer,
+      );
+      const a = await prepared();
+      const stripeProvider = new StripeTestAutopayProvider({
+        apiKey: "sk_test_fixture",
+        webhookSecret: "whsec_fixture",
+        successUrl: "http://localhost/success",
+        cancelUrl: "http://localhost/cancel",
+      });
+      const stripe = (stripeProvider as any).stripe;
+      jest.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue({
+        id: "pm_fixture",
+        customer: null,
+        type: "card",
+        livemode: false,
+      });
+      const create = jest.spyOn(stripe.paymentIntents, "create");
+      await dispatchTestAutopay(service, stripeProvider, a.attemptId);
+      await dispatchTestAutopay(service, stripeProvider, a.attemptId);
+      await prepareTestManualFallback(service, stripeProvider, a.attemptId);
+      expect(create).not.toHaveBeenCalled();
+      expect(
+        (await pool.query("select * from meal_prep_autopay_attempt")).rows[0],
+      ).toMatchObject({
+        state: "canceled",
+        intent_id: null,
+        follow_up: true,
+        dispatch_count: 1,
+      });
+      expect(await count("payment_collection")).toBe(0);
+      const n = (
+        await pool.query(
+          "select id from meal_prep_notification_intent where kind='autopay_fallback'",
+        )
+      ).rows[0];
+      const sink = { send: jest.fn() };
+      await dispatchTestTimedNotification(service, sink, n.id);
+      expect(sink.send).toHaveBeenCalledTimes(1);
+      const ma = await manual();
+      const createManual = jest.fn(async (r: any) => ({
+        ...r,
+        sessionId: "cs_test_detached_recovery",
+        intentId: null,
+        url: "https://checkout.stripe.com/c/pay/recovery",
+        expiresAt: Math.floor(Date.now() / 1000) + 3600,
+        livemode: false,
+        state: "open",
+      }));
+      await dispatchTestManualPayment(
+        service,
+        { create: createManual } as any,
+        ma.attemptId,
+      );
+      expect(createManual.mock.calls[0][0]).toMatchObject({
+        totalMinor: 1000,
+        currency: "USD",
+        accountId: "acct_testchef",
+        quoteId: bill.quoteId,
+      });
+      expect(
+        await service.readApprovalState(occurrence.subjectId, customer),
+      ).toEqual(before);
+      expect(await count("autopay_consent")).toBe(1);
+    });
+    it("does not trust an untyped rejection message to release manual exclusion", async () => {
+      const a = await prepared();
+      provider.create = jest.fn(async () => {
+        throw new Error("SAVED_METHOD_INVALID");
+      });
+      await expect(
+        dispatchTestAutopay(service, provider, a.attemptId),
+      ).rejects.toThrow("RECONCILIATION_REQUIRED");
+      await expect(manual()).rejects.toThrow("Autopay reconciliation required");
+      expect(await count("notification_intent")).toBe(0);
+    });
+    it("atomically rolls back no-create cancellation if fallback enqueue fails", async () => {
+      const a = await prepared();
+      await service.prepareTestAutopayDispatch(a.attemptId);
+      await pool.query(
+        "alter table meal_prep_notification_intent add constraint reject_notice check(false)",
+      );
+      try {
+        await expect(
+          service.recordTestAutopayPreCreateRejection(a.attemptId),
+        ).rejects.toThrow();
+      } finally {
+        await pool.query(
+          "alter table meal_prep_notification_intent drop constraint reject_notice",
+        );
+      }
+      expect(
+        (await pool.query("select state from meal_prep_autopay_attempt"))
+          .rows[0].state,
+      ).toBe("unknown");
+      await expect(manual()).rejects.toThrow("Autopay reconciliation required");
+      expect(await count("notification_intent")).toBe(0);
+      // Retry persistence of the same proven rejection, not a new provider dispatch.
+      expect(
+        await service.recordTestAutopayPreCreateRejection(a.attemptId),
+      ).toBe(true);
+      expect(await count("notification_intent")).toBe(1);
+      await expect(manual()).resolves.toHaveProperty("attemptId");
+    });
+    it("does not release a prior ambiguous create when a later invocation rejects before create", async () => {
+      const a = await prepared(),
+        original = provider.create;
+      provider.create = jest.fn(async (r) => {
+        await original(r);
+        observation!.state = "succeeded";
+        throw new Error("timeout after charge");
+      });
+      await expect(
+        dispatchTestAutopay(service, provider, a.attemptId),
+      ).rejects.toThrow("RECONCILIATION_REQUIRED");
+      provider.create = jest.fn(async () => {
+        throw new AutopayPreCreateRejection();
+      });
+      await expect(
+        dispatchTestAutopay(service, provider, a.attemptId),
+      ).rejects.toThrow("RECONCILIATION_REQUIRED");
+      await expect(manual()).rejects.toThrow("Autopay reconciliation required");
+      expect(await count("notification_intent")).toBe(0);
+      await event(a.attemptId);
+      expect(await count("payment_collection")).toBe(1);
+    });
+    it.each([false, true])(
+      "keeps concurrent create excluded when rejection races success (success first: %s)",
+      async (successFirst) => {
+        const a = await prepared();
+        let entered!: () => void, release!: () => void;
+        const started = new Promise<void>((resolve) => {
+          entered = resolve;
+        });
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const original = provider.create;
+        provider.create = jest.fn(async (r) => {
+          await original(r);
+          observation!.state = "succeeded";
+          entered();
+          await gate;
+          return { ...observation! };
+        });
+        const inflight = dispatchTestAutopay(service, provider, a.attemptId);
+        await started;
+        let rejectEntered!: () => void, rejectRelease!: () => void;
+        const rejecting = new Promise<void>((resolve) => {
+          rejectEntered = resolve;
+        });
+        const rejectGate = new Promise<void>((resolve) => {
+          rejectRelease = resolve;
+        });
+        const rejectedProvider = {
+          ...provider,
+          create: jest.fn(async () => {
+            rejectEntered();
+            await rejectGate;
+            throw new AutopayPreCreateRejection();
+          }),
+        };
+        const rejected = expect(
+          dispatchTestAutopay(service, rejectedProvider, a.attemptId),
+        ).rejects.toThrow("RECONCILIATION_REQUIRED");
+        await rejecting;
+        if (successFirst) {
+          release();
+          await inflight;
+        }
+        rejectRelease();
+        await rejected;
+        await expect(manual()).rejects.toThrow();
+        expect(await count("notification_intent")).toBe(0);
+        if (!successFirst) {
+          release();
+          await inflight;
+        }
+        expect(await count("payment_collection")).toBe(1);
+        expect(
+          (await pool.query("select state from meal_prep_autopay_attempt"))
+            .rows[0].state,
+        ).toBe("succeeded");
+      },
+    );
     it("recovers timeout after provider success and never creates another intent after binding", async () => {
       const a = await prepared(),
         original = provider.create;
