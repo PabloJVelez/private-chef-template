@@ -49,7 +49,7 @@ budget skipping, requirement/import discovery, base instructions and symlink/pat
 isolation. Queue tests cover pending/failed/absent CI, newest legacy statuses,
 wrong SHAs, metadata failures, wait persistence/timeout, cached-result invalidation,
 CI reruns during generation, daily regeneration limits and publication recovery.
-A separate pull-request workflow runs this Python suite without model credentials.
+The existing PR review helper workflow runs this suite without model credentials.
 
 Real bare-Git replay of PR #20:
 
