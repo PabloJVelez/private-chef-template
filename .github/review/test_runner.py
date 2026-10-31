@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location('runner', Path(__file__).with_name('runner.py'))
 runner = importlib.util.module_from_spec(spec)
@@ -29,7 +29,8 @@ class QueueTests(unittest.TestCase):
         self.run = {'repository': {'full_name': runner.REPOSITORY, 'id': 123},
                     'head_repository': {'id': 123}, 'workflow_id': 7, 'path': runner.WORKFLOW,
                     'event': 'pull_request_target', 'status': 'completed', 'conclusion': 'success',
-                    'head_sha': 'c' * 40, 'id': 88, 'run_attempt': 1, 'created_at': '2026-10-30T01:00:00Z'}
+                    'head_sha': 'b' * 40, 'head_branch': 'feature/stack-top',
+                    'id': 88, 'run_attempt': 1, 'created_at': '2026-10-30T01:00:00Z'}
         self.job = {'repository': runner.REPOSITORY, 'repository_id': 123, 'number': 20,
                     'workflow_sha': 'c' * 40, 'base_sha': 'a' * 40, 'head_sha': 'b' * 40,
                     'base_ref': 'feature/stack-base', 'draft': False, 'dry_run': False,
@@ -37,12 +38,14 @@ class QueueTests(unittest.TestCase):
         self.artifact = {'name': 'openclaw-review-request-1', 'expired': False, 'size_in_bytes': 512}
 
     def validate(self):
-        runner.validate_delivery(self.run, self.job, self.artifact, self.config, 'f' * 40)
+        runner.validate_delivery(self.run, self.job, self.artifact, self.config)
 
     def test_stacked_request_uses_default_workflow_source_and_separate_base(self):
         self.validate()
-        self.assertNotEqual(self.job['base_sha'], self.run['head_sha'])
+        self.assertNotEqual(self.job['workflow_sha'], self.run['head_sha'])
+        self.assertEqual(self.job['head_sha'], self.run['head_sha'])
         self.run['event'] = 'workflow_dispatch'; self.job['dry_run'] = True
+        self.run.update(head_sha=self.job['workflow_sha'], head_branch='main')
         self.validate()
 
     def test_tampered_provenance_and_request_fail_closed(self):
@@ -52,14 +55,110 @@ class QueueTests(unittest.TestCase):
                    ('run', 'created_at', '2026-10-29T00:00:00Z'),
                    ('job', 'repository', 'attacker/repo'), ('job', 'number', '20; touch x'),
                    ('job', 'draft', 'false'), ('job', 'dry_run', True),
+                   ('job', 'workflow_sha', 'main&secret=canary'),
                    ('job', 'head_sha', '--upload-pack=evil'),
-                   ('artifact', 'name', 'openclaw-review-request-2'), ('artifact', 'expired', True),
-                   ('config', 'workflow_blob', 'e' * 40)]
+                   ('artifact', 'name', 'openclaw-review-request-2'), ('artifact', 'expired', True)]
         for target, key, value in changes:
             with self.subTest(target=target, key=key):
                 self.setUp()
                 getattr(self, target)[key] = value
                 with self.assertRaises(runner.Failure): self.validate()
+
+    def test_dispatch_from_another_branch_or_revision_fails_closed(self):
+        self.run.update(event='workflow_dispatch', head_sha=self.job['workflow_sha'], head_branch='main')
+        for changes in ({'head_branch': 'feature/stack-top'}, {'head_sha': 'd' * 40}):
+            with self.subTest(changes=changes), self.assertRaises(runner.Failure):
+                runner.validate_delivery(dict(self.run, **changes), self.job, self.artifact, self.config)
+
+    def source_api(self, main='c' * 40, status='ahead', ancestor='c' * 40, blob='f' * 40):
+        responses = {'commits/main': {'sha': main},
+                     f'compare/{self.job["workflow_sha"]}...{main}':
+                         {'status': status, 'merge_base_commit': {'sha': ancestor}},
+                     f'contents/{runner.WORKFLOW}?ref={self.job["workflow_sha"]}':
+                         {'type': 'file', 'sha': blob}}
+        api = Mock(spec=runner.review.GitHub)
+        api.get.side_effect = responses.__getitem__
+        return api
+
+    def validate_source(self, api):
+        runner.validate_workflow_source(api, self.run, self.job, self.artifact, self.config)
+
+    def test_automatic_source_uses_workflow_sha_not_pr_head_or_stacked_base(self):
+        api = self.source_api()
+        self.validate_source(api)
+        self.assertEqual([c.args[0] for c in api.get.call_args_list],
+                         ['commits/main', f'contents/{runner.WORKFLOW}?ref={self.job["workflow_sha"]}'])
+
+    def test_queued_source_remains_valid_after_main_advances(self):
+        api = self.source_api(main='d' * 40)
+        self.validate_source(api)
+        self.assertEqual(api.get.call_args_list[1].args[0], f'compare/{"c" * 40}...{"d" * 40}')
+
+    def test_untrusted_history_and_changed_workflow_fail_before_processing(self):
+        for kwargs in ({'main': 'd' * 40, 'status': 'behind'},
+                       {'main': 'd' * 40, 'status': 'diverged'},
+                       {'main': 'd' * 40, 'ancestor': 'e' * 40},
+                       {'main': 'bad&ref=canary'}, {'blob': 'e' * 40}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(runner.Failure):
+                self.validate_source(self.source_api(**kwargs))
+
+    def test_invalid_artifact_sha_is_rejected_before_any_source_request(self):
+        self.job['workflow_sha'] = 'main&secret=canary'
+        api = Mock(spec=runner.review.GitHub)
+        with self.assertRaises(runner.Failure): self.validate_source(api)
+        api.get.assert_not_called()
+
+    def test_source_404_has_safe_endpoint_context(self):
+        api = self.source_api()
+        api.get.side_effect = [{'sha': self.job['workflow_sha']},
+                               runner.Failure('API request failed with HTTP 404')]
+        with self.assertRaisesRegex(runner.Failure,
+                r'^GET contents/\.github/workflows/auto-pr-review\.yml\?ref=c{40}: API request failed with HTTP 404$'):
+            self.validate_source(api)
+
+    def test_poll_routes_automatic_and_manual_sources_without_replaying_delivery(self):
+        # Actual REST/artifact relationship from both failing automatic deliveries
+        # and the successful dispatches. Missing PR-head workflow is intentional.
+        for event in ('pull_request_target', 'workflow_dispatch'):
+            with self.subTest(event=event), tempfile.TemporaryDirectory() as tmp:
+                self.setUp()
+                self.run['event'] = event
+                if event == 'workflow_dispatch':
+                    self.run.update(head_sha=self.job['workflow_sha'], head_branch='main')
+                api = self.source_api()
+                source_get = api.get.side_effect
+                api.get.side_effect = lambda path: ({'id': 7, 'path': runner.WORKFLOW}
+                    if path == 'actions/workflows/auto-pr-review.yml' else source_get(path))
+                api.pages.side_effect = lambda path, key: ([self.run] if key == 'workflow_runs' else [self.artifact])
+                with patch.object(runner, 'download_artifact', return_value=self.job), \
+                        patch.object(runner, 'process') as process:
+                    runner.poll(api, self.config, Path(tmp), 'skill')
+                    runner.poll(api, self.config, Path(tmp), 'skill')
+                    process.assert_called_once()
+                store = runner.Store(Path(tmp) / 'queue.sqlite')
+                self.assertEqual(store.db.execute('SELECT id,status FROM deliveries').fetchall(), [('88:1', 'done')])
+                store.db.close()
+
+    def test_poll_source_rejection_preserves_existing_quarantine_and_claim(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); store = runner.Store(root / 'queue.sqlite')
+            store.save('existing-quarantine', 'uncertain', {'private': 'canary'})
+            before = store.db.execute('SELECT * FROM reviews').fetchall()
+            store.db.close()
+            api = self.source_api(blob='e' * 40)
+            source_get = api.get.side_effect
+            api.get.side_effect = lambda path: ({'id': 7, 'path': runner.WORKFLOW}
+                if path == 'actions/workflows/auto-pr-review.yml' else source_get(path))
+            api.pages.side_effect = lambda path, key: ([self.run] if key == 'workflow_runs' else [self.artifact])
+            with patch.object(runner, 'download_artifact', return_value=self.job), \
+                    patch.object(runner, 'process') as process:
+                runner.poll(api, self.config, root, 'skill')
+                runner.poll(api, self.config, root, 'skill')
+                process.assert_not_called()
+            store = runner.Store(root / 'queue.sqlite')
+            self.assertEqual(store.db.execute('SELECT * FROM reviews').fetchall(), before)
+            self.assertEqual(store.db.execute('SELECT id,status FROM deliveries').fetchall(), [('88:1', 'failed')])
+            store.db.close()
 
     def test_private_skill_bytes_are_used_and_drift_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
