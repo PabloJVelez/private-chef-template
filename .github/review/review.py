@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Trusted evidence and COMMENT transport for the installed OpenClaw pr-review skill."""
 
+import posixpath
 import hashlib
 import json
 import os
@@ -10,7 +11,7 @@ import subprocess
 import tempfile
 from urllib import error, request
 
-POLICY = "openclaw-v2"
+POLICY = "openclaw-v3"
 MAX_FILE = 32_000
 MAX_CONTEXT = 300_000
 MAX_REVIEW = 40_000
@@ -135,52 +136,169 @@ class Objects:
             return {"omitted": "binary or non-UTF-8 file"}
 
 
+def related_paths(path, text, tree):
+    """Bounded static discovery only: never resolve host paths or run PR code."""
+    candidates = []
+    # Relative source imports and Markdown references. Ignore URLs and escapes.
+    refs = re.findall(r"(?:from\s*|require\s*\(|import\s*\()?[\"'](\.[^\"'\n]+)[\"']", text)
+    if path.endswith(".md"):
+        refs += re.findall(r"\]\(([^)#\s]+)(?:#[^)]*)?\)", text)
+    for ref in refs:
+        if ":" in ref or ref.startswith("/"):
+            continue
+        target = posixpath.normpath(posixpath.join(posixpath.dirname(path), ref))
+        if target == ".." or target.startswith("../"):
+            continue
+        for suffix in ("", ".ts", ".tsx", ".js", ".cjs", ".json", "/index.ts", "/index.tsx", "/index.js"):
+            if target + suffix in tree:
+                candidates.append(target + suffix)
+                break
+    return candidates
+
+
 def source_context(objects, contract):
     base, head = contract["base_sha"], contract["head_sha"]
     merge = objects.run("merge-base", base, head).decode().strip()
     require(SHA.fullmatch(merge), "Invalid merge-base")
-    # --no-renames represents renames as deletion/addition and accounts for both paths.
     raw = objects.run("diff", "--no-ext-diff", "--no-textconv", "--no-renames",
                       "--name-only", "-z", merge, head)
     paths = [p.decode("utf-8") for p in raw.split(b"\0") if p]
     require(len(paths) <= 3000, "Over 3000 changed paths; split this PR for automated review")
+    tree = set(objects.run("ls-tree", "-r", "--name-only", "-z", head).decode().split("\0"))
     evidence = {"merge_base": merge, "changed_paths": paths, "files": [], "base_guidance": {},
-                "limitations": ["Static partial review; no PR code or tests executed.",
-                                "Unchanged consumers and external requirements are not fully inspected.",
+                "related_sources": [], "coverage": {"omitted_changed_paths": [], "omitted_related_paths": []},
+                "limitations": ["Static partial review; no PR code or tests executed by the reviewer.",
+                                "Related sources are bounded static discovery, not exhaustive consumer analysis.",
                                 "Resolved-thread state is unavailable."]}
+    # Reserve reference space; never spend everything on alphabetical early files.
     guidance = {"AGENTS.md", "REVIEW.md"}
-    used = len(json.dumps(evidence).encode())
     for path in paths:
         for parent in PurePosixPath(path).parents:
             guidance.update(str(parent / name) for name in ("AGENTS.md", "REVIEW.md"))
-        item = {"path": path, "before": objects.blob(merge, path), "after": objects.blob(head, path)}
-        # Skip giant/binary/link objects before asking Git to produce a textual patch.
-        if all(value is None or "text" in value for value in (item["before"], item["after"])):
-            item["diff"] = objects.run("diff", "--no-ext-diff", "--no-textconv", "--no-renames",
-                                       "--unified=5", merge, head, "--", path).decode("utf-8", "replace")
-        size = len(json.dumps(item).encode())
-        if used + size > MAX_CONTEXT:
-            evidence["limitations"].append(f"Source budget reached; {len(paths) - len(evidence['files'])} paths lack source context.")
-            break
-        evidence["files"].append(item)
-        used += size
+    used = len(json.dumps(evidence).encode())
     for path in sorted(guidance):
         value = objects.blob(base, path)
         if value:
-            size = len(json.dumps(value).encode())
-            if used + size > MAX_CONTEXT:
-                evidence["limitations"].append("Some base guidance omitted due to source budget.")
-                break
+            size = len(json.dumps({path: value}).encode())
+            if used + size > min(24_000, MAX_CONTEXT // 10):
+                evidence["limitations"].append(f"Base guidance omitted due to budget: {path}")
+                continue
             evidence["base_guidance"][path] = value
             used += size
+    discovered = []
+    for path in paths:
+        item = {"path": path, "before": objects.blob(merge, path), "after": objects.blob(head, path)}
+        # Full before/after already describe the change. Do not duplicate them in
+        # a diff (especially new files, which previously consumed twice the space).
+        size = len(json.dumps(item).encode())
+        if used + size > MAX_CONTEXT * 2 // 3:
+            evidence["coverage"]["omitted_changed_paths"].append(path)
+            continue  # A large earlier file must not starve small later files.
+        evidence["files"].append(item)
+        used += size
+        for value in (item["after"], item["before"]):
+            if value and "text" in value:
+                discovered += [("test" in path, p) for p in related_paths(path, value["text"], tree)]
+        if any(value and "omitted" in value for value in (item["before"], item["after"])):
+            evidence["coverage"]["omitted_changed_paths"].append(path)
+    # Manifests, runtime declarations and module-level guard/migration siblings
+    # provide the context missing from imports alone. They remain untrusted data.
+    supplemental = ["package.json", ".nvmrc", ".yarnrc.yml"]
+    for path in paths:
+        for parent in PurePosixPath(path).parents:
+            supplemental += [str(parent / "package.json"), str(parent / "medusa-config.ts")]
+        match = re.match(r"(.*/src/modules/[^/]+)/", path)
+        if match:
+            module = match[1]
+            supplemental += [module + "/feature-controls.ts", module + "/index.ts", module + "/service.ts"]
+            supplemental += sorted(p for p in tree if p.startswith(module + "/migrations/") and p.endswith(".ts"))
+    queue = list(dict.fromkeys([p for test, p in discovered if not test] + supplemental +
+                              [p for test, p in discovered if test]))
+    seen = set(paths)
+    inspected = 0
+    while queue:
+        path = queue.pop(0)
+        if path in seen or path not in tree:
+            continue
+        seen.add(path)
+        if inspected >= 80:
+            evidence["coverage"]["omitted_related_paths"].append(path)
+            continue
+        inspected += 1
+        value = objects.blob(head, path)
+        item = {"path": path, "revision": head, "content": value}
+        size = len(json.dumps(item).encode())
+        if used + size > MAX_CONTEXT - 16_000:
+            evidence["coverage"]["omitted_related_paths"].append(path)
+            continue
+        evidence["related_sources"].append(item)
+        used += size
+        if value and "text" in value:
+            queue += related_paths(path, value["text"], tree)
+        elif value:
+            evidence["coverage"]["omitted_related_paths"].append(path)
+    if any(evidence["coverage"].values()):
+        evidence["limitations"].append("Some source exceeds file/context budget or is non-text; see explicit coverage omissions.")
+    require(len(json.dumps(evidence).encode()) <= MAX_CONTEXT, "Source manifest exceeds context budget; split this PR")
     return evidence
+
+
+def ci_snapshot(api, sha):
+    """Authenticated metadata only; never interpret a queue success as tests."""
+    require(isinstance(sha, str) and SHA.fullmatch(sha), "Invalid CI revision")
+    checks = api.pages(f"commits/{sha}/check-runs?filter=latest", "check_runs")
+    statuses = api.pages(f"commits/{sha}/statuses")
+    latest = {}
+    for status in statuses:  # GitHub returns newest first, one active value per context.
+        latest.setdefault(status.get("context"), status)
+    result = {
+        "checks": [{k: r.get(k) for k in ("id", "name", "status", "conclusion", "details_url", "head_sha")}
+                   for r in checks],
+        # Legacy status objects have no SHA; provenance is the pinned request.
+        "queried_head_sha": sha,
+        "statuses": [{k: r.get(k) for k in ("id", "context", "state", "target_url")}
+                     for r in latest.values()],
+    }
+    require(all(r.get("head_sha") == sha for r in checks), "CI metadata revision mismatch")
+    result["pending"] = any(r.get("status") != "completed" for r in checks) or any(
+        r.get("state") == "pending" for r in latest.values())
+    result["fingerprint"] = hashlib.sha256(json.dumps(result, sort_keys=True).encode()).hexdigest()
+    return result
+
+
+def ci_evidence(api, sha, snapshot):
+    """Expose completed job steps and artifact provenance, not author summaries.
+
+    Artifact payloads are not downloaded/extracted and PR code is never executed.
+    Metadata can establish hosted execution, not independent test correctness.
+    """
+    result = dict(snapshot, workflow_runs=[], limitations=[])
+    runs = api.pages(f"actions/runs?head_sha={sha}", "workflow_runs")
+    runs = [r for r in runs if r.get("head_sha") == sha]
+    if len(runs) > 8:
+        result["limitations"].append("Workflow metadata limited to eight newest exact-head runs.")
+    for run in runs[:8]:
+        item = {k: run.get(k) for k in ("id", "name", "path", "event", "head_sha", "status", "conclusion", "html_url", "run_attempt")}
+        jobs = api.pages(f"actions/runs/{int(run['id'])}/jobs?filter=latest", "jobs")
+        item["jobs"] = [{k: j.get(k) for k in ("id", "name", "status", "conclusion", "html_url", "steps")}
+                        for j in jobs[:40]]
+        if len(jobs) > 40:
+            result["limitations"].append("Workflow jobs limited to 40 per run.")
+        artifacts = api.pages(f"actions/runs/{int(run['id'])}/artifacts", "artifacts")
+        item["artifacts"] = [{k: a.get(k) for k in ("id", "name", "size_in_bytes", "digest", "expired", "workflow_run")}
+                             for a in artifacts[:40]]
+        if len(artifacts) > 40:
+            result["limitations"].append("Artifact metadata limited to 40 per run.")
+        result["workflow_runs"].append(item)
+    result["limitations"].append("Job logs and artifact contents were not downloaded; metadata is hosted evidence, not reviewer execution.")
+    return result
 
 
 def write_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=True), encoding="utf-8")
 
 
-def prepare(api, number, event, directory):
+def prepare(api, number, event, directory, ci=None):
     pr = api.get(f"pulls/{number}")
     require(pr["number"] == number, "PR number mismatch")
     contract = identity(pr, api.repository)
@@ -207,11 +325,17 @@ def prepare(api, number, event, directory):
     evidence.update({"contract": contract, "title": pr["title"], "description": pr.get("body"),
                      "prior_reviews": [{k: r.get(k) for k in ("body", "commit_id", "state", "html_url")}
                                        for r in reviews]})
+    snapshot = ci if ci is not None else ci_snapshot(api, contract["head_sha"])
+    require(not snapshot["pending"], "CI is still running; defer review")
+    evidence["ci_fingerprint"] = snapshot["fingerprint"]
+    evidence["checks"], evidence["statuses"] = snapshot["checks"], snapshot["statuses"]
+    try:
+        evidence["verification"] = ci_evidence(api, contract["head_sha"], snapshot)
+    except Failure:
+        evidence["limitations"].append("Hosted job/artifact metadata unavailable.")
     for label, path, key in [
         ("discussion", f"issues/{number}/comments", None),
         ("inline_comments", f"pulls/{number}/comments", None),
-        ("checks", f"commits/{contract['head_sha']}/check-runs", "check_runs"),
-        ("statuses", f"commits/{contract['head_sha']}/statuses", None),
     ]:
         try:
             records = api.pages(path, key)
@@ -222,7 +346,7 @@ def prepare(api, number, event, directory):
         except Failure:
             evidence["limitations"].append(f"{label} unavailable or exceeds pagination limit.")
     # Discussion is also untrusted, potentially unbounded data. Disclose omissions.
-    for key in ("description", "prior_reviews", "discussion", "inline_comments", "checks", "statuses"):
+    for key in ("description", "prior_reviews", "discussion", "inline_comments", "checks", "statuses", "verification"):
         if len(json.dumps(evidence.get(key)).encode()) > 40_000:
             evidence.pop(key, None)
             evidence["limitations"].append(f"{key} omitted: exceeds 40 KB context budget.")

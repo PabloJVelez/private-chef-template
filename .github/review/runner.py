@@ -211,6 +211,7 @@ def generate(directory, skill, invoke=subprocess.run):
     result = invoke_model(directory, invoke)
     text = response_text(result)
     output = {'contract': json.loads((directory / 'contract.json').read_text()), 'review': text,
+              'ci_fingerprint': json.loads((directory / 'input.json').read_text())['ci_fingerprint'],
               'model': MODEL, 'thinking': THINKING}
     review.write_json(directory / 'result.json', output)
     return output
@@ -222,6 +223,8 @@ class Store:
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('CREATE TABLE IF NOT EXISTS deliveries (id TEXT PRIMARY KEY, status TEXT NOT NULL)')
         self.db.execute('CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, status TEXT NOT NULL, result TEXT, day TEXT)')
+        self.db.execute('CREATE TABLE IF NOT EXISTS ci_waits (id TEXT PRIMARY KEY, started REAL NOT NULL)')
+        self.db.execute('CREATE TABLE IF NOT EXISTS generation_attempts (review_id TEXT NOT NULL, day TEXT NOT NULL)')
         self.db.commit()
 
     def delivery(self, key, status):
@@ -231,6 +234,26 @@ class Store:
         self.db.execute('INSERT OR REPLACE INTO reviews VALUES (?, ?, ?, ?)',
                         (key, status, json.dumps(result) if result else None, dt.datetime.now(dt.timezone.utc).date().isoformat()))
         self.db.commit()
+
+
+class WaitingForCI(Failure):
+    """Safe delivery retry: publication was not attempted; only settled CI may generate."""
+
+
+def settled_ci(api, contract, store):
+    snapshot = review.ci_snapshot(api, contract['head_sha'])
+    key = review.marker(contract)
+    now = time.time()
+    store.db.execute('INSERT OR IGNORE INTO ci_waits VALUES (?, ?)', (key, now))
+    store.db.commit()
+    started = store.db.execute('SELECT started FROM ci_waits WHERE id=?', (key,)).fetchone()[0]
+    # Allow delayed check registration. The review queue is not application CI.
+    registration = (not snapshot['statuses'] and
+                    all(c.get('name') == 'queue' for c in snapshot['checks']))
+    if snapshot['pending'] or (registration and now - started < 120):
+        require(now - started < 2700, 'CI did not settle within 45 minutes; dispatch again after it finishes')
+        raise WaitingForCI('Waiting for exact-head CI; no review generated or published')
+    return snapshot
 
 
 def process(api, job, directory, store, skill, dry_run=False):
@@ -250,16 +273,24 @@ def process(api, job, directory, store, skill, dry_run=False):
         raise Failure('Interrupted/uncertain review quarantined; operator reconciliation required')
     if previous and previous[0] == 'published':
         return
-    if previous and previous[0] == 'ready':
-        result = json.loads(previous[1])
+    snapshot = settled_ci(api, contract, store)
+    cached = json.loads(previous[1]) if previous and previous[0] == 'ready' else None
+    if cached and cached.get('ci_fingerprint') == snapshot['fingerprint']:
+        result = cached
     else:
         today = dt.datetime.now(dt.timezone.utc).date().isoformat()
-        count = store.db.execute('SELECT count(*) FROM reviews WHERE day=?', (today,)).fetchone()[0]
+        # Count every regeneration, not just distinct review keys; retain legacy
+        # ledger accounting so CI reruns cannot bypass the daily model-call cap.
+        count = store.db.execute('SELECT count(*) FROM generation_attempts WHERE day=?', (today,)).fetchone()[0]
+        count += store.db.execute('SELECT count(*) FROM reviews WHERE day=? AND id NOT IN '
+                                  '(SELECT review_id FROM generation_attempts WHERE day=?)', (today, today)).fetchone()[0]
         require(count < 20, 'Daily review limit reached; dispatch again tomorrow')
-        review.prepare(api, number, {'pull_request': pr}, directory)
+        review.prepare(api, number, {'pull_request': pr}, directory, ci=snapshot)
         if (directory / 'result.json').exists():
             return
         store.save(key, 'started')
+        store.db.execute('INSERT INTO generation_attempts VALUES (?, ?)', (key, today))
+        store.db.commit()
         result = generate(directory, skill)
         store.save(key, 'ready', result)
     require(result.get('model') == MODEL and result.get('thinking') == THINKING,
@@ -267,6 +298,10 @@ def process(api, job, directory, store, skill, dry_run=False):
     if dry_run or job['dry_run']:
         print(f'PR #{number}: draft preserved in private host state; not published', flush=True)
         return
+    # A rerun can start while the model is working. Do not publish that stale
+    # evidence snapshot; the cached result is replaced only after CI settles.
+    if settled_ci(api, contract, store)['fingerprint'] != result.get('ci_fingerprint'):
+        raise WaitingForCI('CI changed during review; regenerate after checks settle')
     # Persist intent BEFORE the write. A crash or timeout cannot blindly repost.
     store.save(key, 'publishing', result)
     try:
@@ -288,7 +323,8 @@ def poll(api, config, state, skill):
     try:
         for run in sorted(runs, key=lambda r: (r['id'], r['run_attempt'])):
             delivery = f'{run["id"]}:{run["run_attempt"]}'
-            if store.db.execute('SELECT 1 FROM deliveries WHERE id=?', (delivery,)).fetchone():
+            previous = store.db.execute('SELECT status FROM deliveries WHERE id=?', (delivery,)).fetchone()
+            if previous and previous[0] != 'waiting_ci':
                 continue
             # Claim before any side effect. Persistent failures require manual
             # dispatch (new delivery); no endless model retries on a public PR.
@@ -304,6 +340,9 @@ def poll(api, config, state, skill):
                     process(api, job, Path(tmp), store, skill)
                 store.delivery(delivery, 'done')
                 print(f'Delivery {delivery}: complete', flush=True)
+            except WaitingForCI as exc:
+                store.delivery(delivery, 'waiting_ci')
+                print(f'Delivery {delivery}: {exc}', flush=True)
             except Exception as exc:
                 store.delivery(delivery, 'failed')
                 # Exception messages outside Failure can contain credentials or source.
