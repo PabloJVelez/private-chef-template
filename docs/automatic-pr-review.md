@@ -13,6 +13,11 @@ head with the workflow source SHA. See the [404 diagnosis and image-only rollout
 The earlier [OAuth recovery](pr-review-oauth-recovery.md) is historical; do not repeat
 its ledger reconciliation or model-config changes for this incident.
 
+**Evidence/CI follow-up:** [coverage and CI scheduling fix](pr-review-evidence-ci.md)
+removes duplicated source, includes bounded related files and completed hosted
+verification metadata, and defers generation while checks run. It requires an
+image-only worker upgrade after merge; pushing the fix does not activate it.
+
 ## Design and boundaries
 
 1. GitHub-hosted Actions handles `opened`, `synchronize`, `reopened`,

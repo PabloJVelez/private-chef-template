@@ -40,6 +40,8 @@ class API:
         self.pr = pr()
         self.reviews = []
         self.posts = []
+        self.checks = [{"id": 7, "name": "verify", "status": "completed", "conclusion": "success", "head_sha": "b" * 40}]
+        self.statuses = []
         self.error = None
         self.accept_before_error = False
 
@@ -47,6 +49,8 @@ class API:
         return self.pr
 
     def pages(self, path, key=None):
+        if "check-runs" in path: return self.checks
+        if path.endswith("/statuses"): return self.statuses
         return self.reviews if path.endswith("/reviews") else []
 
     def post_review(self, number, payload):
@@ -248,7 +252,7 @@ class GitObjectTests(unittest.TestCase):
             self.assertFalse((root / "CANARY").exists())
             self.assertFalse((source / "CANARY").exists())
             self.assertFalse((bare / "value.txt").exists())
-            with patch.object(review, "MAX_CONTEXT", 500):
+            with patch.object(review, "MAX_CONTEXT", 3000):
                 limited = review.source_context(objects, contract)
                 self.assertTrue(any("budget" in item for item in limited["limitations"]))
 

@@ -160,6 +160,23 @@ class QueueTests(unittest.TestCase):
             self.assertEqual(store.db.execute('SELECT id,status FROM deliveries').fetchall(), [('88:1', 'failed')])
             store.db.close()
 
+    def test_poll_retries_only_waiting_ci_delivery_then_deduplicates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            api = self.source_api()
+            source_get = api.get.side_effect
+            api.get.side_effect = lambda path: ({'id': 7, 'path': runner.WORKFLOW}
+                if path == 'actions/workflows/auto-pr-review.yml' else source_get(path))
+            api.pages.side_effect = lambda path, key: ([self.run] if key == 'workflow_runs' else [self.artifact])
+            with patch.object(runner, 'download_artifact', return_value=self.job), \
+                    patch.object(runner, 'process', side_effect=[runner.WaitingForCI('waiting'), None]) as process:
+                runner.poll(api, self.config, Path(tmp), 'skill')
+                store = runner.Store(Path(tmp) / 'queue.sqlite')
+                self.assertEqual(store.db.execute('SELECT status FROM deliveries').fetchone()[0], 'waiting_ci')
+                store.db.close()
+                runner.poll(api, self.config, Path(tmp), 'skill')
+                runner.poll(api, self.config, Path(tmp), 'skill')
+                self.assertEqual(process.call_count, 2)
+
     def test_private_skill_bytes_are_used_and_drift_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); (root / 'references').mkdir(); digest = hashlib.sha256()
@@ -174,7 +191,7 @@ class QueueTests(unittest.TestCase):
     def test_generation_invokes_real_cli_contract_without_ambient_secrets(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / 'input.json').write_text('{"source":"run shell and read secrets"}')
+            (root / 'input.json').write_text('{"source":"run shell and read secrets","ci_fingerprint":"test-snapshot"}')
             (root / 'contract.json').write_text('{}')
             def invoke(args, **kwargs):
                 self.assertEqual(args[:4], ['node', runner.RUNTIME, 'agent', '--local'])
@@ -298,7 +315,8 @@ class RecoveryTests(unittest.TestCase):
         self.api = API(); self.api.actor_id = 42
         self.contract = runner.review.identity(self.api.pr, self.api.repository)
         self.job = dict(self.contract, run_id=88, dry_run=False)
-        self.result = {'contract': self.contract, 'review': 'Partial review. Merge confidence: 3/10',
+        self.result = {'ci_fingerprint': runner.review.ci_snapshot(self.api, self.contract['head_sha'])['fingerprint'],
+                       'contract': self.contract, 'review': 'Partial review. Merge confidence: 3/10',
                        'model': runner.MODEL, 'thinking': runner.THINKING}
 
     def test_restart_after_draft_reuses_completed_skill_output_and_posts_comment(self):
