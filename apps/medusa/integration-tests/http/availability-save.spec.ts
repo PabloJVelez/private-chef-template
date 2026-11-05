@@ -137,6 +137,25 @@ if (url) {
           // Omitted setup from a compatible versioned caller preserves it.
           await save(changed);
           expect((await read())?.meal_prep).toEqual(setup);
+          // Simplified UI edits only methods/menu/area; removed controls must roundtrip untouched.
+          const simpleDraft = cleanSettings((await read())!);
+          simpleDraft.meal_prep = {
+            ...simpleDraft.meal_prep!,
+            methods: {
+              ...simpleDraft.meal_prep!.methods,
+              pickup: { ...simpleDraft.meal_prep!.methods.pickup, enabled: false },
+            },
+            selection_styles: { ...simpleDraft.meal_prep!.selection_styles, tailored_plan: true },
+          };
+          await api.save(simpleDraft);
+          const simpleSaved = (await read())!;
+          expect(simpleSaved.meal_prep?.work_plans).toEqual(setup.work_plans);
+          for (const method of ['in_home', 'delivery', 'pickup'] as const) {
+            expect(simpleSaved.meal_prep?.methods[method].weekly).toEqual(setup.methods[method].weekly);
+            expect(simpleSaved.meal_prep?.methods[method].dates).toEqual(setup.methods[method].dates);
+          }
+          expect(simpleSaved.meal_prep?.delivery_area).toEqual(setup.delivery_area);
+          expect(simpleSaved).toMatchObject({ timezone: simpleDraft.timezone, weekly: simpleDraft.weekly, overrides: simpleDraft.overrides });
           delete setup.methods.delivery.weekly['2'];
           delete setup.methods.pickup.dates['2026-11-02'];
           setup.delivery_area = { radius: null, zip_codes: [] };

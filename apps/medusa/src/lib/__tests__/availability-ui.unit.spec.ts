@@ -53,7 +53,7 @@ async function change(element: Element, value: string) {
     await settle();
   });
 }
-async function click(text: string, scope: ParentNode = host) {
+async function click(text: string, scope: ParentNode = document) {
   const button = [...scope.querySelectorAll('button')].find((node) => node.textContent === text && !node.closest('[hidden]'));
   expect(button).toBeDefined();
   await act(async () => {
@@ -444,7 +444,7 @@ test('adding Saturday exposes save guidance before applying and persists the new
   const saveButton = () => [...host.querySelectorAll('button')].find((node) => node.textContent === 'Save availability')!;
   expect(saveButton()).toBeDefined();
   expect(saveButton().disabled).toBe(true);
-  expect(host.textContent).toContain('Apply the working-day changes below, then save availability.');
+  expect(host.textContent).toContain('Apply the working-day changes in Availability, then save availability.');
   await checkDay('Saturday');
   await change(host.querySelector('[aria-label="New working days start 1"]')!, '09:00');
   await change(host.querySelector('[aria-label="New working days end 1"]')!, '21:37');
@@ -511,7 +511,7 @@ test('first setup displays and saves imported notice requirements instead of sil
   api.save.mockImplementation(async (settings) => ({ settings }));
   await render(React.createElement(AvailabilityPage));
   await act(settle);
-  expect(host.textContent).toContain('Your existing advance-notice requirements are included below');
+  expect(host.textContent).toContain('Your existing advance-notice requirements are in Private events');
   expect(host.textContent).toContain('No arrival times are offered until you save');
   await change(host.querySelector('input[list=chef-timezones]')!, 'America/Chicago');
   await click('Save availability');
@@ -537,34 +537,32 @@ test('meal prep draft methods/styles save together, discard, and keep revisions 
   api.save.mockRejectedValueOnce(new Error('Availability changed in another editor.'));
   await click('Save availability');
   expect(api.save.mock.calls[1][0]).toMatchObject({ version: 5, meal_prep: { methods: { in_home: { enabled: true } } } });
-  expect((host.querySelector('[aria-label="Enable In-home cooking"]') as HTMLInputElement).checked).toBe(true);
+  expect(host.querySelector('[aria-label="Enable In-home cooking"]')!.getAttribute('aria-checked')).toBe('true');
   expect(host.textContent).toContain('Reload saved settings (discard draft)');
   await click('Discard');
-  expect((host.querySelector('[aria-label="Enable In-home cooking"]') as HTMLInputElement).checked).toBe(false);
-  expect((host.querySelector('[aria-label="Enable Delivery"]') as HTMLInputElement).checked).toBe(true);
-  expect(host.textContent).toContain('Unknown totals are not zero');
-  expect(host.textContent).toContain('meal prep is not available to customers yet');
+  expect(host.querySelector('[aria-label="Enable In-home cooking"]')!.getAttribute('aria-checked')).toBe('false');
+  expect(host.querySelector('[aria-label="Enable Delivery"]')!.getAttribute('aria-checked')).toBe('true');
+  expect(host.textContent).toContain('These preferences are not live yet');
 });
 
-test('meal prep window deletion and radius/ZIP clearing survive save and reload without changing global time off', async () => {
-  const meal_prep = emptyMealPrepSetup();
-  meal_prep.methods.delivery.weekly = { '1': [{ start: '09:00', end: '11:00' }] };
-  meal_prep.methods.pickup.dates = { '2026-11-02': [] };
-  meal_prep.delivery_area = { radius: { address: 'Draft center', distance: 5, unit: 'mi' }, zip_codes: ['00501'] };
-  api.get.mockResolvedValue({ settings: { ...saved, version: 3, meal_prep } });
-  api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 4 } }));
-  await render(React.createElement(AvailabilityPage)); await act(settle);
-  await selectTab('Meal Prep');
-  await menuAction('Monday', 'Remove day', 'Delivery');
-  await click('Remove Pickup date 2026-11-02');
+test('delivery area editing preserves retired method windows and work plans through save and remount', async () => {
+  const meal_prep = populatedSetup();
+  let stored: Settings = { ...saved, version: 3, meal_prep };
+  api.get.mockImplementation(async () => ({ settings: stored }));
+  api.save.mockImplementation(async (settings) => ({ settings: stored = JSON.parse(JSON.stringify({ ...settings, version: 4 })) }));
+  await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
+  await openDrawer('delivery area');
   await click('Clear ZIP codes');
-  const radius = [...host.querySelectorAll('label')].find((n) => n.textContent?.includes('Draft radius around an address'))!.querySelector('input')!;
-  await act(async () => { radius.click(); await settle(); });
+  await act(async () => { document.querySelector<HTMLButtonElement>('#delivery-radius')!.click(); await settle(); });
+  await click('Apply changes');
   await click('Save availability');
-  expect(api.save.mock.calls[0][0]).toMatchObject({ version: 3, overrides: saved.overrides,
-    meal_prep: { methods: { delivery: { weekly: {} }, pickup: { dates: {} } }, delivery_area: { radius: null, zip_codes: [] } },
+  expect(stored).toMatchObject({ overrides: saved.overrides, weekly: saved.weekly, version: 4,
+    meal_prep: { methods: meal_prep.methods, work_plans: meal_prep.work_plans, delivery_area: { radius: null, zip_codes: [] } },
   });
-  expect(host.querySelector('[aria-label="Delivery Monday start 1"]')).toBeNull();
+  await act(async () => root.unmount()); client.clear(); root = createRoot(host);
+  await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
+  expect(host.querySelector('[aria-label="Edit method windows"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Edit work planning"]')).toBeNull();
   expect(host.textContent).toContain('All changes saved');
 });
 
@@ -610,7 +608,7 @@ test('conflict reload blocks edits and actions and preserves unrelated remote ch
   await act(async () => { reloading.resolve({ settings: remote }); await settle(); });
   expect(host.textContent).toContain('Europe/Paris');
   expect(host.textContent).toContain('All changes saved');
-  expect((host.querySelector('[aria-label="Enable Delivery"]') as HTMLInputElement).checked).toBe(true);
+  expect(host.querySelector('[aria-label="Enable Delivery"]')!.getAttribute('aria-checked')).toBe('true');
   await click('Change timezone');
   await change(host.querySelector('input[list=chef-timezones]')!, 'Europe/London');
   api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 3 } }));
@@ -647,121 +645,135 @@ async function selectTab(name: string) {
   expect(tab.getAttribute('aria-selected')).toBe('true');
   return tab;
 }
-function methodCard(name: string) {
-  return host.querySelector<HTMLElement>(`[role=region][aria-label="${name} setup"]`)!;
+function populatedSetup() {
+  const setup = emptyMealPrepSetup();
+  setup.methods.delivery.weekly = { '1': [{ start: '09:00', end: '11:00' }] };
+  setup.methods.pickup.dates = { '2026-11-02': [], '2026-11-03': [{ start: '12:00', end: '14:00' }] };
+  setup.delivery_area = { radius: { address: 'Draft center', distance: 5, unit: 'mi' }, zip_codes: ['00501'] };
+  setup.work_plans = [{ id: 'saved-plan', purpose: 'preparation', start: '2026-11-02T09:00:00Z', end: '2026-11-02T10:00:00Z' }];
+  return setup;
 }
-async function checkWithin(scope: ParentNode, label: string) {
-  const input = [...scope.querySelectorAll('label')].find((node) => node.textContent?.trim() === label)!.querySelector('input')!;
-  await act(async () => { input.click(); await settle(); });
+async function openDrawer(section: string) {
+  await act(async () => { host.querySelector<HTMLButtonElement>(`[aria-label="Edit ${section}"]`)!.click(); await settle(); });
+  const dialog = document.querySelector<HTMLElement>('[role=dialog]')!;
+  expect(dialog).not.toBeNull();
+  expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)).not.toBeNull();
+  return dialog;
+}
+async function toggleStyle(id: string) {
+  await act(async () => { document.querySelector<HTMLButtonElement>(`#meal-style-${id}`)!.click(); await settle(); });
 }
 
-test('Medusa tabs have linked panels, arrow/Home/End navigation, and hide inactive controls without editing settings', async () => {
+test('three Medusa tabs precede the schedule and support linked panels and arrow/Home/End navigation', async () => {
   await render(React.createElement(AvailabilityPage)); await act(settle);
-  expect(host.querySelector('[role=tablist]')?.getAttribute('aria-label')).toBe('Experience settings');
+  const list = host.querySelector('[role=tablist]')!;
+  expect(list.getAttribute('aria-label')).toBe('Availability settings sections');
   const tabs = [...host.querySelectorAll<HTMLButtonElement>('[role=tab]')];
-  expect(tabs.map((tab) => tab.textContent)).toEqual(['Private events', 'Meal Prep']);
+  expect(tabs.map((tab) => tab.textContent)).toEqual(['Availability', 'Private events', 'Meal Prep']);
   const panel = (tab: HTMLButtonElement) => document.getElementById(tab.getAttribute('aria-controls')!)!;
   for (const tab of tabs) expect(panel(tab).getAttribute('aria-labelledby')).toBe(tab.id);
-  expect(panel(tabs[0]).hidden).toBe(false);
-  expect(panel(tabs[1]).hidden).toBe(true);
-  await selectTab('Private events');
-  for (const [key, selected] of [['ArrowRight', 1], ['Home', 0], ['End', 1], ['ArrowLeft', 0]] as const) {
+  expect(list.compareDocumentPosition(host.querySelector('[aria-labelledby=shared-availability-heading]')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await selectTab('Availability');
+  for (const [key, selected] of [['ArrowRight', 1], ['ArrowRight', 2], ['Home', 0], ['End', 2], ['ArrowLeft', 1], ['Home', 0]] as const) {
     await act(async () => {
-      document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
-      await settle();
+      document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })); await settle();
     });
     expect(document.activeElement).toBe(tabs[selected]);
-    expect(tabs[selected].getAttribute('aria-selected')).toBe('true');
-    expect(panel(tabs[selected]).hidden).toBe(false);
-    expect(panel(tabs[1 - selected]).hidden).toBe(true);
+    tabs.forEach((tab, index) => {
+      expect(tab.getAttribute('aria-selected')).toBe(String(index === selected));
+      expect(panel(tab).hidden).toBe(index !== selected);
+    });
   }
-  expect(host.querySelector('[aria-labelledby=shared-availability-heading]')?.closest('[hidden]')).toBeNull();
   expect(host.querySelector('button[form=availability-settings]')).toBeNull();
   expect(api.save).not.toHaveBeenCalled();
 });
 
-test('shared hours, notice and all method drafts save as one snapshot from either tab and survive remount', async () => {
-  let stored: Settings = { ...saved, version: 8, meal_prep: emptyMealPrepSetup(),
+test('Meal Prep presents service methods and menu choices without duplicate schedules or planning controls', async () => {
+  api.get.mockResolvedValue({ settings: { ...saved, meal_prep: populatedSetup() } });
+  await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
+  const panel = host.querySelector('[role=tabpanel]:not([hidden])')!;
+  expect(panel.querySelectorAll('[role=switch]')).toHaveLength(3);
+  expect(panel.querySelectorAll('input[type=time], input[type=date], input[type=datetime-local]')).toHaveLength(0);
+  expect(panel.textContent).not.toContain('Add working day');
+  expect(panel.textContent).not.toContain('work planning');
+  expect(panel.textContent).not.toContain('Advanced');
+  expect(panel.querySelector('[aria-label="Edit menu choices"]')).not.toBeNull();
+  expect(panel.querySelector('[aria-label="Edit delivery area"]')).not.toBeNull();
+  expect(document.querySelector('[role=dialog]')).toBeNull();
+  await click('View shared availability');
+  expect(host.querySelector('[role=tab][aria-selected=true]')!.textContent).toBe('Availability');
+  expect(host.querySelectorAll('[aria-label="Monday start 1"]')).toHaveLength(1);
+});
+
+test('service and menu edits save with shared hours and notice while preserving all removed settings', async () => {
+  const meal_prep = populatedSetup();
+  let stored: Settings = { ...saved, version: 8, meal_prep,
     notice_rules: [{ enabled: true, days: 7, scope: 'all', experience_ids: [] }] };
   api.get.mockImplementation(async () => ({ settings: stored }));
   api.save.mockImplementation(async (settings) => ({ settings: stored = JSON.parse(JSON.stringify({ ...settings, version: settings.version! + 1 })) }));
   await render(React.createElement(AvailabilityPage)); await act(settle);
-  // Number inputs use valueAsNumber, as the browser does.
-  await act(async () => { Simulate.change(host.querySelector('[aria-label="Advance notice (days)"]')!, { target: { valueAsNumber: 5 } } as any); await settle(); });
   await change(host.querySelector('[aria-label="Monday start 1"]')!, '08:30');
+  await selectTab('Private events');
+  await act(async () => { Simulate.change(host.querySelector('[aria-label="Advance notice (days)"]')!, { target: { valueAsNumber: 5 } } as any); await settle(); });
   await selectTab('Meal Prep');
   for (const method of ['In-home cooking', 'Delivery', 'Pickup']) {
-    const card = methodCard(method);
-    await click('Add working day', card);
-    await checkWithin(card, 'Tuesday');
-    await change(card.querySelector(`[aria-label="${method} New working days start 1"]`)!, '09:15');
-    await change(card.querySelector(`[aria-label="${method} New working days end 1"]`)!, '11:45');
-    await click('Apply working days', card);
+    await act(async () => { host.querySelector<HTMLButtonElement>(`[aria-label="Enable ${method}"]`)!.click(); await settle(); });
   }
-  await selectTab('Private events');
-  await click('Save availability');
+  await openDrawer('menu choices'); await toggleStyle('package'); await click('Apply changes');
+  await selectTab('Private events'); await click('Save availability');
   expect(stored).toMatchObject({ version: 9, timezone: saved.timezone, overrides: saved.overrides, google_mode: saved.google_mode,
-    weekly: { '1': [{ start: '08:30', end: '20:00' }] }, notice_rules: [{ days: 5 }] });
-  for (const method of Object.values(stored.meal_prep!.methods)) expect(method.weekly).toEqual({ '2': [{ start: '09:15', end: '11:45' }] });
-  await selectTab('Meal Prep');
-  await menuAction('Tuesday', 'Remove day', 'Pickup');
-  await click('Save availability');
-  expect(stored.version).toBe(10);
-  expect(stored.meal_prep!.methods.pickup.weekly).toEqual({});
-  expect(stored.meal_prep!.methods.delivery.weekly['2']).toHaveLength(1);
+    weekly: { '1': [{ start: '08:30', end: '20:00' }] }, notice_rules: [{ days: 5 }], meal_prep: {
+      selection_styles: { package: true }, work_plans: meal_prep.work_plans, delivery_area: meal_prep.delivery_area,
+    } });
+  for (const key of ['in_home', 'delivery', 'pickup'] as const) {
+    expect(stored.meal_prep!.methods[key]).toEqual({ ...meal_prep.methods[key], enabled: true });
+  }
   await act(async () => root.unmount()); client.clear(); root = createRoot(host);
-  await render(React.createElement(AvailabilityPage)); await act(settle);
-  expect(host.querySelector<HTMLInputElement>('[aria-label="Advance notice (days)"]')!.value).toBe('5');
-  await selectTab('Meal Prep');
-  expect(host.querySelector<HTMLInputElement>('[aria-label="Delivery Tuesday start 1"]')!.value).toBe('09:15');
-  expect(host.querySelector('[aria-label="Pickup Tuesday start 1"]')).toBeNull();
+  await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
+  expect(host.querySelector('[role=tabpanel]:not([hidden])')!.textContent).toContain('Packages');
+  expect(host.querySelector('[aria-label="Enable Delivery"]')!.getAttribute('aria-checked')).toBe('true');
 });
 
-test('unfinished method editors retain input across tabs, block all saves, and discard resets every editor', async () => {
+test('unfinished global hours survive tab switches and the review action restores focus', async () => {
   await render(React.createElement(AvailabilityPage)); await act(settle);
+  await click('Add working day');
+  await checkDay('Wednesday');
+  await change(host.querySelector('[aria-label="New working days start 1"]')!, '13:00');
   await selectTab('Meal Prep');
-  const card = methodCard('Delivery');
-  await click('Add working day', card);
-  await checkWithin(card, 'Wednesday');
-  await change(card.querySelector('[aria-label="Delivery New working days start 1"]')!, '13:00');
-  await selectTab('Private events');
   expect(host.querySelector<HTMLButtonElement>('button[form=availability-settings]')!.disabled).toBe(true);
   await act(async () => { Simulate.submit(host.querySelector('form')!); await settle(); });
   expect(api.save).not.toHaveBeenCalled();
   const leaving = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(leaving);
   expect(leaving.defaultPrevented).toBe(true);
-  await click('Review Meal Prep edits');
+  await click('Review availability edits');
   expect(document.activeElement?.getAttribute('role')).toBe('tab');
-  expect(document.activeElement?.textContent).toBe('Meal Prep');
-  expect(card.closest('[hidden]')).toBeNull();
-  expect(card.querySelector<HTMLInputElement>('[aria-label="Delivery New working days start 1"]')!.value).toBe('13:00');
-  await click('Apply working days', card);
-  expect(card.textContent).toContain('Enter valid hours');
+  expect(document.activeElement?.textContent).toBe('Availability');
+  expect(host.querySelector<HTMLInputElement>('[aria-label="New working days start 1"]')!.value).toBe('13:00');
   await click('Discard');
   expect(host.querySelector('fieldset[tabindex]')).toBeNull();
-  expect(host.querySelector('[aria-label="Delivery Wednesday start 1"]')).toBeNull();
   expect(host.textContent).toContain('All changes saved');
 });
 
-test('method copy uses the shared replacement confirmation and split-period controls without changing other schedules', async () => {
-  const meal_prep = emptyMealPrepSetup();
-  meal_prep.methods.delivery.weekly = { '1': [{ start: '09:00', end: '11:00' }, { start: '14:00', end: '17:00' }], '2': [{ start: '10:00', end: '12:00' }] };
-  api.get.mockResolvedValue({ settings: { ...saved, version: 2, meal_prep } });
-  api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 3 } }));
+test('drawers stage changes, cancel on Escape, restore focus, and never submit the enclosing form', async () => {
   await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
-  const card = methodCard('Delivery');
-  await menuAction('Monday', 'Copy to other days', 'Delivery');
-  await checkWithin(card, 'Tuesday');
-  await click('Apply copy', card);
-  expect(card.querySelector('[role=alert]')?.textContent).toContain('Confirm replacement');
-  await checkWithin(card, 'Replace existing hours on selected days');
-  await click('Apply copy', card);
-  expect(card.querySelector<HTMLInputElement>('[aria-label="Delivery Tuesday start 2"]')!.value).toBe('14:00');
-  await act(async () => { card.querySelector<HTMLButtonElement>('[aria-label="Remove Delivery Tuesday time range 1"]')!.click(); await settle(); });
-  await click('Save availability');
-  expect(api.save.mock.calls[0][0]).toMatchObject({ weekly: saved.weekly, overrides: saved.overrides, meal_prep: {
-    methods: { delivery: { weekly: { '1': meal_prep.methods.delivery.weekly['1'], '2': [{ start: '14:00', end: '17:00' }] } }, pickup: { weekly: {} }, in_home: { weekly: {} } },
-  } });
+  const dialog = await openDrawer('menu choices');
+  expect(dialog.contains(document.activeElement)).toBe(true);
+  await toggleStyle('package');
+  expect(host.querySelector<HTMLButtonElement>('button[form=availability-settings]')!.disabled).toBe(true);
+  const leaving = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(leaving);
+  expect(leaving.defaultPrevented).toBe(true);
+  await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await settle(); });
+  expect(document.querySelector('[role=dialog]')).toBeNull();
+  await act(settle);
+  expect(document.activeElement?.getAttribute('aria-label')).toBe('Edit menu choices');
+  expect(host.querySelector('button[form=availability-settings]')).toBeNull();
+  await openDrawer('menu choices');
+  expect(document.querySelector('#meal-style-package')!.getAttribute('aria-checked')).toBe('false');
+  await toggleStyle('individual_dishes'); await click('Apply changes');
+  expect(api.save).not.toHaveBeenCalled();
+  expect(host.querySelector('[role=tabpanel]:not([hidden])')!.textContent).toContain('Individual dishes and quantities');
+  await click('Discard');
+  expect(host.querySelector('[role=tabpanel]:not([hidden])')!.textContent).toContain('Not selected');
 });
 
 test('a save from Meal Prep retains newer private-event and method edits and their next version', async () => {
@@ -785,28 +797,39 @@ test('a save from Meal Prep retains newer private-event and method edits and the
   await click('Discard');
   expect(host.querySelector<HTMLInputElement>('[aria-label="Advance notice (days)"]')!.value).toBe('7');
   await selectTab('Meal Prep');
-  expect(host.querySelector<HTMLInputElement>('[aria-label="Enable Pickup"]')!.checked).toBe(true);
-  expect(host.querySelector<HTMLInputElement>('[aria-label="Enable Delivery"]')!.checked).toBe(false);
+  expect(host.querySelector('[aria-label="Enable Pickup"]')!.getAttribute('aria-checked')).toBe('true');
+  expect(host.querySelector('[aria-label="Enable Delivery"]')!.getAttribute('aria-checked')).toBe('false');
 });
 
 
-test('invalid method hours stay labeled and block submission from the other tab until repaired', async () => {
-  const meal_prep = emptyMealPrepSetup();
-  meal_prep.methods.pickup.weekly = { '1': [{ start: '09:00', end: '11:00' }] };
-  api.get.mockResolvedValue({ settings: { ...saved, version: 3, meal_prep } });
+test('invalid delivery drafts cannot apply; Cancel restores saved details and enabling another method keeps them', async () => {
+  api.get.mockResolvedValue({ settings: { ...saved, version: 3, meal_prep: populatedSetup() } });
   api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 4 } }));
   await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
-  const end = host.querySelector<HTMLInputElement>('[aria-label="Pickup Monday end 1"]')!;
-  await change(end, '08:00');
-  expect(end.getAttribute('aria-invalid')).toBe('true');
-  expect(document.getElementById(end.getAttribute('aria-describedby')!)?.textContent).toContain('end after the start');
-  await selectTab('Private events');
-  expect(host.querySelector<HTMLButtonElement>('button[form=availability-settings]')!.disabled).toBe(true);
-  await act(async () => { Simulate.submit(host.querySelector('form')!); await settle(); });
-  expect(api.save).not.toHaveBeenCalled();
-  await selectTab('Meal Prep');
-  await change(end, '12:30');
-  await selectTab('Private events');
+  const dialog = await openDrawer('delivery area');
+  await change(dialog.querySelector('#delivery-zips')!, 'invalid');
+  expect([...dialog.querySelectorAll('button')].find((node) => node.textContent === 'Apply changes')!.disabled).toBe(true);
+  expect(dialog.querySelector('[role=alert]')?.textContent).toContain('five-digit ZIP');
+  await click('Cancel', dialog);
+  await openDrawer('delivery area');
+  expect(document.querySelector<HTMLTextAreaElement>('#delivery-zips')!.value).toBe('00501');
+  await click('Cancel', document.querySelector('[role=dialog]')!);
+  await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="Enable Pickup"]')!.click(); await settle(); });
   await click('Save availability');
-  expect(api.save.mock.calls[0][0]).toMatchObject({ weekly: saved.weekly, meal_prep: { methods: { pickup: { weekly: { '1': [{ start: '09:00', end: '12:30' }] } } } } });
+  expect(api.save.mock.calls[0][0]).toMatchObject({ meal_prep: { delivery_area: populatedSetup().delivery_area, work_plans: populatedSetup().work_plans } });
+});
+
+test('drawer apply after an in-flight save uses the new version and preserves the saved service choices', async () => {
+  const meal_prep = populatedSetup();
+  api.get.mockResolvedValue({ settings: { ...saved, version: 4, meal_prep } });
+  const pending = deferred<any>(); api.save.mockReturnValueOnce(pending.promise);
+  await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
+  await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="Enable Delivery"]')!.click(); await settle(); });
+  await click('Save availability');
+  await openDrawer('menu choices'); await toggleStyle('package');
+  await act(async () => { pending.resolve({ settings: { ...api.save.mock.calls[0][0], version: 5 } }); await settle(); });
+  await click('Apply changes');
+  api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 6 } }));
+  await click('Save availability');
+  expect(api.save.mock.calls[1][0]).toMatchObject({ version: 5, meal_prep: { methods: { delivery: { ...meal_prep.methods.delivery, enabled: true } }, work_plans: meal_prep.work_plans, selection_styles: { package: true } } });
 });

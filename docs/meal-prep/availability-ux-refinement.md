@@ -1,5 +1,7 @@
 # Availability UX refinement — stacked on PR #28
 
+> Superseded presentation: see [the 2026-11-05 owner-requested simplification](availability-simplification.md). This document preserves the first iteration and its historical evidence.
+
 Authority: **[Requirements Contract v1.1 / revision 4](requirements-v1.1-r4.md)** and the owner's [BTS-3 focused Availability feedback](https://arborthreads.com/threads/thr_263c8f9a-75d7-40aa-92b2-f9b717546180#c-con_91d18ec662e7dd188c2222c9a485b8a938445c367c6a984582a8f1edd661300a). The full workspace contract, applicable Availability/UI documentation, and shared/global versus method-specific scheduling architecture were read before editing. Applicable requirements and unresolved policies were stated before edits.
 
 ## Verified base and scope

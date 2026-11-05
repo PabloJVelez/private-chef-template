@@ -1,441 +1,151 @@
-import { Button, Container, Heading, Input, Text } from '@medusajs/ui';
-import { useState } from 'react';
+import { Badge, Button, Checkbox, Container, Heading, Label, Switch, Text } from '@medusajs/ui';
+import type { ReactNode } from 'react';
 import { emptyMealPrepSetup, mealPrepSetupSchema, type MealPrepSetup } from '../../../lib/availability/slots';
-import { WeeklyHours } from './weekly-hours';
-import { HoursEditor } from './hours-editor';
-import { sdk } from '../../../sdk';
-import type { MealPrepWorkReview } from '../../../sdk/admin/admin-availability';
+import { SettingsDrawer } from './settings-drawer';
+import { DeliveryAreaFields } from './delivery-area-fields';
 
-const methodNames = {
-  in_home: 'In-home cooking',
-  delivery: 'Delivery',
-  pickup: 'Pickup',
-} as const;
+const methodNames = { in_home: 'In-home cooking', delivery: 'Delivery', pickup: 'Pickup' } as const;
 const styleNames = {
   individual_dishes: 'Individual dishes and quantities',
   package: 'Packages',
   chosen_menu: 'Chosen-menu visit',
   tailored_plan: 'Tailored-plan request',
 } as const;
+const fieldError = (field: keyof MealPrepSetup, value: unknown) => {
+  const parsed = mealPrepSetupSchema.shape[field].safeParse(value);
+  return parsed.success ? '' : [...new Set(parsed.error.issues.map((issue) => issue.message))].join(' ');
+};
+
+function SettingRow({ label, summary, children }: { label: string; summary: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-6 py-4">
+      <div className="min-w-0 space-y-1">
+        <Text size="small" weight="plus">
+          {label}
+        </Text>
+        <Text size="small" className="text-ui-fg-subtle">
+          {summary}
+        </Text>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export function MealPrepSetupEditor({
   value,
   onChange,
   onEditing,
+  disabled = false,
+  onViewAvailability,
 }: {
   value: MealPrepSetup | null | undefined;
   onChange: (value: MealPrepSetup) => void;
-  onEditing: (method: keyof MealPrepSetup['methods'], editing: boolean) => void;
+  onEditing: (editing: boolean) => void;
+  disabled?: boolean;
+  onViewAvailability: () => void;
 }) {
   const setup = value ?? emptyMealPrepSetup();
-  const validation = mealPrepSetupSchema.safeParse(setup);
+  const styles = Object.entries(styleNames)
+    .filter(([key]) => setup.selection_styles[key as keyof typeof styleNames])
+    .map(([, label]) => label);
+  const hasArea = !!setup.delivery_area.radius || !!setup.delivery_area.zip_codes.length;
+  const areaSummary = [
+    setup.delivery_area.radius && `${setup.delivery_area.radius.distance} ${setup.delivery_area.radius.unit} radius`,
+    setup.delivery_area.zip_codes.length &&
+      `${setup.delivery_area.zip_codes.length} ZIP code${setup.delivery_area.zip_codes.length === 1 ? '' : 's'}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <div className="space-y-4">
-      <Heading level="h2">Meal prep setup</Heading>
-      <Text>
-        Draft setup — meal prep is not available to customers yet. Save these preferences with your availability.
-      </Text>
-      <Container className="space-y-4">
-        <fieldset className="space-y-2">
-          <legend>Supported selection styles</legend>
-          {Object.entries(styleNames).map(([key, label]) => (
-            <label className="block" key={key}>
-              <input
-                type="checkbox"
-                checked={setup.selection_styles[key as keyof typeof styleNames]}
-                onChange={(e) =>
-                  onChange({
-                    ...setup,
-                    selection_styles: {
-                      ...setup.selection_styles,
-                      [key]: e.target.checked,
-                    },
-                  })
-                }
-              />{' '}
-              {label}
-            </label>
-          ))}
-        </fieldset>
-        <Text size="small">Package and tailored-plan pricing will require a separate approved setup.</Text>
-      </Container>
-      {Object.entries(methodNames).map(([key, label]) => {
-        const method = key as keyof typeof methodNames;
-        const schedule = setup.methods[method];
-        const change = (next: typeof schedule) => onChange({ ...setup, methods: { ...setup.methods, [method]: next } });
-        return (
-          <Container key={key} role="region" aria-label={`${label} setup`} className="space-y-4">
-            <Heading level="h3">{label} setup</Heading>
-            <div className="mt-3 space-y-3">
-              <label className="block">
-                <input
-                  type="checkbox"
-                  aria-label={`Enable ${label}`}
-                  checked={schedule.enabled}
-                  onChange={(e) => change({ ...schedule, enabled: e.target.checked })}
-                />{' '}
-                Enable {label} in draft setup
-              </label>
-              <Text size="small">
-                Proposed windows use your Availability timezone. They do not offer customer times, override global time
-                off, or reserve chef work.
-              </Text>
-              <WeeklyHours
-                label={label}
-                draft
-                weekly={schedule.weekly}
-                onChange={(weekly) => change({ ...schedule, weekly })}
-                onEditing={(editing) => onEditing(method, editing)}
-              />
-              <MethodDates label={label} dates={schedule.dates} onChange={(dates) => change({ ...schedule, dates })} />
-            </div>
-          </Container>
-        );
-      })}
-      <Container className="space-y-4">
-        <Heading level="h3">Delivery area drafts</Heading>
-        <div className="mt-3 space-y-3">
-          <Text size="small">
-            Delivery within the chef’s approved area is free. Radius and ZIP inputs are saved for review; they are not
-            active eligibility rules. Combining them, address verification and out-of-area handling still need
-            decisions.
-          </Text>
-          <label className="block">
-            <input
-              type="checkbox"
-              checked={setup.delivery_area.radius !== null}
-              onChange={(e) =>
-                onChange({
-                  ...setup,
-                  delivery_area: {
-                    ...setup.delivery_area,
-                    radius: e.target.checked ? { address: '', distance: 0, unit: 'mi' } : null,
-                  },
-                })
-              }
-            />{' '}
-            Draft radius around an address
-          </label>
-          {setup.delivery_area.radius && (
-            <div className="space-y-2">
-              <label className="block">
-                Radius center address
-                <Input
-                  value={setup.delivery_area.radius.address}
-                  onChange={(e) =>
-                    onChange({
-                      ...setup,
-                      delivery_area: {
-                        ...setup.delivery_area,
-                        radius: {
-                          ...setup.delivery_area.radius!,
-                          address: e.target.value,
-                        },
-                      },
-                    })
-                  }
-                />
-              </label>
-              <label className="block">
-                Radius distance
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={setup.delivery_area.radius.distance || ''}
-                  onChange={(e) =>
-                    onChange({
-                      ...setup,
-                      delivery_area: {
-                        ...setup.delivery_area,
-                        radius: {
-                          ...setup.delivery_area.radius!,
-                          distance: Number(e.target.value),
-                        },
-                      },
-                    })
-                  }
-                />
-              </label>
-              <label className="block">
-                Radius unit
-                <select
-                  value={setup.delivery_area.radius.unit}
-                  onChange={(e) =>
-                    onChange({
-                      ...setup,
-                      delivery_area: {
-                        ...setup.delivery_area,
-                        radius: {
-                          ...setup.delivery_area.radius!,
-                          unit: e.target.value as 'mi' | 'km',
-                        },
-                      },
-                    })
-                  }
-                >
-                  <option value="mi">Miles</option>
-                  <option value="km">Kilometers</option>
-                </select>
-              </label>
-            </div>
-          )}
-          <label className="block">
-            ZIP codes (one per line or separated by commas)
-            <textarea
-              className="block w-full rounded border p-2"
-              value={setup.delivery_area.zip_codes.join(', ')}
-              onChange={(e) =>
-                onChange({
-                  ...setup,
-                  delivery_area: {
-                    ...setup.delivery_area,
-                    zip_codes: e.target.value ? e.target.value.split(/[\n,]/).map((v) => v.trim()) : [],
-                  },
-                })
-              }
-            />
-          </label>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              onChange({
-                ...setup,
-                delivery_area: { ...setup.delivery_area, zip_codes: [] },
-              })
-            }
-          >
-            Clear ZIP codes
-          </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Text size="small" className="text-ui-fg-subtle">
+          Working hours and time off are shared with private events.
+        </Text>
+        <Button type="button" size="small" variant="transparent" onClick={onViewAvailability}>
+          View shared availability
+        </Button>
+      </div>
+      <Container className="divide-y divide-ui-border-base p-0">
+        <div className="flex items-start justify-between gap-4 px-6 py-4">
+          <div>
+            <Heading level="h2">Meal Prep</Heading>
+            <Text size="small" className="text-ui-fg-subtle">
+              Choose how you offer meal prep. These preferences are not live yet.
+            </Text>
+          </div>
+          <Badge size="2xsmall" color="orange">
+            Draft
+          </Badge>
         </div>
-      </Container>
-      <Container className="space-y-4">
-        <Heading level="h3">Chef work planning</Heading>
-        <div className="mt-3 space-y-3">
-          <Text>
-            Plan actual preparation, travel, cooking or handoff time explicitly. These drafts do not create
-            reservations. Activating work plans requires a later approval workflow and conflict check. A pickup window
-            does not create an exclusive appointment.
-          </Text>
-          {setup.work_plans.map((plan, i) => {
-            const patch = (values: Partial<typeof plan>) =>
-              onChange({
-                ...setup,
-                work_plans: setup.work_plans.map((p, j) => (j === i ? { ...p, ...values } : p)),
-              });
+        <fieldset className="divide-y divide-ui-border-base">
+          <legend className="sr-only">Service methods</legend>
+          {Object.entries(methodNames).map(([key, label]) => {
+            const method = key as keyof typeof methodNames;
             return (
-              <fieldset className="space-y-2 rounded border p-2" key={plan.id}>
-                <legend>Draft work {i + 1}</legend>
-                <label className="block">
-                  Purpose
-                  <select
-                    value={plan.purpose}
-                    onChange={(e) => patch({ purpose: e.target.value as typeof plan.purpose })}
-                  >
-                    <option value="in_home">In-home cooking</option>
-                    <option value="preparation">Preparation</option>
-                    <option value="delivery">Delivery / travel</option>
-                    <option value="handoff">Handoff</option>
-                  </select>
-                </label>
-                <label className="block">
-                  Start (UTC)
-                  <Input
-                    type="datetime-local"
-                    step={1}
-                    value={
-                      Number.isFinite(Date.parse(plan.start)) ? new Date(plan.start).toISOString().slice(0, 19) : ''
-                    }
-                    onChange={(e) =>
-                      patch({
-                        start: e.target.value ? new Date(`${e.target.value}Z`).toISOString() : '',
-                      })
-                    }
-                  />
-                </label>
-                <label className="block">
-                  End (UTC)
-                  <Input
-                    type="datetime-local"
-                    step={1}
-                    value={Number.isFinite(Date.parse(plan.end)) ? new Date(plan.end).toISOString().slice(0, 19) : ''}
-                    onChange={(e) =>
-                      patch({
-                        end: e.target.value ? new Date(`${e.target.value}Z`).toISOString() : '',
-                      })
-                    }
-                  />
-                </label>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() =>
+              <div className="flex items-center justify-between gap-4 px-6 py-4" key={method}>
+                <Label htmlFor={`meal-method-${method}`}>{label}</Label>
+                <Switch
+                  id={`meal-method-${method}`}
+                  aria-label={`Enable ${label}`}
+                  checked={setup.methods[method].enabled}
+                  onCheckedChange={(enabled) =>
                     onChange({
                       ...setup,
-                      work_plans: setup.work_plans.filter((_, j) => j !== i),
+                      methods: { ...setup.methods, [method]: { ...setup.methods[method], enabled } },
                     })
                   }
-                >
-                  Remove draft work {i + 1}
-                </Button>
-              </fieldset>
+                />
+              </div>
             );
           })}
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              onChange({
-                ...setup,
-                work_plans: [
-                  ...setup.work_plans,
-                  {
-                    id: crypto.randomUUID(),
-                    purpose: 'preparation',
-                    start: '',
-                    end: '',
-                  },
-                ],
-              })
-            }
+        </fieldset>
+        <SettingRow label="Menu choices" summary={styles.length ? styles.join(', ') : 'Not selected'}>
+          <SettingsDrawer
+            title="Menu choices"
+            description="Choose the ways customers can select their meals."
+            value={setup.selection_styles}
+            disabled={disabled}
+            onEditing={onEditing}
+            validate={(value) => fieldError('selection_styles', value)}
+            onApply={(selection_styles) => onChange({ ...setup, selection_styles })}
           >
-            Add draft work
-          </Button>
-        </div>
-      </Container>
-      {!validation.success && (
-        <Text role="alert" className="text-ui-fg-error">
-          {validation.error.issues.map((i) => `${i.path.join(' / ')}: ${i.message}`).join(' ')}
-        </Text>
-      )}
-      <WorkReview />
-    </div>
-  );
-}
-
-function MethodDates({
-  label,
-  dates,
-  onChange,
-}: {
-  label: string;
-  dates: MealPrepSetup['methods']['pickup']['dates'];
-  onChange: (value: typeof dates) => void;
-}) {
-  const [date, setDate] = useState('');
-  return (
-    <div className="space-y-2">
-      <Text>Proposed dated windows (no closure precedence is applied)</Text>
-      {Object.entries(dates).map(([date, hours]) => (
-        <div key={date} className="rounded border p-2">
-          <Text>{date}</Text>
-          {!hours.length && <Text size="small">No proposed windows on this date.</Text>}
-          <HoursEditor
-            label={`${label} ${date}`}
-            value={hours}
-            onChange={(hours) => onChange({ ...dates, [date]: hours })}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              const next = { ...dates };
-              delete next[date];
-              onChange(next);
-            }}
-          >
-            Remove {label} date {date}
-          </Button>
-        </div>
-      ))}
-      <label className="block">
-        {label} proposed date
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-      </label>
-      <Button
-        type="button"
-        variant="secondary"
-        disabled={!date || date in dates}
-        onClick={() => {
-          onChange({ ...dates, [date]: [] });
-          setDate('');
-        }}
-      >
-        Add {label} date
-      </Button>
-    </div>
-  );
-}
-
-function WorkReview() {
-  const [date, setDate] = useState('');
-  const [result, setResult] = useState<MealPrepWorkReview | null>(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  return (
-    <Container className="space-y-4">
-      <Heading level="h3">Chef review: work, orders and servings</Heading>
-      <div className="mt-3 space-y-3">
-        <Text>
-          Review workload manually. Order and serving totals never limit acceptance. Actual reserved chef work still
-          prevents double-booking.
-        </Text>
-        <Text>
-          Order and serving totals are unavailable until approved occurrence menus and orders are implemented. Unknown
-          totals are not zero.
-        </Text>
-        <label className="block">
-          Review actual work on date (UTC)
-          <Input
-            type="date"
-            value={date}
-            disabled={loading}
-            onChange={(e) => {
-              setDate(e.target.value);
-              setResult(null);
-              setError('');
-            }}
-          />
-        </label>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={!date || loading}
-          onClick={async () => {
-            setLoading(true);
-            setError('');
-            setResult(null);
-            try {
-              const start = `${date}T00:00:00Z`;
-              const end = new Date(Date.parse(start) + 86400000).toISOString();
-              setResult(await sdk.admin.availability.workReview({ start, end }));
-            } catch {
-              setError('Unable to load reserved work. Please retry.');
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          {loading ? 'Loading work…' : 'Review reserved work'}
-        </Button>
-        {error && <Text role="alert">{error}</Text>}
-        {result && (
-          <>
-            {!result.blocks.length && <Text>No meal-prep work blocks reserved in this interval.</Text>}
-            {result.blocks.map((b) => (
-              <div key={b.id} className="rounded border p-2">
-                <Text>
-                  {b.purpose}: {b.start} – {b.end}
-                </Text>
-                <Text size="small">
-                  Linked occurrences: {b.linked_occurrences}. Orders: unavailable. Servings: unavailable.
+            {(selection, change) => (
+              <div className="space-y-4">
+                {Object.entries(styleNames).map(([key, label]) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <Checkbox
+                      id={`meal-style-${key}`}
+                      checked={selection[key as keyof typeof styleNames]}
+                      onCheckedChange={(checked) => change({ ...selection, [key]: checked === true })}
+                    />
+                    <Label htmlFor={`meal-style-${key}`}>{label}</Label>
+                  </div>
+                ))}
+                <Text size="small" className="text-ui-fg-subtle">
+                  Package and tailored-plan pricing needs a separate setup.
                 </Text>
               </div>
-            ))}
-          </>
+            )}
+          </SettingsDrawer>
+        </SettingRow>
+        {(setup.methods.delivery.enabled || hasArea) && (
+          <SettingRow label="Delivery area" summary={areaSummary || 'Not configured'}>
+            <SettingsDrawer
+              title="Delivery area"
+              description="Save an area for your delivery service."
+              value={setup.delivery_area}
+              disabled={disabled}
+              onEditing={onEditing}
+              validate={(value) => fieldError('delivery_area', value)}
+              onApply={(delivery_area) => onChange({ ...setup, delivery_area })}
+            >
+              {(delivery_area, change) => <DeliveryAreaFields value={delivery_area} onChange={change} />}
+            </SettingsDrawer>
+          </SettingRow>
         )}
-      </div>
-    </Container>
+      </Container>
+    </div>
   );
 }
