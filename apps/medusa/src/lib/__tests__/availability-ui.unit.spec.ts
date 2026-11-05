@@ -61,6 +61,12 @@ async function click(text: string, scope: ParentNode = document) {
     await settle();
   });
 }
+function expectSaveBarHidden() {
+  expect(host.querySelector('section[aria-label="Availability changes"]')).toBeNull();
+  expect(host.querySelector('button[form=availability-settings]')).toBeNull();
+  expect([...host.querySelectorAll('button')].some((node) => node.textContent === 'Discard')).toBe(false);
+  expect(host.textContent).not.toContain('All changes saved');
+}
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: Error) => void;
@@ -112,6 +118,7 @@ test('save in flight and background refetch cannot overwrite newer input; failur
   });
   expect(timezone().value).toBe('Europe/Paris');
   expect(host.textContent).toContain('Unsaved changes');
+  expect(host.querySelector('section[aria-label="Availability changes"]')).not.toBeNull();
   api.save.mockRejectedValueOnce(new Error('Save failed'));
   await click('Save availability');
   expect(timezone().value).toBe('Europe/Paris');
@@ -119,6 +126,7 @@ test('save in flight and background refetch cannot overwrite newer input; failur
   await click('Discard');
   expect(host.textContent).toContain('Europe/London');
   expect(host.querySelector('input[list=chef-timezones]')).toBeNull();
+  expectSaveBarHidden();
 });
 test('empty schedule starts with an uncommitted day and never publishes default hours', async () => {
   api.get.mockResolvedValue({ settings: { ...saved, weekly: {} } });
@@ -168,12 +176,17 @@ test('split periods retain distinct labels and independent remove actions', asyn
   expect(host.querySelector('[aria-label="Actions for Monday"]')).not.toBeNull();
 });
 
-test('save and discard appear only for edits; reset restores saved values and hides actions', async () => {
+test('the whole save bar appears only for edits; discard restores values and hides it', async () => {
   await render(React.createElement(AvailabilityPage));
   await act(settle);
   const button = (text: string) => [...host.querySelectorAll('button')].find((node) => node.textContent === text);
   expect(button('Save availability')).toBeUndefined();
   expect(button('Discard')).toBeUndefined();
+  expectSaveBarHidden();
+  for (const tab of ['Private events', 'Meal Prep', 'Availability']) {
+    await selectTab(tab);
+    expectSaveBarHidden();
+  }
   await act(async () => Simulate.submit(host.querySelector('form')!));
   expect(api.save).not.toHaveBeenCalled();
   await click('Change timezone');
@@ -181,11 +194,13 @@ test('save and discard appear only for edits; reset restores saved values and hi
   await change(timezone, 'Europe/London');
   expect(button('Save availability')?.type).toBe('submit');
   expect(button('Discard')).toBeDefined();
+  expect(host.querySelector('section[aria-label="Availability changes"] [role=status]')?.textContent).toBe('Unsaved changes');
   await click('Discard');
   expect(host.textContent).toContain('America/Chicago');
   expect(host.querySelector('input[list=chef-timezones]')).toBeNull();
   expect(button('Save availability')).toBeUndefined();
   expect(button('Discard')).toBeUndefined();
+  expectSaveBarHidden();
 });
 
 test('form submission validates before save and hides actions after a successful save', async () => {
@@ -205,7 +220,7 @@ test('form submission validates before save and hides actions after a successful
   });
   expect(api.save).toHaveBeenCalledWith({ ...saved, timezone: 'Europe/London' });
   expect([...host.querySelectorAll('button')].find((node) => node.textContent === 'Save availability')).toBeUndefined();
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
 });
 
 test('working-day and period actions never submit the availability form', async () => {
@@ -376,7 +391,7 @@ test('top Save owns the form, accepts minute times on native click, and reloads 
   expect(form.checkValidity()).toBe(true);
   await click('Save availability');
   expect(api.save).toHaveBeenCalledWith({ ...saved, weekly: { '1': [{ start: '09:01', end: '21:02' }] } });
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
   await act(async () => root.unmount());
   client.clear();
   root = createRoot(host);
@@ -433,7 +448,7 @@ test('removing Sunday submits a six-day snapshot and remains removed after save 
   await render(React.createElement(AvailabilityPage));
   await act(settle);
   expect(host.querySelector('[aria-label="Sunday working hours"]')).toBeNull();
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
 });
 
 test('adding Saturday exposes save guidance before applying and persists the new hours after applying', async () => {
@@ -454,23 +469,35 @@ test('adding Saturday exposes save guidance before applying and persists the new
   expect(saveButton().disabled).toBe(false);
   await click('Save availability');
   expect(api.save).toHaveBeenCalledWith(expect.objectContaining({ weekly: { ...saved.weekly, '6': [{ start: '09:00', end: '21:37' }] } }));
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
 });
 
-test('JSONB key ordering does not leave a successful save dirty and uses Medusa confirmation', async () => {
+test('the save bar stays while saving, then disappears with one Medusa toast despite JSONB key ordering', async () => {
   const success = jest.spyOn(toast, 'success').mockImplementation(() => 'saved');
+  const pending = deferred<any>();
   const loaded = { ...saved, weekly: { '1': [{ end: '21:02', start: '09:01' }] }, notice_rules: [{ days: 7, scope: 'all' as const, enabled: true, experience_ids: [] }] };
   api.get.mockResolvedValue({ settings: loaded });
-  api.save.mockImplementation(async (settings) => ({ settings: { ...settings, weekly: { '1': [{ end: '21:02', start: '09:01' }] } } }));
+  api.save.mockReturnValueOnce(pending.promise);
   try {
     await render(React.createElement(AvailabilityPage));
     await act(settle);
+    expectSaveBarHidden();
+    expect(success).not.toHaveBeenCalled();
     await click('Change timezone');
     await change(host.querySelector('input[list=chef-timezones]')!, 'America/New_York');
     await click('Save availability');
-    expect(host.textContent).toContain('All changes saved');
+    expect(host.querySelector('section[aria-label="Availability changes"] [role=status]')?.textContent).toContain('Saving');
+    expect(host.querySelector<HTMLButtonElement>('button[form=availability-settings]')!.disabled).toBe(true);
+    expect([...host.querySelectorAll('button')].find((node) => node.textContent === 'Discard')!.disabled).toBe(true);
+    expect(success).not.toHaveBeenCalled();
+    await act(async () => {
+      pending.resolve({ settings: { ...api.save.mock.calls[0][0], weekly: { '1': [{ end: '21:02', start: '09:01' }] } } });
+      await settle();
+    });
+    expectSaveBarHidden();
     expect([...host.querySelectorAll('button')].some((node) => node.textContent === 'Save availability')).toBe(false);
     expect(success).toHaveBeenCalledWith('Availability saved');
+    expect(success).toHaveBeenCalledTimes(1);
   } finally { success.mockRestore(); }
 });
 
@@ -485,10 +512,11 @@ test('failed mutation shows Medusa error feedback and can retry without losing t
     await change(host.querySelector('input[list=chef-timezones]')!, 'Europe/London');
     await click('Save availability');
     expect(failure).toHaveBeenCalledWith('Save failed', expect.objectContaining({ description: 'Connection lost' }));
+    expect(host.querySelector('section[aria-label="Availability changes"] [role=alert]')?.textContent).toBe('Connection lost');
     expect(host.querySelector<HTMLInputElement>('input[list=chef-timezones]')!.value).toBe('Europe/London');
     await click('Save availability');
     expect(api.save).toHaveBeenCalledTimes(2);
-    expect(host.textContent).toContain('All changes saved');
+    expectSaveBarHidden();
   } finally { failure.mockRestore(); }
 });
 
@@ -501,7 +529,7 @@ test('reverting an edit clears form dirtiness and invalid timezone cannot submit
   await act(async () => { Simulate.submit(host.querySelector('form')!); await settle(); });
   expect(api.save).not.toHaveBeenCalled();
   await change(timezone, saved.timezone);
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
   expect([...host.querySelectorAll('button')].some((node) => node.textContent === 'Save availability')).toBe(false);
 });
 
@@ -516,7 +544,7 @@ test('first setup displays and saves imported notice requirements instead of sil
   await change(host.querySelector('input[list=chef-timezones]')!, 'America/Chicago');
   await click('Save availability');
   expect(api.save.mock.calls[0][0]).toMatchObject({ notice_rules, weekly: {}, overrides: {} });
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
 });
 
 test('meal prep draft methods/styles save together, discard, and keep revisions during in-flight edits', async () => {
@@ -563,7 +591,7 @@ test('delivery area editing preserves retired method windows and work plans thro
   await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
   expect(host.querySelector('[aria-label="Edit method windows"]')).toBeNull();
   expect(host.querySelector('[aria-label="Edit work planning"]')).toBeNull();
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
 });
 
 test('explicit stale-settings reload replaces the draft only on success', async () => {
@@ -575,7 +603,7 @@ test('explicit stale-settings reload replaces the draft only on success', async 
   api.get.mockResolvedValue({ settings: { ...saved, timezone: 'Europe/Paris', version: 2 } });
   await click('Reload saved settings (discard draft)');
   expect(host.textContent).toContain('Europe/Paris');
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
 });
 
 test('conflict reload blocks edits and actions and preserves unrelated remote changes in the next save', async () => {
@@ -607,7 +635,7 @@ test('conflict reload blocks edits and actions and preserves unrelated remote ch
     overrides: { ...saved.overrides, '2026-11-03': [] }, meal_prep };
   await act(async () => { reloading.resolve({ settings: remote }); await settle(); });
   expect(host.textContent).toContain('Europe/Paris');
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
   expect(host.querySelector('[aria-label="Enable Delivery"]')!.getAttribute('aria-checked')).toBe('true');
   await click('Change timezone');
   await change(host.querySelector('input[list=chef-timezones]')!, 'Europe/London');
@@ -632,7 +660,7 @@ test('failed conflict reload preserves the draft and revision and permits an unc
   expect(api.save.mock.calls[1][0]).toMatchObject({ timezone: 'UTC', version: 1 });
   api.get.mockResolvedValue({ settings: { ...saved, version: 2, timezone: 'Europe/Paris' } });
   await click('Reload saved settings (discard draft)');
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
   expect(host.textContent).toContain('Europe/Paris');
   failure.mockRestore();
 });
@@ -751,7 +779,7 @@ test('unfinished global hours survive tab switches and the review action restore
   expect(host.querySelector<HTMLInputElement>('[aria-label="New working days start 1"]')!.value).toBe('13:00');
   await click('Discard');
   expect(host.querySelector('fieldset[tabindex]')).toBeNull();
-  expect(host.textContent).toContain('All changes saved');
+  expectSaveBarHidden();
 });
 
 test('drawers stage changes, cancel on Escape, restore focus, and never submit the enclosing form', async () => {

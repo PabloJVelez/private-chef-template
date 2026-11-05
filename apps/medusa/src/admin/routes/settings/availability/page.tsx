@@ -157,103 +157,106 @@ const AvailabilityPage = () => {
     );
   return (
     <div className="relative space-y-4 pb-6">
-      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-ui-bg-base p-3 shadow-sm">
-        <div>
-          <Heading>Availability</Heading>
-          <Text size="small" role="status">
-            {reloading
-              ? 'Reloading saved settings…'
-              : saving
-                ? 'Saving… You can keep editing.'
-                : error
-                  ? 'Not saved — try again'
-                  : dirty || exceptionOpen || workingOpen || mealEditing
-                    ? 'Unsaved changes'
-                    : 'All changes saved'}
-          </Text>
-        </div>
-        {(dirty || saving || exceptionOpen || workingOpen || mealEditing) && (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {error && (
-              <Text className="w-full text-ui-fg-error" size="small" role="alert">
-                {error}
-              </Text>
-            )}
-            {(exceptionOpen || workingOpen || mealEditing || !isValid) && (
-              <Text size="small" className="w-full text-ui-fg-subtle" role="status">
-                {mealEditing
-                  ? 'Apply or cancel the Meal Prep editor, then save availability.'
-                  : workingOpen
-                    ? 'Apply the working-day changes in Availability, then save availability.'
-                    : exceptionOpen
-                      ? 'Apply or cancel the date editor in Availability, then save availability.'
-                      : 'Check the highlighted settings before saving.'}
-              </Text>
-            )}
-            {(workingOpen || exceptionOpen) && activeTab !== 'availability' && (
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={reloading}
-                onClick={() => {
-                  setActiveTab('availability');
-                  availabilityTabTrigger.current?.focus();
-                }}
-              >
-                Review availability edits
-              </Button>
-            )}
-            {mealEditing && activeTab !== 'meal-prep' && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setActiveTab('meal-prep');
-                  mealTabTrigger.current?.focus();
-                }}
-                disabled={reloading}
-              >
-                Review Meal Prep edits
-              </Button>
-            )}
-            {error && (
-              <Button type="button" variant="secondary" disabled={!!saving || reloading} onClick={reloadSaved}>
-                Reload saved settings (discard draft)
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={!!saving || reloading}
-              onClick={() => {
-                if (reloadInFlight.current || saving) return;
-                form.reset();
-                mutation.reset();
-                setWorkingOpen(false);
-                setMealEditing(false);
-                setTimezoneEditing(false);
-                setExceptionOpen(false);
-                setDiscardVersion((value) => value + 1);
-              }}
-            >
-              Discard
-            </Button>
-            <Button
-              type="submit"
-              form="availability-settings"
-              isLoading={!!saving}
-              disabled={reloading || !dirty || !!saving || !isValid || exceptionOpen || workingOpen || mealEditing}
-            >
-              Save availability
-            </Button>
+      {(dirty || saving || reloading || error || exceptionOpen || workingOpen || mealEditing) && (
+        <section
+          aria-label="Availability changes"
+          className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-ui-bg-base p-3 shadow-sm"
+        >
+          <div>
+            <Heading>Availability</Heading>
+            <Text size="small" role="status">
+              {reloading
+                ? 'Reloading saved settings…'
+                : saving
+                  ? 'Saving… You can keep editing.'
+                  : error
+                    ? 'Not saved — try again'
+                    : 'Unsaved changes'}
+            </Text>
           </div>
-        )}
-        {error && !dirty && !saving && (
-          <Text className="w-full text-ui-fg-error" size="small" role="alert">
-            {error}
-          </Text>
-        )}
-      </div>
+          {(dirty || saving || exceptionOpen || workingOpen || mealEditing) && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {error && (
+                <Text className="w-full text-ui-fg-error" size="small" role="alert">
+                  {error}
+                </Text>
+              )}
+              {(exceptionOpen || workingOpen || mealEditing || !isValid) && (
+                <Text size="small" className="w-full text-ui-fg-subtle" role="status">
+                  {mealEditing
+                    ? 'Apply or cancel the Meal Prep editor, then save availability.'
+                    : workingOpen
+                      ? 'Apply the working-day changes in Availability, then save availability.'
+                      : exceptionOpen
+                        ? 'Apply or cancel the date editor in Availability, then save availability.'
+                        : 'Check the highlighted settings before saving.'}
+                </Text>
+              )}
+              {(workingOpen || exceptionOpen) && activeTab !== 'availability' && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={reloading}
+                  onClick={() => {
+                    setActiveTab('availability');
+                    availabilityTabTrigger.current?.focus();
+                  }}
+                >
+                  Review availability edits
+                </Button>
+              )}
+              {mealEditing && activeTab !== 'meal-prep' && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setActiveTab('meal-prep');
+                    mealTabTrigger.current?.focus();
+                  }}
+                  disabled={reloading}
+                >
+                  Review Meal Prep edits
+                </Button>
+              )}
+              {error && (
+                <Button type="button" variant="secondary" disabled={!!saving || reloading} onClick={reloadSaved}>
+                  Reload saved settings (discard draft)
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!!saving || reloading}
+                onClick={() => {
+                  if (reloadInFlight.current || saving) return;
+                  form.reset();
+                  mutation.reset();
+                  setWorkingOpen(false);
+                  setMealEditing(false);
+                  setTimezoneEditing(false);
+                  setExceptionOpen(false);
+                  setDiscardVersion((value) => value + 1);
+                }}
+              >
+                Discard
+              </Button>
+              <Button
+                type="submit"
+                form="availability-settings"
+                isLoading={!!saving}
+                disabled={reloading || !dirty || !!saving || !isValid || exceptionOpen || workingOpen || mealEditing}
+              >
+                Save availability
+              </Button>
+            </div>
+          )}
+          {error && !dirty && !saving && (
+            <Text className="w-full text-ui-fg-error" size="small" role="alert">
+              {error}
+            </Text>
+          )}
+        </section>
+      )}
       <form
         id="availability-settings"
         aria-label="Availability settings"

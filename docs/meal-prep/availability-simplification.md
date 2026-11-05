@@ -6,7 +6,9 @@ The full [Requirements Contract v1.1/r4](requirements-v1.1-r4.md) was read again
 
 ## Revised page
 
-The navigation now appears immediately below the heading, with three Medusa/Radix tabs: **Availability**, **Private events**, and **Meal Prep**. An active underline and a continuous bottom border distinguish tabs from the old pills. Keyboard arrows, Home/End, focus and linked panels remain provided by the native primitive.
+The navigation appears at the top, with three Medusa/Radix tabs: **Availability**, **Private events**, and **Meal Prep**. An active underline and a continuous bottom border distinguish tabs from the old pills. Keyboard arrows, Home/End, focus and linked panels remain provided by the native primitive.
+
+The owner's final follow-up removes the persistent “Availability / All changes saved” bar. When there are no pending changes, the tabs lead the page with no save/discard section. Editing reveals the existing actions; saving keeps them visible and disabled while the request runs. A successful save uses the existing Medusa “Availability saved” toast and hides the bar when no newer edits remain. Discarding or reverting to saved values also hides it. Unfinished editors and failed saves retain their guidance and recovery controls.
 
 - **Availability** is the single home for working hours, timezone, time off and Google Calendar. Its heading says “One schedule for private events and meal prep.” The existing hours editor remains in place. There is no per-service hours editor.
 - **Private events** retains advance-notice settings, with a compact Medusa section header and a plain setting row instead of a nested bordered form.
@@ -29,8 +31,11 @@ Drawer edits are isolated by field. A save response arriving while a drawer is o
 - **Minimal Meal Prep:** rendered tests assert only three service switches and summary/edit actions, no time/date/work-planning controls, and no Advanced area. Delivery details are a separate drawer, including when the service is off but saved area data exists.
 - **Preserve removed settings:** populated method weekday/date maps and work plans survive visible-field edits, save, discard and remount. The real PostgreSQL SDK/HTTP/workflow regression explicitly changes a service flag/menu style and verifies each removed map/plan and the other settings remain intact.
 - **Persistence/accessibility:** drawer focus, Escape/Cancel, no implicit form submission, invalid ZIP rejection, whole-page discard, in-flight save completion, stale versions, exclusive reload and complete snapshots are covered.
+- **Conditional save bar:** rendered regressions assert no bar on initial load or tab navigation, visible controls after editing, disabled actions while saving, exactly one success toast, and no bar after save/discard/revert/reload. Failed saves and edits made during a request keep the relevant controls visible.
 
 On Node **24.22.2** and Yarn **4.5.0**, a new disposable PostgreSQL **16** container ran the full regression harness: **499 tests passed, none skipped** (288 Medusa unit/rendered, 15 storefront, 192 PostgreSQL integration, 4 legacy migration tests). Both workspace typechecks and backend/admin/storefront production builds passed. Final focused UI/editor checks and the Medusa build were repeated after the last presentation cleanup. Runtime-file ESLint and `git diff --check` passed. Hosted CI at the final pushed SHA is recorded in the PR handoff and uses the repository-pinned Node 24.22.1.
+
+For the final save-bar adjustment, **40 focused UI/editor tests passed, none skipped**, with Medusa typecheck, backend/admin production build, route ESLint and diff checks passing. The full hosted verification passed at the preceding head `109d1fcb9f5f46256f9426819251d7664a3b303e`; the new head triggers the same complete verification, including real PostgreSQL and migration rehearsal. The earlier interactive preview predates this final save-bar adjustment; the walkthrough above describes the current behavior.
 
 No new migration or dependency is introduced. The inherited migration rehearsal still runs in hosted CI; this follow-up's local PostgreSQL evidence includes the existing migration regression suites. No production database, live calendar/payment service, merge or deployment was used.
 
