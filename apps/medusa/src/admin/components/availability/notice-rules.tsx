@@ -23,8 +23,8 @@ export function NoticeRules({
       <Container className="space-y-4">
         <Heading level="h2">Advance notice</Heading>
         <Text size="small">
-          Your existing experiences have different notice periods. They remain in effect until you replace
-          them with one shared setting.
+          Your existing experiences have different notice periods. They remain in effect until you replace them with one
+          shared setting.
         </Text>
         <ul className="list-disc pl-5 text-sm">
           {rules.map((rule, index) => (
@@ -34,9 +34,7 @@ export function NoticeRules({
                 ? 'All experiences'
                 : rule.experience_ids
                     .map(
-                      (id) =>
-                        experiences.find((experience) => experience.id === id)?.name ??
-                        'Unavailable experience',
+                      (id) => experiences.find((experience) => experience.id === id)?.name ?? 'Unavailable experience',
                     )
                     .join(', ')}
             </li>
@@ -61,26 +59,26 @@ export function NoticeRules({
       </Container>
     );
   return (
-    <Container className="space-y-4">
-      <Heading level="h2">Advance notice</Heading>
-      <Text size="small" className="text-ui-fg-subtle">
-        Choose how many days ahead clients must book. Experiences without an enabled rule can accept same-day
-        requests when hours allow.
-      </Text>
+    <Container className="divide-y divide-ui-border-base p-0">
+      <div className="space-y-1 px-6 py-4">
+        <Heading level="h2">Advance notice</Heading>
+        <Text size="small" className="text-ui-fg-subtle">
+          Choose how many days ahead clients must book. Experiences without an enabled rule can accept same-day requests
+          when hours allow.
+        </Text>
+      </div>
       {[current].map((rule, index) => {
         const validation = noticeRuleSchema.safeParse(rule);
         return (
-          <fieldset key={index} className="space-y-3 rounded-lg border p-4">
-            <legend className="px-1 text-sm">Booking notice</legend>
+          <fieldset key={index} className="space-y-4 px-6 py-4">
+            <legend className="sr-only">Booking notice</legend>
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id={`notice-${index}`}
-                  checked={rule.enabled}
-                  onCheckedChange={(enabled) => update(index, { enabled })}
-                />
-                <Label htmlFor={`notice-${index}`}>Require advance notice</Label>
-              </div>
+              <Label htmlFor={`notice-${index}`}>Require advance notice</Label>
+              <Switch
+                id={`notice-${index}`}
+                checked={rule.enabled}
+                onCheckedChange={(enabled) => update(index, { enabled })}
+              />
             </div>
             {rule.enabled && (
               <>

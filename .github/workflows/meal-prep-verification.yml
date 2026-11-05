@@ -2,8 +2,8 @@ name: Meal prep verification
 
 on:
   pull_request:
-    # PR8's stacked parent; this is not a general repository deployment workflow.
-    branches: ['feat/meal-prep-v1-autopay-reminders']
+    # Scoped stacked parents; this workflow verifies code and never deploys.
+    branches: ['feat/meal-prep-v1-autopay-reminders', 'feat/meal-prep-v1-fulfillment-validation']
     paths:
       - 'apps/**'
       - 'packages/**'
