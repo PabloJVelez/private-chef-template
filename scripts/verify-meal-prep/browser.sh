@@ -38,6 +38,10 @@ MEDUSA_PID=$!
 STOREFRONT_PID=''
 cleanup() {
   kill "$MEDUSA_PID" ${STOREFRONT_PID:+"$STOREFRONT_PID"} 2>/dev/null || true
+  # Wait for graceful shutdown before the next CI step starts more Medusa
+  # processes; sending SIGTERM alone does not release resources synchronously.
+  wait "$MEDUSA_PID" 2>/dev/null || true
+  if [[ -n $STOREFRONT_PID ]]; then wait "$STOREFRONT_PID" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
 export MEDUSA_PUBLISHABLE_KEY

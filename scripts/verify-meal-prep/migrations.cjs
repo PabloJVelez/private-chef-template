@@ -21,7 +21,15 @@ function command(label, binary, args, cwd = root, env = process.env) {
   let result;
   try { result = spawnSync(binary, args, { cwd, env, stdio: ['ignore', fd, fd] }); }
   finally { fs.closeSync(fd); }
-  if (result.error || result.status !== 0) throw new Error(`${label} failed; inspect ${logfile}`);
+  if (result.error || result.status !== 0) {
+    // Spawn failures and signals can leave redirected stdout/stderr empty. Keep
+    // their diagnostics instead of misreporting them as an ancestry mismatch.
+    const failure = result.error
+      ? `${result.error.code || 'spawn error'}: ${result.error.message}`
+      : `exit ${result.status}, signal ${result.signal || 'none'}`;
+    fs.appendFileSync(logfile, `\n${label}: ${failure}\n`);
+    throw new Error(`${label} failed (${failure}); inspect ${logfile}`);
+  }
   console.log(`${label}: passed`);
 }
 const migration = (label, cwd, url, args = ['db:migrate', '--skip-scripts', '--skip-links']) =>
@@ -33,6 +41,8 @@ async function client(url, fn) {
   try { return await fn(db); } finally { await db.end(); }
 }
 async function main() {
+  command('checkout-head', 'git', ['rev-parse', 'HEAD']);
+  command('parent-commit', 'git', ['rev-parse', `${parent}^{commit}`]);
   command('parent-ancestry', 'git', ['merge-base', '--is-ancestor', parent, 'HEAD']);
   // Reuse dependencies only for identical manifests/lock; otherwise install the
   // exact archived parent independently (e.g. discovery adds a browser test tool).
