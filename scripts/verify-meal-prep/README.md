@@ -34,6 +34,8 @@ application tables. The server user needs CREATE DATABASE permission. No existin
 database is dropped. Locally, remove the disposable container after inspecting the
 reports; CI removes its service with the runner.
 
+Ancestry is checked by walking immutable commit-object parent links with replacement refs disabled. The verified path is recorded at checkout and before migrations; unrelated/missing pins fail closed. `node --test scripts/verify-meal-prep/ancestry.test.cjs` covers linear and merge histories, wrong/missing pins and replacement refs.
+
 It migrates an empty database, archives exact PR8 parent `f4557fab9d75b515611645be44bbabeb0bda1b10`,
 migrates that parent in the second database, seeds draft/revision/outbox/Availability
 and populated PR6/PR7 financial and notification rows, upgrades them, compares row hashes, rolls back only

@@ -77,6 +77,7 @@ The PR body records the final exact head and CI run. CI checks out the PR head S
 - Legacy migration suite: **4 passed**. No skipped/todo tests.
 - Chromium browser suite: **4 passed**, using real built applications and PostgreSQL.
 - Both workspace typechecks and production builds pass.
+- Ancestry verifier: **5 passed** under Node 24.22.1 and Git 2.56.0, covering linear/merge history, unrelated/missing pins and replacement refs. Checkout and migration verification record the actual commit-parent path with replacement refs disabled. This retains strict ancestry enforcement after CI's late `merge-base` check returned 1 despite the same initial check passing; the original discrepancy has not reproduced locally and its cause remains unknown.
 - Existing migration upgrade/preservation/rollback rehearsal passes locally and is retained in CI. The archived parent is installed immutably when dependency manifests differ. This slice introduces **no migration** and no publication table.
 
 Run `scripts/verify-meal-prep/checks.sh tests` with all three explicit disposable PostgreSQL test URLs, then `checks.sh builds` with the verification-only provider environment described in `scripts/verify-meal-prep/README.md`. The new module suite runs separately because Medusa 2.7's cached MikroORM metadata cannot safely cross a second Jest VM context for the same entity.

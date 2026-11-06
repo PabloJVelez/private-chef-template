@@ -63,7 +63,8 @@ jobs:
         run: |
           mkdir -p artifacts/meal-prep-verification
           git rev-parse HEAD > artifacts/meal-prep-verification/head.txt
-          git merge-base --is-ancestor f4557fab9d75b515611645be44bbabeb0bda1b10 HEAD
+          node --test scripts/verify-meal-prep/ancestry.test.cjs
+          node scripts/verify-meal-prep/ancestry.cjs f4557fab9d75b515611645be44bbabeb0bda1b10 > artifacts/meal-prep-verification/checkout-ancestry.json
           node --version
           node .yarn/releases/yarn-4.5.0.cjs --version
       - name: Immutable clean install

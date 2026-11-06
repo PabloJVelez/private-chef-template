@@ -6,6 +6,7 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 const { spawnSync } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
+const { verifyAncestry } = require('./ancestry.cjs');
 const root = path.resolve(__dirname, '../..');
 const { Client } = createRequire(path.join(root, 'apps/medusa/package.json'))('pg');
 const report = process.env.REPORT_DIR || path.join(root, 'artifacts/meal-prep-verification');
@@ -43,7 +44,9 @@ async function client(url, fn) {
 async function main() {
   command('checkout-head', 'git', ['rev-parse', 'HEAD']);
   command('parent-commit', 'git', ['rev-parse', `${parent}^{commit}`]);
-  command('parent-ancestry', 'git', ['merge-base', '--is-ancestor', parent, 'HEAD']);
+  const parentPath = verifyAncestry(root, parent);
+  fs.writeFileSync(path.join(report, 'parent-ancestry.log'), `${parentPath.join('\n')}\n`);
+  console.log(`parent-ancestry: passed (${parentPath.length} verified commit objects)`);
   // Reuse dependencies only for identical manifests/lock; otherwise install the
   // exact archived parent independently (e.g. discovery adds a browser test tool).
   let reuseDependencies = true;
