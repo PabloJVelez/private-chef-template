@@ -69,7 +69,7 @@ cd apps/storefront
 if [[ ${DISCOVERY_BROWSER_DOCKER:-0} == 1 ]]; then
   docker run --rm --network host --ipc=host --user "$(id -u):$(id -g)" \
     -e DISCOVERY_BROWSER_DATABASE_URL -v "$ROOT:$ROOT" -w "$PWD" \
-    mcr.microsoft.com/playwright:v1.56.1-noble node ../../node_modules/@playwright/test/cli.js test
+    mcr.microsoft.com/playwright:v1.56.1-noble node ../../node_modules/@playwright/test/cli.js test "$@"
 else
-  node ../../node_modules/@playwright/test/cli.js test
+  node ../../node_modules/@playwright/test/cli.js test "$@"
 fi

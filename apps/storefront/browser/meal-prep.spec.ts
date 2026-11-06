@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { Pool } = require('../../medusa/node_modules/pg');
@@ -27,7 +27,33 @@ test.beforeAll(async ({ request }) => {
   authorization = `Bearer ${(await response.json()).token}`;
 });
 test.afterAll(async () => { await pool.end(); });
-test.beforeEach(async ({ request }) => { await save(request, setup()); });
+// The storefront deliberately hydrates in requestIdleCallback. SSR headings do
+// not prove that focus refresh has mounted. Observe listener registration without
+// adding a production test hook or replacing the real handler/network behavior.
+async function waitForFocusRefresh(page: Page) {
+  await page.waitForFunction(() =>
+    (window as Window & { __discoveryFocusListeners?: Set<unknown> }).__discoveryFocusListeners?.size,
+  );
+}
+test.beforeEach(async ({ request, page }) => {
+  await save(request, setup());
+  await page.addInitScript(() => {
+    const listeners = new Set<unknown>();
+    (window as Window & { __discoveryFocusListeners?: Set<unknown> }).__discoveryFocusListeners = listeners;
+    const add = window.addEventListener.bind(window);
+    const remove = window.removeEventListener.bind(window);
+    window.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => {
+      // Focus traps also register global listeners before hydration. The
+      // discovery handler is the one guarding focus with document visibility.
+      if (type === 'focus' && typeof listener === 'function' && String(listener).includes('visibilityState')) listeners.add(listener);
+      add(type, listener, options);
+    }) as typeof window.addEventListener;
+    window.removeEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions) => {
+      if (type === 'focus') listeners.delete(listener);
+      remove(type, listener, options);
+    }) as typeof window.removeEventListener;
+  });
+});
 
 test('SD-01/07/11/12/14: real SSR, navigation and focus use fresh informational projection', async ({ page, request }, info) => {
   const errors: string[] = []; page.on('pageerror', (error) => errors.push(error.message));
@@ -44,6 +70,7 @@ test('SD-01/07/11/12/14: real SSR, navigation and focus use fresh informational 
   const pickup = setup(); pickup.methods.in_home.enabled = false; pickup.methods.delivery.enabled = false;
   pickup.selection_styles.package = false;
   await save(request, pickup);
+  await waitForFocusRefresh(page);
   const reads: string[] = []; page.on('request', (r) => { if (r.resourceType() === 'fetch') reads.push(r.url()); });
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByRole('heading', { name: 'In-home cooking' })).toHaveCount(0);
@@ -86,11 +113,25 @@ test('SD-04/05/06/08/17: off, malformed, missing and mixed methods render indepe
 });
 
 test('SD-09/10: database read failure stays 503, retry recovers, menus/root remain functional', async ({ page, request }, info) => {
-  await page.goto('/meal-prep');
-  await expect(page.getByRole('heading', { name: 'Pickup', exact: true })).toBeVisible();
+  let releaseClient!: () => void;
+  const clientGate = new Promise<void>((resolve) => { releaseClient = resolve; });
+  await page.route('**/assets/entry.client-*.js', async (route) => {
+    await clientGate;
+    await route.continue();
+  });
+  try {
+    await page.goto('/meal-prep', { waitUntil: 'commit' });
+    await expect(page.getByRole('heading', { name: 'Pickup', exact: true })).toBeVisible();
+    expect(await page.evaluate(() =>
+      (window as Window & { __discoveryFocusListeners?: Set<unknown> }).__discoveryFocusListeners?.size,
+    )).toBe(0);
+  } finally { releaseClient(); }
+  await waitForFocusRefresh(page);
   await pool.query('alter table availability_setting rename to discovery_outage_fixture');
   try {
+    const refreshResponse = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/meal-prep', { timeout: 10000 });
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    expect((await refreshResponse).status()).toBe(503);
     await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Meal Prep', exact: true })).toBeVisible();
     const status = await request.get('/api/meal-prep'); expect(status.status()).toBe(503);
