@@ -12,7 +12,7 @@ import GoogleCalendarPanel from '../../../components/availability/google-calenda
 import { ExceptionsEditor } from '../../../components/availability/exceptions-editor';
 import { HelpTip } from '../../../components/availability/help-tip';
 import { WorkingDays } from '../../../components/availability/working-days';
-import { cleanSettings, emptySettings } from '../../../components/availability/editor';
+import { cleanSettings, emptySettings, sameSettingsContent } from '../../../components/availability/editor';
 
 const timezoneNames = (() => {
   const supported = (Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
@@ -48,7 +48,9 @@ const AvailabilityPage = () => {
   const [hasSaved, setHasSaved] = useState(false);
   const { isDirty: dirty, isValid, isSubmitting } = form.formState;
   const saving = mutation.isPending || isSubmitting;
-  const error = mutation.error?.message;
+  const [saveProblem, setSaveProblem] = useState<string>();
+  const [committedKnown, setCommittedKnown] = useState(true);
+  const error = saveProblem || mutation.error?.message;
   const [exceptionOpen, setExceptionOpen] = useState(false);
   const [discardVersion, setDiscardVersion] = useState(0);
   const [workingOpen, setWorkingOpen] = useState(false);
@@ -63,6 +65,7 @@ const AvailabilityPage = () => {
     if (reloadInFlight.current) return;
     editVersion.current += 1;
     if (mutation.isError) mutation.reset();
+    setSaveProblem(undefined);
     // Nested schedule editors supply complete field values, including deletions.
     for (const key of Object.keys(cleanSettings(next)) as (keyof Settings)[]) {
       form.setValue(key, next[key], {
@@ -97,23 +100,53 @@ const AvailabilityPage = () => {
   const save = async (snapshot: Settings) => {
     if (reloadInFlight.current || !dirty || mutation.isPending || exceptionOpen || workingOpen || mealEditing) return;
     const submittedVersion = editVersion.current;
-    try {
-      const response = await mutation.mutateAsync(snapshot);
+    setSaveProblem(undefined);
+    const acceptSaved = (committed: Settings) => {
       const current = form.getValues();
-      form.reset(cleanSettings(response.settings));
-      // Advance the saved baseline without losing input made during the request.
-      // RHF performs structural dirty checks, independent of JSON object key order.
+      form.reset(cleanSettings(committed));
+      // Preserve edits made while saving or checking an ambiguous response.
       if (editVersion.current !== submittedVersion) {
-        form.reset({ ...current, version: response.settings.version }, { keepDefaultValues: true });
+        form.reset({ ...current, version: committed.version }, { keepDefaultValues: true });
       }
       setHasSaved(true);
+      setCommittedKnown(true);
+      mutation.reset();
+    };
+    try {
+      const response = await mutation.mutateAsync(snapshot);
+      acceptSaved(response.settings);
       toast.success('Availability saved');
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Could not save. Your changes are still here; please try again.';
-      toast.error('Save failed', { description: message, duration: 5000 });
+      const status = (error as { status?: number }).status;
+      if (status === 400 || status === 409) {
+        setSaveProblem(error instanceof Error ? error.message : 'Save rejected. Your changes are still here.');
+        // Refresh committed guidance, but never attach a new version to the stale draft.
+        const checked = await query.refetch();
+        setCommittedKnown(!checked.isError);
+        return;
+      }
+      // A lost response does not prove the write failed. Read before deciding.
+      const checked = await query.refetch();
+      setCommittedKnown(!checked.isError);
+      const committed = checked.data?.settings;
+      if (
+        !checked.isError &&
+        committed &&
+        committed.version === (snapshot.version ?? 0) + 1 &&
+        sameSettingsContent(committed, snapshot)
+      ) {
+        acceptSaved(committed);
+        toast.success('Saved settings confirmed');
+      } else {
+        const message = checked.isError
+          ? 'Save outcome is unknown. Your changes are kept. Reload saved settings before retrying.'
+          : 'Saved settings were checked. Your changes are kept; reload and review the saved settings before retrying.';
+        setSaveProblem(message);
+        toast.error('Save needs review', { description: message, duration: 5000 });
+      }
     }
   };
+
   const reloadSaved = async () => {
     if (reloadInFlight.current || saving) return;
     // Reload discards the whole draft. Never attach a fresh revision to stale values.
@@ -132,6 +165,8 @@ const AvailabilityPage = () => {
             },
       );
       setHasSaved(!!response.data.settings);
+      setCommittedKnown(true);
+      setSaveProblem(undefined);
       mutation.reset();
       setDiscardVersion((v) => v + 1);
       setWorkingOpen(false);
@@ -170,7 +205,7 @@ const AvailabilityPage = () => {
                 : saving
                   ? 'Saving… You can keep editing.'
                   : error
-                    ? 'Not saved — try again'
+                    ? 'Save needs review'
                     : 'Unsaved changes'}
             </Text>
           </div>
@@ -230,6 +265,7 @@ const AvailabilityPage = () => {
                 onClick={() => {
                   if (reloadInFlight.current || saving) return;
                   form.reset();
+                  setSaveProblem(undefined);
                   mutation.reset();
                   setWorkingOpen(false);
                   setMealEditing(false);
@@ -441,6 +477,9 @@ const AvailabilityPage = () => {
               <MealPrepSetupEditor
                 key={discardVersion}
                 value={settings.meal_prep}
+                committed={query.data?.settings?.meal_prep}
+                committedKnown={committedKnown && !query.isError}
+                unsaved={dirty || mealEditing}
                 disabled={reloading}
                 onViewAvailability={() => {
                   setActiveTab('availability');

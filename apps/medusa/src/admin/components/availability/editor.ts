@@ -65,12 +65,7 @@ export function dateRange(start: string, end: string): string[] {
   if (count > 366) throw new Error('Choose a range of at most 366 dates.');
   return Array.from({ length: count }, (_, index) => first.plus({ days: index }).toISODate()!);
 }
-export function applyException(
-  settings: Settings,
-  dates: string[],
-  hours: Hours,
-  replace: boolean,
-): Settings {
+export function applyException(settings: Settings, dates: string[], hours: Hours, replace: boolean): Settings {
   if (!validHours(hours)) throw new Error('Check the special hours before applying.');
   if (!replace && dates.some((date) => date in settings.overrides))
     throw new Error('These dates already have exceptions. Confirm replacement to continue.');
@@ -89,4 +84,24 @@ export function hoursError(hours: Hours): string {
   return validHours(hours)
     ? ''
     : 'Enter complete times, with the end after the start and no overlapping hours. Maximum 12 periods; split overnight hours across dates.';
+}
+
+/** Compare settings content after an ambiguous Save; the version is checked separately. */
+export function sameSettingsContent(a: Settings, b: Settings): boolean {
+  const canonical = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(canonical)
+      : value !== null && typeof value === 'object'
+        ? Object.fromEntries(
+            Object.entries(value)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([key, item]) => [key, canonical(item)]),
+          )
+        : value;
+  const content = (value: Settings) => {
+    const { version, ...fields } = cleanSettings(value);
+    // An untouched first-setup form omits meal_prep; persistence returns null.
+    return JSON.stringify(canonical({ ...fields, meal_prep: fields.meal_prep ?? null }));
+  };
+  return content(a) === content(b);
 }

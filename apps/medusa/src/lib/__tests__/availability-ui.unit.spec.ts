@@ -122,7 +122,7 @@ test('save in flight and background refetch cannot overwrite newer input; failur
   api.save.mockRejectedValueOnce(new Error('Save failed'));
   await click('Save availability');
   expect(timezone().value).toBe('Europe/Paris');
-  expect(host.textContent).toContain('Save failed');
+  expect(host.textContent).toContain('Save needs review');
   await click('Discard');
   expect(host.textContent).toContain('Europe/London');
   expect(host.querySelector('input[list=chef-timezones]')).toBeNull();
@@ -511,8 +511,8 @@ test('failed mutation shows Medusa error feedback and can retry without losing t
     await click('Change timezone');
     await change(host.querySelector('input[list=chef-timezones]')!, 'Europe/London');
     await click('Save availability');
-    expect(failure).toHaveBeenCalledWith('Save failed', expect.objectContaining({ description: 'Connection lost' }));
-    expect(host.querySelector('section[aria-label="Availability changes"] [role=alert]')?.textContent).toBe('Connection lost');
+    expect(failure).toHaveBeenCalledWith('Save needs review', expect.objectContaining({ description: expect.stringContaining('Saved settings were checked') }));
+    expect(host.querySelector('section[aria-label="Availability changes"] [role=alert]')?.textContent).toContain('Saved settings were checked');
     expect(host.querySelector<HTMLInputElement>('input[list=chef-timezones]')!.value).toBe('Europe/London');
     await click('Save availability');
     expect(api.save).toHaveBeenCalledTimes(2);
@@ -570,7 +570,8 @@ test('meal prep draft methods/styles save together, discard, and keep revisions 
   await click('Discard');
   expect(host.querySelector('[aria-label="Enable In-home cooking"]')!.getAttribute('aria-checked')).toBe('false');
   expect(host.querySelector('[aria-label="Enable Delivery"]')!.getAttribute('aria-checked')).toBe('true');
-  expect(host.textContent).toContain('These preferences are not live yet');
+  expect(host.textContent).not.toContain('not live yet');
+  expect(host.textContent).toContain('Saving makes these settings effective');
 });
 
 test('delivery area editing preserves retired method windows and work plans through save and remount', async () => {
@@ -860,4 +861,68 @@ test('drawer apply after an in-flight save uses the new version and preserves th
   api.save.mockImplementation(async (settings) => ({ settings: { ...settings, version: 6 } }));
   await click('Save availability');
   expect(api.save.mock.calls[1][0]).toMatchObject({ version: 5, meal_prep: { methods: { delivery: { ...meal_prep.methods.delivery, enabled: true } }, work_plans: meal_prep.work_plans, selection_styles: { package: true } } });
+});
+
+
+test('SD-13 committed readiness does not advertise unsaved method edits; valid incomplete setup saves', async () => {
+  let stored = { ...saved, version: 1, meal_prep: emptyMealPrepSetup() };
+  api.get.mockImplementation(async () => ({ settings: stored }));
+  api.save.mockImplementation(async (settings) => ({ settings: stored = { ...settings, version: 2 } as typeof stored }));
+  await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
+  const guidance = () => host.querySelector('[aria-label="Committed Meal Prep discovery"]')!.textContent!;
+  expect(guidance()).toContain('not advertised');
+  expect(host.textContent).not.toContain('not live yet');
+  await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="Enable Delivery"]')!.click(); await settle(); });
+  expect(guidance()).toContain('not advertised');
+  expect(guidance()).toContain('unsaved changes');
+  await click('Save availability');
+  expect(guidance()).toContain('Delivery: Information visible');
+  expect(guidance()).toContain('Customer requests and booking remain unavailable');
+  expect(guidance()).not.toContain('unsaved changes');
+});
+
+test('SD-02 lost Save response re-reads and confirms committed settings while preserving later edits', async () => {
+  let stored: Settings = { ...saved, version: 1, meal_prep: emptyMealPrepSetup() };
+  api.get.mockImplementation(async () => ({ settings: stored }));
+  const lost = deferred<any>();
+  api.save.mockImplementationOnce((settings) => { stored = { ...settings, version: 2 }; return lost.promise; });
+  await render(React.createElement(AvailabilityPage)); await act(settle); await selectTab('Meal Prep');
+  await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="Enable Pickup"]')!.click(); await settle(); });
+  await click('Save availability');
+  await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="Enable Delivery"]')!.click(); await settle(); });
+  await act(async () => { lost.reject(new Error('Connection lost')); await settle(); });
+  expect(api.get.mock.calls.length).toBeGreaterThan(1);
+  expect(host.textContent).toContain('Pickup: Information visible');
+  expect(host.textContent).toContain('Delivery: Not enabled');
+  api.save.mockImplementation(async (settings) => ({ settings: stored = { ...settings, version: 3 } }));
+  await click('Save availability');
+  expect(api.save.mock.calls[1][0]).toMatchObject({ version: 2, meal_prep: { methods: { pickup: { enabled: true }, delivery: { enabled: true } } } });
+});
+
+test('SD-02 failed Save and failed verification show unknown outcome without replacing the draft', async () => {
+  api.get.mockResolvedValueOnce({ settings: { ...saved, version: 1 } });
+  api.get.mockRejectedValue(new Error('Offline'));
+  api.save.mockRejectedValue(new Error('Response lost'));
+  await render(React.createElement(AvailabilityPage)); await act(settle);
+  await click('Change timezone'); await change(host.querySelector('input[list=chef-timezones]')!, 'UTC');
+  await click('Save availability');
+  expect(host.textContent).toContain('Save outcome is unknown');
+  expect(host.textContent).not.toContain('Not saved');
+  expect((host.querySelector('input[list=chef-timezones]') as HTMLInputElement).value).toBe('UTC');
+});
+
+
+test('SD-02 first-setup lost response confirms nullable Meal Prep without fabricating failure', async () => {
+  let stored: Settings | null = null;
+  api.get.mockImplementation(async () => ({ settings: stored, initial_notice_rules: [] }));
+  api.save.mockImplementationOnce(async (settings) => {
+    stored = { ...settings, version: 1, meal_prep: null };
+    throw new Error('Response lost after commit');
+  });
+  await render(React.createElement(AvailabilityPage)); await act(settle);
+  await change(host.querySelector('input[list=chef-timezones]')!, 'UTC');
+  await click('Save availability');
+  expectSaveBarHidden();
+  expect(host.textContent).not.toContain('Save needs review');
+  expect(host.textContent).toContain('not advertised');
 });

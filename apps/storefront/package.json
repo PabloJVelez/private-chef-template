@@ -28,6 +28,7 @@
   "devDependencies": {
     "@babel/core": "^7.22.0",
     "@medusajs/types": "2.7.0",
+    "@playwright/test": "1.56.1",
     "@react-router/dev": "^7.5.3",
     "@react-router/fs-routes": "^7.5.3",
     "@swc-node/register": "^1.4.2",

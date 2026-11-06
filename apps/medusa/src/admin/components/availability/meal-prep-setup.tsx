@@ -1,4 +1,5 @@
-import { Badge, Button, Checkbox, Container, Heading, Label, Switch, Text } from '@medusajs/ui';
+import { evaluateMealPrepDiscovery } from '../../../lib/meal-prep-discovery';
+import { Button, Checkbox, Container, Heading, Label, Switch, Text } from '@medusajs/ui';
 import type { ReactNode } from 'react';
 import { emptyMealPrepSetup, mealPrepSetupSchema, type MealPrepSetup } from '../../../lib/availability/slots';
 import { SettingsDrawer } from './settings-drawer';
@@ -34,18 +35,25 @@ function SettingRow({ label, summary, children }: { label: string; summary: stri
 
 export function MealPrepSetupEditor({
   value,
+  committed,
+  committedKnown = true,
+  unsaved = false,
   onChange,
   onEditing,
   disabled = false,
   onViewAvailability,
 }: {
   value: MealPrepSetup | null | undefined;
+  committed?: MealPrepSetup | null;
+  committedKnown?: boolean;
+  unsaved?: boolean;
   onChange: (value: MealPrepSetup) => void;
   onEditing: (editing: boolean) => void;
   disabled?: boolean;
   onViewAvailability: () => void;
 }) {
   const setup = value ?? emptyMealPrepSetup();
+  const readiness = evaluateMealPrepDiscovery(committed);
   const styles = Object.entries(styleNames)
     .filter(([key]) => setup.selection_styles[key as keyof typeof styleNames])
     .map(([, label]) => label);
@@ -72,12 +80,50 @@ export function MealPrepSetupEditor({
           <div>
             <Heading level="h2">Meal Prep</Heading>
             <Text size="small" className="text-ui-fg-subtle">
-              Choose how you offer meal prep. These preferences are not live yet.
+              Saving makes these settings effective for the next fresh storefront read.
             </Text>
           </div>
-          <Badge size="2xsmall" color="orange">
-            Draft
-          </Badge>
+        </div>
+        <div className="px-6 py-4 space-y-2" aria-label="Committed Meal Prep discovery">
+          <Text size="small" weight="plus">
+            Saved storefront configuration
+          </Text>
+          {!committedKnown ? (
+            <Text size="small">
+              Current saved settings could not be checked. Reload to confirm storefront discovery.
+            </Text>
+          ) : (
+            <>
+              <Text size="small">
+                {readiness.projection.status === 'available'
+                  ? 'Informational discovery is visible for the saved methods below.'
+                  : readiness.projection.status === 'not_offered'
+                    ? 'No saved service methods are enabled. Meal Prep is not advertised.'
+                    : 'Saved service methods need valid configuration before information can be shown.'}
+              </Text>
+              <ul className="text-ui-fg-subtle text-sm space-y-1">
+                {readiness.methodStates.map(({ method, state }) => (
+                  <li key={method}>
+                    {methodNames[method]}:{' '}
+                    {state === 'available'
+                      ? 'Information visible'
+                      : state === 'disabled'
+                        ? 'Not enabled'
+                        : 'Configuration needs attention'}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <Text size="small" className="text-ui-fg-subtle">
+            Customer requests and booking remain unavailable. Offers, service areas, locations and prices are not
+            confirmed by this informational page. Incomplete valid settings can still be saved.
+          </Text>
+          {unsaved && (
+            <Text size="small" weight="plus">
+              There are unsaved changes. Guidance above describes the last checked committed settings.
+            </Text>
+          )}
         </div>
         <fieldset className="divide-y divide-ui-border-base">
           <legend className="sr-only">Service methods</legend>

@@ -25,7 +25,7 @@ function command(label, binary, args, cwd = root, env = process.env) {
   console.log(`${label}: passed`);
 }
 const migration = (label, cwd, url, args = ['db:migrate', '--skip-scripts', '--skip-links']) =>
-  command(label, process.execPath, [path.join(root, 'apps/medusa/node_modules/@medusajs/cli/cli.js'), ...args],
+  command(label, process.execPath, [path.join(cwd, 'apps/medusa/node_modules/@medusajs/cli/cli.js'), ...args],
     path.join(cwd, 'apps/medusa'), { ...process.env, DATABASE_URL: url });
 async function client(url, fn) {
   const db = new Client({ connectionString: url });
@@ -34,18 +34,24 @@ async function client(url, fn) {
 }
 async function main() {
   command('parent-ancestry', 'git', ['merge-base', '--is-ancestor', parent, 'HEAD']);
-  // Reuse the installed dependencies only after verifying identical manifests/lock.
+  // Reuse dependencies only for identical manifests/lock; otherwise install the
+  // exact archived parent independently (e.g. discovery adds a browser test tool).
+  let reuseDependencies = true;
   for (const file of ['package.json', 'apps/medusa/package.json', 'apps/storefront/package.json', 'yarn.lock', '.yarnrc.yml']) {
     const old = spawnSync('git', ['show', `${parent}:${file}`], { cwd: root, maxBuffer: 10 * 1024 * 1024 });
     if (old.status !== 0 || !old.stdout.equals(fs.readFileSync(path.join(root, file))))
-      throw new Error(`Parent dependency mismatch: ${file}; install and verify the parent separately`);
+      reuseDependencies = false;
   }
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'meal-prep-parent-'));
   const archive = path.join(scratch, 'parent.tar');
   command('parent-archive', 'git', ['archive', '--format=tar', '-o', archive, parent]);
   command('parent-extract', 'tar', ['-xf', archive, '-C', scratch]);
-  for (const dir of ['node_modules', 'apps/medusa/node_modules', 'apps/storefront/node_modules'])
-    fs.symlinkSync(path.join(root, dir), path.join(scratch, dir), 'dir');
+  if (reuseDependencies) {
+    for (const dir of ['node_modules', 'apps/medusa/node_modules', 'apps/storefront/node_modules'])
+      fs.symlinkSync(path.join(root, dir), path.join(scratch, dir), 'dir');
+  } else {
+    command('parent-immutable-install', process.execPath, [path.join(scratch, '.yarn/releases/yarn-4.5.0.cjs'), 'install', '--immutable'], scratch);
+  }
   const suffix = randomBytes(6).toString('hex');
   const fresh = `mp_fresh_${suffix}`, upgrade = `mp_upgrade_${suffix}`;
   const url = (name) => {
