@@ -1,4 +1,4 @@
-# PR8 executable verification
+# Meal Prep stack and discovery verification
 
 This harness addresses PR #20 review `5720561794`: successful review-queue jobs
 are not application verification. PR8 extends it for fulfillment, operational reporting and the final migration; runtime flags remain disabled.
@@ -34,6 +34,8 @@ application tables. The server user needs CREATE DATABASE permission. No existin
 database is dropped. Locally, remove the disposable container after inspecting the
 reports; CI removes its service with the runner.
 
+Ancestry is checked by walking immutable commit-object parent links with replacement refs disabled. The verified path is recorded at checkout and before migrations; unrelated/missing pins fail closed. `node --test scripts/verify-meal-prep/ancestry.test.cjs` covers linear and merge histories, wrong/missing pins and replacement refs.
+
 It migrates an empty database, archives exact PR8 parent `f4557fab9d75b515611645be44bbabeb0bda1b10`,
 migrates that parent in the second database, seeds draft/revision/outbox/Availability
 and populated PR6/PR7 financial and notification rows, upgrades them, compares row hashes, rolls back only
@@ -42,9 +44,9 @@ financial history remains populated throughout. Table removal/restoration and un
 parent row hashes are asserted. Populated-history rollback refusal runs in the
 integration suite. Migration scripts/link synchronization are intentionally skipped.
 Parent dependencies reuse the head install **only after all workspace manifests,
-lockfile and Yarn config match**; this is not a separate clean parent install.
-If dependencies change or the parent is restacked, update/reverify this baseline;
-the harness deliberately fails instead of claiming an invalid upgrade rehearsal.
+lockfile and Yarn config match**. Otherwise the archived parent gets its own
+immutable install and runs its own Medusa CLI. A restacked parent still requires
+updating and reverifying the pinned baseline.
 
 The workflow is scoped to PRs targeting this stack's parent branch. It checks out
 **the exact PR head**, not the synthetic merge commit; uses read-only permissions,
@@ -62,3 +64,36 @@ There is no guaranteed confidence score, live provider
 proof, production-scale migration, payment/notification E2E or deployment here.
 
 See [final owner setup and manual checklist](../../docs/meal-prep/final-owner-testing.md) and the [full requirements-to-tests matrix](../../docs/meal-prep/requirements-to-tests.md). The complete run also writes 12 reference-only method/recurrence operation snapshots under `owner-scenarios/`. These are test fixtures, not enabled customer E2E or release approval.
+
+
+## Read-only storefront discovery (contract v1.2/r5, matrix r3)
+
+The discovery HTTP module suite runs in a separate Jest process to avoid Medusa
+2.7 entity metadata crossing VM contexts. It uses real PostgreSQL and contributes
+to the same no-skipped-tests assertion. The discovery PR also adds rendered
+storefront/loader and Admin tests, including lost Save responses, and preserves
+private-event acceptance-email behavior through a stubbed notification boundary.
+
+After building both applications, run the actual browser suite:
+
+```bash
+node node_modules/@playwright/test/cli.js install --with-deps chromium
+export DISCOVERY_BROWSER_DATABASE_URL=postgres://test:test@127.0.0.1:5432/discovery_browser
+bash scripts/verify-meal-prep/browser.sh
+```
+
+`browser.sh` refuses a nonlocal/nonfixture database name or an existing database.
+It creates and migrates its own database, seeds a local test admin, region,
+publishable key and Meal Prep configuration, starts the built Medusa and
+storefront, runs Chromium, then stops both processes. Ports 9001 and 3000 must be
+free. Reports/screenshots are included in the CI artifact. The browser tests
+exercise HTTP Saves, SSR/hydration, navigation, focus, malformed/private data,
+503 recovery, and Admin response loss/409 behavior. Database outage injection is
+limited to the dedicated fixture and restored in `finally`.
+
+On a host without Chromium libraries, set `DISCOVERY_BROWSER_DOCKER=1` to run just
+the browser worker in `mcr.microsoft.com/playwright:v1.56.1-noble`; Medusa and
+storefront continue to run with the host Node toolchain. This requires Docker and
+host networking. No production provider or email delivery is used.
+
+See [the 17-scenario mapping, screenshots and Arbor handoff](../../docs/meal-prep/storefront-discovery-pr1.md).

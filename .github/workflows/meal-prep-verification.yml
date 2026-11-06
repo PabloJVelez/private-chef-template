@@ -3,7 +3,7 @@ name: Meal prep verification
 on:
   pull_request:
     # Scoped stacked parents; this workflow verifies code and never deploys.
-    branches: ['feat/meal-prep-v1-autopay-reminders', 'feat/meal-prep-v1-fulfillment-validation']
+    branches: ['feat/meal-prep-v1-autopay-reminders', 'feat/meal-prep-v1-fulfillment-validation', 'fix/meal-prep-availability-settings-ux']
     paths:
       - 'apps/**'
       - 'packages/**'
@@ -63,6 +63,8 @@ jobs:
         run: |
           mkdir -p artifacts/meal-prep-verification
           git rev-parse HEAD > artifacts/meal-prep-verification/head.txt
+          node --test scripts/verify-meal-prep/ancestry.test.cjs
+          node scripts/verify-meal-prep/ancestry.cjs f4557fab9d75b515611645be44bbabeb0bda1b10 > artifacts/meal-prep-verification/checkout-ancestry.json
           node --version
           node .yarn/releases/yarn-4.5.0.cjs --version
       - name: Immutable clean install
@@ -71,6 +73,12 @@ jobs:
         run: bash scripts/verify-meal-prep/checks.sh tests
       - name: Both typechecks and production builds
         run: bash scripts/verify-meal-prep/checks.sh builds
+      - name: Install Chromium for browser verification
+        run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - name: Real storefront and Medusa Admin browser verification
+        env:
+          DISCOVERY_BROWSER_DATABASE_URL: postgres://test:test@127.0.0.1:5432/discovery_browser
+        run: bash scripts/verify-meal-prep/browser.sh
       - name: Migration upgrade, preservation and rollback rehearsal
         env:
           PGHOST: 127.0.0.1

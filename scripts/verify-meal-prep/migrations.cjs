@@ -6,6 +6,7 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 const { spawnSync } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
+const { verifyAncestry } = require('./ancestry.cjs');
 const root = path.resolve(__dirname, '../..');
 const { Client } = createRequire(path.join(root, 'apps/medusa/package.json'))('pg');
 const report = process.env.REPORT_DIR || path.join(root, 'artifacts/meal-prep-verification');
@@ -21,11 +22,19 @@ function command(label, binary, args, cwd = root, env = process.env) {
   let result;
   try { result = spawnSync(binary, args, { cwd, env, stdio: ['ignore', fd, fd] }); }
   finally { fs.closeSync(fd); }
-  if (result.error || result.status !== 0) throw new Error(`${label} failed; inspect ${logfile}`);
+  if (result.error || result.status !== 0) {
+    // Spawn failures and signals can leave redirected stdout/stderr empty. Keep
+    // their diagnostics instead of misreporting them as an ancestry mismatch.
+    const failure = result.error
+      ? `${result.error.code || 'spawn error'}: ${result.error.message}`
+      : `exit ${result.status}, signal ${result.signal || 'none'}`;
+    fs.appendFileSync(logfile, `\n${label}: ${failure}\n`);
+    throw new Error(`${label} failed (${failure}); inspect ${logfile}`);
+  }
   console.log(`${label}: passed`);
 }
 const migration = (label, cwd, url, args = ['db:migrate', '--skip-scripts', '--skip-links']) =>
-  command(label, process.execPath, [path.join(root, 'apps/medusa/node_modules/@medusajs/cli/cli.js'), ...args],
+  command(label, process.execPath, [path.join(cwd, 'apps/medusa/node_modules/@medusajs/cli/cli.js'), ...args],
     path.join(cwd, 'apps/medusa'), { ...process.env, DATABASE_URL: url });
 async function client(url, fn) {
   const db = new Client({ connectionString: url });
@@ -33,19 +42,29 @@ async function client(url, fn) {
   try { return await fn(db); } finally { await db.end(); }
 }
 async function main() {
-  command('parent-ancestry', 'git', ['merge-base', '--is-ancestor', parent, 'HEAD']);
-  // Reuse the installed dependencies only after verifying identical manifests/lock.
+  command('checkout-head', 'git', ['rev-parse', 'HEAD']);
+  command('parent-commit', 'git', ['rev-parse', `${parent}^{commit}`]);
+  const parentPath = verifyAncestry(root, parent);
+  fs.writeFileSync(path.join(report, 'parent-ancestry.log'), `${parentPath.join('\n')}\n`);
+  console.log(`parent-ancestry: passed (${parentPath.length} verified commit objects)`);
+  // Reuse dependencies only for identical manifests/lock; otherwise install the
+  // exact archived parent independently (e.g. discovery adds a browser test tool).
+  let reuseDependencies = true;
   for (const file of ['package.json', 'apps/medusa/package.json', 'apps/storefront/package.json', 'yarn.lock', '.yarnrc.yml']) {
     const old = spawnSync('git', ['show', `${parent}:${file}`], { cwd: root, maxBuffer: 10 * 1024 * 1024 });
     if (old.status !== 0 || !old.stdout.equals(fs.readFileSync(path.join(root, file))))
-      throw new Error(`Parent dependency mismatch: ${file}; install and verify the parent separately`);
+      reuseDependencies = false;
   }
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'meal-prep-parent-'));
   const archive = path.join(scratch, 'parent.tar');
   command('parent-archive', 'git', ['archive', '--format=tar', '-o', archive, parent]);
   command('parent-extract', 'tar', ['-xf', archive, '-C', scratch]);
-  for (const dir of ['node_modules', 'apps/medusa/node_modules', 'apps/storefront/node_modules'])
-    fs.symlinkSync(path.join(root, dir), path.join(scratch, dir), 'dir');
+  if (reuseDependencies) {
+    for (const dir of ['node_modules', 'apps/medusa/node_modules', 'apps/storefront/node_modules'])
+      fs.symlinkSync(path.join(root, dir), path.join(scratch, dir), 'dir');
+  } else {
+    command('parent-immutable-install', process.execPath, [path.join(scratch, '.yarn/releases/yarn-4.5.0.cjs'), 'install', '--immutable'], scratch);
+  }
   const suffix = randomBytes(6).toString('hex');
   const fresh = `mp_fresh_${suffix}`, upgrade = `mp_upgrade_${suffix}`;
   const url = (name) => {

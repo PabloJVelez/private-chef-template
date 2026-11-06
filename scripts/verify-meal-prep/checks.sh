@@ -26,12 +26,16 @@ case "${1:-tests}" in
       integration-tests/http/availability-concurrency.spec.ts \
       integration-tests/http/availability-save.spec.ts \
       integration-tests/http/availability-setup-migration.spec.ts
+    # Medusa 2.7 caches MikroORM entity metadata across Jest VM contexts. Run the
+    # second Availability module harness in its own process (same real PostgreSQL).
+    run discovery-postgres "${YARN[@]}" workspace medusa test:integration:http --json --outputFile="$REPORT_DIR/discovery-postgres.json" --runTestsByPath \
+      integration-tests/http/meal-prep-discovery.spec.ts
     run legacy "${YARN[@]}" workspace medusa jest --json --outputFile="$REPORT_DIR/legacy.json" --runTestsByPath \
       integration-tests/availability/legacy-migration.spec.ts --runInBand --forceExit
     node <<'NODE'
 const fs = require('node:fs');
 let total = 0;
-for (const suite of ['medusa-unit', 'storefront-unit', 'postgres', 'legacy']) {
+for (const suite of ['medusa-unit', 'storefront-unit', 'postgres', 'discovery-postgres', 'legacy']) {
   const r = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/${suite}.json`, 'utf8'));
   if (!r.success || !r.numPassedTests || r.numFailedTests || r.numPendingTests || r.numTodoTests || r.numRuntimeErrorTestSuites)
     throw new Error(`${suite}: failed, empty, skipped, todo or runtime-error tests`);

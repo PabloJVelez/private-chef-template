@@ -83,7 +83,7 @@ export const Header: FC<HeaderProps> = () => {
                                   activeSection === navItemProps.url.split('#')[1].split('?')[0]),
                             })
                           }
-                          prefetch="viewport"
+                          prefetch={navItemProps.url === '/meal-prep' ? 'none' : 'viewport'}
                         >
                           {navItemProps.label}
                         </URLAwareNavLink>

@@ -1,3 +1,4 @@
+import { readMealPrep } from './meal-prep.server';
 import type { SiteDetailsRootData } from '@libs/types';
 
 import { footerNavigationItems, headerNavigationItems } from '@libs/config/site/navigation-items';
@@ -15,14 +16,15 @@ import { getSelectedRegion, listRegions } from './data/regions.server';
 export const getRootLoader = async ({ request }: LoaderFunctionArgs) => {
   const region = await getSelectedRegion(request.headers);
 
-  const [cart, regions, customer, productsResponse] = await Promise.all([
+  const [cart, regions, customer, productsResponse, mealPrep] = await Promise.all([
     retrieveCart(request),
     listRegions(),
     getCustomer(request),
     fetchProducts(request, { limit: 1, fields: 'id' }).catch(() => ({ products: [] })),
+    readMealPrep(request),
   ]);
 
-  const headers = new Headers();
+  const headers = new Headers({ 'Cache-Control': 'no-store' });
 
   const currentRegionCookieId = await getSelectedRegionId(headers);
 
@@ -40,6 +42,7 @@ export const getRootLoader = async ({ request }: LoaderFunctionArgs) => {
   return remixData(
     {
       fontLinks,
+      mealPrep,
       env: {
         NODE_ENV: config.NODE_ENV,
         ENVIRONMENT: config.ENVIRONMENT,

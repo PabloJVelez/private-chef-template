@@ -78,7 +78,7 @@ export const HeaderSideNav: FC<HeaderSideNavProps> = ({ open, setOpen, activeSec
                                         : 'text-white/80 hover:bg-white/10 hover:text-white',
                                     )
                                   }
-                                  prefetch="viewport"
+                                  prefetch={navItemProps.url === '/meal-prep' ? 'none' : 'viewport'}
                                 >
                                   <span className="flex-1">{navItemProps.label}</span>
                                 </URLAwareNavLink>

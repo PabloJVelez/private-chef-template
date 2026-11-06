@@ -42,7 +42,7 @@ const methodSchedule = z
   })
   .strict();
 
-// Draft inputs only. Neither simultaneous storage nor empty windows establish
+// Configuration inputs. Neither simultaneous storage nor empty windows establish
 // eligibility, closure precedence, location validity, or any fulfillment policy.
 export const mealPrepSetupSchema = z
   .object({
