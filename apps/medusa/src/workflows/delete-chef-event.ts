@@ -1,3 +1,4 @@
+import { releaseEventReservations } from '../lib/release-event-reservations';
 import {
   createStep,
   createWorkflow,
@@ -84,6 +85,7 @@ const deleteChefEventStep = createStep(
     }
 
     await chefEventModuleService.deleteChefEvents(input.id)
+    await releaseEventReservations(container, input.id)
 
     return new StepResponse({
       id: input.id,

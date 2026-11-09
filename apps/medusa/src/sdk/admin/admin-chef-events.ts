@@ -165,6 +165,7 @@ export interface AdminChefEventsResponse {
 }
 
 export interface AdminAcceptChefEventDTO {
+  attemptId?: string
   chefNotes?: string
   acceptedBy?: string
   sendAcceptanceEmail?: boolean // New field
@@ -275,12 +276,21 @@ export class AdminChefEventsResource {
    * @returns Acceptance result
    */
   async accept(id: string, data: AdminAcceptChefEventDTO = {}) {
-    const response = await this.client.fetch<{ success: boolean; data: any }>(`/admin/chef-events/${id}/accept`, {
+    const storageKey = `chef-event-acceptance-${id}`
+    const attemptId = data.attemptId || (typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem(storageKey) || crypto.randomUUID() : undefined)
+    if (attemptId && typeof sessionStorage !== 'undefined') sessionStorage.setItem(storageKey, attemptId)
+    const response = await this.client.fetch<{ success: boolean; pending?: boolean; data: any }>(`/admin/chef-events/${id}/accept`, {
       method: 'POST',
       body: {
         ...data,
+        attemptId,
         sendAcceptanceEmail: data.sendAcceptanceEmail ?? true
       },
+    }).catch((error: Error) => {
+      if (error.message === 'This acceptance attempt failed. Submit a new attemptId to try again.' && typeof sessionStorage !== 'undefined')
+        sessionStorage.removeItem(storageKey)
+      throw error
     })
     return response
   }

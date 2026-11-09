@@ -1,6 +1,8 @@
 import type { MedusaContainer } from '@medusajs/framework/types';
 import { MedusaError } from '@medusajs/framework/utils';
 import { DateTime } from 'luxon';
+import SchedulingModuleService from '../../modules/scheduling/service';
+import { SCHEDULING_MODULE } from '../../modules/scheduling';
 import AvailabilityModuleService from '../../modules/availability/service';
 import ChefEventModuleService from '../../modules/chef-event/service';
 import ExperienceTypeModuleService from '../../modules/experience-type/service';
@@ -64,23 +66,17 @@ async function calculateDates(
   const candidates = dates.map((date) => ({ date, slots: calculateSlots(date, settings, experience, [], now) }));
   if (!candidates.some((day) => day.slots.length)) return candidates;
   const chef = container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
-  const busy: Interval[] = [];
+  const allSlots = candidates.flatMap(day => day.slots);
+  const from = allSlots.map(slot => slot.occupiedStart).sort()[0];
+  const to = allSlots.map(slot => slot.occupiedEnd).sort().at(-1)!;
+  const reservations = await container.resolve<SchedulingModuleService>(SCHEDULING_MODULE).overlapping(from, to);
+  const busy: Interval[] = reservations.filter((row) => row.owner_id !== ignoreEventId)
+    .map((row) => ({ start: new Date(row.starts_at).toISOString(), end: new Date(row.ends_at).toISOString() }));
   const pending = new Set<string>();
   for (let skip = 0; ; skip += 250) {
     const events = await chef.listChefEvents({}, { skip, take: 250 });
     for (const event of events) {
       if (event.status === 'pending' && !event.acceptanceToken) pending.add(event.id);
-      if (
-        event.id !== ignoreEventId &&
-        (event.status === 'confirmed' || event.status === 'completed' || event.acceptanceToken)
-      ) {
-        if (!event.occupiedStart || !event.occupiedEnd)
-          throw new Error('An existing booking needs an availability backfill.');
-        busy.push({
-          start: new Date(event.occupiedStart).toISOString(),
-          end: new Date(event.occupiedEnd).toISOString(),
-        });
-      }
     }
     if (events.length < 250) break;
   }

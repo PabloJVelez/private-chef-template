@@ -1,5 +1,6 @@
 /** Isolated schema only; never uses DATABASE_URL or existing app data. */
 import { randomUUID } from 'node:crypto';
+import { Migration20261109000100 } from '../../src/modules/chef-event/migrations/Migration20261109000100';
 import ChefEventModuleService from '../../src/modules/chef-event/service';
 import { Migration20261015000100 } from '../../src/modules/availability/migrations/Migration20261015000100';
 import { Migration20261015000200 } from '../../src/modules/experience-type/migrations/Migration20261015000200';
@@ -19,7 +20,7 @@ suite('availability PostgreSQL constraints', () => {
       `create table chef_event (id text primary key,status text not null default 'pending',"requestedDate" timestamptz not null,"requestedTime" text not null,"estimatedDuration" int,"productId" text,updated_at timestamptz default now(),deleted_at timestamptz);`,
     );
     await pool.query('create table experience_type (id text primary key)');
-    for (const MigrationClass of [Migration20261015000100, Migration20261015000200, Migration20261015000300]) {
+    for (const MigrationClass of [Migration20261015000100, Migration20261015000200, Migration20261015000300, Migration20261109000100]) {
       const migration = new MigrationClass(undefined as never, undefined as never);
       await migration.up();
       for (const sql of migration.getQueries()) await pool.query(sql);
@@ -33,7 +34,7 @@ suite('availability PostgreSQL constraints', () => {
     }
   });
   beforeEach(async () => {
-    await pool.query('truncate chef_event');
+    await pool.query('truncate chef_event, chef_event_acceptance_attempt');
   });
   const insert = (id: string) =>
     pool.query(
@@ -62,11 +63,12 @@ suite('availability PostgreSQL constraints', () => {
     const context = { manager, transactionManager: manager } as never;
     try {
       await client.query('begin');
+      const attempt = await service.bindAcceptance({ eventId: 'a', actorId: 'admin', body: {} }, context);
       const current = (await client.query(`select updated_at from chef_event where id='a'`)).rows[0];
       await service.claimAcceptance(
         {
           id: 'a',
-          token: 'real-owner',
+          token: attempt.id,
           updatedAt: current.updated_at,
           start: '2026-11-02T09:00Z',
           end: '2026-11-02T12:00Z',
@@ -76,12 +78,12 @@ suite('availability PostgreSQL constraints', () => {
       );
       expect(
         (await client.query(`select "acceptanceToken", "estimatedDuration" from chef_event where id='a'`)).rows[0],
-      ).toEqual({ acceptanceToken: 'real-owner', estimatedDuration: 120 });
+      ).toEqual({ acceptanceToken: attempt.id, estimatedDuration: 120 });
       await service.releaseAcceptance('a', 'wrong-owner', context);
       expect(
         (await client.query(`select "acceptanceToken" from chef_event where id='a'`)).rows[0].acceptanceToken,
-      ).toBe('real-owner');
-      await service.releaseAcceptance('a', 'real-owner', context);
+      ).toBe(attempt.id);
+      await service.releaseAcceptance('a', attempt.id, context);
       expect(
         (await client.query(`select "acceptanceToken" from chef_event where id='a'`)).rows[0].acceptanceToken,
       ).toBeNull();

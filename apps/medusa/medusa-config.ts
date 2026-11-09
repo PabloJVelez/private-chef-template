@@ -76,9 +76,11 @@ const customModules = [
       defaultTimezone: GOOGLE_CALENDAR_DEFAULT_TIMEZONE,
     },
   },
+  // Cutover migration consumes Chef Event history after its migrations have run.
+  { resolve: './src/modules/scheduling', options: {} },
 ];
 
-// Temporarily use in-memory modules to avoid Redis authentication issues
+// Use in-memory modules to avoid Redis authentication issues
 const cacheModule = IS_TEST
   ? { resolve: '@medusajs/medusa/cache-inmemory' }
   : {
@@ -188,6 +190,14 @@ module.exports = defineConfig({
   plugins: [],
   modules: [
     ...customModules,
+    {
+      resolve: '@medusajs/medusa/locking',
+      options: {
+        providers: [
+          { resolve: '@medusajs/medusa/locking-postgres', id: 'booking-locks', is_default: true },
+        ],
+      },
+    },
     {
       resolve: '@medusajs/medusa/payment',
       dependencies: ['stripeConnectAccountModuleService', 'cart'],

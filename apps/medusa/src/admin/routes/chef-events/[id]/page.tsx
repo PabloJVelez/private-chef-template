@@ -77,13 +77,17 @@ const ChefEventDetailPage = () => {
 
   const handleAcceptEvent = async () => {
     try {
-      await acceptChefEvent.mutateAsync({ 
+      const response = await acceptChefEvent.mutateAsync({
         id: id!, 
         data: { 
           chefNotes: chefNotes || undefined,
           sendAcceptanceEmail: sendAcceptanceEmail
         }
       })
+      if (response.pending) {
+        toast.info("Acceptance in progress", { description: "Your acceptance is still processing. Retry this action to check the same attempt." })
+        return
+      }
       toast.success("Event Accepted", {
         description: "The event has been accepted and a product has been created for ticket sales.",
         duration: 5000,

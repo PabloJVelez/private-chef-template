@@ -1,43 +1,61 @@
-import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
-import { acceptChefEventWorkflow } from "../../../../../workflows/accept-chef-event"
+import type { AuthenticatedMedusaRequest, MedusaResponse } from '@medusajs/framework/http';
+import { MedusaError } from '@medusajs/framework/utils';
+import { z } from 'zod';
+import { runEventAcceptance } from '../../../../../lib/run-event-acceptance';
+import { CHEF_EVENT_MODULE } from '../../../../../modules/chef-event';
+import type ChefEventModuleService from '../../../../../modules/chef-event/service';
 
-const acceptChefEventSchema = z.object({
+const schema = z.object({
+  attemptId: z.string().uuid().optional(),
   chefNotes: z.string().optional(),
   acceptedBy: z.string().optional(),
-  sendAcceptanceEmail: z.boolean().default(true) // New field
-})
+  sendAcceptanceEmail: z.boolean().default(true),
+});
 
-export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  const { id } = req.params
-  const validatedBody = acceptChefEventSchema.parse(req.body)
-  const logger = req.scope.resolve("logger")
-  
-  try {
-    const { result } = await acceptChefEventWorkflow(req.scope).run({
-      input: {
-        chefEventId: id,
-        chefNotes: validatedBody.chefNotes,
-        acceptedBy: validatedBody.acceptedBy || 'chef',
-        sendAcceptanceEmail: validatedBody.sendAcceptanceEmail
-      }
-    })
-    
-    res.status(200).json({
-      success: true,
-      data: result
-    })
-  } catch (error) {
-    const errorMsg = error instanceof Error
-      ? error.message
-      : typeof error === 'object' && error !== null
-        ? JSON.stringify(error, null, 2)
-        : String(error)
-    logger.error(`Error accepting chef event: ${errorMsg}`)
-    res.status(500).json({
-      success: false,
-      message: "Failed to accept chef event",
-      error: errorMsg
-    })
+export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
+  const actorId = req.auth_context?.actor_id;
+  if (!actorId) throw new MedusaError(MedusaError.Types.UNAUTHORIZED, 'Admin authentication is required.');
+  const { attemptId, ...body } = schema.parse(req.body);
+  const chef = req.scope.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
+  const attempt = await chef.bindAcceptance({
+    eventId: req.params.id,
+    actorId,
+    requestKey: attemptId,
+    body: { ...body, acceptedBy: body.acceptedBy || 'chef' },
+  });
+  if (attempt.state === 'aborted') {
+    res
+      .status(409)
+      .json({
+        success: false,
+        attemptId: attempt.request_key,
+        resolved: true,
+        message: 'This acceptance attempt failed. Submit a new attemptId to try again.',
+      });
+    return;
   }
-} 
+  const execution = await runEventAcceptance(req.scope, {
+    ...attempt.input,
+    chefEventId: req.params.id,
+    attemptId: attempt.id,
+  });
+  const finished = execution.transaction.hasFinished();
+  const failed = ['failed', 'reverted'].includes(execution.transaction.getState());
+  let resolved = false;
+  if (failed) resolved = await chef.abortUnclaimedAcceptance(req.params.id, attempt.id);
+  res.status(failed ? 409 : finished ? 200 : 202).json({
+    success: !failed,
+    attemptId: attempt.request_key,
+    executionId: attempt.id,
+    pending: !finished,
+    resolved,
+    data: execution.result,
+    ...(failed
+      ? {
+          message: resolved
+            ? 'This acceptance attempt failed. Submit a new attemptId to try again.'
+            : 'Acceptance requires recovery. Protected time is retained until cleanup is verified.',
+        }
+      : {}),
+  });
+}

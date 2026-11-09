@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { DateTime } from 'luxon';
 import { requireSlot } from '../lib/availability/query';
 /**
@@ -21,9 +20,8 @@ import { requireSlot } from '../lib/availability/query';
  * shipping option + inventory requires_shipping: false — not by sales channels.
  */
 
-import { Modules } from '@medusajs/framework/utils';
+import { MedusaError, Modules } from '@medusajs/framework/utils';
 import {
-  createProductsWorkflow,
   deleteProductsWorkflow,
   createShippingOptionsWorkflow,
   createShippingProfilesWorkflow,
@@ -31,11 +29,23 @@ import {
   emitEventStep,
   linkSalesChannelsToStockLocationWorkflow,
 } from '@medusajs/medusa/core-flows';
-import { StepResponse, WorkflowResponse, createStep, createWorkflow } from '@medusajs/workflows-sdk';
+import { StepResponse, WorkflowResponse, createStep, createWorkflow, when } from '@medusajs/workflows-sdk';
 import { CHEF_EVENT_MODULE } from '../modules/chef-event';
 import ChefEventModuleService from '../modules/chef-event/service';
 
-type AcceptChefEventWorkflowInput = {
+import { SCHEDULING_MODULE } from '../modules/scheduling';
+import SchedulingModuleService from '../modules/scheduling/service';
+import {
+  recoverEventProduct,
+  eventProductExecution,
+  bookingStepConfig,
+  withEventProductLock,
+  eventProductWorkflow,
+  assertEventProductAbsent,
+} from '../lib/booking-execution';
+
+export type AcceptChefEventWorkflowInput = {
+  attemptId: string;
   chefEventId: string;
   chefNotes?: string;
   acceptedBy?: string;
@@ -55,14 +65,41 @@ type ChefEventData = {
 };
 
 const acceptChefEventStep = createStep(
-  'accept-chef-event-step',
+  { name: 'accept-chef-event-step', ...bookingStepConfig },
   async (input: AcceptChefEventWorkflowInput, { container }: { container: any }) => {
     const chefEventModuleService: ChefEventModuleService = container.resolve(CHEF_EVENT_MODULE);
 
     const originalChefEvent = await chefEventModuleService.retrieveChefEvent(input.chefEventId);
 
-    if (originalChefEvent.status !== 'pending' || originalChefEvent.productId || originalChefEvent.acceptanceToken) {
+    const token = input.attemptId;
+    const attempt = await chefEventModuleService.retrieveAcceptanceAttempt(token);
+    if (
+      attempt.event_id === originalChefEvent.id &&
+      attempt.state === 'finalized' &&
+      originalChefEvent.acceptanceExecution === token &&
+      ['confirmed', 'completed'].includes(originalChefEvent.status)
+    )
+      return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
+    if (attempt.event_id !== originalChefEvent.id || attempt.state !== 'active')
+      throw new Error('Acceptance attempt is no longer active.');
+    if (
+      originalChefEvent.acceptanceExecution !== token ||
+      originalChefEvent.status !== 'pending' ||
+      originalChefEvent.productId ||
+      (originalChefEvent.acceptanceToken && originalChefEvent.acceptanceToken !== token)
+    )
       throw new Error('Only an unclaimed pending request can be accepted. Reload the event.');
+    if (originalChefEvent.acceptanceToken === token) {
+      await container
+        .resolve(SCHEDULING_MODULE)
+        .acquire({
+          id: token,
+          ownerId: originalChefEvent.id,
+          attemptId: token,
+          start: new Date(originalChefEvent.occupiedStart!).toISOString(),
+          end: new Date(originalChefEvent.occupiedEnd!).toISOString(),
+        });
+      return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
     }
     if (!originalChefEvent.experience_type_id)
       throw new Error('Select an experience before accepting this legacy request.');
@@ -78,7 +115,6 @@ const acceptChefEventStep = createStep(
     );
     if (slot.time !== originalChefEvent.requestedTime)
       throw new Error('The chef timezone changed. Update the request before accepting.');
-    const token = randomUUID();
     await chefEventModuleService.claimAcceptance({
       id: originalChefEvent.id,
       token,
@@ -93,16 +129,40 @@ const acceptChefEventStep = createStep(
         cleanup_minutes: experience.cleanup_minutes,
       },
     });
+    try {
+      await container
+        .resolve(SCHEDULING_MODULE)
+        .acquire({
+          id: token,
+          ownerId: originalChefEvent.id,
+          attemptId: token,
+          start: slot.occupiedStart,
+          end: slot.occupiedEnd,
+        });
+    } catch (error) {
+      // An overlap rejection has a definite outcome. Unknown outcomes retain the event claim for recovery.
+      if ((error as { code?: string }).code === '23P01')
+        await chefEventModuleService.releaseAcceptance(originalChefEvent.id, token);
+      throw error;
+    }
     return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
   },
   async (claim, { container }) => {
-    if (claim)
-      await container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE).releaseAcceptance(claim.id, claim.token);
+    if (!claim) return;
+    // Serialize the absence check with creation/abort. A lost response never proves product absence.
+    return withEventProductLock(container, claim.token, async () => {
+      await assertEventProductAbsent(container, claim.token, claim.id);
+      const chef = container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
+      if (await chef.releaseAcceptance(claim.id, claim.token))
+        await container
+          .resolve<SchedulingModuleService>(SCHEDULING_MODULE)
+          .release({ id: claim.token, ownerId: claim.id, attemptId: claim.token });
+    });
   },
 );
 
 const ensureDigitalShippingProfileStep = createStep(
-  'ensure-digital-shipping-profile-step',
+  { name: 'ensure-digital-shipping-profile-step', ...bookingStepConfig },
   async (input: {}, { container }: { container: any }) => {
     const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT);
 
@@ -130,7 +190,7 @@ const ensureDigitalShippingProfileStep = createStep(
 );
 
 const ensureDigitalShippingOptionStep = createStep(
-  'ensure-digital-shipping-option-step',
+  { name: 'ensure-digital-shipping-option-step', ...bookingStepConfig },
   async (input: { digitalShippingProfile: any }, { container }: { container: any }) => {
     const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT);
     const regionModuleService = container.resolve(Modules.REGION);
@@ -189,7 +249,7 @@ const ensureDigitalShippingOptionStep = createStep(
 );
 
 const resolveStoreDefaultSalesChannelStep = createStep(
-  'resolve-store-default-sales-channel-step',
+  { name: 'resolve-store-default-sales-channel-step', ...bookingStepConfig },
   async (input: {}, { container }: { container: any }) => {
     const storeModuleService = container.resolve(Modules.STORE);
     const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL);
@@ -211,7 +271,7 @@ const resolveStoreDefaultSalesChannelStep = createStep(
 );
 
 const ensureDigitalLocationStep = createStep(
-  'ensure-digital-location-step',
+  { name: 'ensure-digital-location-step', ...bookingStepConfig },
   async (input: {}, { container }: { container: any }) => {
     const stockLocationModuleService = container.resolve(Modules.STOCK_LOCATION);
 
@@ -245,7 +305,7 @@ const ensureDigitalLocationStep = createStep(
 );
 
 const linkDigitalLocationToSalesChannelStep = createStep(
-  'link-digital-location-to-sales-channel-step',
+  { name: 'link-digital-location-to-sales-channel-step', ...bookingStepConfig },
   async (input: { digitalLocation: any; defaultSalesChannel: any }, { container }: { container: any }) => {
     await linkSalesChannelsToStockLocationWorkflow(container).run({
       input: {
@@ -262,202 +322,247 @@ const linkDigitalLocationToSalesChannelStep = createStep(
 );
 
 const createEventProductStep = createStep(
-  'create-event-product-step',
+  { name: 'create-event-product-step', ...bookingStepConfig },
   async (
     input: {
       originalChefEvent: ChefEventData;
+      token: string;
       digitalShippingProfile: any;
       defaultSalesChannel: any;
       digitalLocation: any;
     },
     { container }: { container: any },
   ) => {
-    const logger = container.resolve('logger');
-    const chefEvent = input.originalChefEvent;
+    return withEventProductLock(container, input.token, async () => {
+      const attempt = await container.resolve(CHEF_EVENT_MODULE).retrieveAcceptanceAttempt(input.token);
+      if (attempt.event_id !== input.originalChefEvent.id || attempt.state === 'aborted')
+        throw new Error('Acceptance attempt was aborted.');
+      const logger = container.resolve('logger');
+      const chefEvent = input.originalChefEvent;
 
-    function getEventTypeLabel(eventType: string): string {
-      const eventTypeLabels: Record<string, string> = {
-        cooking_class: 'Cooking Class',
-        plated_dinner: 'Plated Dinner',
-        buffet_style: 'Buffet Style',
-      };
-      return eventTypeLabels[eventType] || eventType;
-    }
-
-    function calculatePricePerPerson(chefEvent: ChefEventData): number {
-      const total = Number(chefEvent.totalPrice);
-      if (Number.isFinite(total) && total > 0 && chefEvent.partySize > 0) {
-        return total / chefEvent.partySize;
+      function getEventTypeLabel(eventType: string): string {
+        const eventTypeLabels: Record<string, string> = {
+          cooking_class: 'Cooking Class',
+          plated_dinner: 'Plated Dinner',
+          buffet_style: 'Buffet Style',
+        };
+        return eventTypeLabels[eventType] || eventType;
       }
-      const pricing: Record<string, number> = {
-        cooking_class: 119.99,
-        plated_dinner: 149.99,
-        buffet_style: 99.99,
-      };
-      return pricing[chefEvent.eventType] ?? pricing.plated_dinner;
-    }
 
-    function createUrlSafeHandle(chefEvent: ChefEventData): string {
-      const eventType = chefEvent.eventType
+      function calculatePricePerPerson(chefEvent: ChefEventData): number {
+        const total = Number(chefEvent.totalPrice);
+        if (Number.isFinite(total) && total > 0 && chefEvent.partySize > 0) {
+          return total / chefEvent.partySize;
+        }
+        const pricing: Record<string, number> = {
+          cooking_class: 119.99,
+          plated_dinner: 149.99,
+          buffet_style: 99.99,
+        };
+        return pricing[chefEvent.eventType] ?? pricing.plated_dinner;
+      }
+
+      function createUrlSafeHandle(chefEvent: ChefEventData): string {
+        const eventType = chefEvent.eventType
+          .replace(/[^a-zA-Z0-9]+/g, '-')
+          .replace(/-+/g, '-')
+          .toLowerCase();
+        const date = new Date(chefEvent.requestedDate).toISOString().split('T')[0];
+        const customerName = `${chefEvent.firstName}-${chefEvent.lastName}`
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, '');
+        return `event-${eventType}-${customerName}-${date}`;
+      }
+
+      const pricePerPerson = calculatePricePerPerson(chefEvent);
+      const eventTypeSkuPart = chefEvent.eventType
         .replace(/[^a-zA-Z0-9]+/g, '-')
         .replace(/-+/g, '-')
-        .toLowerCase();
-      const date = new Date(chefEvent.requestedDate).toISOString().split('T')[0];
-      const customerName = `${chefEvent.firstName}-${chefEvent.lastName}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
-      return `event-${eventType}-${customerName}-${date}`;
-    }
+        .toLowerCase()
+        .slice(0, 40);
 
-    const pricePerPerson = calculatePricePerPerson(chefEvent);
-    const eventTypeSkuPart = chefEvent.eventType
-      .replace(/[^a-zA-Z0-9]+/g, '-')
-      .replace(/-+/g, '-')
-      .toLowerCase()
-      .slice(0, 40);
-
-    const { result } = await createProductsWorkflow(container).run({
-      input: {
-        products: [
-          {
-            title: `${getEventTypeLabel(chefEvent.eventType)} - ${chefEvent.firstName} ${chefEvent.lastName} - ${new Date(chefEvent.requestedDate).toLocaleDateString()}`,
-            handle: `${createUrlSafeHandle(chefEvent)}-${chefEvent.id}`,
-            description: `Private chef event for ${chefEvent.firstName} ${chefEvent.lastName} on ${new Date(chefEvent.requestedDate).toLocaleDateString()} at ${chefEvent.requestedTime}. Event type: ${getEventTypeLabel(chefEvent.eventType)}. Location: ${chefEvent.locationAddress}.`,
-            status: 'draft',
-            shipping_profile_id: input.digitalShippingProfile.id,
-            sales_channels: [{ id: input.defaultSalesChannel.id }],
-            options: [
-              {
-                title: 'Ticket Type',
-                values: ['Event Ticket'],
-              },
-            ],
-            variants: [
-              {
-                title: 'Event Ticket',
-                sku: `EVENT-${chefEvent.id}-${new Date(chefEvent.requestedDate).toISOString().split('T')[0]}-${eventTypeSkuPart}`,
-                manage_inventory: true,
-                options: {
-                  'Ticket Type': 'Event Ticket',
+      const creation = eventProductWorkflow(container);
+      await recoverEventProduct(container, input.token, chefEvent.id);
+      const { result, transaction } = await creation.run({
+        context: { transactionId: eventProductExecution(input.token) },
+        input: {
+          eventId: chefEvent.id,
+          attemptId: input.token,
+          products: [
+            {
+              title: `${getEventTypeLabel(chefEvent.eventType)} - ${chefEvent.firstName} ${chefEvent.lastName} - ${new Date(chefEvent.requestedDate).toLocaleDateString()}`,
+              handle: `${createUrlSafeHandle(chefEvent)}-${chefEvent.id}`,
+              description: `Private chef event for ${chefEvent.firstName} ${chefEvent.lastName} on ${new Date(chefEvent.requestedDate).toLocaleDateString()} at ${chefEvent.requestedTime}. Event type: ${getEventTypeLabel(chefEvent.eventType)}. Location: ${chefEvent.locationAddress}.`,
+              status: 'draft',
+              external_id: eventProductExecution(input.token),
+              metadata: { acceptance_attempt: input.token, chef_event_id: chefEvent.id },
+              shipping_profile_id: input.digitalShippingProfile.id,
+              sales_channels: [{ id: input.defaultSalesChannel.id }],
+              options: [
+                {
+                  title: 'Ticket Type',
+                  values: ['Event Ticket'],
                 },
-                prices: [
-                  {
-                    amount: pricePerPerson,
-                    currency_code: 'usd',
+              ],
+              variants: [
+                {
+                  title: 'Event Ticket',
+                  sku: `EVENT-${chefEvent.id}-${new Date(chefEvent.requestedDate).toISOString().split('T')[0]}-${eventTypeSkuPart}`,
+                  manage_inventory: true,
+                  options: {
+                    'Ticket Type': 'Event Ticket',
                   },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    });
+                  prices: [
+                    {
+                      amount: pricePerPerson,
+                      currency_code: 'usd',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      });
 
-    const product = result[0];
+      if (!transaction.hasFinished() || !result?.[0])
+        throw new Error('Product creation is awaiting native recovery; protected time is retained.');
+      const product = result[0];
 
-    try {
-      const inventoryModuleService = container.resolve(Modules.INVENTORY);
-      const inventoryItems = [];
+      try {
+        const inventoryModuleService = container.resolve(Modules.INVENTORY);
+        const inventoryItems = [];
 
-      for (const variant of product.variants) {
-        try {
-          const existingInventoryItems = await inventoryModuleService.listInventoryItems({
-            sku: variant.sku,
-          });
-
-          let inventoryItem;
-
-          if (existingInventoryItems.length > 0) {
-            inventoryItem = existingInventoryItems[0];
-          } else {
-            inventoryItem = await inventoryModuleService.createInventoryItems({
+        for (const variant of product.variants) {
+          try {
+            const existingInventoryItems = await inventoryModuleService.listInventoryItems({
               sku: variant.sku,
-              origin_country: 'US',
-              hs_code: '',
-              mid_code: '',
-              material: '',
-              weight: 0,
-              length: 0,
-              height: 0,
-              width: 0,
-              requires_shipping: false,
-              description: `Digital ticket for ${variant.title}`,
-              title: variant.title,
             });
-          }
 
-          // Medusa's createProductVariantsWorkflow already linked this SKU to an inventory row
-          // with requires_shipping: true. Reusing that row by SKU leaves the wrong flag — fix it.
-          if (inventoryItem.requires_shipping !== false) {
-            inventoryItem = await inventoryModuleService.updateInventoryItems({
-              id: inventoryItem.id,
-              requires_shipping: false,
-            });
-          }
+            let inventoryItem;
 
-          const existingLevels = await inventoryModuleService.listInventoryLevels({
-            inventory_item_id: inventoryItem.id,
-            location_id: input.digitalLocation.id,
-          });
+            if (existingInventoryItems.length > 0) {
+              inventoryItem = existingInventoryItems[0];
+            } else {
+              inventoryItem = await inventoryModuleService.createInventoryItems({
+                sku: variant.sku,
+                origin_country: 'US',
+                hs_code: '',
+                mid_code: '',
+                material: '',
+                weight: 0,
+                length: 0,
+                height: 0,
+                width: 0,
+                requires_shipping: false,
+                description: `Digital ticket for ${variant.title}`,
+                title: variant.title,
+              });
+            }
 
-          if (existingLevels.length === 0) {
-            await inventoryModuleService.createInventoryLevels({
+            // Medusa's createProductVariantsWorkflow already linked this SKU to an inventory row
+            // with requires_shipping: true. Reusing that row by SKU leaves the wrong flag — fix it.
+            if (inventoryItem.requires_shipping !== false) {
+              inventoryItem = await inventoryModuleService.updateInventoryItems({
+                id: inventoryItem.id,
+                requires_shipping: false,
+              });
+            }
+
+            const existingLevels = await inventoryModuleService.listInventoryLevels({
               inventory_item_id: inventoryItem.id,
               location_id: input.digitalLocation.id,
-              stocked_quantity: input.originalChefEvent.partySize,
-              reserved_quantity: 0,
             });
-          }
-          inventoryItems.push(inventoryItem);
-        } catch (error) {
-          logger.error(
-            `Error processing inventory for variant ${variant.title}: ${error instanceof Error ? error.message : String(error)}`,
-          );
-          throw error;
-        }
-      }
 
-      return new StepResponse({ product, inventoryItems }, { productId: product.id, eventId: chefEvent.id });
-    } catch (error) {
-      await deleteProductsWorkflow(container).run({ input: { ids: [product.id] } });
-      throw error;
-    }
+            if (existingLevels.length === 0) {
+              await inventoryModuleService.createInventoryLevels({
+                inventory_item_id: inventoryItem.id,
+                location_id: input.digitalLocation.id,
+                stocked_quantity: input.originalChefEvent.partySize,
+                reserved_quantity: 0,
+              });
+            }
+            inventoryItems.push(inventoryItem);
+          } catch (error) {
+            logger.error(
+              `Error processing inventory for variant ${variant.title}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            throw error;
+          }
+        }
+
+        return new StepResponse(
+          { product, inventoryItems },
+          { productId: product.id, eventId: chefEvent.id, token: input.token },
+        );
+      } catch (error) {
+        // Retrying inventory setup reuses the retained native product execution.
+        throw error;
+      }
+    });
   },
   async (data, { container }) => {
     if (!data) return;
-    const event = await container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE).retrieveChefEvent(data.eventId);
-    // Finalized bookings survive downstream notification failures.
-    if (event.status === 'pending') await deleteProductsWorkflow(container).run({ input: { ids: [data.productId] } });
+    return withEventProductLock(container, data.token, async () => {
+      const product = await container
+        .resolve(Modules.PRODUCT)
+        .retrieveProduct(data.productId)
+        .catch((error: { type?: string }) => {
+          if (error.type !== MedusaError.Types.NOT_FOUND) throw error;
+          return null;
+        });
+      if (!product) return;
+      if (
+        product.metadata?.acceptance_attempt !== data.token ||
+        product.metadata?.chef_event_id !== data.eventId
+      )
+        throw new Error('Product ownership does not match this acceptance attempt.');
+      // The conditional abort prevents a concurrent or stale finalizer from winning after cleanup starts.
+      if (
+        await container
+          .resolve<ChefEventModuleService>(CHEF_EVENT_MODULE)
+          .releaseAcceptance(data.eventId, data.token)
+      )
+        await deleteProductsWorkflow(container).run({ input: { ids: [data.productId] } });
+    });
   },
 );
 
 const linkChefEventToProductStep = createStep(
-  'link-chef-event-to-product-step',
+  { name: 'link-chef-event-to-product-step', ...bookingStepConfig },
   async (
-    input: { originalChefEvent: ChefEventData; product: any; token: string; acceptance: AcceptChefEventWorkflowInput },
+    input: {
+      originalChefEvent: ChefEventData;
+      product: any;
+      token: string;
+      acceptance: AcceptChefEventWorkflowInput;
+    },
     { container }: { container: any },
   ) => {
     const chefEventModuleService: ChefEventModuleService = container.resolve(CHEF_EVENT_MODULE);
 
-    const current = await chefEventModuleService.retrieveChefEvent(input.originalChefEvent.id);
-    if (current.status !== 'pending' || current.acceptanceToken !== input.token)
-      throw new Error('Acceptance claim was lost.');
-    await container.resolve(Modules.PRODUCT).updateProducts({ id: input.product.id, status: 'published' });
-    const updatedChefEvent = await chefEventModuleService.updateChefEvents({
+    const updatedChefEvent = await chefEventModuleService.finalizeAcceptance({
       id: input.originalChefEvent.id,
+      token: input.token,
       productId: input.product.id,
-      status: 'confirmed',
-      acceptanceToken: null,
-      acceptedAt: new Date(),
-      acceptedBy: input.acceptance.acceptedBy || 'chef',
+      acceptedBy: input.acceptance.acceptedBy,
       chefNotes: input.acceptance.chefNotes,
-      sendAcceptanceEmail: input.acceptance.sendAcceptanceEmail ?? true,
+      sendAcceptanceEmail: input.acceptance.sendAcceptanceEmail,
     });
+    // Both held and confirmed reservations protect time if interrupted between these module commits.
+    await (container.resolve(SCHEDULING_MODULE) as SchedulingModuleService).confirm({
+      id: input.token,
+      ownerId: input.originalChefEvent.id,
+      attemptId: input.token,
+    });
+    await container.resolve(Modules.PRODUCT).updateProducts(input.product.id, { status: 'published' });
 
     return new StepResponse(updatedChefEvent);
   },
 );
 
 export const acceptChefEventWorkflow = createWorkflow(
-  'accept-chef-event-workflow',
+  { name: 'accept-chef-event-workflow', store: true, idempotent: true },
   function (input: AcceptChefEventWorkflowInput) {
     const chefEventData = acceptChefEventStep(input);
     const digitalShippingProfile = ensureDigitalShippingProfileStep();
@@ -470,6 +575,7 @@ export const acceptChefEventWorkflow = createWorkflow(
     });
     const productAndInventory = createEventProductStep({
       originalChefEvent: chefEventData.originalChefEvent,
+      token: chefEventData.token,
       digitalShippingProfile,
       defaultSalesChannel: linkedLocation.defaultSalesChannel,
       digitalLocation: linkedLocation.digitalLocation,
@@ -481,15 +587,15 @@ export const acceptChefEventWorkflow = createWorkflow(
       acceptance: input,
     });
 
-    if (input.sendAcceptanceEmail ?? true) {
+    when('send-acceptance-email', { input }, ({ input }) => input.sendAcceptanceEmail !== false).then(() => {
       emitEventStep({
         eventName: 'chef-event.accepted',
         data: {
           chefEventId: linkedChefEvent.id,
           productId: productAndInventory.product.id,
         },
-      }).config({ name: 'emit-chef-event-accepted' });
-    }
+      }).config({ name: 'emit-chef-event-accepted', ...bookingStepConfig });
+    });
 
     // Always sync acceptance updates (status/color/details) to Google Calendar.
     emitEventStep({
@@ -498,7 +604,7 @@ export const acceptChefEventWorkflow = createWorkflow(
         chefEventId: linkedChefEvent.id,
         operation: 'upsert',
       },
-    }).config({ name: 'emit-google-calendar-sync-on-chef-event-accept' });
+    }).config({ name: 'emit-google-calendar-sync-on-chef-event-accept', ...bookingStepConfig });
 
     return new WorkflowResponse({
       success: true,

@@ -1,3 +1,4 @@
+import { releaseEventReservations } from '../lib/release-event-reservations';
 import { 
   createStep,
   createWorkflow,
@@ -28,7 +29,7 @@ const rejectChefEventStep = createStep(
     }
     
     // Update the chef event to cancelled status
-    const updated = await chefEventModuleService.updateChefEvents({
+    const updated = await chefEventModuleService.cancelEvent({
       id: input.chefEventId,
       status: 'cancelled',
       rejectionReason: input.rejectionReason,
@@ -36,6 +37,7 @@ const rejectChefEventStep = createStep(
     })
     const updatedChefEvent = Array.isArray(updated) ? updated[0] : updated
 
+    await releaseEventReservations(container, input.chefEventId)
     return new StepResponse(updatedChefEvent)
   }
 )
