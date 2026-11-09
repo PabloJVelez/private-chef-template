@@ -101,9 +101,11 @@ async function main() {
     }),
   );
   if (process.env.BOOKING_MODE === 'acceptance') {
-    bookingStepConfig.retryIntervalAwaiting = 1;
-    bookingStepConfig.retryInterval = 1;
-    if (process.env.BOOKING_FAIL) bookingStepConfig.maxRetries = 0;
+    if (process.env.BOOKING_NORMAL_RETRIES !== 'true') {
+      bookingStepConfig.retryIntervalAwaiting = 1;
+      bookingStepConfig.retryInterval = 1;
+      if (process.env.BOOKING_FAIL) bookingStepConfig.maxRetries = 0;
+    }
     const { runEventAcceptance } = require('../../src/lib/run-event-acceptance');
     const chef = container.resolve<any>('chefEventModuleService');
     const scheduling = container.resolve<any>('scheduling');
@@ -145,8 +147,8 @@ async function main() {
       const locations = container.resolve<any>(Modules.STOCK_LOCATION);
       if (!(await locations.listStockLocations({ name: 'Digital Location' })).length)
         await locations.createStockLocations({ name: 'Digital Location' });
-      await chef.createChefEvents({
-        id: eventId,
+      const seeded = await chef.createChefEvents({
+        ...(process.env.BOOKING_GENERATED_ID === 'true' ? {} : { id: eventId }),
         requestedDate: DateTime.utc()
           .plus({ days: Number(process.env.BOOKING_DAY || 50) })
           .startOf('day')
@@ -154,12 +156,12 @@ async function main() {
           .toJSDate(),
         requestedTime: '10:00',
         partySize: 4,
-        eventType: 'Dinner',
+        eventType: process.env.BOOKING_PUNCTUATION ? 'Dinner / & -- Party!' : 'Dinner',
         experience_type_id: 'proof-experience',
         templateProductId: 'fixture-menu',
         locationType: 'customer_location',
         locationAddress: 'Fixture',
-        firstName: 'Fixture',
+        firstName: process.env.BOOKING_PUNCTUATION ? 'Éva --' : 'Fixture',
         lastName: 'Guest',
         email: 'fixture@example.invalid',
         phone: '',
@@ -169,11 +171,15 @@ async function main() {
         estimatedDuration: 60,
         timeZone: 'UTC',
       });
+      console.log(JSON.stringify({ seededEventId: seeded.id }));
       process.exit(0);
     }
+    let startedAt = 0;
+    let finalizedMs: number | undefined;
     const finalize = chef.finalizeAcceptance.bind(chef);
     chef.finalizeAcceptance = async (...args: unknown[]) => {
       const event = await finalize(...args);
+      finalizedMs = performance.now() - startedAt;
       if (process.env.BOOKING_CRASH === 'finalized') {
         process.send?.({ type: 'finalized', id: event.id });
         await new Promise(() => {});
@@ -205,6 +211,124 @@ async function main() {
       }),
     );
     await app.onApplicationStart();
+    if (process.env.BOOKING_FAIL === 'release')
+      scheduling.release = async () => {
+        throw new Error('Fixture release interrupted');
+      };
+    let productCreateCalls = 0;
+    const productService = container.resolve<any>(Modules.PRODUCT);
+    const createProduct = productService.createProducts.bind(productService);
+    productService.createProducts = async (...args: any[]) => {
+      productCreateCalls++;
+      // Inject invalid native input, not a mocked Product result/error.
+      if (process.env.BOOKING_FAIL === 'product-validation') args[0][0].handle = 'INVALID handle';
+      return createProduct(...args);
+    };
+    if (process.env.BOOKING_ACTION === 'seed-legacy-attempt') {
+      // Reproduce pre-fix persisted input using only native commands/run, never checkpoint edits.
+      const attempt = await chef.bindAcceptance({
+        eventId,
+        actorId: 'fixture-admin',
+        requestKey: process.env.BOOKING_REQUEST_ID,
+        body: { acceptedBy: 'chef', sendAcceptanceEmail: false },
+      });
+      const event = await chef.retrieveChefEvent(eventId);
+      const start = new Date(event.requestedDate).toISOString();
+      const end = new Date(new Date(start).getTime() + 3600000).toISOString();
+      await chef.claimAcceptance({
+        id: eventId,
+        token: attempt.id,
+        updatedAt: event.updated_at,
+        start,
+        end,
+        snapshot: { duration_minutes: 60, timezone: 'UTC' },
+      });
+      await scheduling.acquire({ id: attempt.id, ownerId: eventId, attemptId: attempt.id, start, end });
+      const flow = eventProductWorkflow(container);
+      const old = await flow.run({
+        context: { transactionId: eventProductExecution(attempt.id) },
+        throwOnError: false,
+        input: {
+          eventId,
+          attemptId: attempt.id,
+          products: [
+            {
+              title: 'Legacy fixture ticket',
+              handle: `event-dinner-fixture-guest-${start.slice(0, 10)}-${eventId}`,
+              status: 'draft',
+              options: [{ title: 'Ticket Type', values: ['Event Ticket'] }],
+              external_id: eventProductExecution(attempt.id),
+              metadata: { acceptance_attempt: attempt.id, chef_event_id: eventId },
+            },
+          ],
+        },
+      });
+      process.send?.({
+        type: 'legacy',
+        state: old.transaction.getState(),
+        errors: old.errors,
+        productCreateCalls,
+      });
+      await app.onApplicationPrepareShutdown();
+      await app.onApplicationShutdown();
+      process.exit(0);
+    }
+    if (process.env.BOOKING_ACTION?.startsWith('route')) {
+      const recovery = process.env.BOOKING_ACTION !== 'route';
+      const { POST } = recovery
+        ? require('../../src/api/admin/chef-events/[id]/acceptance/recover/route')
+        : require('../../src/api/admin/chef-events/[id]/accept/route');
+      let status = 200;
+      let body: unknown;
+      startedAt = performance.now();
+      await POST(
+        {
+          scope: container,
+          params: { id: eventId },
+          auth_context: { actor_id: 'fixture-admin' },
+          body: recovery
+            ? { action: process.env.BOOKING_ACTION === 'route-abort' ? 'abort' : 'resume' }
+            : { attemptId: process.env.BOOKING_REQUEST_ID, sendAcceptanceEmail: false },
+        },
+        {
+          status(code: number) {
+            status = code;
+            return this;
+          },
+          json(value: unknown) {
+            body = value;
+          },
+        },
+      );
+      const elapsedMs = performance.now() - startedAt;
+      const event = await chef.retrieveChefEvent(eventId);
+      const attempt = await chef.retrieveAcceptanceAttempt(event.acceptanceExecution);
+      const child = await eventProductWorkflow(container)
+        .getRunningTransaction(eventProductExecution(attempt.id))
+        .catch((error: { type?: string }) => {
+          if (error.type === 'not_found') return null;
+          throw error;
+        });
+      process.send?.({
+        type: 'route',
+        status,
+        body,
+        elapsedMs,
+        finalizedMs,
+        productCreateCalls,
+        eventStatus: event.status,
+        attempt,
+        products: await container
+          .resolve<any>(Modules.PRODUCT)
+          .listProducts({ external_id: eventProductExecution(attempt.id) }),
+        reservations: await scheduling.listReservations({ owner_id: eventId }),
+        childState: child?.getState(),
+        childInput: child?.getContext().payload,
+      });
+      await app.onApplicationPrepareShutdown();
+      await app.onApplicationShutdown();
+      process.exit(0);
+    }
     const attempt = await chef.bindAcceptance({
       eventId,
       actorId: 'fixture-admin',

@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { requireSlot } from '../lib/availability/query';
+import { INVALID_TICKET_DETAILS } from '../lib/acceptance-messages';
 /**
  * Accept Chef Event Workflow
  *
@@ -20,7 +21,7 @@ import { requireSlot } from '../lib/availability/query';
  * shipping option + inventory requires_shipping: false — not by sales channels.
  */
 
-import { MedusaError, Modules } from '@medusajs/framework/utils';
+import { MedusaError, Modules, toHandle, isValidHandle } from '@medusajs/framework/utils';
 import {
   deleteProductsWorkflow,
   createShippingOptionsWorkflow,
@@ -378,7 +379,8 @@ const createEventProductStep = createStep(
         const customerName = `${chefEvent.firstName}-${chefEvent.lastName}`
           .toLowerCase()
           .replace(/[^a-z0-9-]/g, '');
-        return `event-${eventType}-${customerName}-${date}`;
+        // Normalize the complete handle, including the generated (uppercase) ID suffix.
+        return toHandle(`event-${eventType}-${customerName}-${date}-${chefEvent.id}`);
       }
 
       const pricePerPerson = calculatePricePerPerson(chefEvent);
@@ -388,52 +390,62 @@ const createEventProductStep = createStep(
         .toLowerCase()
         .slice(0, 40);
 
+      const handle = createUrlSafeHandle(chefEvent);
+      if (!isValidHandle(handle)) StepResponse.permanentFailure(INVALID_TICKET_DETAILS);
       const creation = eventProductWorkflow(container);
       await recoverEventProduct(container, input.token, chefEvent.id);
-      const { result, transaction } = await creation.run({
-        context: { transactionId: eventProductExecution(input.token) },
-        input: {
-          eventId: chefEvent.id,
-          attemptId: input.token,
-          products: [
-            {
-              title: `${getEventTypeLabel(chefEvent.eventType)} - ${chefEvent.firstName} ${chefEvent.lastName} - ${new Date(chefEvent.requestedDate).toLocaleDateString()}`,
-              handle: `${createUrlSafeHandle(chefEvent)}-${chefEvent.id}`,
-              description: `Private chef event for ${chefEvent.firstName} ${chefEvent.lastName} on ${new Date(chefEvent.requestedDate).toLocaleDateString()} at ${chefEvent.requestedTime}. Event type: ${getEventTypeLabel(chefEvent.eventType)}. Location: ${chefEvent.locationAddress}.`,
-              status: 'draft',
-              external_id: eventProductExecution(input.token),
-              metadata: {
-                acceptance_attempt: input.token,
-                chef_event_id: chefEvent.id,
-              },
-              shipping_profile_id: input.digitalShippingProfile.id,
-              sales_channels: [{ id: input.defaultSalesChannel.id }],
-              options: [
-                {
-                  title: 'Ticket Type',
-                  values: ['Event Ticket'],
+      const { result, transaction } = await creation
+        .run({
+          context: { transactionId: eventProductExecution(input.token) },
+          input: {
+            eventId: chefEvent.id,
+            attemptId: input.token,
+            products: [
+              {
+                title: `${getEventTypeLabel(chefEvent.eventType)} - ${chefEvent.firstName} ${chefEvent.lastName} - ${new Date(chefEvent.requestedDate).toLocaleDateString()}`,
+                handle,
+                description: `Private chef event for ${chefEvent.firstName} ${chefEvent.lastName} on ${new Date(chefEvent.requestedDate).toLocaleDateString()} at ${chefEvent.requestedTime}. Event type: ${getEventTypeLabel(chefEvent.eventType)}. Location: ${chefEvent.locationAddress}.`,
+                status: 'draft',
+                external_id: eventProductExecution(input.token),
+                metadata: {
+                  acceptance_attempt: input.token,
+                  chef_event_id: chefEvent.id,
                 },
-              ],
-              variants: [
-                {
-                  title: 'Event Ticket',
-                  sku: `EVENT-${chefEvent.id}-${new Date(chefEvent.requestedDate).toISOString().split('T')[0]}-${eventTypeSkuPart}`,
-                  manage_inventory: true,
-                  options: {
-                    'Ticket Type': 'Event Ticket',
+                shipping_profile_id: input.digitalShippingProfile.id,
+                sales_channels: [{ id: input.defaultSalesChannel.id }],
+                options: [
+                  {
+                    title: 'Ticket Type',
+                    values: ['Event Ticket'],
                   },
-                  prices: [
-                    {
-                      amount: pricePerPerson,
-                      currency_code: 'usd',
+                ],
+                variants: [
+                  {
+                    title: 'Event Ticket',
+                    sku: `EVENT-${chefEvent.id}-${new Date(chefEvent.requestedDate).toISOString().split('T')[0]}-${eventTypeSkuPart}`,
+                    manage_inventory: true,
+                    options: {
+                      'Ticket Type': 'Event Ticket',
                     },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      });
+                    prices: [
+                      {
+                        amount: pricePerPerson,
+                        currency_code: 'usd',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        })
+        .catch((error: unknown) => {
+          // Product validation cannot succeed on retry, including an old persisted child input.
+          // Native compensation still verifies product absence before releasing protected time.
+          if ((error as { type?: string })?.type === MedusaError.Types.INVALID_DATA)
+            StepResponse.permanentFailure(INVALID_TICKET_DETAILS);
+          throw error;
+        });
 
       if (!transaction.hasFinished() || !result?.[0])
         throw new Error('Product creation is awaiting native recovery; protected time is retained.');

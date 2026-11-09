@@ -1,3 +1,4 @@
+import { RESOLVED_INVALID_TICKET_DETAILS, UNRESOLVED_INVALID_TICKET_DETAILS } from '../acceptance-messages';
 import { AdminChefEventsResource } from "../../sdk/admin/admin-chef-events";
 
 const storage = new Map<string, string>();
@@ -56,4 +57,25 @@ it("retains unresolved attempts but permits new input after a verified resolved 
     fetch.mock.calls[0][1].body.attemptId,
   );
   expect(fetch.mock.calls[2][1].body.sendAcceptanceEmail).toBe(true);
+});
+
+it('clears a deterministic failure only after verified cleanup, preserving the immutable request before it', async () => {
+  const fetch = jest
+    .fn()
+    .mockRejectedValueOnce(new Error(UNRESOLVED_INVALID_TICKET_DETAILS))
+    .mockRejectedValueOnce(new Error(RESOLVED_INVALID_TICKET_DETAILS))
+    .mockResolvedValueOnce({ success: true, pending: false });
+  const sdk = new AdminChefEventsResource({ fetch } as never);
+  await expect(
+    sdk.accept('event', { chefNotes: 'Original notes', sendAcceptanceEmail: false }),
+  ).rejects.toThrow(UNRESOLVED_INVALID_TICKET_DETAILS);
+  expect(storage.size).toBe(1);
+  const original = fetch.mock.calls[0][1].body;
+  await expect(new AdminChefEventsResource({ fetch } as never).accept('event', {})).rejects.toThrow(
+    RESOLVED_INVALID_TICKET_DETAILS,
+  );
+  expect(fetch.mock.calls[1][1].body).toEqual(original);
+  expect(storage.size).toBe(0);
+  await sdk.accept('event', { sendAcceptanceEmail: true });
+  expect(fetch.mock.calls[2][1].body.attemptId).not.toBe(original.attemptId);
 });

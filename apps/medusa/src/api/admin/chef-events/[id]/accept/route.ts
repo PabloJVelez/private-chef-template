@@ -1,3 +1,8 @@
+import {
+  INVALID_TICKET_DETAILS,
+  RESOLVED_INVALID_TICKET_DETAILS,
+  UNRESOLVED_INVALID_TICKET_DETAILS,
+} from '../../../../../lib/acceptance-messages';
 import type { AuthenticatedMedusaRequest, MedusaResponse } from '@medusajs/framework/http';
 import { MedusaError } from '@medusajs/framework/utils';
 import { z } from 'zod';
@@ -41,23 +46,28 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   });
   const finished = execution.transaction.hasFinished();
   const failed = ['failed', 'reverted'].includes(execution.transaction.getState());
+  const invalidTicket = execution.errors?.some(({ error }) => error?.message === INVALID_TICKET_DETAILS);
   let resolved = false;
   if (failed) {
     await chef.abortUnclaimedAcceptance(req.params.id, attempt.id);
     resolved = !!(await chef.retrieveAcceptanceAttempt(attempt.id)).cleanup_completed_at;
   }
-  res.status(failed ? 409 : finished ? 200 : 202).json({
-    success: !failed,
+  res.status(failed || invalidTicket ? 409 : finished ? 200 : 202).json({
+    success: !failed && !invalidTicket,
     attemptId: attempt.request_key,
     executionId: attempt.id,
     pending: !finished,
     resolved,
     data: execution.result,
-    ...(failed
+    ...(failed || invalidTicket
       ? {
           message: resolved
-            ? 'This acceptance attempt failed. Submit a new attemptId to try again.'
-            : 'Acceptance requires recovery. Protected time is retained until cleanup is verified.',
+            ? invalidTicket
+              ? RESOLVED_INVALID_TICKET_DETAILS
+              : 'This acceptance attempt failed. Submit a new attemptId to try again.'
+            : invalidTicket
+              ? UNRESOLVED_INVALID_TICKET_DETAILS
+              : 'Acceptance requires recovery. Protected time is retained until cleanup is verified.',
         }
       : {}),
   });

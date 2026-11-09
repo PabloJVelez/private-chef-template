@@ -21,10 +21,17 @@ function run(id: string, extra: Record<string, string> = {}, killAt?: string): P
     child.stderr?.on('data', (data) => {
       stderr += data;
     });
-    const timeout = setTimeout(() => {
-      child.kill('SIGKILL');
-      reject(new Error(`Fixture timed out: ${stderr}`));
-    }, 15000);
+    const timeout = setTimeout(
+      () => {
+        child.kill('SIGKILL');
+        reject(
+          new Error(
+            `Fixture timed out after messages ${JSON.stringify(messages.map((m) => ({ type: m.type, status: m.status, body: m.body })))}: ${stderr}`,
+          ),
+        );
+      },
+      extra.BOOKING_NORMAL_RETRIES === 'true' ? 30000 : 15000,
+    );
     child.on('message', (message: any) => {
       messages.push(message);
       if (message.type === killAt) setTimeout(() => child.kill('SIGKILL'), 250);
@@ -141,18 +148,172 @@ describe('Medusa 2.7 native Redis execution', () => {
       }),
     ]);
   }, 30000);
-  const seed = (id: string, day: number) => {
+  const seed = (id: string, day: number, extra: Record<string, string> = {}) => {
     const seeded = spawnSync(process.execPath, ['-r', 'ts-node/register/transpile-only', worker, 'seed'], {
       env: {
         ...env,
         BOOKING_EXECUTION_ID: id,
         BOOKING_MODE: 'acceptance',
         BOOKING_DAY: String(day),
+        ...extra,
       },
       encoding: 'utf8',
     });
     if (seeded.status !== 0) throw new Error(seeded.stderr);
+    return JSON.parse(seeded.stdout.trim().split('\n').at(-1)!).seededEventId as string;
   };
+  it.each(['generated', '01M70EQY8KJDNQN7WD745FQDY1'])(
+    'accepts realistic ID %s through the route without awaiting a retry',
+    async (shape) => {
+      const id = seed(
+        shape === 'generated' ? randomUUID() : shape,
+        shape === 'generated' ? 56 : 57,
+        shape === 'generated' ? { BOOKING_GENERATED_ID: 'true', BOOKING_PUNCTUATION: 'true' } : {},
+      );
+      expect(id).toMatch(/[A-Z]/);
+      const requestId = randomUUID();
+      const [output] = await run(id, {
+        BOOKING_MODE: 'acceptance',
+        BOOKING_ACTION: 'route',
+        BOOKING_NORMAL_RETRIES: 'true',
+        BOOKING_REQUEST_ID: requestId,
+      });
+      console.log('normal-config route evidence', {
+        eventId: id,
+        status: output.status,
+        elapsedMs: output.elapsedMs,
+        finalizedMs: output.finalizedMs,
+        productCreateCalls: output.productCreateCalls,
+        handle: output.products[0]?.handle,
+      });
+      expect(output).toMatchObject({
+        status: 200,
+        eventStatus: 'confirmed',
+        body: { success: true, pending: false },
+        products: [
+          expect.objectContaining({
+            status: 'published',
+            metadata: expect.objectContaining({ chef_event_id: id }),
+          }),
+        ],
+        reservations: [expect.objectContaining({ state: 'confirmed' })],
+      });
+      expect(output.finalizedMs).toBeGreaterThan(0);
+      expect(output.products[0].handle).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(output.products[0].handle.endsWith(id.toLowerCase())).toBe(true);
+      expect(output.childInput.products[0].variants[0].sku).toContain(id);
+      expect(output.reservations[0].owner_id).toBe(id);
+      const [replayed] = await run(id, {
+        BOOKING_MODE: 'acceptance',
+        BOOKING_ACTION: 'route',
+        BOOKING_NORMAL_RETRIES: 'true',
+        BOOKING_REQUEST_ID: requestId,
+      });
+      expect(replayed.products.map((p: any) => p.id)).toEqual(output.products.map((p: any) => p.id));
+      expect(replayed.status).toBe(200);
+    },
+    30000,
+  );
+  const route = (id: string, requestId: string, extra: Record<string, string> = {}) =>
+    run(
+      id,
+      {
+        BOOKING_MODE: 'acceptance',
+        BOOKING_ACTION: 'route',
+        BOOKING_NORMAL_RETRIES: 'true',
+        BOOKING_REQUEST_ID: requestId,
+        ...extra,
+      },
+      'route',
+    ); // Replace the fixture process after the response; shutdown can await scheduled compensation.
+  it('reports deterministic native Product validation without retrying it or leaking the raw input', async () => {
+    const id = seed(randomUUID(), 58, { BOOKING_GENERATED_ID: 'true' });
+    const [output] = await route(id, randomUUID(), { BOOKING_FAIL: 'product-validation' });
+    console.log('deterministic validation evidence', {
+      status: output.status,
+      elapsedMs: output.elapsedMs,
+      productCreateCalls: output.productCreateCalls,
+      body: output.body,
+    });
+    expect(output).toMatchObject({
+      status: 409,
+      productCreateCalls: 1,
+      eventStatus: 'pending',
+      body: { success: false, pending: false, resolved: true },
+      products: [],
+      attempt: { state: 'aborted', cleanup_completed_at: expect.any(String) },
+      reservations: [expect.objectContaining({ state: 'released' })],
+    });
+    expect(output.body.message).toContain('Ticket details are invalid');
+    expect(output.body.message).not.toContain('INVALID handle');
+  }, 30000);
+  it('keeps transient native failures pending and resumes after the normal retry interval', async () => {
+    const id = seed(randomUUID(), 59, { BOOKING_GENERATED_ID: 'true' });
+    const requestId = randomUUID();
+    const [pending] = await route(id, requestId, { BOOKING_FAIL: 'after-acquire' });
+    expect(pending).toMatchObject({
+      status: 202,
+      body: { pending: true, resolved: false },
+      reservations: [expect.objectContaining({ state: 'held' })],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 5200));
+    const [resumed] = await route(id, requestId);
+    expect(resumed).toMatchObject({
+      status: 200,
+      body: { pending: false },
+      eventStatus: 'confirmed',
+      products: [expect.objectContaining({ status: 'published' })],
+      reservations: [expect.objectContaining({ state: 'confirmed' })],
+    });
+  }, 30000);
+  it('retains persisted invalid child input, safely aborts interrupted cleanup, then accepts a new attempt', async () => {
+    const id = seed(randomUUID(), 60, { BOOKING_GENERATED_ID: 'true' });
+    const oldRequest = randomUUID();
+    const [legacy] = await route(id, oldRequest, { BOOKING_ACTION: 'seed-legacy-attempt' });
+    console.log('legacy child evidence', legacy);
+    expect(legacy).toMatchObject({ state: 'reverted', productCreateCalls: 1 });
+    expect(legacy.errors[0].error.message).toContain('Invalid product handle');
+    // Patched code cannot replace the old native child's persisted input on replay.
+    const [replayed] = await route(id, oldRequest, {
+      BOOKING_ACTION: 'route-resume',
+      BOOKING_FAIL: 'release',
+    });
+    expect(replayed).toMatchObject({
+      status: 409,
+      body: { success: false, resolved: false },
+      products: [],
+      attempt: { state: 'aborted', cleanup_completed_at: null },
+      reservations: [expect.objectContaining({ state: 'held' })],
+    });
+    expect(replayed.childInput.products[0].handle).toContain(id);
+    const newRequest = randomUUID();
+    await expect(route(id, newRequest, { BOOKING_FAIL: 'release' })).rejects.toThrow('finish cleanup');
+    await expect(
+      route(id, oldRequest, { BOOKING_ACTION: 'route-abort', BOOKING_FAIL: 'release' }),
+    ).rejects.toThrow('Fixture release interrupted');
+    const [cleaned] = await route(id, oldRequest, { BOOKING_ACTION: 'route-abort' });
+    expect(cleaned).toMatchObject({
+      status: 200,
+      body: { success: true, resolved: true },
+      products: [],
+      attempt: { cleanup_completed_at: expect.any(String) },
+      reservations: [expect.objectContaining({ state: 'released' })],
+    });
+    expect((await route(id, oldRequest, { BOOKING_ACTION: 'route-abort' }))[0].body.resolved).toBe(true);
+    const [resolvedReplay] = await route(id, oldRequest, { BOOKING_ACTION: 'route-resume' });
+    expect(resolvedReplay).toMatchObject({ status: 409, body: { success: false, resolved: true } });
+    const [accepted] = await route(id, newRequest);
+    expect(accepted).toMatchObject({
+      status: 200,
+      eventStatus: 'confirmed',
+      products: [expect.objectContaining({ status: 'published' })],
+    });
+    expect(accepted.reservations.map((r: any) => r.state).sort()).toEqual(['confirmed', 'released']);
+    const [stale] = await route(id, oldRequest);
+    expect(stale.status).toBe(409);
+    expect(stale.products.map((p: any) => p.id)).toEqual(accepted.products.map((p: any) => p.id));
+    expect(stale.reservations.map((r: any) => r.state).sort()).toEqual(['confirmed', 'released']);
+  }, 60000);
   it('has one winner for concurrent overlapping acceptance workflows', async () => {
     const one = randomUUID(),
       two = randomUUID();

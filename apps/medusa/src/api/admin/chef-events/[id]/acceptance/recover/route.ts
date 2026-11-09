@@ -1,3 +1,9 @@
+import {
+  INVALID_TICKET_DETAILS,
+  RESOLVED_INVALID_TICKET_DETAILS,
+  UNRESOLVED_INVALID_TICKET_DETAILS,
+  ACCEPTANCE_RECOVERY_REQUIRED,
+} from '../../../../../../lib/acceptance-messages';
 import { z } from 'zod';
 import { abortEventAcceptance } from '../../../../../../lib/abort-event-acceptance';
 import type { AuthenticatedMedusaRequest, MedusaResponse } from '@medusajs/framework/http';
@@ -44,13 +50,42 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     res.json({ success: true, resolved: true });
     return;
   }
+  if (attempt.state === 'aborted') {
+    res
+      .status(409)
+      .json({
+        success: false,
+        resolved: !!attempt.cleanup_completed_at,
+        message: attempt.cleanup_completed_at
+          ? 'This acceptance attempt failed. Submit a new attemptId to try again.'
+          : ACCEPTANCE_RECOVERY_REQUIRED,
+      });
+    return;
+  }
   const executionId = input.requestId ? `recover-${attempt.id}-${input.requestId}` : attempt.id;
   const output = await runEventAcceptance(
     req.scope,
     { ...attempt.input, chefEventId: event.id, attemptId: attempt.id },
     executionId,
   );
-  res
-    .status(output.transaction.hasFinished() ? 200 : 202)
-    .json({ executionId, state: output.transaction.getState(), data: output.result });
+  const failed = ['failed', 'reverted'].includes(output.transaction.getState());
+  const invalidTicket = output.errors?.some(({ error }) => error?.message === INVALID_TICKET_DETAILS);
+  const resolved = !!(await chef.retrieveAcceptanceAttempt(attempt.id)).cleanup_completed_at;
+  res.status(failed || invalidTicket ? 409 : output.transaction.hasFinished() ? 200 : 202).json({
+    executionId,
+    state: output.transaction.getState(),
+    success: !failed && !invalidTicket,
+    pending: !output.transaction.hasFinished(),
+    resolved,
+    data: output.result,
+    ...(failed || invalidTicket
+      ? {
+          message: invalidTicket
+            ? resolved
+              ? RESOLVED_INVALID_TICKET_DETAILS
+              : UNRESOLVED_INVALID_TICKET_DETAILS
+            : ACCEPTANCE_RECOVERY_REQUIRED,
+        }
+      : {}),
+  });
 }
