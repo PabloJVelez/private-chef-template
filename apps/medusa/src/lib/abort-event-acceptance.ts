@@ -12,10 +12,14 @@ export async function abortEventAcceptance(container: MedusaContainer, eventId: 
   return withEventProductLock(container, attemptId, async () => {
     const chef = container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
     const event = await chef.retrieveChefEvent(eventId);
-    if (event.status !== 'pending' || event.productId || event.acceptanceExecution !== attemptId)
+    if (
+      !['pending', 'cancelled'].includes(event.status) ||
+      event.productId ||
+      event.acceptanceExecution !== attemptId
+    )
       throw new MedusaError(
         MedusaError.Types.NOT_ALLOWED,
-        'Only the current pending acceptance can be aborted.',
+        'Only the current pending or cancelled acceptance can be cleaned up.',
       );
     const productService = container.resolve<IProductModuleService>(Modules.PRODUCT);
     const [products, count] = await productService.listAndCountProducts(
@@ -37,7 +41,9 @@ export async function abortEventAcceptance(container: MedusaContainer, eventId: 
       (await chef.abortUnclaimedAcceptance(eventId, attemptId));
     if (!aborted) throw new Error('Acceptance cannot be aborted after finalization.');
     if (products.length)
-      await deleteProductsWorkflow(container).run({ input: { ids: products.map((product) => product.id) } });
+      await deleteProductsWorkflow(container).run({
+        input: { ids: products.map((product) => product.id) },
+      });
     const scheduling = container.resolve<SchedulingModuleService>(SCHEDULING_MODULE);
     const reservations = await scheduling.listReservations({
       id: attemptId,
@@ -45,5 +51,6 @@ export async function abortEventAcceptance(container: MedusaContainer, eventId: 
       attempt_id: attemptId,
     });
     if (reservations.length) await scheduling.release({ id: attemptId, ownerId: eventId, attemptId });
+    await chef.completeAcceptanceCleanup(eventId, attemptId);
   });
 }

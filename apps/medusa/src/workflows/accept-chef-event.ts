@@ -67,85 +67,86 @@ type ChefEventData = {
 const acceptChefEventStep = createStep(
   { name: 'accept-chef-event-step', ...bookingStepConfig },
   async (input: AcceptChefEventWorkflowInput, { container }: { container: any }) => {
-    const chefEventModuleService: ChefEventModuleService = container.resolve(CHEF_EVENT_MODULE);
+    // Serialize claim/acquire with explicit abort so cleanup cannot finish ahead of a late acquire.
+    return withEventProductLock(container, input.attemptId, async () => {
+      const chefEventModuleService: ChefEventModuleService = container.resolve(CHEF_EVENT_MODULE);
 
-    const originalChefEvent = await chefEventModuleService.retrieveChefEvent(input.chefEventId);
+      const originalChefEvent = await chefEventModuleService.retrieveChefEvent(input.chefEventId);
 
-    const token = input.attemptId;
-    const attempt = await chefEventModuleService.retrieveAcceptanceAttempt(token);
-    if (
-      attempt.event_id === originalChefEvent.id &&
-      attempt.state === 'finalized' &&
-      originalChefEvent.acceptanceExecution === token &&
-      ['confirmed', 'completed'].includes(originalChefEvent.status)
-    )
-      return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
-    if (attempt.event_id !== originalChefEvent.id || attempt.state !== 'active')
-      throw new Error('Acceptance attempt is no longer active.');
-    if (
-      originalChefEvent.acceptanceExecution !== token ||
-      originalChefEvent.status !== 'pending' ||
-      originalChefEvent.productId ||
-      (originalChefEvent.acceptanceToken && originalChefEvent.acceptanceToken !== token)
-    )
-      throw new Error('Only an unclaimed pending request can be accepted. Reload the event.');
-    if (originalChefEvent.acceptanceToken === token) {
-      await container
-        .resolve(SCHEDULING_MODULE)
-        .acquire({
+      const token = input.attemptId;
+      const attempt = await chefEventModuleService.retrieveAcceptanceAttempt(token);
+      if (
+        attempt.event_id === originalChefEvent.id &&
+        attempt.state === 'finalized' &&
+        originalChefEvent.acceptanceExecution === token &&
+        ['confirmed', 'completed'].includes(originalChefEvent.status)
+      )
+        return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
+      if (attempt.event_id !== originalChefEvent.id || attempt.state !== 'active')
+        throw new Error('Acceptance attempt is no longer active.');
+      if (
+        originalChefEvent.acceptanceExecution !== token ||
+        originalChefEvent.status !== 'pending' ||
+        originalChefEvent.productId ||
+        (originalChefEvent.acceptanceToken && originalChefEvent.acceptanceToken !== token)
+      )
+        throw new Error('Only an unclaimed pending request can be accepted. Reload the event.');
+      if (originalChefEvent.acceptanceToken === token) {
+        await container.resolve(SCHEDULING_MODULE).acquire({
           id: token,
           ownerId: originalChefEvent.id,
           attemptId: token,
           start: new Date(originalChefEvent.occupiedStart!).toISOString(),
           end: new Date(originalChefEvent.occupiedEnd!).toISOString(),
         });
-      return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
-    }
-    if (!originalChefEvent.experience_type_id)
-      throw new Error('Select an experience before accepting this legacy request.');
-    const date = DateTime.fromJSDate(new Date(originalChefEvent.requestedDate))
-      .setZone(originalChefEvent.timeZone)
-      .toISODate()!;
-    const { slot, experience, timezone } = await requireSlot(
-      container,
-      date,
-      originalChefEvent.experience_type_id,
-      new Date(originalChefEvent.requestedDate).toISOString(),
-      originalChefEvent.id,
-    );
-    if (slot.time !== originalChefEvent.requestedTime)
-      throw new Error('The chef timezone changed. Update the request before accepting.');
-    await chefEventModuleService.claimAcceptance({
-      id: originalChefEvent.id,
-      token,
-      updatedAt: originalChefEvent.updated_at,
-      start: slot.occupiedStart,
-      end: slot.occupiedEnd,
-      snapshot: {
-        timezone,
-        duration_minutes: experience.duration_minutes,
-        preparation_minutes: experience.preparation_minutes,
-        travel_minutes: experience.travel_minutes,
-        cleanup_minutes: experience.cleanup_minutes,
-      },
-    });
-    try {
-      await container
-        .resolve(SCHEDULING_MODULE)
-        .acquire({
+        return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
+      }
+      if (!originalChefEvent.experience_type_id)
+        throw new Error('Select an experience before accepting this legacy request.');
+      const date = DateTime.fromJSDate(new Date(originalChefEvent.requestedDate))
+        .setZone(originalChefEvent.timeZone)
+        .toISODate()!;
+      const { slot, experience, timezone } = await requireSlot(
+        container,
+        date,
+        originalChefEvent.experience_type_id,
+        new Date(originalChefEvent.requestedDate).toISOString(),
+        originalChefEvent.id,
+      );
+      if (slot.time !== originalChefEvent.requestedTime)
+        throw new Error('The chef timezone changed. Update the request before accepting.');
+      await chefEventModuleService.claimAcceptance({
+        id: originalChefEvent.id,
+        token,
+        updatedAt: originalChefEvent.updated_at,
+        start: slot.occupiedStart,
+        end: slot.occupiedEnd,
+        snapshot: {
+          timezone,
+          duration_minutes: experience.duration_minutes,
+          preparation_minutes: experience.preparation_minutes,
+          travel_minutes: experience.travel_minutes,
+          cleanup_minutes: experience.cleanup_minutes,
+        },
+      });
+      try {
+        await container.resolve(SCHEDULING_MODULE).acquire({
           id: token,
           ownerId: originalChefEvent.id,
           attemptId: token,
           start: slot.occupiedStart,
           end: slot.occupiedEnd,
         });
-    } catch (error) {
-      // An overlap rejection has a definite outcome. Unknown outcomes retain the event claim for recovery.
-      if ((error as { code?: string }).code === '23P01')
-        await chefEventModuleService.releaseAcceptance(originalChefEvent.id, token);
-      throw error;
-    }
-    return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
+      } catch (error) {
+        // An overlap rejection has a definite outcome. Unknown outcomes retain the event claim for recovery.
+        if ((error as { code?: string }).code === '23P01') {
+          await chefEventModuleService.releaseAcceptance(originalChefEvent.id, token);
+          await chefEventModuleService.completeAcceptanceCleanup(originalChefEvent.id, token);
+        }
+        throw error;
+      }
+      return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
+    });
   },
   async (claim, { container }) => {
     if (!claim) return;
@@ -153,10 +154,14 @@ const acceptChefEventStep = createStep(
     return withEventProductLock(container, claim.token, async () => {
       await assertEventProductAbsent(container, claim.token, claim.id);
       const chef = container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
-      if (await chef.releaseAcceptance(claim.id, claim.token))
-        await container
-          .resolve<SchedulingModuleService>(SCHEDULING_MODULE)
-          .release({ id: claim.token, ownerId: claim.id, attemptId: claim.token });
+      if (await chef.releaseAcceptance(claim.id, claim.token)) {
+        await container.resolve<SchedulingModuleService>(SCHEDULING_MODULE).release({
+          id: claim.token,
+          ownerId: claim.id,
+          attemptId: claim.token,
+        });
+        await chef.completeAcceptanceCleanup(claim.id, claim.token);
+      }
     });
   },
 );
@@ -261,7 +266,9 @@ const resolveStoreDefaultSalesChannelStep = createStep(
       return new StepResponse(channel);
     }
 
-    const [fallback] = await salesChannelModuleService.listSalesChannels({ name: 'Default Sales Channel' });
+    const [fallback] = await salesChannelModuleService.listSalesChannels({
+      name: 'Default Sales Channel',
+    });
     if (fallback) {
       return new StepResponse(fallback);
     }
@@ -395,7 +402,10 @@ const createEventProductStep = createStep(
               description: `Private chef event for ${chefEvent.firstName} ${chefEvent.lastName} on ${new Date(chefEvent.requestedDate).toLocaleDateString()} at ${chefEvent.requestedTime}. Event type: ${getEventTypeLabel(chefEvent.eventType)}. Location: ${chefEvent.locationAddress}.`,
               status: 'draft',
               external_id: eventProductExecution(input.token),
-              metadata: { acceptance_attempt: input.token, chef_event_id: chefEvent.id },
+              metadata: {
+                acceptance_attempt: input.token,
+                chef_event_id: chefEvent.id,
+              },
               shipping_profile_id: input.digitalShippingProfile.id,
               sales_channels: [{ id: input.defaultSalesChannel.id }],
               options: [
@@ -523,7 +533,9 @@ const createEventProductStep = createStep(
           .resolve<ChefEventModuleService>(CHEF_EVENT_MODULE)
           .releaseAcceptance(data.eventId, data.token)
       )
-        await deleteProductsWorkflow(container).run({ input: { ids: [data.productId] } });
+        await deleteProductsWorkflow(container).run({
+          input: { ids: [data.productId] },
+        });
     });
   },
 );
@@ -566,7 +578,9 @@ export const acceptChefEventWorkflow = createWorkflow(
   function (input: AcceptChefEventWorkflowInput) {
     const chefEventData = acceptChefEventStep(input);
     const digitalShippingProfile = ensureDigitalShippingProfileStep();
-    const digitalShippingOption = ensureDigitalShippingOptionStep({ digitalShippingProfile });
+    const digitalShippingOption = ensureDigitalShippingOptionStep({
+      digitalShippingProfile,
+    });
     const defaultSalesChannel = resolveStoreDefaultSalesChannelStep();
     const digitalLocation = ensureDigitalLocationStep();
     const linkedLocation = linkDigitalLocationToSalesChannelStep({
@@ -604,7 +618,10 @@ export const acceptChefEventWorkflow = createWorkflow(
         chefEventId: linkedChefEvent.id,
         operation: 'upsert',
       },
-    }).config({ name: 'emit-google-calendar-sync-on-chef-event-accept', ...bookingStepConfig });
+    }).config({
+      name: 'emit-google-calendar-sync-on-chef-event-accept',
+      ...bookingStepConfig,
+    });
 
     return new WorkflowResponse({
       success: true,

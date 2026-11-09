@@ -31,10 +31,18 @@ async function main() {
     sharedContainer: container,
     sharedResourcesConfig: { database: { clientUrl: database } },
     modulesConfig: {
-      chefEventModuleService: { resolve: path.resolve(__dirname, '../../src/modules/chef-event') },
-      availability: { resolve: path.resolve(__dirname, '../../src/modules/availability') },
-      experienceTypeModuleService: { resolve: path.resolve(__dirname, '../../src/modules/experience-type') },
-      scheduling: { resolve: path.resolve(__dirname, '../../src/modules/scheduling') },
+      chefEventModuleService: {
+        resolve: path.resolve(__dirname, '../../src/modules/chef-event'),
+      },
+      availability: {
+        resolve: path.resolve(__dirname, '../../src/modules/availability'),
+      },
+      experienceTypeModuleService: {
+        resolve: path.resolve(__dirname, '../../src/modules/experience-type'),
+      },
+      scheduling: {
+        resolve: path.resolve(__dirname, '../../src/modules/scheduling'),
+      },
       [Modules.FULFILLMENT]: { resolve: '@medusajs/medusa/fulfillment' },
       [Modules.STORE]: { resolve: '@medusajs/medusa/store' },
       [Modules.REGION]: { resolve: '@medusajs/medusa/region' },
@@ -46,7 +54,13 @@ async function main() {
       [Modules.LOCKING]: {
         resolve: '@medusajs/medusa/locking',
         options: {
-          providers: [{ resolve: '@medusajs/medusa/locking-postgres', id: 'proof-locks', is_default: true }],
+          providers: [
+            {
+              resolve: '@medusajs/medusa/locking-postgres',
+              id: 'proof-locks',
+              is_default: true,
+            },
+          ],
         },
       },
       [Modules.WORKFLOW_ENGINE]: {
@@ -124,7 +138,10 @@ async function main() {
         await sales.createSalesChannels({ name: 'Default Sales Channel' });
       const fulfillment = container.resolve<any>(Modules.FULFILLMENT);
       if (!(await fulfillment.listShippingProfiles({ name: 'Digital Products' })).length)
-        await fulfillment.createShippingProfiles({ name: 'Digital Products', type: 'digital' });
+        await fulfillment.createShippingProfiles({
+          name: 'Digital Products',
+          type: 'digital',
+        });
       const locations = container.resolve<any>(Modules.STOCK_LOCATION);
       if (!(await locations.listStockLocations({ name: 'Digital Location' })).length)
         await locations.createStockLocations({ name: 'Digital Location' });
@@ -195,6 +212,10 @@ async function main() {
       body: { sendAcceptanceEmail: false },
     });
     if (process.env.BOOKING_ACTION === 'abort') {
+      if (process.env.BOOKING_FAIL === 'release')
+        scheduling.release = async () => {
+          throw new Error('Fixture release interrupted');
+        };
       const { abortEventAcceptance } = require('../../src/lib/abort-event-acceptance');
       await abortEventAcceptance(container, eventId, attempt.id);
       process.send?.({
@@ -210,7 +231,11 @@ async function main() {
     }
     const result = await runEventAcceptance(
       container,
-      { chefEventId: eventId, attemptId: attempt.id, sendAcceptanceEmail: false },
+      {
+        chefEventId: eventId,
+        attemptId: attempt.id,
+        sendAcceptanceEmail: false,
+      },
       process.env.BOOKING_ACTION === 'recover' ? `recover-${attempt.id}-fixture` : attempt.id,
     );
     const event = await chef.retrieveChefEvent(eventId);
@@ -255,7 +280,10 @@ async function main() {
               options: [{ title: 'Ticket', values: ['Admission'] }],
               handle: `proof-${attemptId}`,
               external_id: eventProductExecution(attemptId),
-              metadata: { acceptance_attempt: attemptId, chef_event_id: 'proof-event' },
+              metadata: {
+                acceptance_attempt: attemptId,
+                chef_event_id: 'proof-event',
+              },
               status: 'draft',
             },
           ],
@@ -287,7 +315,12 @@ async function main() {
     return new StepResponse(value);
   });
   const workflow = createWorkflow(
-    { name: 'booking-native-proof', store: true, idempotent: true, retentionTime: 604800 },
+    {
+      name: 'booking-native-proof',
+      store: true,
+      idempotent: true,
+      retentionTime: 604800,
+    },
     (input: { value: string }) => {
       const value = step(input);
       return new WorkflowResponse(dispatch(value));

@@ -83,7 +83,11 @@ describe('Medusa 2.7 native Redis execution', () => {
     const id = randomUUID();
     expect((await run(id)).map((x) => x.type)).toEqual(['write', 'dispatch', 'result']);
     expect(await run(id)).toEqual([
-      expect.objectContaining({ type: 'result', result: 'original', state: 'done' }),
+      expect.objectContaining({
+        type: 'result',
+        result: 'original',
+        state: 'done',
+      }),
     ]);
   });
   it('records native behavior after a synchronous step loses its response', async () => {
@@ -139,7 +143,12 @@ describe('Medusa 2.7 native Redis execution', () => {
   }, 30000);
   const seed = (id: string, day: number) => {
     const seeded = spawnSync(process.execPath, ['-r', 'ts-node/register/transpile-only', worker, 'seed'], {
-      env: { ...env, BOOKING_EXECUTION_ID: id, BOOKING_MODE: 'acceptance', BOOKING_DAY: String(day) },
+      env: {
+        ...env,
+        BOOKING_EXECUTION_ID: id,
+        BOOKING_MODE: 'acceptance',
+        BOOKING_DAY: String(day),
+      },
       encoding: 'utf8',
     });
     if (seeded.status !== 0) throw new Error(seeded.stderr);
@@ -174,7 +183,10 @@ describe('Medusa 2.7 native Redis execution', () => {
   it('compensates a definite failure after acquisition without leaving occupied time', async () => {
     const id = randomUUID();
     seed(id, 53);
-    const [output] = await run(id, { BOOKING_MODE: 'acceptance', BOOKING_FAIL: 'after-acquire' });
+    const [output] = await run(id, {
+      BOOKING_MODE: 'acceptance',
+      BOOKING_FAIL: 'after-acquire',
+    });
     expect(output).toMatchObject({
       state: 'reverted',
       eventStatus: 'pending',
@@ -185,13 +197,19 @@ describe('Medusa 2.7 native Redis execution', () => {
   it('retains finalized time and product through downstream notification failure and compensation', async () => {
     const id = randomUUID();
     seed(id, 54);
-    const [output] = await run(id, { BOOKING_MODE: 'acceptance', BOOKING_FAIL: 'notification' });
+    const [output] = await run(id, {
+      BOOKING_MODE: 'acceptance',
+      BOOKING_FAIL: 'notification',
+    });
     expect(output).toMatchObject({
       eventStatus: 'confirmed',
       products: [expect.objectContaining({ status: 'published' })],
       reservations: [expect.objectContaining({ state: 'confirmed' })],
     });
-    const [recovered] = await run(id, { BOOKING_MODE: 'acceptance', BOOKING_ACTION: 'recover' });
+    const [recovered] = await run(id, {
+      BOOKING_MODE: 'acceptance',
+      BOOKING_ACTION: 'recover',
+    });
     expect(recovered).toMatchObject({
       state: 'done',
       productId: output.productId,
@@ -206,13 +224,26 @@ describe('Medusa 2.7 native Redis execution', () => {
   it('retains ambiguous product setup and permits explicit owned draft cleanup', async () => {
     const id = randomUUID();
     seed(id, 55);
-    const [failed] = await run(id, { BOOKING_MODE: 'acceptance', BOOKING_FAIL: 'inventory' });
+    const [failed] = await run(id, {
+      BOOKING_MODE: 'acceptance',
+      BOOKING_FAIL: 'inventory',
+    });
     expect(failed).toMatchObject({
       eventStatus: 'pending',
       products: [expect.objectContaining({ status: 'draft' })],
       reservations: [expect.objectContaining({ state: 'held' })],
     });
-    const [aborted] = await run(id, { BOOKING_MODE: 'acceptance', BOOKING_ACTION: 'abort' });
+    await expect(
+      run(id, {
+        BOOKING_MODE: 'acceptance',
+        BOOKING_ACTION: 'abort',
+        BOOKING_FAIL: 'release',
+      }),
+    ).rejects.toThrow('Fixture release interrupted');
+    const [aborted] = await run(id, {
+      BOOKING_MODE: 'acceptance',
+      BOOKING_ACTION: 'abort',
+    });
     expect(aborted).toMatchObject({
       type: 'aborted',
       products: [],

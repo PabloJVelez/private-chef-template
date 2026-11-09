@@ -51,6 +51,7 @@ const chef = {
   finalizeAcceptance: jest.fn(),
   claimAcceptance: jest.fn(),
   releaseAcceptance: jest.fn(),
+  completeAcceptanceCleanup: jest.fn(),
   updateChefEvents: jest.fn(),
 };
 const product = { deleteProducts: jest.fn(), updateProducts: jest.fn(), listProducts: jest.fn(), retrieveProduct: jest.fn() };

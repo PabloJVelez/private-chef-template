@@ -7,5 +7,6 @@ export const AcceptanceAttempt = model.define('chef_event_acceptance_attempt', {
   actor_id: model.text(),
   request_key: model.text(),
   input: model.json(),
+  cleanup_completed_at: model.dateTime().nullable(),
   state: model.enum(['active', 'finalized', 'aborted']).default('active'),
 });

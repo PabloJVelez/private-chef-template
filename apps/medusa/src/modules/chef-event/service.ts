@@ -116,9 +116,37 @@ class ChefEventModuleService extends MedusaService({
     return rows.length > 0 || attempt?.state === 'aborted';
   }
 
+  /** Called only after owned product cleanup and reservation release have completed. */
+  @InjectManager()
+  async completeAcceptanceCleanup(
+    id: string,
+    token: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    return this.completeAcceptanceCleanup_(id, token, context);
+  }
+
+  @InjectTransactionManager()
+  protected async completeAcceptanceCleanup_(
+    id: string,
+    token: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    await context.transactionManager!.execute(
+      `update chef_event_acceptance_attempt set cleanup_completed_at = coalesce(cleanup_completed_at, now()), updated_at = now()
+       where id = ? and event_id = ? and state = 'aborted'`,
+      [token, id],
+    );
+  }
+
   @InjectManager()
   async bindAcceptance(
-    input: { eventId: string; actorId: string; requestKey?: string; body: Record<string, unknown> },
+    input: {
+      eventId: string;
+      actorId: string;
+      requestKey?: string;
+      body: Record<string, unknown>;
+    },
     @MedusaContext() context: Context<EntityManager> = {},
   ) {
     return this.bindAcceptance_(input, context);
@@ -126,7 +154,12 @@ class ChefEventModuleService extends MedusaService({
 
   @InjectTransactionManager()
   protected async bindAcceptance_(
-    input: { eventId: string; actorId: string; requestKey?: string; body: Record<string, unknown> },
+    input: {
+      eventId: string;
+      actorId: string;
+      requestKey?: string;
+      body: Record<string, unknown>;
+    },
     @MedusaContext() context: Context<EntityManager> = {},
   ) {
     const manager = context.transactionManager!;
@@ -164,11 +197,15 @@ class ChefEventModuleService extends MedusaService({
         'Only an unclaimed pending request can start an acceptance attempt.',
       );
     if (event.acceptanceExecution) {
-      const [prior] = await manager.execute('select state from chef_event_acceptance_attempt where id = ?', [
-        event.acceptanceExecution,
-      ]);
-      if (prior?.state !== 'aborted')
-        throw new MedusaError(MedusaError.Types.NOT_ALLOWED, 'Resume the existing acceptance attempt.');
+      const [prior] = await manager.execute(
+        'select state, cleanup_completed_at from chef_event_acceptance_attempt where id = ?',
+        [event.acceptanceExecution],
+      );
+      if (prior?.state !== 'aborted' || !prior.cleanup_completed_at)
+        throw new MedusaError(
+          MedusaError.Types.NOT_ALLOWED,
+          'Resume or finish cleanup of the existing acceptance attempt.',
+        );
     }
     const key = input.requestKey || randomUUID();
     const id =

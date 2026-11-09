@@ -1,3 +1,4 @@
+import { abortEventAcceptance } from './abort-event-acceptance';
 import type { MedusaContainer } from '@medusajs/framework/types';
 import { CHEF_EVENT_MODULE } from '../modules/chef-event';
 import type ChefEventModuleService from '../modules/chef-event/service';
@@ -17,6 +18,14 @@ export async function releaseEventReservations(container: MedusaContainer, event
       MedusaError.Types.NOT_ALLOWED,
       'Only a cancelled or deleted event can release its reservations.',
     );
+  if (event?.acceptanceExecution) {
+    const attempt = await chef.retrieveAcceptanceAttempt(event.acceptanceExecution);
+    if (attempt.state === 'aborted' && !attempt.cleanup_completed_at) {
+      // Includes a cancelled, source-aborted attempt whose product/release cleanup was interrupted.
+      await abortEventAcceptance(container, eventId, attempt.id);
+      return;
+    }
+  }
   const scheduling = container.resolve<SchedulingModuleService>(SCHEDULING_MODULE);
   const [reservations, count] = await scheduling.listAndCountReservations(
     {
@@ -28,5 +37,9 @@ export async function releaseEventReservations(container: MedusaContainer, event
   );
   if (count > reservations.length) throw new Error('Incomplete reservation cleanup read.');
   for (const reservation of reservations)
-    await scheduling.release({ id: reservation.id, ownerId: eventId, attemptId: reservation.attempt_id });
+    await scheduling.release({
+      id: reservation.id,
+      ownerId: eventId,
+      attemptId: reservation.attempt_id,
+    });
 }

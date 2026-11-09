@@ -277,21 +277,39 @@ export class AdminChefEventsResource {
    */
   async accept(id: string, data: AdminAcceptChefEventDTO = {}) {
     const storageKey = `chef-event-acceptance-${id}`
-    const attemptId = data.attemptId || (typeof sessionStorage !== 'undefined'
-      ? sessionStorage.getItem(storageKey) || crypto.randomUUID() : undefined)
-    if (attemptId && typeof sessionStorage !== 'undefined') sessionStorage.setItem(storageKey, attemptId)
+    const saved = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(storageKey) : null
+    let request: AdminAcceptChefEventDTO
+    if (saved && !data.attemptId) {
+      // Replay the submitted values, not page defaults after a reload or subsequent edits.
+      try {
+        request = JSON.parse(saved)
+        if (!request || typeof request.attemptId !== 'string' || typeof request.sendAcceptanceEmail !== 'boolean')
+          throw new Error('Invalid saved acceptance request')
+      } catch {
+        // Older clients stored only the UUID. Do not guess the lost original payload.
+        throw new Error('This saved acceptance needs the event recovery action before starting another attempt.')
+      }
+    } else {
+      request = {
+        ...data,
+        attemptId: data.attemptId || (typeof sessionStorage !== 'undefined' ? crypto.randomUUID() : undefined),
+        acceptedBy: data.acceptedBy || 'chef',
+        sendAcceptanceEmail: data.sendAcceptanceEmail ?? true,
+      }
+      if (request.attemptId && typeof sessionStorage !== 'undefined')
+        sessionStorage.setItem(storageKey, JSON.stringify(request))
+    }
     const response = await this.client.fetch<{ success: boolean; pending?: boolean; data: any }>(`/admin/chef-events/${id}/accept`, {
       method: 'POST',
-      body: {
-        ...data,
-        attemptId,
-        sendAcceptanceEmail: data.sendAcceptanceEmail ?? true
-      },
+      body: request,
     }).catch((error: Error) => {
       if (error.message === 'This acceptance attempt failed. Submit a new attemptId to try again.' && typeof sessionStorage !== 'undefined')
         sessionStorage.removeItem(storageKey)
       throw error
     })
+    if (response.success && !response.pending && typeof sessionStorage !== 'undefined')
+      sessionStorage.removeItem(storageKey)
+
     return response
   }
 

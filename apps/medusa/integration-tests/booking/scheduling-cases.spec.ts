@@ -78,7 +78,11 @@ describe('Scheduling with native Medusa modules and PostgreSQL', () => {
   }, 10000);
   it('stale cancellation cleanup cannot release a newer attempt on a reopened request', async () => {
     await chef.createChefEvents(eventInput('stale-cleanup'));
-    const old = await chef.bindAcceptance({ eventId: 'stale-cleanup', actorId: 'admin', body: {} });
+    const old = await chef.bindAcceptance({
+      eventId: 'stale-cleanup',
+      actorId: 'admin',
+      body: {},
+    });
     await scheduling.acquire({
       id: old.id,
       ownerId: 'stale-cleanup',
@@ -87,6 +91,12 @@ describe('Scheduling with native Medusa modules and PostgreSQL', () => {
       end: '2027-01-02T11:00Z',
     });
     await chef.cancelEvent({ id: 'stale-cleanup' });
+    await scheduling.release({
+      id: old.id,
+      ownerId: 'stale-cleanup',
+      attemptId: old.id,
+    });
+    await chef.completeAcceptanceCleanup('stale-cleanup', old.id);
     const list = scheduling.listAndCountReservations.bind(scheduling);
     let newer: string;
     jest.spyOn(scheduling, 'listAndCountReservations').mockImplementationOnce(async (...args) => {
@@ -113,9 +123,15 @@ describe('Scheduling with native Medusa modules and PostgreSQL', () => {
   });
   it('resolves cancellation of an unclaimed attempt before allowing a new attempt on a reopened request', async () => {
     await chef.createChefEvents(eventInput('reopened'));
-    const attempt = await chef.bindAcceptance({ eventId: 'reopened', actorId: 'admin', body: {} });
+    const attempt = await chef.bindAcceptance({
+      eventId: 'reopened',
+      actorId: 'admin',
+      body: {},
+    });
     await chef.cancelEvent({ id: 'reopened' });
     expect((await chef.retrieveAcceptanceAttempt(attempt.id)).state).toBe('aborted');
+    // No side effects were started in this fixture; acknowledge completed cleanup explicitly.
+    await chef.completeAcceptanceCleanup('reopened', attempt.id);
     await chef.updateChefEvents({ id: 'reopened', status: 'pending' });
     const next = await chef.bindAcceptance({
       eventId: 'reopened',
@@ -149,9 +165,13 @@ describe('Scheduling with native Medusa modules and PostgreSQL', () => {
     await expect(chef.bindAcceptance({ ...input, body: { sendAcceptanceEmail: true } })).rejects.toThrow(
       'different input',
     );
-    await expect(chef.bindAcceptance({ ...input, requestKey: undefined, actorId: 'other' })).rejects.toThrow(
-      'another actor',
-    );
+    await expect(
+      chef.bindAcceptance({
+        ...input,
+        requestKey: undefined,
+        actorId: 'other',
+      }),
+    ).rejects.toThrow('another actor');
     const event = await chef.retrieveChefEvent('event');
     await chef.claimAcceptance({
       id: event.id,
@@ -169,9 +189,17 @@ describe('Scheduling with native Medusa modules and PostgreSQL', () => {
       end: '2027-01-02T11:00Z',
     });
     await expect(
-      chef.finalizeAcceptance({ id: event.id, token: 'stale', productId: 'product' }),
+      chef.finalizeAcceptance({
+        id: event.id,
+        token: 'stale',
+        productId: 'product',
+      }),
     ).rejects.toThrow('claim was lost');
-    await chef.finalizeAcceptance({ id: event.id, token: attempt.id, productId: 'product' });
+    await chef.finalizeAcceptance({
+      id: event.id,
+      token: attempt.id,
+      productId: 'product',
+    });
     expect(await chef.releaseAcceptance(event.id, attempt.id)).toBe(false);
     await expect(scheduling.acquire(reservation('conflict'))).rejects.toThrow();
     // Simulate process loss after cancellation commits, before release. Authenticated recovery retries cleanup.
@@ -179,6 +207,49 @@ describe('Scheduling with native Medusa modules and PostgreSQL', () => {
     expect(await scheduling.overlapping('2027-01-02T10:00Z', '2027-01-02T11:00Z')).toHaveLength(1);
     await releaseEventReservations(fixture.container, event.id);
     await releaseEventReservations(fixture.container, event.id);
+    expect(await scheduling.overlapping('2027-01-02T10:00Z', '2027-01-02T11:00Z')).toHaveLength(0);
+  });
+  it('keeps an interrupted cleanup addressable and blocks a new attempt until release is verified', async () => {
+    await chef.createChefEvents(eventInput('cleanup-retry'));
+    const first = await chef.bindAcceptance({
+      eventId: 'cleanup-retry',
+      actorId: 'admin',
+      body: {},
+    });
+    const event = await chef.retrieveChefEvent('cleanup-retry');
+    await chef.claimAcceptance({
+      id: event.id,
+      token: first.id,
+      updatedAt: event.updated_at,
+      start: '2027-01-02T10:00Z',
+      end: '2027-01-02T11:00Z',
+      snapshot: { duration_minutes: 60, timezone: 'UTC' },
+    });
+    await scheduling.acquire({
+      id: first.id,
+      ownerId: event.id,
+      attemptId: first.id,
+      start: '2027-01-02T10:00Z',
+      end: '2027-01-02T11:00Z',
+    });
+    await chef.releaseAcceptance(event.id, first.id);
+    const next = {
+      eventId: event.id,
+      actorId: 'admin',
+      requestKey: randomUUID(),
+      body: {},
+    };
+    await expect(chef.bindAcceptance(next)).rejects.toThrow('finish cleanup');
+    expect((await chef.retrieveChefEvent(event.id)).acceptanceExecution).toBe(first.id);
+    // Simulate successful owned commerce cleanup followed by retried reservation release.
+    await scheduling.release({
+      id: first.id,
+      ownerId: event.id,
+      attemptId: first.id,
+    });
+    await chef.completeAcceptanceCleanup(event.id, first.id);
+    const second = await chef.bindAcceptance(next);
+    expect(second.id).not.toBe(first.id);
     expect(await scheduling.overlapping('2027-01-02T10:00Z', '2027-01-02T11:00Z')).toHaveLength(0);
   });
 });

@@ -24,14 +24,14 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     body: { ...body, acceptedBy: body.acceptedBy || 'chef' },
   });
   if (attempt.state === 'aborted') {
-    res
-      .status(409)
-      .json({
-        success: false,
-        attemptId: attempt.request_key,
-        resolved: true,
-        message: 'This acceptance attempt failed. Submit a new attemptId to try again.',
-      });
+    res.status(409).json({
+      success: false,
+      attemptId: attempt.request_key,
+      resolved: !!attempt.cleanup_completed_at,
+      message: attempt.cleanup_completed_at
+        ? 'This acceptance attempt failed. Submit a new attemptId to try again.'
+        : 'Acceptance requires recovery. Protected time is retained until cleanup is verified.',
+    });
     return;
   }
   const execution = await runEventAcceptance(req.scope, {
@@ -42,7 +42,10 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   const finished = execution.transaction.hasFinished();
   const failed = ['failed', 'reverted'].includes(execution.transaction.getState());
   let resolved = false;
-  if (failed) resolved = await chef.abortUnclaimedAcceptance(req.params.id, attempt.id);
+  if (failed) {
+    await chef.abortUnclaimedAcceptance(req.params.id, attempt.id);
+    resolved = !!(await chef.retrieveAcceptanceAttempt(attempt.id)).cleanup_completed_at;
+  }
   res.status(failed ? 409 : finished ? 200 : 202).json({
     success: !failed,
     attemptId: attempt.request_key,

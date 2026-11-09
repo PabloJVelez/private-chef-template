@@ -56,9 +56,10 @@ and deletion, not custom SQL, own commerce data.
 ## Acceptance API compatibility
 
 `POST /admin/chef-events/:id/accept` keeps existing fields and accepts optional
-`attemptId` (UUID). The Admin SDK saves that UUID in session storage across
-network failures and reloads. A resolved failure clears it for a genuinely new
-attempt. Legacy callers without the UUID reuse the event's stored current attempt;
+`attemptId` (UUID). The Admin SDK saves the UUID and normalized submitted payload together in session storage across
+network failures and reloads. Pending retries replay that payload even if page defaults or draft
+values change; successful completion or a verified resolved failure clears it. Legacy UUID-only
+storage is not treated as permission to guess the original payload; use authenticated recovery. A source-aborted attempt remains unresolved until owned cleanup has completed. Legacy callers without the UUID reuse the event's stored current attempt;
 after a resolved failure they must supply a new UUID to start new work. A changed
 body or different actor cannot reuse the same binding. `acceptedBy` retains its
 existing display meaning; authorization uses `auth_context.actor_id` separately.
@@ -208,3 +209,19 @@ All selected checks passed against disposable PostgreSQL 16 and Redis 7 fixtures
 The process-interruption tests kill application workers, not Redis or PostgreSQL.
 They prove continuation using those live native services; Redis service-loss/HA
 and live external provider delivery remain deployment checks.
+
+## PR #32 review corrections
+
+An aborted source is not cleanup-complete. The event-owned attempt now records
+`cleanup_completed_at` only after owned product cleanup and reservation release.
+A new attempt cannot replace the current recovery pointer until that acknowledgment
+exists. Existing aborted records migrate conservatively with no acknowledgment.
+Explicit abort retries finish interrupted cleanup; cancellation also retries cleanup
+for its current aborted attempt. Claim/acquire and abort share the existing per-attempt
+lock so a late acquisition cannot arrive after cleanup was acknowledged.
+
+Validation includes blocked replacement after interrupted release, successful retry,
+stale cleanup preserving a newer reservation, and real native abort with injected
+release failure. SDK regressions instantiate a new client to model a page reload,
+verify original non-default notes/email are replayed, and distinguish pending recovery
+from a resolved failure. No generic journal or cross-module transaction was added.
