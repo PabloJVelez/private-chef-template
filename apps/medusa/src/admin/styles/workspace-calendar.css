@@ -58,3 +58,13 @@
   .chef-workspace-calendar .fc-daygrid-event .workspace-event-heading { font-size: 10px; max-height: 4.1em; overflow: hidden; }
   .chef-workspace-calendar .fc-list-event-time { white-space: normal; }
 }
+
+/* Radix portals tooltip content outside the calendar host. Keep it above
+ * FullCalendar's positioned events/popovers, not merely opaque behind them. */
+.chef-workspace-event-tooltip {
+  z-index: 50;
+  background-color: var(--bg-base);
+  color: var(--fg-base);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 24%);
+}

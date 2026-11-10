@@ -28,7 +28,7 @@ function EventContent({ event, timeText, view, onSelectEvent }: EventContentArg 
     <div className="workspace-event-meta">{category && <span>{category} · </span>}{entry.status === 'pending' ? 'Pending request' : entry.status}</div>
   </>;
   return (
-    <Tooltip content={<span className="whitespace-pre-line">{workspaceEntryTooltip(entry)}</span>}>
+    <Tooltip className="chef-workspace-event-tooltip" content={<span className="whitespace-pre-line">{workspaceEntryTooltip(entry)}</span>}>
       {view.type === CALENDAR_VIEWS.agenda ? (
         // Custom list content replaces FullCalendar's default focusable anchor.
         <button type="button" className="workspace-event-content text-left" aria-label={workspaceEntryTooltip(entry)} onClick={(event) => { event.stopPropagation(); onSelectEvent(entry); }}>{content}</button>

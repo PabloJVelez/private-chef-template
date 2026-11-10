@@ -8,7 +8,8 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve('apps/medusa/.medusa/server/public/admin');
-const output = path.resolve('docs/evidence/fullcalendar');
+const output = path.resolve(process.env.CALENDAR_EVIDENCE_DIR || 'docs/evidence/fullcalendar');
+fs.mkdirSync(output, { recursive: true });
 const entry = (id, start, end, status = 'confirmed', title = id) => ({
   id: `private-event:${id}`, source: { type: 'private-event', id }, detailPath: `/chef-events/${id}`,
   title, category: 'plated_dinner', status, timeZone: 'America/Chicago',
@@ -79,8 +80,32 @@ async function main() {
     assert.ok(await page.locator('.fc-daygrid-more-link').count());
     await page.evaluate(()=>localStorage.setItem('medusa_admin_theme','light')); await page.reload(); await ready();
     await shot('month-light');
+    const verifyTooltip = async theme => {
+      await page.locator('[data-date="2026-11-10"] .workspace-event-content').first().hover();
+      const tooltip = page.locator('.chef-workspace-event-tooltip');
+      await tooltip.waitFor({state:'visible'});
+      await page.waitForTimeout(200);
+      const appearance = await tooltip.evaluate(el => {
+        const style = getComputedStyle(el), rect = el.getBoundingClientRect();
+        const top = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return { background:style.backgroundColor, opacity:style.opacity, aboveCalendar:el.contains(top), zIndex:style.zIndex };
+      });
+      assert.match(appearance.background, /^rgb\(/, 'tooltip background must be opaque');
+      assert.equal(appearance.opacity,'1');
+      assert.equal(appearance.aboveCalendar,true,'calendar must not paint over the tooltip');
+      assert.ok(Number(appearance.zIndex) >= 50);
+      await shot(`tooltip-${theme}`);
+      await page.keyboard.press('Escape');
+      await tooltip.waitFor({state:'hidden'});
+      await page.mouse.move(0,0);
+    };
+    await verifyTooltip('light');
+
     await page.evaluate(()=>localStorage.setItem('medusa_admin_theme','dark')); await page.reload(); await ready();
     await shot('month-dark');
+    await verifyTooltip('dark');
+    checks.push('opaque tooltip above calendar in light/dark; Escape dismisses');
+    if (process.env.TOOLTIP_ONLY) { console.log('PASS: light/dark tooltip opacity, stacking and dismissal'); return; }
     await page.locator('.fc-daygrid-more-link').first().click();
     await page.locator('.fc-popover').waitFor();
     assert.equal(await page.locator('.fc-popover .fc-event').count(),6);

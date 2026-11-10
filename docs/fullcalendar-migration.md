@@ -130,3 +130,18 @@ acceptance. Existing database/auth integration evidence in the original delivery
 note is historical; those unchanged backend suites were not rerun for this renderer
 migration. The prior exact-head PR review does not cover this change. The shared
 review worker remains disabled.
+
+## Event hover readability follow-up
+
+Owner screenshot exposed event cards painting above the portaled hover details.
+The event tooltip now has an explicit z-index of 50 (above calendar events and
+popovers), an opaque Medusa theme background, foreground text, border and shadow.
+This is scoped to the event tooltip, not global tooltips or event-card opacity.
+
+Both workspace typechecks/builds passed again. The built-Admin browser harness
+now verifies opaque computed backgrounds, full opacity, foreground hit-testing,
+and Escape dismissal in light/dark themes. Run with `TOOLTIP_ONLY=1` for that
+focused check and `CALENDAR_EVIDENCE_DIR` for a separate screenshot directory.
+[Dark tooltip](evidence/fullcalendar/tooltip-dark.png) and
+[light tooltip](evidence/fullcalendar/tooltip-light.png) were visually inspected.
+This remains synthetic API browser evidence; no provider or backend changes.
