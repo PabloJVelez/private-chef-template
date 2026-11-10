@@ -1,0 +1,112 @@
+{
+  "checks": [
+    "November dates, crossing interval, busy-day overflow, light/dark",
+    "keyboard date drilldown, URL Back/Forward, read-only day view",
+    "spring/fall DST day ranges: 23/25 hours",
+    "overnight interval visible on following day",
+    "legacy 31-date agenda link, keyboard native detail routing",
+    "initial status filter, view-change preservation, empty state",
+    "fast navigation clears old results and ignores late response",
+    "failure/incomplete are not empty success; retry recovers",
+    "mobile default agenda, mobile month, no page overflow"
+  ],
+  "requests": [
+    {
+      "start": "2026-11-01T05:00:00.000Z",
+      "end": "2026-12-06T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-01T05:00:00.000Z",
+      "end": "2026-12-06T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-01T05:00:00.000Z",
+      "end": "2026-12-06T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-10T06:00:00.000Z",
+      "end": "2026-11-11T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2027-03-14T06:00:00.000Z",
+      "end": "2027-03-15T05:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2027-11-07T05:00:00.000Z",
+      "end": "2027-11-08T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-14T06:00:00.000Z",
+      "end": "2026-11-15T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-10T06:00:00.000Z",
+      "end": "2026-12-11T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-01T05:00:00.000Z",
+      "end": "2026-12-06T06:00:00.000Z",
+      "statuses": "completed"
+    },
+    {
+      "start": "2026-11-10T06:00:00.000Z",
+      "end": "2026-11-11T06:00:00.000Z",
+      "statuses": "completed"
+    },
+    {
+      "start": "2026-11-01T05:00:00.000Z",
+      "end": "2026-12-06T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-29T06:00:00.000Z",
+      "end": "2027-01-03T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-12-27T06:00:00.000Z",
+      "end": "2027-02-07T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-10T06:00:00.000Z",
+      "end": "2026-12-11T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-10T06:00:00.000Z",
+      "end": "2026-12-11T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-10T06:00:00.000Z",
+      "end": "2026-12-11T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-10T06:00:00.000Z",
+      "end": "2026-12-11T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-10T06:00:00.000Z",
+      "end": "2026-12-11T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    },
+    {
+      "start": "2026-11-01T05:00:00.000Z",
+      "end": "2026-12-06T06:00:00.000Z",
+      "statuses": "pending,confirmed"
+    }
+  ],
+  "errors": [],
+  "limits": "Synthetic API and Admin identity/Google fixtures against real production Admin build; no live backend/provider/auth proof."
+}
