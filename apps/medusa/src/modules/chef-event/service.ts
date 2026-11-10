@@ -1,3 +1,6 @@
+import type { z } from 'zod';
+import type { calendarQuery } from '../../lib/chef-workspace/query';
+import { summaryFields, type PrivateEventRead } from '../../lib/chef-workspace/private-event';
 import { createHash, randomUUID } from 'node:crypto';
 import { AcceptanceAttempt } from './models/acceptance-attempt';
 import type { Context } from '@medusajs/framework/types';
@@ -31,6 +34,55 @@ class ChefEventModuleService extends MedusaService({
   AcceptanceAttempt,
   ChefEvent: ChefEventModel,
 }) {
+  /** Read only, bounded to display intervals. SQL is needed for per-row duration overlap. */
+  @InjectManager()
+  async readCalendarEvents(
+    query: z.infer<typeof calendarQuery>,
+    limit: number,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ): Promise<PrivateEventRead[]> {
+    return this.readCalendarEvents_(query, limit, context);
+  }
+
+  @InjectTransactionManager()
+  protected async readCalendarEvents_(
+    query: z.infer<typeof calendarQuery>,
+    limit: number,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ): Promise<PrivateEventRead[]> {
+    const manager = context.transactionManager!;
+    await manager.execute(`set local statement_timeout = '5s'`);
+    const where = [
+      'deleted_at is null',
+      '"requestedDate" < ?',
+      // A zero-duration legacy event is a point; otherwise intervals are half open.
+      `("requestedDate" + coalesce("estimatedDuration", 60) * interval '1 minute' > ?
+        or ("estimatedDuration" = 0 and "requestedDate" >= ?))`,
+    ];
+    const params: unknown[] = [query.end, query.start, query.start];
+    const statuses = query.statuses?.length ? query.statuses : query.status && query.status !== 'all' ? [query.status] : [];
+    if (statuses.length) {
+      where.push(`status in (${statuses.map(() => '?').join(',')})`);
+      params.push(...statuses);
+    }
+    if (query.eventType && query.eventType !== 'all') {
+      where.push('"eventType" = ?'); params.push(query.eventType);
+    }
+    if (query.locationType && query.locationType !== 'all') {
+      where.push('"locationType" = ?'); params.push(query.locationType);
+    }
+    if (query.q) {
+      where.push('("firstName" ilike ? or "lastName" ilike ? or "eventType" ilike ?)');
+      const search = '%' + query.q.replace(/[\\%_]/g, '\\$&') + '%';
+      params.push(search, search, search);
+    }
+    return manager.execute(
+      `select ${summaryFields.map(field => '"' + field + '"').join(',')} from chef_event
+       where ${where.join(' and ')} order by "requestedDate", id limit ?`,
+      [...params, limit],
+    );
+  }
+
   @InjectManager()
   async claimAcceptance(
     input: {

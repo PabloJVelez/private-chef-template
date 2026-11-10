@@ -1,3 +1,4 @@
+import { AdminChefWorkspaceResource } from './admin/admin-chef-workspace';
 import { AdminAvailabilityResource } from './admin/admin-availability';
 // apps/medusa/src/sdk/index.ts
 import { Client, Admin } from '@medusajs/js-sdk';
@@ -18,6 +19,7 @@ class ExtendedAdminSDK extends Admin {
   public availability: AdminAvailabilityResource;
   public menus: AdminMenusResource;
   public chefEvents: AdminChefEventsResource;
+  public chefWorkspace: AdminChefWorkspaceResource;
   public uploads: AdminUploadsResource;
   public stripeConnect: AdminStripeConnectResource;
   public experienceTypes: AdminExperienceTypesResource;
@@ -30,6 +32,7 @@ class ExtendedAdminSDK extends Admin {
     this.availability = new AdminAvailabilityResource(client);
     this.menus = new AdminMenusResource(client);
     this.chefEvents = new AdminChefEventsResource(client);
+    this.chefWorkspace = new AdminChefWorkspaceResource(client);
     this.uploads = new AdminUploadsResource(client);
     this.stripeConnect = new AdminStripeConnectResource(client);
     this.experienceTypes = new AdminExperienceTypesResource(client);
