@@ -1,3 +1,4 @@
+import { releaseEventReservations } from '../lib/release-event-reservations';
 import { DateTime } from 'luxon';
 import { 
   createStep,
@@ -92,7 +93,7 @@ const updateChefEventStep = createStep(
       }
     }
 
-    const updated = await chefEventModuleService.updateChefEvents(updateData)
+    const updated = await (input.status === 'cancelled' ? chefEventModuleService.cancelEvent(updateData) : chefEventModuleService.updateChefEvents(updateData))
     let chefEvent = Array.isArray(updated) ? updated[0] : updated
 
     if (incomingAdditionalCharges !== undefined) {
@@ -103,6 +104,7 @@ const updateChefEventStep = createStep(
       )
     }
 
+    if (chefEvent.status === 'cancelled') await releaseEventReservations(container, input.id)
     return new StepResponse(chefEvent)
   }
 )

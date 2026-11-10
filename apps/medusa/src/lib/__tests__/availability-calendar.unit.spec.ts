@@ -17,6 +17,8 @@ const container: any = {
       availability: { listAvailabilitySettings: async () => [settings] },
       experienceTypeModuleService: { retrieveExperienceType: async () => experience },
       chefEventModuleService: { listChefEvents: listEvents },
+      scheduling: { overlapping: async () => events.filter(event => event.status === 'confirmed' || event.status === 'completed' || event.acceptanceToken)
+        .map(event => ({ owner_id: event.id, starts_at: event.occupiedStart, ends_at: event.occupiedEnd })) },
       googleCalendarConnectionModuleService: google,
     })[key],
 };

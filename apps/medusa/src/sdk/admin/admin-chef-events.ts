@@ -1,3 +1,4 @@
+import { RESOLVED_INVALID_TICKET_DETAILS, RESOLVED_POLICY_MESSAGES } from '../../lib/acceptance-messages';
 import type { Client } from '@medusajs/js-sdk'
 
 import {
@@ -165,6 +166,7 @@ export interface AdminChefEventsResponse {
 }
 
 export interface AdminAcceptChefEventDTO {
+  attemptId?: string
   chefNotes?: string
   acceptedBy?: string
   sendAcceptanceEmail?: boolean // New field
@@ -275,13 +277,40 @@ export class AdminChefEventsResource {
    * @returns Acceptance result
    */
   async accept(id: string, data: AdminAcceptChefEventDTO = {}) {
-    const response = await this.client.fetch<{ success: boolean; data: any }>(`/admin/chef-events/${id}/accept`, {
-      method: 'POST',
-      body: {
+    const storageKey = `chef-event-acceptance-${id}`
+    const saved = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(storageKey) : null
+    let request: AdminAcceptChefEventDTO
+    if (saved && !data.attemptId) {
+      // Replay the submitted values, not page defaults after a reload or subsequent edits.
+      try {
+        request = JSON.parse(saved)
+        if (!request || typeof request.attemptId !== 'string' || typeof request.sendAcceptanceEmail !== 'boolean')
+          throw new Error('Invalid saved acceptance request')
+      } catch {
+        // Older clients stored only the UUID. Do not guess the lost original payload.
+        throw new Error('This saved acceptance needs the event recovery action before starting another attempt.')
+      }
+    } else {
+      request = {
         ...data,
-        sendAcceptanceEmail: data.sendAcceptanceEmail ?? true
-      },
+        attemptId: data.attemptId || (typeof sessionStorage !== 'undefined' ? crypto.randomUUID() : undefined),
+        acceptedBy: data.acceptedBy || 'chef',
+        sendAcceptanceEmail: data.sendAcceptanceEmail ?? true,
+      }
+      if (request.attemptId && typeof sessionStorage !== 'undefined')
+        sessionStorage.setItem(storageKey, JSON.stringify(request))
+    }
+    const response = await this.client.fetch<{ success: boolean; pending?: boolean; data: any }>(`/admin/chef-events/${id}/accept`, {
+      method: 'POST',
+      body: request,
+    }).catch((error: Error) => {
+      if ([...RESOLVED_POLICY_MESSAGES, RESOLVED_INVALID_TICKET_DETAILS, 'This acceptance attempt failed. Submit a new attemptId to try again.'].includes(error.message) && typeof sessionStorage !== 'undefined')
+        sessionStorage.removeItem(storageKey)
+      throw error
     })
+    if (response.success && !response.pending && typeof sessionStorage !== 'undefined')
+      sessionStorage.removeItem(storageKey)
+
     return response
   }
 

@@ -65,6 +65,7 @@ export const ChefEvent = model.define("chef_event", {
   occupiedEnd: model.dateTime().nullable(),
   availabilitySnapshot: model.json().nullable(),
   acceptanceToken: model.text().nullable(),
+  acceptanceExecution: model.text().nullable(),
 
   // Acceptance/Rejection tracking fields
   productId: model.text().nullable(), // Link to created product for ticket sales
