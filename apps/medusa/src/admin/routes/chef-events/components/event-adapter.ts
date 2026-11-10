@@ -1,22 +1,18 @@
 import { DateTime } from 'luxon';
+import type { EventInput } from '@fullcalendar/core' with { 'resolution-mode': 'import' };
 import type { CalendarEntry } from '../../../../lib/chef-workspace/contracts';
 
-export type RBCEvent = {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  resource: CalendarEntry;
-};
-export function workspaceEntryToRbc(entry: CalendarEntry): RBCEvent {
-  const time = DateTime.fromISO(entry.displayTime.start).toFormat('h:mm a');
-  const label = entry.status === 'pending' ? ' · Pending request' : '';
+/** Only presentation metadata crosses into FullCalendar; native details own writes. */
+export function workspaceEntryToCalendar(entry: CalendarEntry): EventInput {
   return {
     id: entry.id,
-    title: `${time} ${entry.title}${label}`,
-    start: new Date(entry.displayTime.start),
-    end: new Date(entry.displayTime.end),
-    resource: entry,
+    title: entry.title,
+    start: entry.displayTime.start,
+    end: entry.displayTime.end,
+    allDay: false,
+    editable: false,
+    classNames: [`workspace-event-${entry.status}`],
+    extendedProps: { entry },
   };
 }
 export function workspaceEntryTooltip(entry: CalendarEntry): string {

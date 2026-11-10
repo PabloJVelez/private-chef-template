@@ -1,36 +1,7 @@
-import { DateTime, Settings } from 'luxon';
 import { privateEventSummary } from '../chef-workspace/private-event';
-import { workspaceCalendarRange, AGENDA_LENGTH } from '../../admin/lib/workspace-calendar-range';
-import { localizer } from '../../admin/lib/calendar-localizer';
-import { workspaceEntryToRbc, workspaceEntryTooltip } from '../../admin/routes/chef-events/components/event-adapter';
+import { workspaceEntryToCalendar, workspaceEntryTooltip } from '../../admin/routes/chef-events/components/event-adapter';
 import { AdminChefWorkspaceResource } from '../../sdk/admin/admin-chef-workspace';
 import { requestQuery, calendarQuery, parseQuery } from '../chef-workspace/query';
-const Month = require('react-big-calendar/lib/Month').default;
-const Agenda = require('react-big-calendar/lib/Agenda').default;
-
-it.each(['2027-03-14', '2027-11-07', '2026-02-01', '2026-08-15'])(
-  'matches the installed calendar month/agenda boundaries including DST at %s',
-  (date) => {
-    const prior = Settings.defaultZone;
-    Settings.defaultZone = 'America/Chicago';
-    try {
-      const day = DateTime.fromISO(date).toJSDate();
-      for (const view of ['month', 'agenda'] as const) {
-        const expected = (view === 'month' ? Month : Agenda).range(day, { localizer, length: AGENDA_LENGTH });
-        const result = workspaceCalendarRange(day, view);
-        expect(Date.parse(result.start)).toBe(DateTime.fromJSDate(expected.start).startOf('day').toMillis());
-        expect(Date.parse(result.end)).toBe(
-          DateTime.fromJSDate(expected.end).startOf('day').plus({ days: 1 }).toMillis(),
-        );
-      }
-      const range = workspaceCalendarRange(day, 'agenda');
-      if (date === '2027-03-14') expect((Date.parse(range.end) - Date.parse(range.start)) / 3600000).toBe(31 * 24 - 1);
-      if (date === '2027-11-07') expect((Date.parse(range.end) - Date.parse(range.start)) / 3600000).toBe(31 * 24 + 1);
-    } finally {
-      Settings.defaultZone = prior;
-    }
-  },
-);
 const source = {
   id: 'evt_AB',
   status: 'pending' as const,
@@ -54,9 +25,11 @@ it('maps stable source IDs and detail URLs, keeps original instants and never da
   expect(privateEventSummary({ ...source, requestedDate: 'invalid' }).requestedTime).toBeNull();
   expect(privateEventSummary({ ...source, status: 'confirmed' }).appointmentTime).toEqual(summary.requestedTime);
   const entry = { ...summary, displayTime: summary.requestedTime!, protectedTime: [] };
-  const rbc = workspaceEntryToRbc(entry);
-  expect(rbc.start.toISOString()).toBe('2027-03-14T08:30:00.000Z');
-  expect(rbc.title).toBe(`${DateTime.fromISO(source.requestedDate).toFormat('h:mm a')} Test Guest · Pending request`);
+  const event = workspaceEntryToCalendar(entry);
+  expect(event.start).toBe('2027-03-14T08:30:00.000Z');
+  expect(event.editable).toBe(false);
+  expect(event.extendedProps?.entry).toBe(entry);
+  expect(event.title).toBe('Test Guest');
   expect(workspaceEntryTooltip(entry)).toContain('Mar 14, 3:30 AM CDT');
   expect(workspaceEntryTooltip(entry)).toContain('No active protected time');
   expect(

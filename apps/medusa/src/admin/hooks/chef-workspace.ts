@@ -10,9 +10,10 @@ export function useAdminWorkspaceRequests(query: AdminListChefEventsQuery = {}) 
     queryFn: () => sdk.admin.chefWorkspace.requests(query),
   });
 }
-export function useAdminWorkspaceCalendar(query: WorkspaceCalendarQuery) {
+export function useAdminWorkspaceCalendar(query: WorkspaceCalendarQuery, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['chef-events', 'workspace-calendar', query],
+    enabled: options.enabled,
     // Never carry entries from another range/filter forward while this range loads.
     queryFn: ({ signal }) => sdk.admin.chefWorkspace.calendar(query, signal),
     retry: false,

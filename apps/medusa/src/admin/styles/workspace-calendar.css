@@ -1,0 +1,60 @@
+/* Scoped to the read-only chef workspace. FullCalendar provides layout; Medusa owns the theme. */
+.chef-workspace-calendar {
+  min-width: 0;
+  padding: 12px 16px 20px;
+  --fc-border-color: var(--border-base);
+  --fc-page-bg-color: var(--bg-base);
+  --fc-neutral-bg-color: var(--bg-subtle);
+  --fc-neutral-text-color: var(--fg-subtle);
+  --fc-today-bg-color: var(--bg-subtle);
+  --fc-list-event-hover-bg-color: var(--bg-subtle-hover);
+  color: var(--fg-base);
+}
+.workspace-calendar-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+.workspace-calendar-state { min-height: 24px; font-size: 12px; color: var(--fg-subtle); }
+.chef-workspace-calendar .fc { font-size: 12px; }
+.chef-workspace-calendar .fc-col-header-cell { font-weight: 500; color: var(--fg-subtle); padding: 5px 0; }
+.chef-workspace-calendar .fc-daygrid-day-frame { min-height: 112px; }
+.chef-workspace-calendar .fc-daygrid-day-top { padding: 3px; }
+.chef-workspace-calendar .fc-daygrid-day-number { padding: 0; }
+.workspace-date-button { min-width: 28px; min-height: 28px; border-radius: 9999px; }
+.chef-workspace-calendar .fc-day-today .workspace-date-button { background: var(--fg-base); color: var(--bg-base); font-weight: 600; }
+.chef-workspace-calendar .fc-day-other { background: var(--bg-subtle); }
+.chef-workspace-calendar .fc-event {
+  --event-color: #5484ed;
+  background: color-mix(in srgb, var(--event-color) 20%, var(--bg-base));
+  border: 1px solid color-mix(in srgb, var(--event-color) 45%, var(--border-base));
+  border-left: 3px solid var(--event-color);
+  border-radius: 4px;
+  color: var(--fg-base);
+  cursor: pointer;
+}
+.chef-workspace-calendar .workspace-event-pending { --event-color: #ffb878; border-left-style: dashed; }
+.chef-workspace-calendar .workspace-event-completed { --event-color: #7ae7bf; }
+.chef-workspace-calendar .workspace-event-cancelled { --event-color: #dc2127; }
+.chef-workspace-calendar .workspace-event-cancelled .workspace-event-heading { text-decoration: line-through; }
+.chef-workspace-calendar .fc-event-main { color: inherit; }
+.workspace-event-content { padding: 3px 5px; min-width: 0; width: 100%; }
+.workspace-event-heading { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+.workspace-event-heading strong { font-weight: 600; white-space: nowrap; }
+.workspace-event-meta { font-size: 10px; line-height: 1.4; text-transform: capitalize; opacity: .85; }
+.chef-workspace-calendar .fc-daygrid-event { white-space: normal; margin: 2px 3px; }
+.chef-workspace-calendar .fc-more-link { color: var(--fg-subtle); font-weight: 500; padding: 2px; }
+.chef-workspace-calendar .fc-event:focus-visible,
+.chef-workspace-calendar button:focus-visible,
+.chef-workspace-calendar a:focus-visible { outline: 2px solid var(--fg-interactive); outline-offset: 2px; }
+.chef-workspace-calendar .fc-popover { max-width: min(360px, calc(100vw - 32px)); background: var(--bg-base); color: var(--fg-base); z-index: 20; }
+.chef-workspace-calendar .fc-list-event-dot { display: none; }
+.chef-workspace-calendar .fc-list-event-title { font-weight: normal; }
+.chef-workspace-calendar .fc-list-day-cushion { background: var(--bg-subtle); }
+.chef-workspace-calendar .fc-timegrid-event .workspace-event-content { overflow: hidden; height: 100%; }
+@media (max-width: 767px) {
+  .chef-workspace-calendar { padding: 12px 8px; }
+  .workspace-calendar-toolbar { align-items: flex-start; }
+  .chef-workspace-calendar .fc { font-size: 11px; }
+  .chef-workspace-calendar .fc-daygrid-day-frame { min-height: 90px; }
+  .chef-workspace-calendar .fc-daygrid-event .workspace-event-meta { display: none; }
+  .chef-workspace-calendar .fc-daygrid-event .workspace-event-content { padding: 2px; }
+  .chef-workspace-calendar .fc-daygrid-event .workspace-event-heading { font-size: 10px; max-height: 4.1em; overflow: hidden; }
+  .chef-workspace-calendar .fc-list-event-time { white-space: normal; }
+}

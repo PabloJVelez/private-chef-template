@@ -46,17 +46,19 @@ projections, not an availability decision or reservation authority. Protection i
 shown in tooltips on the existing event, not as a second calendar of busy blocks;
 the queried range concerns the displayed request/appointment intervals.
 
-The baseline UI has month and agenda views, not a separate inbox table. This PR
-reuses both, adds the reusable paginated requests API/SDK/hook, and creates no
-additional screen or navigation. The month range comes from the installed RBC
-localizer's actual padding; agenda includes all 31 displayed dates (length 30).
-No week/day modes are enabled. Calendar-day arithmetic preserves DST boundaries.
-Titles and grid times use the browser timezone, which is labeled; tooltips show
-explicitly zoned event/request and protected times. Pending requests are labeled.
+The baseline UI had month and agenda views, not a separate inbox table. The owner
+subsequently approved replacing React Big Calendar with FullCalendar in this PR.
+See [the migration decision, verification and browser evidence](fullcalendar-migration.md).
+Month, Day and a rolling 31-date Agenda reuse the same summary API. FullCalendar's
+actual visible start/exclusive end drive the query, including month padding and DST.
+Existing `view=month` and `view=agenda` links remain supported; `view=day` is new.
+Titles/grid times use the labeled browser timezone; tooltips show explicitly zoned
+event/request and protected times. Pending requests are labeled, not presented as
+confirmed appointments. No second screen, inbox or write authority was added.
 
 Changing range/filter never carries a prior range's results forward as current.
 Failures and incomplete responses show an alert/retry state, not an empty success.
-Month date headings are keyboard-accessible agenda buttons; their date/view URL
+Month date headings are keyboard-accessible day-view buttons; their date/view URL
 update is atomic. Status URLs remain intact. A selected Google cancellation
 incident retrieves its existing detail independently, including outside the range.
 Existing event mutations invalidate the shared `chef-events` query prefix.
@@ -64,9 +66,10 @@ Existing event mutations invalidate the shared `chef-events` query prefix.
 Reads do not claim/release time, execute workflows, create products or send email
 or Google changes. All edits, Accept, Reject and Cancel remain service-owned on
 the existing typed Private Event detail APIs/workflows. No schema migration,
-index, dependency upgrade or workflow YAML change was introduced.
+index or workflow YAML change was introduced. Calendar dependencies changed as
+documented in the migration note.
 
-## Validation executed
+## Original read-view validation (706f3d0; historical)
 
 Commands below ran from the repository root unless otherwise stated. The checked-in
 Yarn executable was used because the host has no global `yarn` executable.
@@ -105,7 +108,7 @@ Medusa 2.7. New code follows installed conventions. The browser SDK intentionall
 throws a browser `Error` for incomplete reads rather than bundling server error
 utilities. No unrelated lint rewrites were made.
 
-## Browser evidence and limits
+## Original read-view browser evidence and limits (historical)
 
 T3 preview could not start because the host lacks browser libraries (`libatk`,
 `libatspi`, `libXcomposite` and others). A task-owned Selenium/Chrome container was
@@ -138,7 +141,7 @@ performed here. No production/demo deployment or external messages occurred.
 Use the owner's normal local application, existing PostgreSQL/Redis database and
 normal migration workflow. This PR adds no migration and needs no fixture resets.
 
-1. Open `/app/chef-events`. Confirm familiar month/agenda views, status filters,
+1. Open `/app/chef-events`. Confirm Month/Day/Agenda views, status filters,
    default pending/confirmed selection and labeled timezone. Navigate Back/Next,
    switch views and use a month date button. Inspect network requests: each calendar
    read has `start`/`end`, not a whole-history `limit=1000` query.
@@ -165,7 +168,7 @@ outside this change. The prior unavailable-arrival toast timing observation is n
 an open defect. Obsolete starter YAMLs remain retired (BTS-18); OpenClaw review
 workflows are preserved.
 
-## Arbor-ready update
+## Original read-view handoff (historical)
 
 Implemented the reduced Medusa-first BTS-13 foundation for Private Events only:
 small typed request/calendar read contracts, explicit Private Event mapping,

@@ -1,15 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Calendar, Views, type View } from "react-big-calendar"
-import "react-big-calendar/lib/css/react-big-calendar.css"
-import "../../../styles/rbc-overrides.css"
+import { WorkspaceCalendar } from "./workspace-calendar"
+import "../../../styles/workspace-calendar.css"
 
 import { useNavigate, useSearchParams, type SetURLSearchParams } from "react-router-dom"
 import { DateTime } from "luxon"
-import { Button, Drawer, Text, toast, useDataTable } from "@medusajs/ui"
+import { Button, Drawer, Text, Tooltip, toast, useDataTable } from "@medusajs/ui"
 
-import { localizer } from "../../../lib/calendar-localizer"
 import { useAdminRetrieveChefEvent } from "../../../hooks/chef-events"
 import {
   useGoogleCalendarApproveIncidentMutation,
@@ -17,8 +15,6 @@ import {
   useGoogleCalendarResyncMutation,
   useGoogleCalendarStatus,
 } from "../../../hooks/google-calendar"
-import { workspaceEntryToRbc, workspaceEntryTooltip, type RBCEvent } from "./event-adapter"
-import { eventTypeOptions } from "../schemas"
 import {
   CALENDAR_STATUSES_URL_PARAM,
   type ChefEventCalendarStatus,
@@ -35,19 +31,18 @@ import {
   chefCalendarFilterDefinitions,
   getChefCalendarFilterRowId,
 } from "./chef-event-calendar-filter-table"
-import { chefEventStatusToDisplayHex } from "../../../../lib/chef-event-google-calendar-colors"
 import { requestedStartInEventZone } from "../../../../lib/chef-event-datetime-display"
 
 import { useAdminWorkspaceCalendar } from '../../../hooks/chef-workspace'
-import { workspaceCalendarRange, AGENDA_LENGTH } from '../../../lib/workspace-calendar-range'
+import { calendarRangeKey, type CalendarView, type VisibleCalendarRange } from '../../../lib/workspace-calendar-range'
 
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)"
 const CALENDAR_DATE_PARAM = "date"
 const CALENDAR_VIEW_PARAM = "view"
 const CALENDAR_INCIDENT_PARAM = "incident"
 
-const isSupportedView = (value: string | null): value is View => {
-  return value === Views.MONTH || value === Views.AGENDA
+const isSupportedView = (value: string | null): value is CalendarView => {
+  return value === "month" || value === "agenda" || value === "day"
 }
 
 const parseQueryDate = (value: string | null): Date | null => {
@@ -61,11 +56,11 @@ const parseQueryDate = (value: string | null): Date | null => {
   return dt.startOf("day").toJSDate()
 }
 
-function getInitialCalendarView(): View {
+function getInitialCalendarView(): CalendarView {
   if (typeof window === "undefined") {
-    return Views.MONTH
+    return "month"
   }
-  return window.matchMedia(MOBILE_MEDIA_QUERY).matches ? Views.AGENDA : Views.MONTH
+  return window.matchMedia(MOBILE_MEDIA_QUERY).matches ? "agenda" : "month"
 }
 
 function isChefEventCalendarStatus(v: unknown): v is ChefEventCalendarStatus {
@@ -140,11 +135,11 @@ export const ChefEventCalendar = () => {
   const denyIncidentMutation = useGoogleCalendarDenyIncidentMutation()
 
   const queryView = searchParams.get(CALENDAR_VIEW_PARAM)
-  const view: View = isSupportedView(queryView) ? queryView : getInitialCalendarView()
+  const view: CalendarView = isSupportedView(queryView) ? queryView : getInitialCalendarView()
   const date = parseQueryDate(searchParams.get(CALENDAR_DATE_PARAM)) ?? new Date()
 
   const updateCalendarParams = useCallback(
-    (nextDate: Date, nextView: View) => {
+    (nextDate: Date, nextView: CalendarView) => {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
         next.set(CALENDAR_DATE_PARAM, DateTime.fromJSDate(nextDate).toISODate() ?? "")
@@ -153,20 +148,6 @@ export const ChefEventCalendar = () => {
       })
     },
     [setSearchParams]
-  )
-
-  const setCalendarDate = useCallback(
-    (nextDate: Date) => {
-      updateCalendarParams(nextDate, view)
-    },
-    [updateCalendarParams, view]
-  )
-
-  const setCalendarView = useCallback(
-    (nextView: View) => {
-      updateCalendarParams(date, nextView)
-    },
-    [date, updateCalendarParams]
   )
 
   const openIncidentDrawer = useCallback(
@@ -240,16 +221,19 @@ export const ChefEventCalendar = () => {
     [statusesQuery]
   )
 
-  const range = workspaceCalendarRange(date, view as "month" | "agenda")
+  const [visibleRange, setVisibleRange] = useState<VisibleCalendarRange | null>(null)
+  const rangeReady = visibleRange?.key === calendarRangeKey(date, view)
   const { data, isLoading, isError, error, refetch } = useAdminWorkspaceCalendar({
     statuses: effectiveStatuses,
-    ...range,
-  })
-
-  const events: RBCEvent[] = useMemo(
-    () => isError ? [] : (data?.entries ?? []).map(workspaceEntryToRbc),
-    [data?.entries, isError]
-  )
+    start: visibleRange?.start ?? "",
+    end: visibleRange?.end ?? "",
+  }, { enabled: rangeReady })
+  const loading = !rangeReady || isLoading
+  const failed = rangeReady && isError
+  const events = !rangeReady || isError ? [] : data?.entries ?? []
+  const handleRange = useCallback((next: VisibleCalendarRange) => {
+    setVisibleRange((previous) => previous?.key === next.key && previous.start === next.start && previous.end === next.end ? previous : next)
+  }, [])
 
   const selectedIncidentId = searchParams.get(CALENDAR_INCIDENT_PARAM)
   const selectedIncident = useMemo(() => {
@@ -264,108 +248,6 @@ export const ChefEventCalendar = () => {
   const { data: selectedChefEvent } = useAdminRetrieveChefEvent(selectedIncident?.chefEventId ?? '', {
     enabled: Boolean(selectedIncident),
   })
-
-  const components = useMemo(
-    () => ({
-      // Single-letter weekday headers on mobile (S M T W T F S), full on larger.
-      header: ({ date: headerDate, label }: { date: Date; label: string }) => {
-        const dt = DateTime.fromJSDate(headerDate)
-        return (
-          <>
-            <span className="inline sm:hidden">{dt.toFormat("ccccc")}</span>
-            <span className="hidden sm:inline">{label}</span>
-          </>
-        )
-      },
-      month: {
-        event: ({ event }: { event: RBCEvent }) => {
-          const typeLabel = event.resource
-            ? eventTypeOptions.find(
-                (o) => o.value === event.resource.category
-              )?.label
-            : undefined
-          const status = event.resource.status
-          const color = chefEventStatusToDisplayHex(status)
-          return (
-            <div className="flex items-center justify-center sm:items-start sm:justify-start sm:gap-1">
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full sm:mt-[6px]"
-                style={{ backgroundColor: color }}
-              />
-              <div className="hidden min-w-0 leading-tight sm:block">
-                <div className="truncate text-xs text-[var(--fg-base)]">{event.title}</div>
-                {typeLabel && (
-                  <div className="truncate text-[11px] text-[var(--fg-muted)]">{typeLabel}</div>
-                )}
-              </div>
-            </div>
-          )
-        },
-        dateHeader: ({ date: cellDate, isOffRange, onDrillDown }: { date: Date; isOffRange?: boolean; onDrillDown: React.MouseEventHandler<HTMLButtonElement> }) => {
-          const dt = DateTime.fromJSDate(cellDate)
-          const now = DateTime.now()
-          const isToday = dt.hasSame(now, "day")
-          // Show the "MMM d" prefix ONLY for off-range days that are on the
-          // first row (previous month padding) or last row (next month padding)
-          // AND only on viewports wide enough to read it. On mobile we rely on
-          // the muted color from `.rbc-off-range` to distinguish padding days
-          // so that cell widths stay usable on narrow screens.
-          const numericLabel = dt.toFormat("d")
-          const extendedLabel = isOffRange ? dt.toFormat("MMM d") : numericLabel
-          return (
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={onDrillDown}
-                aria-label={`Show agenda for ${dt.toFormat("EEEE, MMMM d, yyyy")}`}
-                className={[
-                  "rounded-full px-1.5 py-[1px] text-[11px] leading-5 sm:px-2 sm:text-xs",
-                  isToday
-                    ? "bg-[var(--accent-base)] text-white"
-                    : "text-[var(--fg-muted)]",
-                  isOffRange && !isToday ? "opacity-75" : "",
-                ].join(" ")}
-                title={dt.toFormat("EEEE, MMMM d, yyyy")}
-              >
-                <span className="sm:hidden">{numericLabel}</span>
-                <span className="hidden sm:inline">{extendedLabel}</span>
-              </button>
-            </div>
-          )
-        },
-      },
-      agenda: {
-        event: ({ event }: { event: RBCEvent }) => {
-          const status = event.resource.status
-          const color = chefEventStatusToDisplayHex(status)
-          return (
-            <div className="flex items-center gap-2" title={workspaceEntryTooltip(event.resource)}>
-              <span
-                className="inline-block h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-              <span className="truncate">{event.title}</span>
-            </div>
-          )
-        },
-      },
-      event: ({ title }: { title: string }) => (
-        <div className="truncate text-xs leading-tight">{title}</div>
-      ),
-    }),
-    []
-  )
-
-  // Work around TSX typing friction by casting Calendar
-  const RBCalendar = Calendar as any
-
-  const isMonth = view === Views.MONTH
-  // Month needs a fixed-height grid so each week row has breathing room.
-  // Agenda should grow to its content so we don't show a giant empty pane
-  // after the last event.
-  const hostHeightClasses = isMonth
-    ? "h-[calc(100dvh-13rem)] min-h-[360px] overflow-x-hidden sm:h-[calc(100dvh-12.5rem)] sm:min-h-[420px] md:h-[calc(100dvh-11rem)] md:min-h-[520px]"
-    : "h-auto max-h-[calc(100dvh-11rem)] overflow-y-auto overflow-x-hidden md:max-h-[calc(100dvh-9rem)]"
 
   const handleResync = async () => {
     try {
@@ -440,6 +322,12 @@ export const ChefEventCalendar = () => {
                   : "Not connected"}
           </span>
         </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-ui-fg-subtle">
+        <span>Times shown in {DateTime.local().zoneName}</span>
+        <Tooltip content="Pending requests show requested time, not confirmed appointments. Open an event for details. Protected time is available in event tooltips. An empty calendar does not mean the chef is available.">
+          <button type="button" className="underline underline-offset-2">About this calendar</button>
+        </Tooltip>
+      </div>
         {googleCalendarStatus?.status === "active" ? (
           <Button
             size="small"
@@ -476,78 +364,23 @@ export const ChefEventCalendar = () => {
         </div>
       ) : null}
 
-      <div className="px-4 py-2 text-xs text-ui-fg-subtle sm:px-6">
-        Times shown in {DateTime.local().zoneName}. Pending requests show requested time. Protected time is listed in event tooltips.
-        This calendar is not an availability check.
-      </div>
-      {isError && (
+      {failed && (
         <div role="alert" className="px-4 py-3 sm:px-6">
           <Text>Calendar unavailable. {error instanceof Error ? error.message : 'Could not load the complete range.'}</Text>
           <Button size="small" variant="secondary" onClick={() => refetch()}>Retry</Button>
         </div>
       )}
-      <ChefEventCalendarFilterBar
-        instance={filterTable}
-        onClearAll={handleClearCalendarFilters}
+      <ChefEventCalendarFilterBar instance={filterTable} onClearAll={handleClearCalendarFilters} />
+      <WorkspaceCalendar
+        date={date}
+        view={view}
+        entries={events}
+        loading={loading}
+        failed={failed}
+        onNavigate={updateCalendarParams}
+        onRange={handleRange}
+        onSelectEvent={(entry) => navigate(entry.detailPath)}
       />
-
-      <div
-        className={[
-          "chef-events-calendar-rbc-host w-full min-w-0 px-2 py-3 sm:px-4 md:px-6",
-          hostHeightClasses,
-        ].join(" ")}
-      >
-        <RBCalendar
-          localizer={localizer}
-          messages={{ noEventsInRange: isError ? 'Calendar unavailable.' : isLoading ? 'Loading events…' : 'No events in this range.' }}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          view={view}
-          onView={setCalendarView}
-          date={date}
-          onNavigate={setCalendarDate}
-          formats={{
-            dateFormat: "d",
-            weekdayFormat: "ccc",
-            monthHeaderFormat: "MMMM yyyy",
-            // Shorter agenda header like "Apr 19 – May 19" so the toolbar
-            // label fits on one row on mobile.
-            agendaHeaderFormat: ({ start, end }: { start: Date; end: Date }) => {
-              const s = DateTime.fromJSDate(start)
-              const e = DateTime.fromJSDate(end)
-              const sameYear = s.year === e.year
-              const startLabel = s.toFormat(sameYear ? "MMM d" : "MMM d, yyyy")
-              const endLabel = e.toFormat("MMM d, yyyy")
-              return `${startLabel} – ${endLabel}`
-            },
-            agendaDateFormat: "MMM d",
-            agendaTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
-              `${DateTime.fromJSDate(start).toFormat("h:mm a")} – ${DateTime.fromJSDate(end).toFormat("h:mm a")}`,
-          }}
-          views={[Views.MONTH, Views.AGENDA]}
-          popup
-          selectable={false}
-          length={AGENDA_LENGTH}
-          tooltipAccessor={(e: RBCEvent) => workspaceEntryTooltip(e.resource)}
-          components={components}
-          onSelectEvent={(evt: RBCEvent) => navigate(evt.resource.detailPath)}
-          onDrillDown={(next: Date) => {
-            // Month date-number click — switch to agenda focused on that day.
-            updateCalendarParams(next, Views.AGENDA)
-          }}
-          culture="en-US"
-          step={30}
-          timeslots={2}
-          style={{ height: isMonth ? "100%" : "auto" }}
-        />
-      </div>
-
-      {isLoading && (
-        <div className="py-4 text-center text-sm text-[var(--fg-muted)] sm:py-6">
-          Loading events…
-        </div>
-      )}
 
       <Drawer
         open={Boolean(selectedIncident)}
