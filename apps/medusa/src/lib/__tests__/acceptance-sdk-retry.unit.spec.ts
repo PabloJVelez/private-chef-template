@@ -1,3 +1,4 @@
+import { RESOLVED_POLICY_MESSAGES, UNRESOLVED_POLICY_MESSAGES } from '../acceptance-messages';
 import { RESOLVED_INVALID_TICKET_DETAILS, UNRESOLVED_INVALID_TICKET_DETAILS } from '../acceptance-messages';
 import { AdminChefEventsResource } from "../../sdk/admin/admin-chef-events";
 
@@ -78,4 +79,20 @@ it('clears a deterministic failure only after verified cleanup, preserving the i
   expect(storage.size).toBe(0);
   await sdk.accept('event', { sendAcceptanceEmail: true });
   expect(fetch.mock.calls[2][1].body.attemptId).not.toBe(original.attemptId);
+});
+
+it('retains a rejected slot request until owned cleanup is verified, then allows corrected input', async () => {
+  const fetch = jest.fn().mockRejectedValueOnce(new Error(UNRESOLVED_POLICY_MESSAGES[0]))
+    .mockRejectedValueOnce(new Error(RESOLVED_POLICY_MESSAGES[0]))
+    .mockResolvedValueOnce({ success: true, pending: false });
+  const sdk = new AdminChefEventsResource({ fetch } as never);
+  await expect(sdk.accept('event', { chefNotes: 'Original', sendAcceptanceEmail: false })).rejects.toThrow('no longer available');
+  const original = fetch.mock.calls[0][1].body;
+  expect(storage.size).toBe(1);
+  await expect(new AdminChefEventsResource({ fetch } as never).accept('event', {})).rejects.toThrow('cleanup completed');
+  expect(fetch.mock.calls[1][1].body).toEqual(original);
+  expect(storage.size).toBe(0);
+  await sdk.accept('event', { chefNotes: 'After reschedule' });
+  expect(fetch.mock.calls[2][1].body.attemptId).not.toBe(original.attemptId);
+  expect(fetch.mock.calls[2][1].body.chefNotes).toBe('After reschedule');
 });

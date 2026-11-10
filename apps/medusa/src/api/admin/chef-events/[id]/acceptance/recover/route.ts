@@ -1,8 +1,10 @@
 import {
+  ACCEPTANCE_POLICY_MESSAGES,
+  POLICY_CLEANUP_COMPLETE,
+  ACCEPTANCE_RECOVERY_REQUIRED,
   INVALID_TICKET_DETAILS,
   RESOLVED_INVALID_TICKET_DETAILS,
   UNRESOLVED_INVALID_TICKET_DETAILS,
-  ACCEPTANCE_RECOVERY_REQUIRED,
 } from '../../../../../../lib/acceptance-messages';
 import { z } from 'zod';
 import { abortEventAcceptance } from '../../../../../../lib/abort-event-acceptance';
@@ -51,15 +53,13 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     return;
   }
   if (attempt.state === 'aborted') {
-    res
-      .status(409)
-      .json({
-        success: false,
-        resolved: !!attempt.cleanup_completed_at,
-        message: attempt.cleanup_completed_at
-          ? 'This acceptance attempt failed. Submit a new attemptId to try again.'
-          : ACCEPTANCE_RECOVERY_REQUIRED,
-      });
+    res.status(409).json({
+      success: false,
+      resolved: !!attempt.cleanup_completed_at,
+      message: attempt.cleanup_completed_at
+        ? 'This acceptance attempt failed. Submit a new attemptId to try again.'
+        : ACCEPTANCE_RECOVERY_REQUIRED,
+    });
     return;
   }
   const executionId = input.requestId ? `recover-${attempt.id}-${input.requestId}` : attempt.id;
@@ -70,21 +70,27 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   );
   const failed = ['failed', 'reverted'].includes(output.transaction.getState());
   const invalidTicket = output.errors?.some(({ error }) => error?.message === INVALID_TICKET_DETAILS);
+  const policy = output.errors?.find(({ error }) =>
+    Object.values(ACCEPTANCE_POLICY_MESSAGES).some((message) => message === error?.message),
+  )?.error?.message;
   const resolved = !!(await chef.retrieveAcceptanceAttempt(attempt.id)).cleanup_completed_at;
-  res.status(failed || invalidTicket ? 409 : output.transaction.hasFinished() ? 200 : 202).json({
+  res.status(failed || invalidTicket || policy ? 409 : output.transaction.hasFinished() ? 200 : 202).json({
     executionId,
     state: output.transaction.getState(),
-    success: !failed && !invalidTicket,
+    success: !failed && !invalidTicket && !policy,
     pending: !output.transaction.hasFinished(),
     resolved,
-    data: output.result,
-    ...(failed || invalidTicket
+    data:
+      output.transaction.hasFinished() && !failed && !invalidTicket && !policy ? output.result : undefined,
+    ...(failed || invalidTicket || policy
       ? {
-          message: invalidTicket
-            ? resolved
-              ? RESOLVED_INVALID_TICKET_DETAILS
-              : UNRESOLVED_INVALID_TICKET_DETAILS
-            : ACCEPTANCE_RECOVERY_REQUIRED,
+          message: policy
+            ? policy + (resolved ? POLICY_CLEANUP_COMPLETE : ` ${ACCEPTANCE_RECOVERY_REQUIRED}`)
+            : invalidTicket
+              ? resolved
+                ? RESOLVED_INVALID_TICKET_DETAILS
+                : UNRESOLVED_INVALID_TICKET_DETAILS
+              : ACCEPTANCE_RECOVERY_REQUIRED,
         }
       : {}),
   });

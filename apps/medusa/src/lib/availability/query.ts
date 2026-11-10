@@ -1,3 +1,4 @@
+import { AvailabilityPolicyError } from './policy-error';
 import type { MedusaContainer } from '@medusajs/framework/types';
 import { MedusaError } from '@medusajs/framework/utils';
 import { DateTime } from 'luxon';
@@ -32,16 +33,12 @@ async function loadSchedule(container: MedusaContainer, experienceId: string) {
   const [raw] = await container
     .resolve<AvailabilityModuleService>('availability')
     .listAvailabilitySettings({ id: 'chef-default' });
-  if (!raw)
-    throw new MedusaError(
-      MedusaError.Types.NOT_ALLOWED,
-      'Availability has not been configured. Please contact the chef.',
-    );
+  if (!raw) throw new AvailabilityPolicyError('unconfigured');
   const settings = availabilitySettingsSchema.parse(raw);
   const experience = await container
     .resolve<ExperienceTypeModuleService>(EXPERIENCE_TYPE_MODULE)
     .retrieveExperienceType(experienceId);
-  if (!experience.is_active) throw new MedusaError(MedusaError.Types.INVALID_DATA, 'Experience is not available.');
+  if (!experience.is_active) throw new AvailabilityPolicyError('inactive');
   const now = DateTime.utc();
   const today = now.setZone(settings.timezone).startOf('day');
   return {
@@ -162,10 +159,6 @@ export async function requireSlot(
 ) {
   const result = await availableSlots(container, date, experienceId, ignoreEventId);
   const slot = result.slots.find((s) => s.start === new Date(slotStart).toISOString());
-  if (!slot)
-    throw new MedusaError(
-      MedusaError.Types.NOT_ALLOWED,
-      'That arrival time is no longer available. Please choose another time.',
-    );
+  if (!slot) throw new AvailabilityPolicyError('unavailable');
   return { ...result, slot };
 }

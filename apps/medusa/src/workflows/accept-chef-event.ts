@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { requireSlot } from '../lib/availability/query';
-import { INVALID_TICKET_DETAILS } from '../lib/acceptance-messages';
+import { AvailabilityPolicyError } from '../lib/availability/policy-error';
+import { INVALID_TICKET_DETAILS, ACCEPTANCE_POLICY_MESSAGES } from '../lib/acceptance-messages';
 /**
  * Accept Chef Event Workflow
  *
@@ -103,7 +104,10 @@ const acceptChefEventStep = createStep(
         return new StepResponse({ originalChefEvent, token, input }, { id: originalChefEvent.id, token });
       }
       if (!originalChefEvent.experience_type_id)
-        throw new Error('Select an experience before accepting this legacy request.');
+        StepResponse.permanentFailure(ACCEPTANCE_POLICY_MESSAGES.missingExperience, {
+          id: originalChefEvent.id,
+          token,
+        });
       const date = DateTime.fromJSDate(new Date(originalChefEvent.requestedDate))
         .setZone(originalChefEvent.timeZone)
         .toISODate()!;
@@ -113,9 +117,16 @@ const acceptChefEventStep = createStep(
         originalChefEvent.experience_type_id,
         new Date(originalChefEvent.requestedDate).toISOString(),
         originalChefEvent.id,
-      );
+      ).catch((error: unknown) => {
+        if (error instanceof AvailabilityPolicyError)
+          StepResponse.permanentFailure(error.message, { id: originalChefEvent.id, token });
+        throw error;
+      });
       if (slot.time !== originalChefEvent.requestedTime)
-        throw new Error('The chef timezone changed. Update the request before accepting.');
+        StepResponse.permanentFailure(ACCEPTANCE_POLICY_MESSAGES.changedTimezone, {
+          id: originalChefEvent.id,
+          token,
+        });
       await chefEventModuleService.claimAcceptance({
         id: originalChefEvent.id,
         token,
@@ -143,6 +154,7 @@ const acceptChefEventStep = createStep(
         if ((error as { code?: string }).code === '23P01') {
           await chefEventModuleService.releaseAcceptance(originalChefEvent.id, token);
           await chefEventModuleService.completeAcceptanceCleanup(originalChefEvent.id, token);
+          StepResponse.permanentFailure(ACCEPTANCE_POLICY_MESSAGES.unavailable);
         }
         throw error;
       }
@@ -155,12 +167,22 @@ const acceptChefEventStep = createStep(
     return withEventProductLock(container, claim.token, async () => {
       await assertEventProductAbsent(container, claim.token, claim.id);
       const chef = container.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
-      if (await chef.releaseAcceptance(claim.id, claim.token)) {
-        await container.resolve<SchedulingModuleService>(SCHEDULING_MODULE).release({
+      if (
+        (await chef.releaseAcceptance(claim.id, claim.token)) ||
+        (await chef.abortUnclaimedAcceptance(claim.id, claim.token))
+      ) {
+        const scheduling = container.resolve<SchedulingModuleService>(SCHEDULING_MODULE);
+        const owned = await scheduling.listReservations({
           id: claim.token,
-          ownerId: claim.id,
-          attemptId: claim.token,
+          owner_id: claim.id,
+          attempt_id: claim.token,
         });
+        if (owned.length)
+          await scheduling.release({
+            id: claim.token,
+            ownerId: claim.id,
+            attemptId: claim.token,
+          });
         await chef.completeAcceptanceCleanup(claim.id, claim.token);
       }
     });

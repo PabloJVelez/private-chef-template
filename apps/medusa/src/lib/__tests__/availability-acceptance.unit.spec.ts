@@ -55,7 +55,7 @@ const chef = {
   updateChefEvents: jest.fn(),
 };
 const product = { deleteProducts: jest.fn(), updateProducts: jest.fn(), listProducts: jest.fn(), retrieveProduct: jest.fn() };
-const scheduling = { acquire: jest.fn(), confirm: jest.fn(), release: jest.fn() };
+const scheduling = { listReservations: jest.fn().mockResolvedValue([{ id: "owner" }]), acquire: jest.fn(), confirm: jest.fn(), release: jest.fn() };
 const inventory = { listInventoryItems: jest.fn() };
 const container = {
   resolve: (key: string) =>

@@ -1,4 +1,4 @@
-import { INVALID_TICKET_DETAILS, RESOLVED_INVALID_TICKET_DETAILS, UNRESOLVED_INVALID_TICKET_DETAILS, ACCEPTANCE_RECOVERY_REQUIRED } from '../../../../lib/acceptance-messages';
+import { RESOLVED_POLICY_MESSAGES, UNRESOLVED_POLICY_MESSAGES, INVALID_TICKET_DETAILS, RESOLVED_INVALID_TICKET_DETAILS, UNRESOLVED_INVALID_TICKET_DETAILS, ACCEPTANCE_RECOVERY_REQUIRED } from '../../../../lib/acceptance-messages';
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Container, Heading, toast, Button, FocusModal, Textarea, Label, Checkbox, Input, Text } from "@medusajs/ui"
 import { useNavigate, useParams, type UIMatch } from "react-router-dom"
@@ -99,7 +99,7 @@ const ChefEventDetailPage = () => {
     } catch (error) {
       console.error("Error accepting chef event:", error)
       toast.error("Acceptance Failed", {
-        description: error instanceof Error && [INVALID_TICKET_DETAILS, RESOLVED_INVALID_TICKET_DETAILS, UNRESOLVED_INVALID_TICKET_DETAILS, ACCEPTANCE_RECOVERY_REQUIRED].includes(error.message)
+        description: error instanceof Error && [...RESOLVED_POLICY_MESSAGES, ...UNRESOLVED_POLICY_MESSAGES, INVALID_TICKET_DETAILS, RESOLVED_INVALID_TICKET_DETAILS, UNRESOLVED_INVALID_TICKET_DETAILS, ACCEPTANCE_RECOVERY_REQUIRED].includes(error.message)
           ? error.message : "There was an error accepting the chef event. Please try again.",
         duration: 5000,
       })

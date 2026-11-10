@@ -1,4 +1,7 @@
 import {
+  ACCEPTANCE_POLICY_MESSAGES,
+  POLICY_CLEANUP_COMPLETE,
+  ACCEPTANCE_RECOVERY_REQUIRED,
   INVALID_TICKET_DETAILS,
   RESOLVED_INVALID_TICKET_DETAILS,
   UNRESOLVED_INVALID_TICKET_DETAILS,
@@ -47,27 +50,32 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   const finished = execution.transaction.hasFinished();
   const failed = ['failed', 'reverted'].includes(execution.transaction.getState());
   const invalidTicket = execution.errors?.some(({ error }) => error?.message === INVALID_TICKET_DETAILS);
+  const policy = execution.errors?.find(({ error }) =>
+    Object.values(ACCEPTANCE_POLICY_MESSAGES).some((message) => message === error?.message),
+  )?.error?.message;
   let resolved = false;
   if (failed) {
     await chef.abortUnclaimedAcceptance(req.params.id, attempt.id);
     resolved = !!(await chef.retrieveAcceptanceAttempt(attempt.id)).cleanup_completed_at;
   }
-  res.status(failed || invalidTicket ? 409 : finished ? 200 : 202).json({
-    success: !failed && !invalidTicket,
+  res.status(failed || invalidTicket || policy ? 409 : finished ? 200 : 202).json({
+    success: !failed && !invalidTicket && !policy,
     attemptId: attempt.request_key,
     executionId: attempt.id,
     pending: !finished,
     resolved,
-    data: execution.result,
-    ...(failed || invalidTicket
+    data: finished && !failed && !invalidTicket && !policy ? execution.result : undefined,
+    ...(failed || invalidTicket || policy
       ? {
-          message: resolved
-            ? invalidTicket
-              ? RESOLVED_INVALID_TICKET_DETAILS
-              : 'This acceptance attempt failed. Submit a new attemptId to try again.'
-            : invalidTicket
-              ? UNRESOLVED_INVALID_TICKET_DETAILS
-              : 'Acceptance requires recovery. Protected time is retained until cleanup is verified.',
+          message: policy
+            ? policy + (resolved ? POLICY_CLEANUP_COMPLETE : ` ${ACCEPTANCE_RECOVERY_REQUIRED}`)
+            : resolved
+              ? invalidTicket
+                ? RESOLVED_INVALID_TICKET_DETAILS
+                : 'This acceptance attempt failed. Submit a new attemptId to try again.'
+              : invalidTicket
+                ? UNRESOLVED_INVALID_TICKET_DETAILS
+                : 'Acceptance requires recovery. Protected time is retained until cleanup is verified.',
         }
       : {}),
   });

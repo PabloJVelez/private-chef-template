@@ -1,4 +1,4 @@
-import { RESOLVED_INVALID_TICKET_DETAILS } from '../../lib/acceptance-messages';
+import { RESOLVED_INVALID_TICKET_DETAILS, RESOLVED_POLICY_MESSAGES } from '../../lib/acceptance-messages';
 import type { Client } from '@medusajs/js-sdk'
 
 import {
@@ -304,7 +304,7 @@ export class AdminChefEventsResource {
       method: 'POST',
       body: request,
     }).catch((error: Error) => {
-      if ([RESOLVED_INVALID_TICKET_DETAILS, 'This acceptance attempt failed. Submit a new attemptId to try again.'].includes(error.message) && typeof sessionStorage !== 'undefined')
+      if ([...RESOLVED_POLICY_MESSAGES, RESOLVED_INVALID_TICKET_DETAILS, 'This acceptance attempt failed. Submit a new attemptId to try again.'].includes(error.message) && typeof sessionStorage !== 'undefined')
         sessionStorage.removeItem(storageKey)
       throw error
     })

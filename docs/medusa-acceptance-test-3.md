@@ -1,10 +1,174 @@
 # Private Event manual Test 3 follow-up
 
-This patch updates PR #32 from `831c654b5d7915cb1a66b83a6715b7e9d13327fb`.
-It preserves that revision's cleanup acknowledgment, claim/acquire/abort lock and
-reload-safe immutable Admin request. PR #31 and its branch are unchanged.
+The handle correction was `c5fa93b0da25412d7d63e08862141be2a62ee0fb`, based on
+`831c654b5d7915cb1a66b83a6715b7e9d13327fb`. The availability follow-up starts from
+`c5fa93b` and preserves both revisions, including cleanup acknowledgment, the
+claim/acquire/abort lock and reload-safe immutable Admin request. PR #31 is unchanged.
 
-## Causes and correction
+## Availability follow-up: a rejected slot is not processing
+
+**Owner QA clarification:** the rejected requests were for 4:30 PM on November 9
+and that arrival had already passed. Rejecting them was correct; this patch fixes
+the misleading 202/processing response, not the past-time policy. The owner then
+created two requests for the same future date at 4 PM (described as next Monday)
+and reports accepting one successfully. That is owner-reported local happy-path
+success. It does not establish duplicate prevention, product/email/calendar
+delivery, cancellation cleanup or reload replay; those manual tests are continuing.
+
+The owner's later 202 (157.843 ms) fails in `requireSlot`, before claim/acquire or
+product creation. It does not demonstrate another handle failure or prove product
+success. The earlier aborted/cleanup-complete SQL row was from **before** that POST;
+it is not evidence of the latest attempt's state. We have not inspected the Mac DB.
+The screenshot's Node 20.20.2 differs from the Node 24.22.2 fixture; no evidence
+identifies that difference as the cause.
+
+Source anchors:
+
+- `src/lib/availability/query.ts`: `loadSchedule` and `requireSlot` now throw the
+  narrow `AvailabilityPolicyError` for missing saved settings, an inactive
+  experience, or a requested instant absent from the calculated slots.
+- `src/workflows/accept-chef-event.ts`: only that typed availability error, the
+  explicit missing-experience/timezone checks, and PostgreSQL's definite overlap
+  rejection become native `StepResponse.permanentFailure`. Arbitrary `NOT_ALLOWED`,
+  database timeouts and unknown provider/network exceptions are not classified as
+  policy rejections. Existing advisory Google fallback is unchanged.
+- The failing initial step supplies its event/attempt as native compensation data.
+  Existing absence/ownership checks, conditional abort, owned reservation release
+  (if one exists), and `completeAcceptanceCleanup` resolve the unclaimed attempt.
+  Cleanup failure retains `resolved:false` and blocks replacement. No new state
+  table, retry engine, scheduling policy or provider behavior is introduced.
+- Both acceptance/recovery handlers return sanitized 409 policy messages. They
+  omit partial workflow results from unsuccessful/incomplete responses. The Admin
+  displays the known policy message; its SDK clears the immutable request only on
+  the exact cleanup-complete acknowledgment. Genuine unfinished work remains 202.
+
+### Optional read-only checks for remaining slot questions
+
+Use the owner's existing local Admin session and database. Do not change settings,
+release holds, reset Redis or edit workflow checkpoints to diagnose this.
+
+1. Capture the **current** event with GET
+   `/admin/chef-events/01M70EQY8KJDNQN7WD745FQDY1`, then use the ownership/state queries
+   below under "Conditional recovery" to identify the current attempt. Read the
+   clock in the actual API process environment, for example the same terminal's
+   `node -e 'console.log(process.version, new Date().toISOString())'`. Compare with:
+
+   ```sql
+   SELECT clock_timestamp() AT TIME ZONE 'UTC' AS database_now_utc,
+          "requestedDate" AT TIME ZONE 'UTC' AS requested_utc,
+          "timeZone", "requestedTime", experience_type_id,
+          "requestedDate" AT TIME ZONE "timeZone" AS event_wall_clock
+   FROM chef_event WHERE id = '01M70EQY8KJDNQN7WD745FQDY1';
+   ```
+
+2. GET `/admin/availability` for saved timezone, weekly hours, date overrides,
+   `notice_rules` and `google_mode`; GET `/admin/experience-types/<experienceId>`
+   for active status, duration, buffers and arrival-slot restrictions. Use saved
+   Availability `notice_rules` as the notice authority, not the experience's older
+   notice fields. Compare the requested instant against now, notice days and the
+   six-month horizon. For a different request, the date in an old handle is not a substitute for
+   reading its stored request date. The owner has confirmed the earlier arrival expired.
+3. GET `/admin/availability/preview?date=<YYYY-MM-DD>&experience_id=<experienceId>`
+   using the requested day's date in the saved scheduling timezone. Compare the
+   **exact UTC instant** against returned `slots[].start`, not just a clock label
+   (DST can produce two instants). This is the existing complete availability read;
+   503 is not evidence of a free slot. Preview has no current-event exclusion, while
+   acceptance excludes its own internal reservation owner. Do not infer a
+   self-conflict or release a hold solely from preview output.
+4. Check actual protected intervals for **other owners** across the proposed
+   occupied window, including reservations that start before it:
+
+   ```sql
+   WITH w AS (
+     SELECT e.id,
+       e."requestedDate" - make_interval(mins =>
+         (coalesce(x.preparation_minutes, 0) + coalesce(x.travel_minutes, 0))::int) AS starts_at,
+       e."requestedDate" + make_interval(mins =>
+         (x.duration_minutes + coalesce(x.cleanup_minutes, 0) + coalesce(x.travel_minutes, 0))::int) AS ends_at
+     FROM chef_event e JOIN experience_type x ON x.id = e.experience_type_id
+     WHERE e.id = '01M70EQY8KJDNQN7WD745FQDY1'
+   )
+   SELECT r.owner_id, r.attempt_id, r.state, r.starts_at, r.ends_at,
+          count(*) OVER () AS total_matches
+   FROM scheduling_reservation r CROSS JOIN w
+   WHERE r.deleted_at IS NULL AND r.state IN ('held', 'confirmed')
+     AND r.owner_id <> w.id AND r.starts_at < w.ends_at AND r.ends_at > w.starts_at
+   ORDER BY r.starts_at LIMIT 101;
+   ```
+
+   These are proposed-policy buffers, not a recalculation of historical bookings.
+   If there is no experience or duration, resolve that configuration first. If
+   `total_matches` exceeds 101 the displayed diagnostic list is incomplete.
+5. If Google mode is enabled, GET `/admin/google-calendar` for connection/calendar
+   and sync status, and inspect that calendar's actual busy events over the same
+   occupied interval. Account for pending-request mirror exclusions. The existing
+   warning "Google availability lookup unavailable; using internal bookings only"
+   means no Google conflict was added from that failed lookup. Do not attribute a
+   rejection to Google merely because a connection is configured. No live Google
+   calls were made by these implementation fixtures.
+
+### Retest or recover this availability rejection
+
+For a **new patched rejection** with `resolved:true`, the SDK clears the rejected
+request after displaying its reason. Keep the event pending, use the existing event
+edit flow to choose an actually offered future slot (and an active experience),
+then Accept once with a new request UUID. The rejected slot is never auto-accepted.
+If cleanup is unresolved, finish the owned abort before replacing the attempt.
+
+For an **already-persisted pre-fix retry**, fetch current state first. If still
+pending with no finalized product, the same actor can POST
+`/admin/chef-events/01M70EQY8KJDNQN7WD745FQDY1/acceptance/recover` with
+`{"action":"abort"}`. Require `success:true,resolved:true`; preserve the original
+browser payload until that acknowledgment. The next ordinary Accept acknowledges
+and clears the old resolved request; then reschedule and submit a fresh attempt.
+Alternatively, `{"action":"resume"}` uses the original execution/input: when the
+native awaiting interval permits re-execution, patched policy rejection becomes
+terminal with owned cleanup. Never edit stored checkpoint input or use a new
+recovery UUID to bypass slot validation. A terminal pre-fix failure may need the
+explicit abort to acknowledge cleanup.
+
+If already confirmed/completed, a product is finalized, or outcomes are ambiguous,
+retain protection and use the inspect/resume branch below. The earlier event's latest lifecycle state is still unverified here, but the owner
+has confirmed its arrival expired and a separate future acceptance succeeded.
+The new rejection-UX patch and the remaining manual QA cases still need owner validation.
+
+### Availability follow-up verification
+
+The pre-fix elapsed-arrival reproduction failed as expected: HTTP 202 in 93 ms,
+no product/reservation, and an active unresolved attempt. Final patched evidence:
+
+- The documented PostgreSQL/Redis selection passed 3 suites / 27 top-level tests,
+  including the wrapper executing 5 additional Scheduling cases. All 23 native
+  cases ran; no final selected case skipped. Expired and real-conflict cases
+  returned resolved HTTP 409 in approximately 190/184 ms, without creating a
+  product or releasing another owner's reservation.
+- Expired rejection, same-attempt replay, supported reschedule, new-UUID acceptance
+  and a stale old retry passed without checkpoint edits or SQL data mutation.
+  Missing experience, timezone mismatch, inactive experience and absent settings
+  are separately covered. PostgreSQL read failure and an unrelated `NOT_ALLOWED`
+  remain 202/unresolved before acquisition; the read-fault fixture uses an actual
+  100-ms PostgreSQL timeout. The Scheduling suite separately tests its real 5-second
+  read deadline. Production retry intervals remain unchanged.
+- Normal-config healthy routes with generated/provided uppercase IDs completed
+  first-call in approximately 527/466 ms (finalized at 478/387 ms). These are Linux
+  Node 24.22.2 handler measurements excluding startup, HTTP transport, browser and
+  live providers, not an SLA or a Mac measurement.
+- The genuine transient-after-acquisition case observes the native scheduled retry
+  in the same live worker and then replays the original request successfully.
+  Earlier fixture expectations assumed HTTP resume must already be complete and
+  killed an in-flight native retry; those expectations were corrected before the
+  final passing selection. Existing crash, product, duplicate/concurrent,
+  finalized-booking and interrupted-cleanup cases remain in the full run.
+- Backend units: 17 suites / 170 tests passed, including immutable reload input
+  and policy rejection cleanup acknowledgment. Both workspace typechecks/builds
+  and `git diff --check` passed.
+
+External delivery is simulated. The owner's future-slot acceptance is separately
+reported manual evidence; neither it nor these fixtures proves the remaining Mac
+manual QA cases. No shared DB reset, Redis flush, migration, merge or deployment
+was performed. Only task-owned fixtures were used.
+
+## Earlier handle correction (c5fa93b)
 
 The descriptive part of the ticket handle was normalized before an uppercase
 Medusa event ID was appended. Medusa 2.7 requires
@@ -139,7 +303,8 @@ Retest Test 3 with an available future slot satisfying current notice/horizon ru
 The sample handle's date is not authority to accept a now-expired slot. For a fresh
 healthy attempt, one Accept should return success and show the confirmed event and
 its published ticket product. Record the network response and product/reservation
-state if it does not. **Manual Test 3 remains unverified until the owner retests.**
+state if it does not. **The new rejection-UX patch still requires owner retest. Future-slot acceptance is
+owner-reported successful; the remaining manual behaviors are not yet verified.**
 
 ## Reproduction commands
 
@@ -160,7 +325,7 @@ acceptance, finalized-product/time protection and interrupted abort coverage.
 The Scheduling wrapper retains interrupted-cleanup replacement and stale cleanup
 cases. The SDK unit suite retains immutable payload replay across client reload.
 
-## Final validation for this follow-up
+## Recorded handle-fix validation (c5fa93b)
 
 - Real PostgreSQL/Redis selection above: 3 suites / 19 top-level tests passed,
   including the wrapper that executes 5 additional Scheduling integration cases.

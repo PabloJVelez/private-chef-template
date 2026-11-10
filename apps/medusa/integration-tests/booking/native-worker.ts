@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { DateTime } from 'luxon';
 import { MedusaApp, MedusaAppMigrateUp } from '@medusajs/framework/modules-sdk';
-import { createMedusaContainer, Modules } from '@medusajs/framework/utils';
+import { createMedusaContainer, Modules, MedusaError } from '@medusajs/framework/utils';
 import {
   createStep,
   createWorkflow,
@@ -124,11 +124,14 @@ async function main() {
           google_mode: 'internal_only',
         });
       const experiences = container.resolve<any>('experienceTypeModuleService');
-      if (!(await experiences.listExperienceTypes({ id: 'proof-experience' })).length)
+      const experienceId =
+        process.env.BOOKING_POLICY === 'inactive' ? `inactive-${eventId}` : 'proof-experience';
+      if (!(await experiences.listExperienceTypes({ id: experienceId })).length)
         await experiences.createExperienceTypes({
-          id: 'proof-experience',
+          id: experienceId,
+          is_active: process.env.BOOKING_POLICY !== 'inactive',
           name: 'Dinner',
-          slug: 'proof-dinner',
+          slug: experienceId,
           description: 'Fixture',
           highlights: [],
           available_time_slots: [],
@@ -154,10 +157,10 @@ async function main() {
           .startOf('day')
           .set({ hour: 10 })
           .toJSDate(),
-        requestedTime: '10:00',
+        requestedTime: process.env.BOOKING_POLICY === 'timezone' ? '11:00' : '10:00',
         partySize: 4,
         eventType: process.env.BOOKING_PUNCTUATION ? 'Dinner / & -- Party!' : 'Dinner',
-        experience_type_id: 'proof-experience',
+        experience_type_id: process.env.BOOKING_POLICY === 'missing' ? null : experienceId,
         templateProductId: 'fixture-menu',
         locationType: 'customer_location',
         locationAddress: 'Fixture',
@@ -171,6 +174,14 @@ async function main() {
         estimatedDuration: 60,
         timeZone: 'UTC',
       });
+      if (process.env.BOOKING_POLICY === 'conflict')
+        await scheduling.acquire({
+          id: `conflict-${seeded.id}`,
+          ownerId: `other-${seeded.id}`,
+          attemptId: `other-${seeded.id}`,
+          start: new Date(seeded.requestedDate).toISOString(),
+          end: new Date(new Date(seeded.requestedDate).getTime() + 3600000).toISOString(),
+        });
       console.log(JSON.stringify({ seededEventId: seeded.id }));
       process.exit(0);
     }
@@ -190,10 +201,14 @@ async function main() {
       container.resolve<any>(Modules.INVENTORY).updateInventoryItems = async () => {
         throw new Error('Fixture inventory failure');
       };
-    if (process.env.BOOKING_FAIL === 'after-acquire')
-      container.resolve<any>(Modules.FULFILLMENT).listShippingProfiles = async () => {
+    if (process.env.BOOKING_FAIL === 'after-acquire') {
+      const fulfillment = container.resolve<any>(Modules.FULFILLMENT);
+      const list = fulfillment.listShippingProfiles.bind(fulfillment);
+      fulfillment.listShippingProfiles = async () => {
+        if (process.env.BOOKING_RETRY_IN_PROCESS === 'true') fulfillment.listShippingProfiles = list;
         throw new Error('Fixture failure after acquisition');
       };
+    }
     const notifications: string[] = [];
     container.register(
       Modules.EVENT_BUS,
@@ -273,7 +288,48 @@ async function main() {
       await app.onApplicationShutdown();
       process.exit(0);
     }
+    if (process.env.BOOKING_ACTION === 'reschedule') {
+      const { updateChefEventWorkflow } = require('../../src/workflows/update-chef-event');
+      await updateChefEventWorkflow(container).run({
+        input: {
+          id: eventId,
+          requestedDate: DateTime.utc().plus({ days: 62 }).toISODate(),
+          requestedTime: '10:00',
+        },
+      });
+      process.send?.({ type: 'rescheduled' });
+      await app.onApplicationPrepareShutdown();
+      await app.onApplicationShutdown();
+      process.exit(0);
+    }
     if (process.env.BOOKING_ACTION?.startsWith('route')) {
+      let blocker: any;
+      if (process.env.BOOKING_FAIL === 'availability-db') {
+        const { Client } = require('pg');
+        blocker = new Client({ connectionString: database });
+        await blocker.connect();
+        await blocker.query('begin');
+        await blocker.query('lock table scheduling_reservation in access exclusive mode');
+        // Real PostgreSQL timeout before acquisition, kept shorter than the native retry interval.
+        // Scheduling's own five-second timeout is separately covered by the Scheduling suite.
+        scheduling.overlapping = async () => {
+          const reader = new Client({ connectionString: database });
+          await reader.connect();
+          try {
+            await reader.query("set statement_timeout = '100ms'");
+            return (await reader.query('select id from scheduling_reservation')).rows;
+          } finally {
+            await reader.end();
+          }
+        };
+      }
+      if (process.env.BOOKING_FAIL === 'unrelated-not-allowed')
+        scheduling.overlapping = async () => {
+          throw new MedusaError(MedusaError.Types.NOT_ALLOWED, 'Fixture database authorization error');
+        };
+      if (process.env.BOOKING_POLICY === 'unconfigured')
+        container.resolve<any>('availability').listAvailabilitySettings = async () => [];
+
       const recovery = process.env.BOOKING_ACTION !== 'route';
       const { POST } = recovery
         ? require('../../src/api/admin/chef-events/[id]/acceptance/recover/route')
@@ -281,26 +337,56 @@ async function main() {
       let status = 200;
       let body: unknown;
       startedAt = performance.now();
-      await POST(
-        {
-          scope: container,
-          params: { id: eventId },
-          auth_context: { actor_id: 'fixture-admin' },
-          body: recovery
-            ? { action: process.env.BOOKING_ACTION === 'route-abort' ? 'abort' : 'resume' }
-            : { attemptId: process.env.BOOKING_REQUEST_ID, sendAcceptanceEmail: false },
-        },
-        {
-          status(code: number) {
-            status = code;
-            return this;
+      const invokeRoute = () =>
+        POST(
+          {
+            scope: container,
+            params: { id: eventId },
+            auth_context: { actor_id: 'fixture-admin' },
+            body: recovery
+              ? { action: process.env.BOOKING_ACTION === 'route-abort' ? 'abort' : 'resume' }
+              : { attemptId: process.env.BOOKING_REQUEST_ID, sendAcceptanceEmail: false },
           },
-          json(value: unknown) {
-            body = value;
+          {
+            status(code: number) {
+              status = code;
+              return this;
+            },
+            json(value: unknown) {
+              body = value;
+            },
           },
-        },
-      );
+        );
+      await invokeRoute();
       const elapsedMs = performance.now() - startedAt;
+      if (process.env.BOOKING_RETRY_IN_PROCESS === 'true') {
+        process.send?.({
+          type: 'pending',
+          status,
+          body,
+          reservations: await scheduling.listReservations({ owner_id: eventId }),
+        });
+        // Observe the actual scheduled native retry without killing its worker during execution.
+        const { acceptChefEventWorkflow } = require('../../src/workflows/accept-chef-event');
+        const event = await chef.retrieveChefEvent(eventId);
+        let finished = false;
+        for (let check = 0; check < 100; check++) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          const transaction = await acceptChefEventWorkflow(container).getRunningTransaction(
+            event.acceptanceExecution,
+          );
+          if (transaction?.hasFinished()) {
+            finished = true;
+            break;
+          }
+        }
+        if (!finished) throw new Error('Native retry did not finish within the fixture observation bound');
+        await invokeRoute();
+      }
+      if (blocker) {
+        await blocker.query('rollback');
+        await blocker.end();
+      }
       const event = await chef.retrieveChefEvent(eventId);
       const attempt = await chef.retrieveAcceptanceAttempt(event.acceptanceExecution);
       const child = await eventProductWorkflow(container)
@@ -322,6 +408,7 @@ async function main() {
           .resolve<any>(Modules.PRODUCT)
           .listProducts({ external_id: eventProductExecution(attempt.id) }),
         reservations: await scheduling.listReservations({ owner_id: eventId }),
+        conflicts: await scheduling.listReservations({ owner_id: `other-${eventId}` }),
         childState: child?.getState(),
         childInput: child?.getContext().payload,
       });

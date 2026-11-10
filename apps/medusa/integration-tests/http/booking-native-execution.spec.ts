@@ -226,6 +226,99 @@ describe('Medusa 2.7 native Redis execution', () => {
       },
       'route',
     ); // Replace the fixture process after the response; shutdown can await scheduled compensation.
+  it('rejects an elapsed arrival promptly and resolves its unclaimed attempt', async () => {
+    const id = seed(randomUUID(), -1, { BOOKING_GENERATED_ID: 'true' });
+    const requestId = randomUUID();
+    const [rejected] = await route(id, requestId);
+    console.log('elapsed arrival evidence', {
+      status: rejected.status,
+      elapsedMs: rejected.elapsedMs,
+      body: rejected.body,
+    });
+    expect(rejected).toMatchObject({
+      status: 409,
+      productCreateCalls: 0,
+      eventStatus: 'pending',
+      body: { success: false, pending: false, resolved: true },
+      products: [],
+      reservations: [],
+      attempt: { state: 'aborted', cleanup_completed_at: expect.any(String) },
+    });
+    expect(rejected.body.message).toContain('That arrival time is no longer available');
+    expect((await route(id, requestId))[0]).toMatchObject({
+      status: 409,
+      productCreateCalls: 0,
+      body: { resolved: true },
+    });
+    await route(id, requestId, { BOOKING_ACTION: 'reschedule' });
+    const [accepted] = await route(id, randomUUID());
+    expect(accepted).toMatchObject({
+      status: 200,
+      eventStatus: 'confirmed',
+      productCreateCalls: 1,
+      products: [expect.objectContaining({ status: 'published' })],
+      reservations: [expect.objectContaining({ state: 'confirmed' })],
+    });
+    const [stale] = await route(id, requestId);
+    expect(stale).toMatchObject({
+      status: 409,
+      productCreateCalls: 0,
+      reservations: [expect.objectContaining({ state: 'confirmed' })],
+    });
+    expect(stale.products[0].id).toBe(accepted.products[0].id);
+  }, 30000);
+  it('rejects a real conflicting reservation without releasing another owner’s time', async () => {
+    const id = seed(randomUUID(), 61, { BOOKING_GENERATED_ID: 'true', BOOKING_POLICY: 'conflict' });
+    const [rejected] = await route(id, randomUUID());
+    console.log('conflicting arrival evidence', {
+      status: rejected.status,
+      elapsedMs: rejected.elapsedMs,
+      body: rejected.body,
+    });
+    expect(rejected).toMatchObject({
+      status: 409,
+      productCreateCalls: 0,
+      products: [],
+      reservations: [],
+      body: { pending: false, resolved: true },
+      conflicts: [expect.objectContaining({ state: 'held', owner_id: `other-${id}` })],
+    });
+  });
+  it.each(['missing', 'timezone', 'inactive', 'unconfigured'])(
+    'resolves the explicit %s pre-acceptance policy',
+    async (policy) => {
+      const id = seed(randomUUID(), 63, { BOOKING_GENERATED_ID: 'true', BOOKING_POLICY: policy });
+      const [rejected] = await route(id, randomUUID(), { BOOKING_POLICY: policy });
+      expect(rejected).toMatchObject({
+        status: 409,
+        productCreateCalls: 0,
+        products: [],
+        reservations: [],
+        body: { pending: false, resolved: true },
+        attempt: { state: 'aborted', cleanup_completed_at: expect.any(String) },
+      });
+    },
+  );
+  it.each(['availability-db', 'unrelated-not-allowed'])(
+    'keeps %s retryable before acquisition',
+    async (failure) => {
+      const id = seed(randomUUID(), failure === 'availability-db' ? 65 : 66, {
+        BOOKING_GENERATED_ID: 'true',
+      });
+      const requestId = randomUUID();
+      const [pending] = await route(id, requestId, { BOOKING_FAIL: failure });
+      expect(pending).toMatchObject({
+        status: 202,
+        productCreateCalls: 0,
+        products: [],
+        reservations: [],
+        body: { pending: true, resolved: false },
+        attempt: { state: 'active', cleanup_completed_at: null },
+      });
+      expect(pending.body.message).toBeUndefined();
+    },
+    30000,
+  );
   it('reports deterministic native Product validation without retrying it or leaking the raw input', async () => {
     const id = seed(randomUUID(), 58, { BOOKING_GENERATED_ID: 'true' });
     const [output] = await route(id, randomUUID(), { BOOKING_FAIL: 'product-validation' });
@@ -250,14 +343,15 @@ describe('Medusa 2.7 native Redis execution', () => {
   it('keeps transient native failures pending and resumes after the normal retry interval', async () => {
     const id = seed(randomUUID(), 59, { BOOKING_GENERATED_ID: 'true' });
     const requestId = randomUUID();
-    const [pending] = await route(id, requestId, { BOOKING_FAIL: 'after-acquire' });
+    const [pending, resumed] = await route(id, requestId, {
+      BOOKING_FAIL: 'after-acquire',
+      BOOKING_RETRY_IN_PROCESS: 'true',
+    });
     expect(pending).toMatchObject({
       status: 202,
       body: { pending: true, resolved: false },
       reservations: [expect.objectContaining({ state: 'held' })],
     });
-    await new Promise((resolve) => setTimeout(resolve, 5200));
-    const [resumed] = await route(id, requestId);
     expect(resumed).toMatchObject({
       status: 200,
       body: { pending: false },
