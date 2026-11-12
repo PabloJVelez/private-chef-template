@@ -24,7 +24,10 @@ schedule, official SHA256 sums, and Docker's OCI manifests. Latest stable Node 2
   arm64: `89e1853138db51e8b82d3e98ba9c0d3f2956a28e5e55ea1b7e12d25aae92d5dd`.
 - Node 26 images/tarballs no longer supply Yarn/Corepack. Explicit Corepack **0.36.0**
   bootstraps checked-in Yarn **4.5.0**; no Yarn upgrade. Docker and the opt-in CI
-  composite install Corepack explicitly. Python-only review workflows need no Node
+  composite install Corepack explicitly. Docker caches Yarn as UID 1000 in the
+  shared base stage: the installer-only cache otherwise disappears from the runner,
+  causing offline startup to fail with `EAI_AGAIN repo.yarnpkg.com`. Offline Yarn
+  startup is checked in both final images. Python-only review workflows need no Node
   setup; Docker composite actions inherit Dockerfile pins. Actions' embedded
   runtimes are independent of the application runtime.
 - Legacy Nixpacks `nodejs_22` is replaced by a checksum-verified Node bootstrap,

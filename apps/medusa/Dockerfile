@@ -10,6 +10,9 @@ USER 1000
 
 WORKDIR /app
 
+# Keep the pinned Yarn cache in every stage, including the offline runtime image.
+RUN corepack install --global yarn@4.5.0
+
 FROM base AS builder
 
 COPY --chown=node:node . .

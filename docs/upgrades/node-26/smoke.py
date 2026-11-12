@@ -53,7 +53,9 @@ try:
         assert config['Config']['User'] == '1000'
         version = command('docker', 'run', '--rm', '--network', 'none', '--entrypoint', 'node', image, '--version')
         assert version == 'v26.13.1'
-        record(workspace + '-image', image_id=config['Id'], user='1000', node=version)
+        yarn = command('docker', 'run', '--rm', '--network', 'none', '--entrypoint', 'yarn', image, '--version')
+        assert yarn == '4.5.0'
+        record(workspace + '-image', image_id=config['Id'], user='1000', node=version, offline_yarn=yarn)
     probe = "const s=require('@swc/core'); if(!s.transformSync('const n: number = 26', {jsc:{parser:{syntax:'typescript'}}}).code.includes('26'))process.exit(1); console.log('SWC native transform OK',s.version)"
     record('alpine-native-swc', output=command('docker', 'run', '--rm', '--network', 'none', '--entrypoint', 'node', f'chef-node26-medusa:{tag}', '-e', probe))
     # Fixture-only provider configuration prevents checkout from requesting Stripe.
