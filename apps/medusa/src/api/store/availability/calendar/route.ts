@@ -1,5 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { availableCalendar } from '../../../../lib/availability/query';
 const query = z.object({
   experience_id: z.string().min(1),

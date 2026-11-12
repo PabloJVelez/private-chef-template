@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import {
   DEFAULT_MENU_STATUS,
   MENU_STATUS_VALUES,

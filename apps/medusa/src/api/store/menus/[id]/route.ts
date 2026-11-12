@@ -6,7 +6,7 @@ export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   
   try {
     const { id } = req.params

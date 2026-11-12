@@ -1,4 +1,4 @@
-import type { ExecArgs } from '@medusajs/types';
+import type { ExecArgs } from '@medusajs/framework/types';
 import { ContainerRegistrationKeys, Modules } from '@medusajs/framework/utils';
 import { deleteProductsWorkflow } from '@medusajs/medusa/core-flows';
 
@@ -7,7 +7,7 @@ import { deleteProductsWorkflow } from '@medusajs/medusa/core-flows';
  * Deletes in reverse FK order (children before parents).
  */
 export async function wipeSeededData(container: ExecArgs['container']): Promise<void> {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
 
   const safeWipe = async (
     name: string,
@@ -49,7 +49,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
 
   // 2. Orders
   await safeWipe('orders', async () => {
-    const orderService = container.resolve(Modules.ORDER) as {
+    const orderService = container.resolve<import("@medusajs/framework/types").IOrderModuleService>(Modules.ORDER) as {
       listOrders: (f: object) => Promise<{ id: string }[]>;
       deleteOrders: (ids: string[]) => Promise<void>;
     };
@@ -63,7 +63,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
 
   // 4. Products
   await safeWipe('products', async () => {
-    const productService = container.resolve(Modules.PRODUCT) as {
+    const productService = container.resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT) as {
       listProducts: (f: object) => Promise<{ id: string }[]>;
     };
     const products = await productService.listProducts({});
@@ -121,7 +121,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
 
   // 6. Shipping options
   await safeWipe('shipping options', async () => {
-    const fulfillmentService = container.resolve(Modules.FULFILLMENT) as {
+    const fulfillmentService = container.resolve<import("@medusajs/framework/types").IFulfillmentModuleService>(Modules.FULFILLMENT) as {
       listShippingOptions: (f: object) => Promise<{ id: string }[]>;
       deleteShippingOptions: (ids: string[]) => Promise<void>;
     };
@@ -134,7 +134,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
   // 7. Stock location / fulfillment links (simplified - links are often cascade-deleted with entities)
   // 8. Collections, categories, tags
   await safeWipe('collections', async () => {
-    const productService = container.resolve(Modules.PRODUCT) as {
+    const productService = container.resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT) as {
       listProductCollections: (f: object) => Promise<{ id: string }[]>;
       deleteProductCollections: (ids: string[]) => Promise<void>;
     };
@@ -145,7 +145,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
   });
 
   await safeWipe('product categories', async () => {
-    const productService = container.resolve(Modules.PRODUCT) as {
+    const productService = container.resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT) as {
       listProductCategories: (f: object) => Promise<{ id: string }[]>;
       deleteProductCategories: (ids: string[]) => Promise<void>;
     };
@@ -156,7 +156,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
   });
 
   await safeWipe('product tags', async () => {
-    const productService = container.resolve(Modules.PRODUCT) as {
+    const productService = container.resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT) as {
       listProductTags: (f: object) => Promise<{ id: string }[]>;
       deleteProductTags: (ids: string[]) => Promise<void>;
     };
@@ -168,7 +168,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
 
   // 9. Regions, tax regions
   await safeWipe('regions', async () => {
-    const regionService = container.resolve(Modules.REGION) as {
+    const regionService = container.resolve<import("@medusajs/framework/types").IRegionModuleService>(Modules.REGION) as {
       listRegions: (f: object) => Promise<{ id: string }[]>;
       deleteRegions: (ids: string[]) => Promise<void>;
     };
@@ -203,7 +203,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
 
   // 11. Fulfillment sets, shipping profiles
   await safeWipe('fulfillment sets', async () => {
-    const fulfillmentService = container.resolve(Modules.FULFILLMENT) as {
+    const fulfillmentService = container.resolve<import("@medusajs/framework/types").IFulfillmentModuleService>(Modules.FULFILLMENT) as {
       listFulfillmentSets: (f: object) => Promise<{ id: string }[]>;
       deleteFulfillmentSets: (ids: string[]) => Promise<void>;
     };
@@ -214,7 +214,7 @@ export async function wipeSeededData(container: ExecArgs['container']): Promise<
   });
 
   await safeWipe('shipping profiles', async () => {
-    const fulfillmentService = container.resolve(Modules.FULFILLMENT) as {
+    const fulfillmentService = container.resolve<import("@medusajs/framework/types").IFulfillmentModuleService>(Modules.FULFILLMENT) as {
       listShippingProfiles: (f: object) => Promise<{ id: string }[]>;
       deleteShippingProfiles: (ids: string[]) => Promise<void>;
     };

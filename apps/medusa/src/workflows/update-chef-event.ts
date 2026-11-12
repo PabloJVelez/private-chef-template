@@ -2,10 +2,10 @@ import { releaseEventReservations } from '../lib/release-event-reservations';
 import { DateTime } from 'luxon';
 import { 
   createStep,
-  createWorkflow,
+  createWorkflow, transform,
   StepResponse,
   WorkflowResponse
-} from "@medusajs/workflows-sdk"
+} from "@medusajs/framework/workflows-sdk"
 import { MedusaError } from "@medusajs/framework/utils"
 import { emitEventStep } from "@medusajs/medusa/core-flows"
 import { CHEF_EVENT_MODULE } from "../modules/chef-event"
@@ -119,7 +119,7 @@ export const updateChefEventWorkflow = createWorkflow(
       data: {
         chefEventId: input.id,
         operation:
-          chefEvent.status === "cancelled" ? "cancel" : "upsert",
+          transform({ chefEvent }, ({ chefEvent }) => chefEvent.status === "cancelled" ? "cancel" : "upsert"),
       },
     }).config({ name: "emit-google-calendar-sync-on-chef-event-update" })
     

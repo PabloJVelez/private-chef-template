@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { initializeChefEventCartWorkflow } from "../../../../../workflows/initialize-chef-event-cart"
 
 const initializeCartSchema = z.object({

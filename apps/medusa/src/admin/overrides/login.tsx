@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useForm, type ControllerRenderProps } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import * as z from 'zod';
+import * as z from '@medusajs/framework/zod';
 import loginBrandMarkUrl from '../../assets/chefhat.jpg';
 import { Form } from '~dashboard/components/common/form';
 import { useSignInWithEmailPass } from '~dashboard/hooks/api';

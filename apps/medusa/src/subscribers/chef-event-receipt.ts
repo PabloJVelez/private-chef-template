@@ -1,6 +1,6 @@
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import type { CreateNotificationDTO } from "@medusajs/types"
+import type { CreateNotificationDTO } from "@medusajs/framework/types"
 import { DateTime } from "luxon"
 import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
 import { fallbackPricePerPersonFromStrings } from "../lib/chef-event-legacy-pricing"
@@ -22,7 +22,7 @@ export default async function chefEventReceiptHandler({
   event: { data },
   container,
 }: SubscriberArgs<EventData>) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER)
   logger.info(`Processing receipt send for chef event: ${data.chefEventId}`)
 
   try {
@@ -30,7 +30,7 @@ export default async function chefEventReceiptHandler({
       retrieveChefEvent: (id: string) => Promise<Record<string, unknown>>
     }
     const notificationService = container.resolve(Modules.NOTIFICATION)
-    const productService = container.resolve(Modules.PRODUCT)
+    const productService = container.resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT)
 
     const chefEvent = (await chefEventService.retrieveChefEvent(
       data.chefEventId

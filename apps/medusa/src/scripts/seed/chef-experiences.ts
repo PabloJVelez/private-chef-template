@@ -7,7 +7,7 @@ import type {
   ProductCollectionDTO,
   ProductTagDTO,
 } from '@medusajs/framework/types';
-import { ProductStatus } from '@medusajs/utils';
+import { ProductStatus } from '@medusajs/framework/utils';
 import {
   menuDefinitions,
   seedMenuEntities,

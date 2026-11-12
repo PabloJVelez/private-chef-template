@@ -3,7 +3,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { createOrGetChefEventMenuWorkflow } from "../../../../../workflows/create-or-get-chef-event-menu"
 
 export async function POST(req: MedusaRequest, res: MedusaResponse): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   const { id } = req.params
 
   try {

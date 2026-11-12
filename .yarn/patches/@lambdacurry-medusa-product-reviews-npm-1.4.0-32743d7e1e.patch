@@ -1,0 +1,90 @@
+diff --git a/.medusa/server/src/api/store/product-review-stats/middlewares.js b/.medusa/server/src/api/store/product-review-stats/middlewares.js
+index d1447f63994316a9fee38f4dd7bbe23cadb3364a..5ea0323d318c3deff946fdd9e90648d306518ea3 100644
+--- a/.medusa/server/src/api/store/product-review-stats/middlewares.js
++++ b/.medusa/server/src/api/store/product-review-stats/middlewares.js
+@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.storeProductReviewStatRoutesMiddlewares = exports.defaultStoreProductReviewStatsQueryConfig = exports.defaultStoreProductReviewStatFields = exports.listStoreProductReviewStatsQuerySchema = void 0;
+ const framework_1 = require("@medusajs/framework");
+ const validators_1 = require("@medusajs/medusa/api/utils/validators");
+-const zod_1 = require("zod");
++const zod_1 = require("@medusajs/framework/zod");
+ exports.listStoreProductReviewStatsQuerySchema = (0, validators_1.createFindParams)({
+     offset: 0,
+     limit: 50,
+diff --git a/.medusa/server/src/api/store/product-reviews/middlewares.js b/.medusa/server/src/api/store/product-reviews/middlewares.js
+index 62bc7fe986180f3ac6b8d9b1dc3388b9db97f422..a8680ba734839edea47b8e52ce7d054631e07e1b 100644
+--- a/.medusa/server/src/api/store/product-reviews/middlewares.js
++++ b/.medusa/server/src/api/store/product-reviews/middlewares.js
+@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.storeProductReviewRoutesMiddlewares = exports.defaultStoreReviewsQueryConfig = exports.allowedStoreProductReviewFields = exports.defaultStoreProductReviewFields = exports.upsertProductReviewsSchema = exports.listStoreProductReviewsQuerySchema = void 0;
+ const framework_1 = require("@medusajs/framework");
+ const validators_1 = require("@medusajs/medusa/api/utils/validators");
+-const zod_1 = require("zod");
++const zod_1 = require("@medusajs/framework/zod");
+ const reviewStatuses = zod_1.z.enum(['pending', 'approved', 'flagged']);
+ exports.listStoreProductReviewsQuerySchema = (0, validators_1.createFindParams)({
+     offset: 0,
+@@ -35,8 +35,10 @@ exports.defaultStoreProductReviewFields = [
+     'content',
+     'created_at',
+     'updated_at',
+-    'response.*',
+-    'images.*'
++    'response.id',
++    'response.content',
++    'response.created_at',
++    'images.url'
+ ];
+ exports.allowedStoreProductReviewFields = [
+     'id',
+@@ -48,7 +50,11 @@ exports.allowedStoreProductReviewFields = [
+     'created_at',
+     'updated_at',
+     'response',
++    'response.id',
++    'response.content',
++    'response.created_at',
+     'images',
++    'images.url',
+     'product.*'
+ ];
+ exports.defaultStoreReviewsQueryConfig = {
+diff --git a/.medusa/server/src/modules/product-review/migrations/Migration20250212230212.js b/.medusa/server/src/modules/product-review/migrations/Migration20250212230212.js
+index a22cbafc646c5f0e4977dfb30c2701b349ce8c13..1fb0c0fbd7810f2ff64b72687ab84862ce307280 100644
+--- a/.medusa/server/src/modules/product-review/migrations/Migration20250212230212.js
++++ b/.medusa/server/src/modules/product-review/migrations/Migration20250212230212.js
+@@ -1,7 +1,7 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.Migration20250212230212 = void 0;
+-const migrations_1 = require("@mikro-orm/migrations");
++const migrations_1 = require("@medusajs/framework/mikro-orm/migrations");
+ class Migration20250212230212 extends migrations_1.Migration {
+     async up() {
+         this.addSql(`alter table if exists "product_review_response" drop constraint if exists "product_review_response_product_review_id_unique";`);
+diff --git a/.medusa/server/src/modules/product-review/migrations/Migration20250421143843.js b/.medusa/server/src/modules/product-review/migrations/Migration20250421143843.js
+index 7941cf72be1c2e34abe3b872107444ae7be901c4..a990d133ad83484b42bc723e0b02a815f7587d2b 100644
+--- a/.medusa/server/src/modules/product-review/migrations/Migration20250421143843.js
++++ b/.medusa/server/src/modules/product-review/migrations/Migration20250421143843.js
+@@ -1,7 +1,7 @@
+ "use strict";
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.Migration20250421143843 = void 0;
+-const migrations_1 = require("@mikro-orm/migrations");
++const migrations_1 = require("@medusajs/framework/mikro-orm/migrations");
+ class Migration20250421143843 extends migrations_1.Migration {
+     async up() {
+         this.addSql(`CREATE INDEX IF NOT EXISTS "IDX_product_review_order_line_item_id" ON "product_review" (order_line_item_id) WHERE deleted_at IS NULL;`);
+diff --git a/.medusa/server/src/modules/product-review/service.js b/.medusa/server/src/modules/product-review/service.js
+index a9dafa811405243b3a520353404df953b31c7ba5..d6d0a35abdc68826ee1c3f45387ecdea5d707ee3 100644
+--- a/.medusa/server/src/modules/product-review/service.js
++++ b/.medusa/server/src/modules/product-review/service.js
+@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.modduleOptionsSchema = void 0;
+ const utils_1 = require("@medusajs/framework/utils");
+ const models_1 = require("./models");
+-const zod_1 = require("zod");
++const zod_1 = require("@medusajs/framework/zod");
+ exports.modduleOptionsSchema = zod_1.z.object({
+     defaultReviewStatus: zod_1.z.enum(['pending', 'approved', 'flagged']).default('approved'),
+ }).default({

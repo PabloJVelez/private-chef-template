@@ -1,4 +1,4 @@
-import type { ExecArgs } from '@medusajs/types';
+import type { ExecArgs } from '@medusajs/framework/types';
 import { ContainerRegistrationKeys, Modules } from '@medusajs/framework/utils';
 import { seedMenuEntities } from './seed/menus';
 import { 
@@ -25,7 +25,7 @@ import {
  * - Menu data
  */
 export default async function seedMenuData({ container }: ExecArgs) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
 
   try {
     logger.info('🚀 Starting Chef Platform seeding...');

@@ -6,7 +6,7 @@ import {
   RESOLVED_INVALID_TICKET_DETAILS,
   UNRESOLVED_INVALID_TICKET_DETAILS,
 } from '../../../../../../lib/acceptance-messages';
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { abortEventAcceptance } from '../../../../../../lib/abort-event-acceptance';
 import type { AuthenticatedMedusaRequest, MedusaResponse } from '@medusajs/framework/http';
 import { MedusaError } from '@medusajs/framework/utils';

@@ -1,11 +1,11 @@
-import { ExecArgs } from "@medusajs/types"
+import { ExecArgs } from "@medusajs/framework/types"
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { createShippingProfilesWorkflow, createShippingOptionsWorkflow } from "@medusajs/medusa/core-flows"
 
 export default async function createDigitalShipping({ container }: ExecArgs) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
-  const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT)
-  const regionModuleService = container.resolve(Modules.REGION)
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER)
+  const fulfillmentModuleService = container.resolve<import("@medusajs/framework/types").IFulfillmentModuleService>(Modules.FULFILLMENT)
+  const regionModuleService = container.resolve<import("@medusajs/framework/types").IRegionModuleService>(Modules.REGION)
 
   logger.info('Creating digital shipping profile...')
 

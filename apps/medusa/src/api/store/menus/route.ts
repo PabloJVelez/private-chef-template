@@ -1,12 +1,12 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { MENU_MODULE } from "../../../modules/menu"
 import { STOREFRONT_VISIBLE_MENU_STATUSES } from "../../../modules/menu/constants"
 
 // Validation schema for store menu listing
 const listStoreMenusSchema = z.object({
-  limit: z.string().transform(val => parseInt(val)).optional().default("20"),
-  offset: z.string().transform(val => parseInt(val)).optional().default("0"),
+  limit: z.string().transform(val => parseInt(val)).optional().default(20),
+  offset: z.string().transform(val => parseInt(val)).optional().default(0),
   q: z.string().optional()
 })
 
@@ -14,7 +14,7 @@ export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   
   try {
     const query = listStoreMenusSchema.parse(req.query)

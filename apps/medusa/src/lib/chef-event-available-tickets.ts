@@ -10,8 +10,8 @@ export async function getAvailableTicketsForProduct(
   productId: string
 ): Promise<number> {
   const stockLocationModuleService = container.resolve(Modules.STOCK_LOCATION)
-  const productModuleService = container.resolve(Modules.PRODUCT)
-  const inventoryModuleService = container.resolve(Modules.INVENTORY)
+  const productModuleService = container.resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT)
+  const inventoryModuleService = container.resolve<import("@medusajs/framework/types").IInventoryService>(Modules.INVENTORY)
 
   const digitalLocations = await stockLocationModuleService.listStockLocations({
     name: "Digital Location",

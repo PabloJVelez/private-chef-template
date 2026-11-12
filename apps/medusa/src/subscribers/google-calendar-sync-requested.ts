@@ -18,7 +18,7 @@ export default async function googleCalendarSyncRequestedHandler({
   event: { data },
   container,
 }: SubscriberArgs<EventData>) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
   const chefEventService = container.resolve(
     CHEF_EVENT_MODULE,
   ) as ChefEventModuleService;

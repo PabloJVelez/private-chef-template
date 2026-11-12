@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { resendEventEmailWorkflow } from "../../../../../workflows/resend-event-email"
 
 const resendEmailSchema = z.object({
@@ -11,7 +11,7 @@ const resendEmailSchema = z.object({
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { id } = req.params
   const validatedBody = resendEmailSchema.parse(req.body)
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   
   try {
     const { result } = await resendEventEmailWorkflow(req.scope).run({

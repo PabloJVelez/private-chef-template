@@ -62,7 +62,7 @@ export async function POST(
     status: "active",
   });
 
-  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER) as Logger;
   const eventBus = req.scope.resolve(Modules.EVENT_BUS) as EventBusService;
   const chefEventService = req.scope.resolve(
     CHEF_EVENT_MODULE,

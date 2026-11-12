@@ -1,4 +1,4 @@
-import { Migration } from "@mikro-orm/migrations";
+import { Migration } from "@medusajs/framework/mikro-orm/migrations";
 
 /**
  * Removes ON DELETE CASCADE on the chef_event FKs for sync_map and incident

@@ -1,6 +1,6 @@
 import { MedusaApp, MedusaAppMigrateUp } from '@medusajs/framework/modules-sdk';
 import { createMedusaContainer } from '@medusajs/framework/utils';
-import { asValue } from 'awilix';
+import { asValue } from '@medusajs/framework/awilix';
 import path from 'node:path';
 
 export async function bookingApp(url: string, migrate = true) {

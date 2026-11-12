@@ -1,5 +1,5 @@
 import { availableSlots, requireSlot } from '../lib/availability/query';
-import { createStep, createWorkflow, StepResponse, WorkflowResponse } from '@medusajs/workflows-sdk';
+import { createStep, createWorkflow, StepResponse, WorkflowResponse } from '@medusajs/framework/workflows-sdk';
 import { emitEventStep } from '@medusajs/medusa/core-flows';
 import { CHEF_EVENT_MODULE } from '../modules/chef-event';
 

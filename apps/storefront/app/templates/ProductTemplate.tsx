@@ -163,7 +163,7 @@ export const ProductTemplate = ({ product, reviewsCount, reviewStats }: ProductT
 
           return {
             title: option.title,
-            product_id: option.product_id as string,
+            product_id: product.id,
             id: option.id,
             values: optionValuesWithPrices,
           };
@@ -187,7 +187,7 @@ export const ProductTemplate = ({ product, reviewsCount, reviewStats }: ProductT
 
         return {
           title: option.title,
-          product_id: option.product_id as string,
+          product_id: product.id,
           id: option.id,
           values: optionValuesWithPrices,
         };

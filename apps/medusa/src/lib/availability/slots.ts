@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 
 const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const windowSchema = z
@@ -28,7 +28,7 @@ export type NoticeRule = z.infer<typeof noticeRuleSchema>;
 
 export const availabilitySettingsSchema = z.object({
   timezone: z.string().refine((zone) => DateTime.now().setZone(zone).isValid, 'Use a valid IANA timezone.'),
-  weekly: z.record(z.enum(['1', '2', '3', '4', '5', '6', '7']), windows),
+  weekly: z.partialRecord(z.enum(['1', '2', '3', '4', '5', '6', '7']), windows),
   overrides: z
     .record(
       z

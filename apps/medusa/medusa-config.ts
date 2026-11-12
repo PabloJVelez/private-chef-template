@@ -1,12 +1,7 @@
 import { availabilitySettingsSidebar } from './src/lib/admin-settings-sidebar';
-import { settingsRoutePrefixFix } from './src/lib/admin-settings-route-prefix';
 import { unlock } from '@unlockable/vite-plugin-unlock';
 import { medusa as unlockMedusa } from '@unlockable/vite-plugin-unlock/medusa';
 import { defineConfig, loadEnv } from '@medusajs/framework/utils';
-import type { Integration } from '@sentry/types';
-import type * as SentryNode from '@sentry/node';
-import type * as TracingTypes from '@sentry/tracing';
-import type { Router } from 'express';
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd());
 
@@ -105,7 +100,7 @@ const workflowEngineModule = IS_TEST
       resolve: '@medusajs/medusa/workflow-engine-redis',
       options: {
         redis: {
-          url: REDIS_URL,
+          redisUrl: REDIS_URL,
         },
       },
     };
@@ -186,7 +181,7 @@ module.exports = defineConfig({
     },
   },
   // Using Sentry via OpenTelemetry instrumentation and custom error handler.
-  // Keep plugins empty to avoid double-instrumentation with medusa-plugin-sentry.
+  // Plugins remain disabled; Sentry is configured by instrumentation.ts.
   plugins: [],
   modules: [
     ...customModules,
@@ -227,7 +222,6 @@ module.exports = defineConfig({
     backendUrl: process.env.ADMIN_BACKEND_URL,
     vite: () => ({
       plugins: [
-        settingsRoutePrefixFix(),
         availabilitySettingsSidebar(),
         unlock(
           unlockMedusa({

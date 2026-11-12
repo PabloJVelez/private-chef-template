@@ -1,5 +1,5 @@
 import type { MedusaContainer } from '@medusajs/framework/types';
-import type { z } from 'zod';
+import type { z } from '@medusajs/framework/zod';
 import { MedusaError } from '@medusajs/framework/utils';
 import { CHEF_EVENT_MODULE } from '../../modules/chef-event';
 import type ChefEventModuleService from '../../modules/chef-event/service';

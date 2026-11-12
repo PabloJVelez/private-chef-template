@@ -24,17 +24,17 @@ import type {
   IFulfillmentModuleService,
   ISalesChannelModuleService,
   IStoreModuleService,
-} from '@medusajs/types';
+} from '@medusajs/framework/types';
 import { seedProducts } from './seed/products';
 import { generateReviewResponse, reviewContents, texasCustomers } from './seed/reviews';
 import { seedMenuProducts, seedMenuEntities } from './seed/menus';
 
 export default async function seedDemoData({ container }: ExecArgs) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-  const remoteLink = container.resolve(ContainerRegistrationKeys.LINK);
-  const fulfillmentModuleService: IFulfillmentModuleService = container.resolve(Modules.FULFILLMENT);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
+  const remoteLink = container.resolve<import("@medusajs/framework/modules-sdk").Link>(ContainerRegistrationKeys.LINK);
+  const fulfillmentModuleService: IFulfillmentModuleService = container.resolve<import("@medusajs/framework/types").IFulfillmentModuleService>(Modules.FULFILLMENT);
   const salesChannelModuleService: ISalesChannelModuleService = container.resolve(Modules.SALES_CHANNEL);
-  const storeModuleService: IStoreModuleService = container.resolve(Modules.STORE);
+  const storeModuleService: IStoreModuleService = container.resolve<import("@medusajs/framework/types").IStoreModuleService>(Modules.STORE);
 
   const paymentModuleService: IPaymentModuleService = container.resolve(Modules.PAYMENT);
   const menuModuleService = container.resolve("menuModuleService");

@@ -30,7 +30,7 @@ type CacheService = {
 export default async function googleCalendarIncrementalSyncHandler({
   container,
 }: SubscriberArgs<unknown>) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
   const cache = container.resolve(Modules.CACHE) as CacheService;
   const googleSvc = container.resolve(
     GOOGLE_CALENDAR_CONNECTION_MODULE,

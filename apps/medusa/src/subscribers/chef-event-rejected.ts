@@ -3,7 +3,7 @@ import type {
   SubscriberConfig,
 } from "@medusajs/medusa"
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { CreateNotificationDTO } from "@medusajs/types"
+import { CreateNotificationDTO } from "@medusajs/framework/types"
 import { DateTime } from "luxon"
 import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
 
@@ -19,7 +19,7 @@ export default async function chefEventRejectedHandler({
   
   const notificationService = container.resolve(Modules.NOTIFICATION)
   const chefEventService = container.resolve("chefEventModuleService") as any
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER)
 
   try {
     // Fetch the chef event data from the database

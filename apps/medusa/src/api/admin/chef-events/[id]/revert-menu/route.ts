@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { revertChefEventMenuWorkflow } from "../../../../../workflows/revert-chef-event-menu"
 
 const revertChefEventMenuSchema = z.object({
@@ -8,7 +8,7 @@ const revertChefEventMenuSchema = z.object({
 })
 
 export async function POST(req: MedusaRequest, res: MedusaResponse): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   const { id } = req.params
   const validatedBody = revertChefEventMenuSchema.parse(req.body ?? {})
 

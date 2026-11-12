@@ -28,8 +28,8 @@ type OrderQueryRow = {
 export async function runPostEventTicketPaymentCapture(
   container: MedusaContainer,
 ): Promise<{ eventsScanned: number; capturesAttempted: number }> {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-  const query = container.resolve(ContainerRegistrationKeys.QUERY);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
+  const query = container.resolve<import("@medusajs/framework/types").RemoteQueryFunction>(ContainerRegistrationKeys.QUERY);
   const chefEventService = container.resolve(CHEF_EVENT_MODULE) as ChefEventModuleService;
 
   const now = Date.now();

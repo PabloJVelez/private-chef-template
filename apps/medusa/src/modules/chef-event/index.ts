@@ -1,5 +1,5 @@
 import ChefEventModuleService from "./service"
-import { Module } from "@medusajs/utils"
+import { Module } from "@medusajs/framework/utils"
 
 export const CHEF_EVENT_MODULE = "chefEventModuleService"
 

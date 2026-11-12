@@ -39,7 +39,7 @@ export async function POST(
     GOOGLE_CALENDAR_CONNECTION_MODULE,
   ) as GoogleCalendarConnectionModuleService;
   const connection = await svc.getPrimaryConnection();
-  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER) as Logger;
 
   if (!connection?.id) {
     res.status(204).end();

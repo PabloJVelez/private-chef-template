@@ -6,7 +6,7 @@ import { Migration20261015000100 } from '../../src/modules/availability/migratio
 import { Migration20261015000200 } from '../../src/modules/experience-type/migrations/Migration20261015000200';
 import { Migration20261015000300 } from '../../src/modules/chef-event/migrations/Migration20261015000300';
 // pg types are not installed in this repository.
-const { Pool } = require('pg');
+const { Pool } = require('@medusajs/framework/pg');
 const url = process.env.AVAILABILITY_TEST_DATABASE_URL;
 const suite = url ? describe : describe.skip;
 suite('availability PostgreSQL constraints', () => {

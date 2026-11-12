@@ -1,3 +1,4 @@
+import { BOOKING_EXECUTION_RETENTION_SECONDS } from '../lib/booking-retention';
 import { DateTime } from 'luxon';
 import { requireSlot } from '../lib/availability/query';
 import { AvailabilityPolicyError } from '../lib/availability/policy-error';
@@ -31,7 +32,7 @@ import {
   emitEventStep,
   linkSalesChannelsToStockLocationWorkflow,
 } from '@medusajs/medusa/core-flows';
-import { StepResponse, WorkflowResponse, createStep, createWorkflow, when } from '@medusajs/workflows-sdk';
+import { StepResponse, WorkflowResponse, createStep, createWorkflow, when, transform } from '@medusajs/framework/workflows-sdk';
 import { CHEF_EVENT_MODULE } from '../modules/chef-event';
 import ChefEventModuleService from '../modules/chef-event/service';
 
@@ -70,6 +71,8 @@ const acceptChefEventStep = createStep(
   { name: 'accept-chef-event-step', ...bookingStepConfig },
   async (input: AcceptChefEventWorkflowInput, { container }: { container: any }) => {
     // Serialize claim/acquire with explicit abort so cleanup cannot finish ahead of a late acquire.
+    // The locked callback returns the native StepResponse; keep lock ownership through the write.
+    // eslint-disable-next-line @medusajs/step-must-return-step-response
     return withEventProductLock(container, input.attemptId, async () => {
       const chefEventModuleService: ChefEventModuleService = container.resolve(CHEF_EVENT_MODULE);
 
@@ -363,6 +366,8 @@ const createEventProductStep = createStep(
     },
     { container }: { container: any },
   ) => {
+    // The locked callback returns the native StepResponse.
+    // eslint-disable-next-line @medusajs/step-must-return-step-response
     return withEventProductLock(container, input.token, async () => {
       const attempt = await container.resolve(CHEF_EVENT_MODULE).retrieveAcceptanceAttempt(input.token);
       if (attempt.event_id !== input.originalChefEvent.id || attempt.state === 'aborted')
@@ -416,9 +421,10 @@ const createEventProductStep = createStep(
       if (!isValidHandle(handle)) StepResponse.permanentFailure(INVALID_TICKET_DETAILS);
       const creation = eventProductWorkflow(container);
       await recoverEventProduct(container, input.token, chefEvent.id);
-      const { result, transaction } = await creation
+      const { result, transaction, errors } = await creation
         .run({
           context: { transactionId: eventProductExecution(input.token) },
+          throwOnError: false,
           input: {
             eventId: chefEvent.id,
             attemptId: input.token,
@@ -469,6 +475,10 @@ const createEventProductStep = createStep(
           throw error;
         });
 
+      // The target engine may return a failed synchronous invocation while compensation
+      // is still progressing. Classify the native error immediately, before retrying the parent.
+      if (errors?.some(({ error }) => (error as { type?: string })?.type === MedusaError.Types.INVALID_DATA))
+        StepResponse.permanentFailure(INVALID_TICKET_DETAILS);
       if (!transaction.hasFinished() || !result?.[0])
         throw new Error('Product creation is awaiting native recovery; protected time is retained.');
       const product = result[0];
@@ -549,7 +559,7 @@ const createEventProductStep = createStep(
     if (!data) return;
     return withEventProductLock(container, data.token, async () => {
       const product = await container
-        .resolve(Modules.PRODUCT)
+        .resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT)
         .retrieveProduct(data.productId)
         .catch((error: { type?: string }) => {
           if (error.type !== MedusaError.Types.NOT_FOUND) throw error;
@@ -608,7 +618,7 @@ const linkChefEventToProductStep = createStep(
 );
 
 export const acceptChefEventWorkflow = createWorkflow(
-  { name: 'accept-chef-event-workflow', store: true, idempotent: true },
+  { name: 'accept-chef-event-workflow', store: true, idempotent: true, retentionTime: BOOKING_EXECUTION_RETENTION_SECONDS },
   function (input: AcceptChefEventWorkflowInput) {
     const chefEventData = acceptChefEventStep(input);
     const digitalShippingProfile = ensureDigitalShippingProfileStep();
@@ -642,6 +652,8 @@ export const acceptChefEventWorkflow = createWorkflow(
           chefEventId: linkedChefEvent.id,
           productId: productAndInventory.product.id,
         },
+      // Static retry configuration, independent of workflow input.
+      // eslint-disable-next-line @medusajs/no-spread-in-workflow
       }).config({ name: 'emit-chef-event-accepted', ...bookingStepConfig });
     });
 
@@ -654,6 +666,8 @@ export const acceptChefEventWorkflow = createWorkflow(
       },
     }).config({
       name: 'emit-google-calendar-sync-on-chef-event-accept',
+      // Static retry configuration, independent of workflow input.
+      // eslint-disable-next-line @medusajs/no-spread-in-workflow
       ...bookingStepConfig,
     });
 
@@ -661,7 +675,7 @@ export const acceptChefEventWorkflow = createWorkflow(
       success: true,
       chefEventId: linkedChefEvent.id,
       productId: productAndInventory.product.id,
-      emailSent: input.sendAcceptanceEmail ?? true,
+      emailSent: transform({ input }, ({ input }) => input.sendAcceptanceEmail ?? true),
     });
   },
 );

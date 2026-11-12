@@ -1,6 +1,6 @@
 import { ContainerRegistrationKeys, Modules } from '@medusajs/framework/utils';
 import { markOrderFulfillmentAsDeliveredWorkflow } from '@medusajs/medusa/core-flows';
-import type { ExecArgs, MedusaContainer, RemoteQueryFunction } from '@medusajs/types';
+import type { ExecArgs, MedusaContainer, RemoteQueryFunction } from '@medusajs/framework/types';
 import { isEventTicketSku } from '../lib/event-ticket';
 
 const TAG = '[backfill-event-ticket-delivered]';
@@ -51,10 +51,10 @@ async function resolveOrderIdForLineItem(query: QueryGraphClient, lineItemId: st
  */
 export default async function backfillEventTicketFulfillmentsDelivered({ container }: ExecArgs) {
   const c = container as MedusaContainer;
-  const logger = c.resolve(ContainerRegistrationKeys.LOGGER);
-  const fulfillment = c.resolve(Modules.FULFILLMENT);
-  const orderModule = c.resolve(Modules.ORDER);
-  const query: QueryGraphClient = c.resolve(ContainerRegistrationKeys.QUERY);
+  const logger = c.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
+  const fulfillment = c.resolve<import("@medusajs/framework/types").IFulfillmentModuleService>(Modules.FULFILLMENT);
+  const orderModule = c.resolve<import("@medusajs/framework/types").IOrderModuleService>(Modules.ORDER);
+  const query: QueryGraphClient = c.resolve<import("@medusajs/framework/types").RemoteQueryFunction>(ContainerRegistrationKeys.QUERY);
 
   const dryRun = process.argv.includes('--dry-run');
   const verbose = process.argv.includes('--verbose');

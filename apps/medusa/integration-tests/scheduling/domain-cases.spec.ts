@@ -3,7 +3,7 @@ import path from 'node:path';
 import { MedusaApp } from '@medusajs/framework/modules-sdk';
 import type SchedulingModuleService from '../../src/modules/scheduling/service';
 import { Migration20261109000200 } from '../../src/modules/scheduling/migrations/Migration20261109000200';
-const { Client } = require('pg');
+const { Client } = require('@medusajs/framework/pg');
 const databaseName = `booking_test_scheduling_${randomUUID().replace(/-/g, '')}`;
 let admin: any, db: any, app: Awaited<ReturnType<typeof MedusaApp>>, scheduling: SchedulingModuleService;
 const reservation = (id: string, start = '2027-01-02T10:00Z', end = '2027-01-02T11:00Z') => ({

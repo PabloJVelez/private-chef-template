@@ -8,12 +8,12 @@ export function availabilitySettingsSidebar() {
     transform(code: string, id: string) {
       const path = id.split('?')[0].replace(/\\/g, '/');
       if (!path.endsWith('/@medusajs/dashboard/src/components/layout/settings-layout/settings-layout.tsx')) return null;
-      const original = 'const extensionRoutes = getMenu("settingsExtensions")';
-      if (code.split(original).length !== 2 || code.split('items={routes}').length !== 2) {
+      const original = 'const extensionRoutes = usePermittedNavItems(getMenu("settingsExtensions"))';
+      if (code.split(original).length !== 2 || code.split('general: toNavEntries(routes)').length !== 2) {
         throw new Error('Medusa settings sidebar changed; recheck Availability placement.');
       }
       return {
-        code: code.replace(original, `const settingsExtensions = getMenu("settingsExtensions")
+        code: code.replace(original, `const settingsExtensions = usePermittedNavItems(getMenu("settingsExtensions"))
   const availability = settingsExtensions.find((item) => item.to === "/settings/availability")
   const generalRoutes = [...routes]
   if (availability) {
@@ -21,7 +21,7 @@ export function availabilitySettingsSidebar() {
     generalRoutes.splice(storeIndex + 1, 0, availability)
   }
   const extensionRoutes = settingsExtensions.filter((item) => item.to !== "/settings/availability")`)
-          .replace('items={routes}', 'items={generalRoutes}'),
+          .replace('general: toNavEntries(routes)', 'general: toNavEntries(generalRoutes)'),
         map: null,
       };
     },

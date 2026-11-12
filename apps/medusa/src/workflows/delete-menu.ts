@@ -3,7 +3,7 @@ import {
   createWorkflow,
   StepResponse,
   WorkflowResponse
-} from "@medusajs/workflows-sdk"
+} from "@medusajs/framework/workflows-sdk"
 import { MENU_MODULE } from "../modules/menu"
 
 type DeleteMenuWorkflowInput = {

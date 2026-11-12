@@ -1,5 +1,5 @@
 import { ContainerRegistrationKeys, Modules } from '@medusajs/framework/utils';
-import type { ExecArgs } from '@medusajs/types';
+import type { ExecArgs } from '@medusajs/framework/types';
 
 type OrderModuleForLineItemFix = {
   listOrderLineItems: (
@@ -26,9 +26,9 @@ type OrderModuleForLineItemFix = {
  * Run: npx medusa exec ./src/scripts/fix-event-ticket-inventory-shipping.ts
  */
 export default async function fixEventTicketInventoryShipping({ container }: ExecArgs) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-  const inventory = container.resolve(Modules.INVENTORY);
-  const orderModule = container.resolve(Modules.ORDER) as OrderModuleForLineItemFix;
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
+  const inventory = container.resolve<import("@medusajs/framework/types").IInventoryService>(Modules.INVENTORY);
+  const orderModule = container.resolve<import("@medusajs/framework/types").IOrderModuleService>(Modules.ORDER) as OrderModuleForLineItemFix;
 
   const items = await inventory.listInventoryItems({});
   const eventItems = items.filter(

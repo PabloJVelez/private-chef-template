@@ -186,7 +186,7 @@ class B2S3FileService extends AbstractFileProviderService {
 
   async getDownloadStream(
     file: FileTypes.ProviderGetFileDTO
-  ): Promise<NodeJS.ReadableStream> {
+  ): Promise<import("node:stream").Readable> {
     if (!file?.fileKey) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
@@ -201,7 +201,7 @@ class B2S3FileService extends AbstractFileProviderService {
       })
     )
 
-    return response.Body as NodeJS.ReadableStream
+    return response.Body as import("node:stream").Readable
   }
 
   async getAsBuffer(file: FileTypes.ProviderGetFileDTO): Promise<Buffer> {

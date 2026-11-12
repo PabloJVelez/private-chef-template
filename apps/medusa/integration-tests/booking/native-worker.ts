@@ -1,4 +1,4 @@
-/** Child-process fixture: real Medusa 2.7 Redis engine, no application providers. */
+/** Child-process fixture: real Medusa Redis engine, no application providers. */
 import path from 'node:path';
 import { DateTime } from 'luxon';
 import { MedusaApp, MedusaAppMigrateUp } from '@medusajs/framework/modules-sdk';
@@ -16,7 +16,7 @@ import {
   eventProductWorkflow,
   bookingStepConfig,
 } from '../../src/lib/booking-execution';
-import { asValue } from 'awilix';
+import { asValue } from '@medusajs/framework/awilix';
 
 async function main() {
   const database = process.env.BOOKING_TEST_DATABASE_URL!;
@@ -66,7 +66,7 @@ async function main() {
       [Modules.WORKFLOW_ENGINE]: {
         resolve: '@medusajs/medusa/workflow-engine-redis',
         options: {
-          redis: { url: redis },
+          redis: { redisUrl: redis,
           queueName:
             new URL(database).pathname.slice(1) + '-' + (process.env.BOOKING_EXECUTION_ID || 'setup'),
           jobQueueName:
@@ -74,6 +74,7 @@ async function main() {
             '-' +
             (process.env.BOOKING_EXECUTION_ID || 'setup') +
             '-jobs',
+          },
         },
       },
     },
@@ -231,13 +232,15 @@ async function main() {
         throw new Error('Fixture release interrupted');
       };
     let productCreateCalls = 0;
+    let productCreateDepth = 0;
     const productService = container.resolve<any>(Modules.PRODUCT);
     const createProduct = productService.createProducts.bind(productService);
     productService.createProducts = async (...args: any[]) => {
-      productCreateCalls++;
+      // Target createProducts may recurse internally to partition input; count workflow invocations.
+      if (productCreateDepth++ === 0) productCreateCalls++;
       // Inject invalid native input, not a mocked Product result/error.
       if (process.env.BOOKING_FAIL === 'product-validation') args[0][0].handle = 'INVALID handle';
-      return createProduct(...args);
+      try { return await createProduct(...args); } finally { productCreateDepth--; }
     };
     if (process.env.BOOKING_ACTION === 'seed-legacy-attempt') {
       // Reproduce pre-fix persisted input using only native commands/run, never checkpoint edits.
@@ -305,7 +308,7 @@ async function main() {
     if (process.env.BOOKING_ACTION?.startsWith('route')) {
       let blocker: any;
       if (process.env.BOOKING_FAIL === 'availability-db') {
-        const { Client } = require('pg');
+        const { Client } = require('@medusajs/framework/pg');
         blocker = new Client({ connectionString: database });
         await blocker.connect();
         await blocker.query('begin');
@@ -422,6 +425,19 @@ async function main() {
       requestKey: eventId,
       body: { sendAcceptanceEmail: false },
     });
+    if (process.env.BOOKING_EXPIRE_HISTORY === 'true') {
+      // Simulate the retention janitor deleting terminal history, not elapsed hold time.
+      const { Client } = require('@medusajs/framework/pg');
+      const db = new Client({ connectionString: database });
+      await db.connect();
+      await db.query('delete from workflow_execution where workflow_id = $1 and transaction_id = $2 and state = $3',
+        ['accept-chef-event-workflow', attempt.id, 'done']);
+      await db.end();
+      const Redis = require('ioredis');
+      const cache = new Redis(redis);
+      await cache.unlink(`dtrx:accept-chef-event-workflow:${attempt.id}`);
+      await cache.quit();
+    }
     if (process.env.BOOKING_ACTION === 'abort') {
       if (process.env.BOOKING_FAIL === 'release')
         scheduling.release = async () => {
@@ -440,7 +456,7 @@ async function main() {
       await app.onApplicationShutdown();
       process.exit(0);
     }
-    const result = await runEventAcceptance(
+    let result = await runEventAcceptance(
       container,
       {
         chefEventId: eventId,
@@ -449,6 +465,21 @@ async function main() {
       },
       process.env.BOOKING_ACTION === 'recover' ? `recover-${attempt.id}-fixture` : attempt.id,
     );
+    if (process.env.BOOKING_WAIT_FOR_COMPLETION === 'true') {
+      // Redis may return an invoking snapshot while its worker owns the retry.
+      // Keep that worker alive and observe durable completion, not a timing guess.
+      const { acceptChefEventWorkflow } = require('../../src/workflows/accept-chef-event');
+      let completed = false;
+      for (let check = 0; check < 100; check++) {
+        const transaction = await acceptChefEventWorkflow(container).getRunningTransaction(attempt.id);
+        if (transaction?.hasFinished()) { completed = true; break; }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (!completed) throw new Error('Replacement worker did not complete the retained execution');
+      result = await runEventAcceptance(container, {
+        chefEventId: eventId, attemptId: attempt.id, sendAcceptanceEmail: false,
+      });
+    }
     const event = await chef.retrieveChefEvent(eventId);
     process.send?.({
       type: 'result',

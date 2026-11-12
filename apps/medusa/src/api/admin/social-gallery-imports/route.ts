@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
 import { Modules } from '@medusajs/framework/utils';
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { SOCIAL_GALLERY_MODULE } from '../../../modules/social-gallery';
 import type SocialGalleryModuleService from '../../../modules/social-gallery/service';
 import { normalizeInstagramSource } from '../../../lib/social-gallery/instagram';

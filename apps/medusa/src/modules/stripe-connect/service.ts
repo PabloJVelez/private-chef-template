@@ -333,6 +333,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
 
       const paymentIntent = await this.stripe_.paymentIntents.create(paymentIntentParams, {
         stripeAccount: connectedAccountId,
+        idempotencyKey: input.context?.idempotency_key,
       });
 
       this.logger_.info(
@@ -448,7 +449,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
         const paymentIntent = await this.stripe_.paymentIntents.capture(
           paymentIntentId,
           undefined,
-          stripeAccount ? { stripeAccount } : undefined,
+          { stripeAccount, idempotencyKey: input.context?.idempotency_key },
         );
         return {
           data: {
@@ -506,7 +507,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
 
       const refund = await this.stripe_.refunds.create(
         refundParams,
-        stripeAccount ? { stripeAccount } : undefined,
+        { stripeAccount, idempotencyKey: input.context?.idempotency_key },
       );
 
       this.logger_.info(
@@ -545,7 +546,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
       const paymentIntent = await this.stripe_.paymentIntents.cancel(
         paymentIntentId,
         undefined,
-        stripeAccount ? { stripeAccount } : undefined,
+        { stripeAccount, idempotencyKey: input.context?.idempotency_key },
       );
 
       this.logger_.info(`${StripeConnectProviderService.LOG_PREFIX} Canceled PaymentIntent ${paymentIntentId}`);
@@ -593,7 +594,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
         await this.stripe_.paymentIntents.cancel(
           paymentIntentId,
           undefined,
-          stripeAccount ? { stripeAccount } : undefined,
+          { stripeAccount, idempotencyKey: input.context?.idempotency_key },
         );
         this.logger_.info(
           `${StripeConnectProviderService.LOG_PREFIX} Deleted (canceled) PaymentIntent ${paymentIntentId}`,
@@ -706,7 +707,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
       const paymentIntent = await this.stripe_.paymentIntents.update(
         paymentIntentId,
         updateParams,
-        stripeAccount ? { stripeAccount } : undefined,
+        { stripeAccount, idempotencyKey: input.context?.idempotency_key },
       );
 
       this.logger_.info(`${StripeConnectProviderService.LOG_PREFIX} Updated PaymentIntent ${paymentIntentId}`);

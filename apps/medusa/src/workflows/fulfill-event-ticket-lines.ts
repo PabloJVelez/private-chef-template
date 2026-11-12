@@ -1,7 +1,7 @@
 import type { MedusaContainer } from '@medusajs/framework/types';
 import { ContainerRegistrationKeys, Modules, remoteQueryObjectFromString } from '@medusajs/framework/utils';
 import { createOrderFulfillmentWorkflow, markOrderFulfillmentAsDeliveredWorkflow } from '@medusajs/medusa/core-flows';
-import type { OrderDTO } from '@medusajs/types';
+import type { OrderDTO } from '@medusajs/framework/types';
 import { DIGITAL_STOCK_LOCATION_NAME, getDigitalStockLocationId } from '../lib/digital-stock-location';
 import { getUnfulfilledEventTicketLineItems } from '../lib/event-ticket';
 
@@ -161,7 +161,7 @@ async function loadOrderForTicketFulfillment(
   container: MedusaContainer,
   orderId: string,
 ): Promise<OrderGraphRow | null> {
-  const orderModule = container.resolve(Modules.ORDER) as OrderModuleRetrieve;
+  const orderModule = container.resolve<import("@medusajs/framework/types").IOrderModuleService>(Modules.ORDER) as OrderModuleRetrieve;
 
   const order = await orderModule.retrieveOrder(orderId, {
     relations: ['items', 'items.item', 'shipping_methods'],
@@ -179,7 +179,7 @@ export async function fulfillEventTicketLinesForPayment(
   container: MedusaContainer,
   paymentId: string,
 ): Promise<{ orderId: string | null; fulfilled: boolean }> {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
 
   const orderId = await resolveOrderIdFromPaymentId(container, paymentId);
 

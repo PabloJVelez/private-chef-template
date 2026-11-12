@@ -7,7 +7,7 @@ import {
   WorkflowResponse,
   createStep,
   createWorkflow,
-} from "@medusajs/workflows-sdk"
+} from "@medusajs/framework/workflows-sdk"
 import {
   addToCartWorkflow,
   createCartWorkflow,
@@ -67,7 +67,7 @@ const initializeChefEventCartStep = createStep(
     input: InitializeChefEventCartInput,
     { container },
   ): Promise<StepResponse<InitializeChefEventCartOutput>> => {
-    const query = container.resolve(ContainerRegistrationKeys.QUERY)
+    const query = container.resolve<import("@medusajs/framework/types").RemoteQueryFunction>(ContainerRegistrationKeys.QUERY)
 
     type ChefEventRow = {
       id: string

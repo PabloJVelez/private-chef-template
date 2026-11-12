@@ -1,6 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
 import { DateTime } from 'luxon';
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { GoogleAvailabilityError } from '../../../../lib/availability/google-busy';
 import { availableSlots } from '../../../../lib/availability/query';
 const query = z.object({

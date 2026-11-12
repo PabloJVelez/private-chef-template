@@ -2,7 +2,7 @@ import { GET } from '../../api/admin/availability/route';
 import { saveAvailabilityWorkflow } from '../../workflows/save-availability';
 import { initialNoticeRules } from '../availability/initial-notice';
 import { EXPERIENCE_TYPE_MODULE } from '../../modules/experience-type';
-import { asValue } from 'awilix';
+import { asValue } from '@medusajs/framework/awilix';
 import { createMedusaContainer } from '@medusajs/framework/utils';
 
 const legacy = [

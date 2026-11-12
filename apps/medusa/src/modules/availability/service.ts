@@ -1,7 +1,7 @@
 import type { Context } from '@medusajs/framework/types';
 // Medusa 2.7 predates the framework MikroORM re-export.
 // eslint-disable-next-line @medusajs/no-mikroorm-direct-import
-import type { EntityManager } from '@mikro-orm/knex';
+import type { EntityManager } from '@medusajs/framework/mikro-orm/knex';
 import {
   InjectManager,
   InjectTransactionManager,

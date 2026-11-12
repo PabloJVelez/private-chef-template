@@ -1,6 +1,6 @@
 import { CreateProductWorkflowInputDTO, ProductCollectionDTO, ProductTagDTO } from '@medusajs/framework/types';
-import { ProductStatus } from '@medusajs/utils';
-import type { ExecArgs } from '@medusajs/types';
+import { ProductStatus } from '@medusajs/framework/utils';
+import type { ExecArgs } from '@medusajs/framework/types';
 import { ContainerRegistrationKeys } from '@medusajs/framework/utils';
 
 // Menu creation data structure
@@ -843,7 +843,7 @@ export const seedMenuEntities = async (menuModuleService: any): Promise<{ id: st
 
 // Default export function for Medusa CLI execution
 export default async function seedMenuData({ container }: ExecArgs) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
 
   try {
     logger.info('Starting menu seeding...');

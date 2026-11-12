@@ -5,7 +5,7 @@ import path from 'node:path';
 jest.setTimeout(30000);
 const worker = path.resolve(__dirname, '../booking/native-worker.ts');
 const env = { ...process.env };
-const { Client } = require('pg');
+const { Client } = require('@medusajs/framework/pg');
 const databaseName = 'booking_test_native_' + randomUUID().replace(/-/g, '');
 let admin: any;
 // Deliberately fail, rather than skip, when explicitly selecting the durability suite without fixtures.
@@ -46,7 +46,7 @@ function run(id: string, extra: Record<string, string> = {}, killAt?: string): P
     });
   });
 }
-describe('Medusa 2.7 native Redis execution', () => {
+describe('Medusa native Redis execution', () => {
   beforeAll(async () => {
     if (!env.BOOKING_TEST_DATABASE_URL || !env.BOOKING_TEST_REDIS_URL)
       throw new Error(
@@ -136,7 +136,7 @@ describe('Medusa 2.7 native Redis execution', () => {
       'terminally failed acceptance',
     );
     await new Promise((resolve) => setTimeout(resolve, 1100));
-    const resumed = await run(id, { BOOKING_MODE: 'acceptance' });
+    const resumed = await run(id, { BOOKING_MODE: 'acceptance', BOOKING_WAIT_FOR_COMPLETION: 'true' });
     console.log('acceptance finalization recovery', resumed);
     expect(resumed).toEqual([
       expect.objectContaining({
@@ -408,6 +408,24 @@ describe('Medusa 2.7 native Redis execution', () => {
     expect(stale.products.map((p: any) => p.id)).toEqual(accepted.products.map((p: any) => p.id));
     expect(stale.reservations.map((r: any) => r.state).sort()).toEqual(['confirmed', 'released']);
   }, 60000);
+  it('refuses replay after completed history expires without changing product or protected time', async () => {
+    const id = randomUUID();
+    seed(id, 81);
+    const [completed] = await run(id, { BOOKING_MODE: 'acceptance' });
+    expect(completed.state).toBe('done');
+    await expect(run(id, { BOOKING_MODE: 'acceptance', BOOKING_EXPIRE_HISTORY: 'true' }))
+      .rejects.toThrow('Acceptance execution history is unavailable');
+    const db = new Client({ connectionString: env.BOOKING_TEST_DATABASE_URL });
+    await db.connect();
+    try {
+      const events = await db.query('select status, "productId" from chef_event where id = $1', [id]);
+      expect(events.rows).toEqual([{ status: 'confirmed', productId: completed.productId }]);
+      const protectedRows = await db.query('select id, state from scheduling_reservation where owner_id = $1', [id]);
+      expect(protectedRows.rows).toEqual(completed.reservations.map((r: any) => ({ id: r.id, state: r.state })));
+      const products = await db.query("select id from product where metadata->>'chef_event_id' = $1 and deleted_at is null", [id]);
+      expect(products.rows).toEqual([{ id: completed.productId }]);
+    } finally { await db.end(); }
+  }, 30000);
   it('has one winner for concurrent overlapping acceptance workflows', async () => {
     const one = randomUUID(),
       two = randomUUID();
