@@ -74,9 +74,13 @@ Missing key/unsupported provider returns a safe 503 configuration state.
 
 The response is intentionally a deterministic summary plus event cards. This prevents
 hallucinated summaries and keeps returned customer names/event text out of model context.
-The model sees the question, at most four previous **user questions**, the timezone, local
-date and fixed instructions/schema. Previous assistant responses and tool results are not
-sent back to it. Prompt injection can at most select another bounded schedule read within
+The model sees only the **current question**, the timezone, local date and fixed
+instructions/schema. Visible history stays in React memory for the chef’s reference; it
+is not model context. Older clients may still send up to four bounded `previousQuestions`,
+but the provider ignores them. Each question must name its own date or period; references
+like “that same day” need clarification. Previous assistant responses and tool results are
+never sent to the model. The response exposes only the validated `period` enum alongside
+its existing resolved `range` and `timeZone` for safe selection diagnostics. Prompt injection can at most select another bounded schedule read within
 the caller's granted site scope; it cannot gain another tool or write capability.
 
 ## UI lifecycle and global mount evidence
@@ -116,12 +120,14 @@ Medusa theme tokens and a viewport-bounded layout support light/dark/mobile.
 Initial choice: OpenAI `gpt-4.1-mini`, configurable through `CHEF_AI_MODEL`. It supports
 function calling and is sufficient to evaluate for this narrow window-selection task.
 The current official model page lists $0.40/M input and $1.60/M output tokens; verify pricing
-and account availability when enabling. There are **no live quality or latency measurements**
-in this PR. The small model and one inference avoid the cost/latency of a second summarizer.
+and account availability when enabling. Author-side verification uses **mocked model transport**. See the
+[owner live-test follow-up](followup-window-selection.md) for the reported regression,
+its limits of diagnosis and the required live repeat test. The small model and one inference avoid the cost/latency of a second summarizer.
 The official SDK is locked to 7.55.0; Luxon 3.7.2 was already transitive and is now direct.
 Both have been exercised on Node 26.13.1 with Medusa 2.22.6.
 
-Caps: 12 KB HTTP body, 1,000-character question, four previous questions, 400 output tokens,
+Caps: 12 KB HTTP body, 1,000-character question, at most four ignored legacy previous
+questions (each still limited to 1,000 characters), 400 output tokens,
 15-second provider timeout, zero SDK retries, one in-flight request/user, 5 requests/minute,
 50/day/user and 200/day/process. Counters contain IDs/timestamps/counts only, with at most
 20 entries. Counters reset on restart and are **process-local**; multi-process deployments

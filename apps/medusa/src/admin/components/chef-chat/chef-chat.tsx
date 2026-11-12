@@ -191,7 +191,6 @@ export function ChefChat({
         signal: controller.current.signal,
         body: {
           message: question,
-          previousQuestions: turns.slice(-4).map((turn) => turn.question),
         },
       });
       if (epoch === generation.current)
@@ -263,7 +262,7 @@ export function ChefChat({
                 Chef schedule assistant
               </Dialog.Title>
               <Dialog.Description className="text-ui-fg-subtle mt-1 text-xs">
-                Read-only schedule facts. History clears on refresh or logout.
+                Read-only schedule facts. Include a date or period in each question. History clears on refresh or logout.
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>

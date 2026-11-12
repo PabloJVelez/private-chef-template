@@ -2,7 +2,7 @@ import { z } from "@medusajs/framework/zod";
 import type { CalendarResult } from "../chef-workspace/contracts";
 import type { ChatInput, ScheduleAnswer } from "./contracts";
 import type { SelectSchedule } from "./provider";
-import { resolveScheduleRange } from "./schedule";
+import { resolveScheduleRange, scheduleArgs } from "./schedule";
 
 export const chatInput = z
   .object({
@@ -33,8 +33,11 @@ export async function answerSchedule(
   )
     throw new Error("Invalid model tool call");
   let range: { start: string; end: string };
+  let period: ScheduleAnswer["period"];
   try {
-    range = resolveScheduleRange(JSON.parse(calls[0].arguments), timeZone, now);
+    const args = scheduleArgs.parse(JSON.parse(calls[0].arguments));
+    period = args.period;
+    range = resolveScheduleRange(args, timeZone, now);
   } catch {
     return { message: clarification, entries: [] };
   }
@@ -49,6 +52,7 @@ export async function answerSchedule(
       message:
         "This schedule read is incomplete or too large to display. Ask for a narrower date range. No conclusion can be drawn from missing events.",
       timeZone,
+      period,
       range,
       complete: false,
       entries: [],
@@ -79,6 +83,7 @@ export async function answerSchedule(
       ? `${entries.length} recorded event${entries.length === 1 ? "" : "s"} overlap this window. All statuses are included. These records do not determine availability.`
       : "No matching recorded events in this window. This does not mean you are free or available.",
     timeZone,
+    period,
     range,
     complete: true,
     entries,

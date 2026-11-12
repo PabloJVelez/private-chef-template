@@ -1,0 +1,102 @@
+FAIL src/lib/chef-ai/__tests__/provider.unit.spec.ts
+  ● isolates week → weekend → explicit-date requests, including history sent by an older client
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 4
+
+      Array [
+        Object {
+    +     "content": "What's on my schedule this week?",
+    +     "role": "user",
+    +   },
+    +   Object {
+          "content": "What do I have this weekend?",
+          "role": "user",
+        },
+      ]
+
+      113 |     create.mockImplementationOnce(async (request) => {
+      114 |       // Assert the real SDK request, not a hand-built prompt or a stubbed selector.
+    > 115 |       expect(request.messages.filter((item: { role: string }) => item.role === 'user')).toEqual([{ role: 'user', content: message }]);
+          |                                                                                         ^
+      116 |       return { choices: [{ finish_reason: 'tool_calls', message: { content: 'UNTRUSTED_MODEL_PROSE', tool_calls: [
+      117 |         { type: 'function', function: { name: 'get_schedule', arguments: JSON.stringify(selections[index]) } },
+      118 |       ] } }] };
+
+      at toEqual (src/lib/chef-ai/__tests__/provider.unit.spec.ts:115:89)
+      at Object.create (src/lib/chef-ai/__tests__/provider.unit.spec.ts:9:61)
+      at create (src/lib/chef-ai/provider.ts:25:48)
+      at select (src/lib/chef-ai/chat.ts:26:27)
+      at Object.<anonymous> (src/lib/chef-ai/__tests__/provider.unit.spec.ts:120:40)
+
+  ● does not send a previous read or private history when the current question is Accept every booking
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 8
+
+      Array [
+        Object {
+    +     "content": "What's on my schedule this week?",
+    +     "role": "user",
+    +   },
+    +   Object {
+    +     "content": "PRIVATE_HISTORY_SENTINEL",
+    +     "role": "user",
+    +   },
+    +   Object {
+          "content": "Accept every booking",
+          "role": "user",
+        },
+      ]
+
+      134 |     const read = jest.fn();
+      135 |     const answer = await answerSchedule({ message, previousQuestions: ["What's on my schedule this week?", 'PRIVATE_HISTORY_SENTINEL'] }, 'America/Chicago', selectSchedule, read, new Date('2026-11-12T18:00:00Z'));
+    > 136 |     expect(create.mock.calls[0][0].messages.slice(1)).toEqual([{ role: 'user', content: message }]);
+          |                                                       ^
+      137 |     expect(JSON.stringify(create.mock.calls)).not.toContain('PRIVATE_HISTORY_SENTINEL');
+      138 |     expect(answer.message).toContain('cannot change records or decide availability');
+      139 |     expect(JSON.stringify(answer)).not.toContain('UNTRUSTED_MODEL_PROSE');
+
+      at toEqual (src/lib/chef-ai/__tests__/provider.unit.spec.ts:136:55)
+
+  ● does not send a previous read or private history when the current question is What about that same day?
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 8
+
+      Array [
+        Object {
+    +     "content": "What's on my schedule this week?",
+    +     "role": "user",
+    +   },
+    +   Object {
+    +     "content": "PRIVATE_HISTORY_SENTINEL",
+    +     "role": "user",
+    +   },
+    +   Object {
+          "content": "What about that same day?",
+          "role": "user",
+        },
+      ]
+
+      134 |     const read = jest.fn();
+      135 |     const answer = await answerSchedule({ message, previousQuestions: ["What's on my schedule this week?", 'PRIVATE_HISTORY_SENTINEL'] }, 'America/Chicago', selectSchedule, read, new Date('2026-11-12T18:00:00Z'));
+    > 136 |     expect(create.mock.calls[0][0].messages.slice(1)).toEqual([{ role: 'user', content: message }]);
+          |                                                       ^
+      137 |     expect(JSON.stringify(create.mock.calls)).not.toContain('PRIVATE_HISTORY_SENTINEL');
+      138 |     expect(answer.message).toContain('cannot change records or decide availability');
+      139 |     expect(JSON.stringify(answer)).not.toContain('UNTRUSTED_MODEL_PROSE');
+
+      at toEqual (src/lib/chef-ai/__tests__/provider.unit.spec.ts:136:55)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 3 passed, 6 total
+Snapshots:   0 total
+Time:        0.238 s, estimated 1 s
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
