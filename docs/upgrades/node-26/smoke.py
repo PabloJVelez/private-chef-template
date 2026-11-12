@@ -26,7 +26,7 @@ def http(base, path, body=None, headers=None, expected=200):
     request = urllib.request.Request(base + path, data=None if body is None else json.dumps(body).encode(),
         headers={'Content-Type': 'application/json', **(headers or {})})
     try:
-        response = urllib.request.urlopen(request, timeout=20)
+        response = urllib.request.build_opener(urllib.request.ProxyHandler({})).open(request, timeout=20)
     except urllib.error.HTTPError as error:
         response = error
     data = response.read().decode()
@@ -72,10 +72,13 @@ try:
         flags = [flag for key, value in env.items() for flag in ['-e', key + '=' + value]]
         command('docker', 'run', '-d', '--name', name, '--network', 'chef-node26-smoke',
                 '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
-                '-p', f'127.0.0.1::{port}', *flags, image, *args)
+                *flags, image, *args)
         started.append(name)
-        mapping = command('docker', 'port', name, str(port) + '/tcp')
-        return 'http://' + mapping
+        # Internal networks do not publish ports on this Docker engine. Use the
+        # host-accessible private bridge address, with no published listener.
+        address = command('docker', 'inspect', '--format',
+                          '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', name)
+        return f'http://{address}:{port}'
     # Override the normal migration-and-start command: rehearsal already migrated this fixture.
     backend = launch('chef-node26-backend', f'chef-node26-medusa:{tag}', 9000, backend_env,
         ['sh', '-c', 'exec /app/apps/medusa/node_modules/.bin/medusa start'])

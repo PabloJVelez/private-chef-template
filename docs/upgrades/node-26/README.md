@@ -66,6 +66,12 @@ Preflight application revision: `70c1a22` (full SHA in the PR record). A fresh
   workflow history. Only pg_dump's randomized restrict tokens were normalized.
 - Review helper: 74 tests passed. Clean Node 26 review-host image and actual
   installed CLI passed the restricted fake-provider smoke, with network disabled.
+- Subsequent `e0458cb` clean/pruned Alpine builds passed as UID 1000. Both images
+  passed offline Node/Yarn checks, native SWC, backend health, Admin login and
+  anonymous/wrong-password rejection, built Admin assets, 425.25 cart pricing,
+  storefront home/product/checkout SSR and three repeated home/product requests.
+  The smoke harness was corrected for this Docker engine's internal-network port
+  behavior; no application change was needed. Final-head results are in the PR.
 
 The PR description records **final exact-head** install/build/typecheck/test and
 Docker outcomes, image IDs, commands, log hashes and any failures. Do not infer
@@ -106,7 +112,9 @@ docker build --no-cache --progress=plain -f apps/storefront/Dockerfile -t "chef-
 this run; recreate those from the base/candidate SHA first. It refuses to create
 an already existing fixture database. `smoke.py` requires that rehearsal and its
 `node24-browser-seed.log` in the evidence directory. Both images run as UID 1000
-on an internal Docker network; HTTP ports bind loopback. It checks native SWC,
+on an internal Docker network; HTTP uses private bridge addresses without published
+ports or proxies (this Docker engine suppresses port publication on internal
+networks). It checks native SWC,
 health, Admin login/access rejection, Admin assets, native cart pricing, storefront
 home/product/checkout SSR and repeated HTTP navigation. Checkout uses provider-free
 synthetic fixtures. Smoke overrides migration-on-start; migrations run only via
