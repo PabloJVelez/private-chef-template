@@ -1,5 +1,5 @@
 const steps = new Map<string, { run: Function; compensate?: Function }>();
-jest.mock('@medusajs/workflows-sdk', () => ({
+jest.mock('@medusajs/framework/workflows-sdk', () => ({
   createStep: (config: string | { name: string }, run: Function, compensate?: Function) => {
     steps.set(typeof config === 'string' ? config : config.name, { run, compensate });
     return jest.fn();

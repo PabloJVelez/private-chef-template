@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { sendReceiptWorkflow } from "../../../../../workflows/send-receipt"
 import { CHEF_EVENT_MODULE } from "../../../../../modules/chef-event"
 
@@ -13,7 +13,7 @@ const sendReceiptSchema = z.object({
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { id } = req.params
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
 
   let body: z.infer<typeof sendReceiptSchema>
   try {

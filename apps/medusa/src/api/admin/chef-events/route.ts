@@ -1,6 +1,6 @@
 import { parseQuery, requestQuery, eventFilters } from '../../../lib/chef-workspace/query'
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { createChefEventWorkflow } from "../../../workflows/create-chef-event"
 import { CHEF_EVENT_MODULE } from "../../../modules/chef-event"
 import type ChefEventModuleService from "../../../modules/chef-event/service"

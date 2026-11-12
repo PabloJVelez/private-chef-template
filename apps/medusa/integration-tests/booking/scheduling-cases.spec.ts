@@ -3,7 +3,7 @@ import { bookingApp } from '../booking/app';
 import type SchedulingModuleService from '../../src/modules/scheduling/service';
 import type ChefEventModuleService from '../../src/modules/chef-event/service';
 import { releaseEventReservations } from '../../src/lib/release-event-reservations';
-const { Client } = require('pg');
+const { Client } = require('@medusajs/framework/pg');
 
 const fixtureId = randomUUID().replace(/-/g, '');
 const databaseName = `booking_test_${fixtureId}`;

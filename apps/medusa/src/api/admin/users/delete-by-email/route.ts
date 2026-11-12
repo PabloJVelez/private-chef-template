@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { deleteUsersWorkflow } from "@medusajs/medusa/core-flows"
 
@@ -63,7 +63,7 @@ export async function DELETE(
     if (error instanceof z.ZodError) {
       res.status(400).json({
         message: "Invalid request data",
-        errors: error.errors,
+        errors: error.issues,
       })
       return
     }

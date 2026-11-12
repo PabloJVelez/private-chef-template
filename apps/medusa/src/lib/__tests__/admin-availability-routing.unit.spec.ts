@@ -1,27 +1,29 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { createMemoryRouter, matchRoutes, type RouteObject } from 'react-router-dom';
 import type { ReactElement } from 'react';
 import menuConfig from '../../admin/overrides/menu.config';
-import { settingsRoutePrefixFix } from '../admin-settings-route-prefix';
 
 // Exercise the installed, pinned Medusa router, not a duplicate of its algorithm.
 // Upgrade this adapter with Medusa: it intentionally fails if its internals move.
-const dashboard = fs.readFileSync(
-  path.join(path.dirname(require.resolve('@medusajs/dashboard/package.json')), 'dist/chunk-2QUBSJMV.mjs'),
-  'utf8',
-);
-const helpers = dashboard
-  .split('// src/dashboard-app/routes/utils.ts')[1]
-  .split('// src/dashboard-app/dashboard-app.tsx')[0];
+const dashboardRoot = path.dirname(require.resolve('@medusajs/dashboard/package.json'));
+const helperSource = fs.readFileSync(path.join(dashboardRoot, 'src/dashboard-app/routes/utils.ts'), 'utf8');
+const helpers = require('@swc/core').transformSync(
+  helperSource.replace(/^import .*$/gm, '').replace(/export /g, ''),
+  { jsc: { parser: { syntax: 'typescript' }, target: 'es2022' } },
+).code;
+const dashboard = fs.readdirSync(path.join(dashboardRoot, 'dist'))
+  .filter((file) => file.endsWith('.mjs'))
+  .map((file) => fs.readFileSync(path.join(dashboardRoot, 'dist', file), 'utf8')).join('\n');
 // This repository's Unlock plugin uses Medusa's shipped TSX source instead of
 // the bundles. Verify the unpatched real execution path and both bundles.
 const dashboardSource = fs.readFileSync(
   path.join(path.dirname(require.resolve('@medusajs/dashboard/package.json')), 'src/dashboard-app/dashboard-app.tsx'),
   'utf8',
 );
-const transformed = settingsRoutePrefixFix().transform(dashboardSource, '/node_modules/@medusajs/dashboard/src/dashboard-app/dashboard-app.tsx')!.code;
+const transformed = dashboardSource;
 const sourceMethod = transformed.slice(
   transformed.indexOf('  private populateRoutes('),
   transformed.indexOf('  private populateWidgets('),
@@ -35,8 +37,12 @@ const populate = vm.runInNewContext(
 );
 
 async function generatedModule(id: string) {
-  const plugin = require('@medusajs/admin-vite-plugin').default({ sources: [path.resolve('src/admin')] });
-  const { code } = await plugin.load(plugin.resolveId(id));
+  // Vite 7's generator loads ESM dependencies. Run the actual generator in Node,
+  // outside Jest 29's CJS loader, then exercise its generated routes below.
+  const { code } = JSON.parse(execFileSync(process.execPath, ['-e', `
+    const plugin = require('@medusajs/admin-vite-plugin').default({ sources: [require('node:path').resolve('src/admin')] });
+    Promise.resolve(plugin.load(plugin.resolveId(${JSON.stringify(id)}))).then(result => process.stdout.write(JSON.stringify(result)));
+  `], { encoding: 'utf8' }));
   const bindings: Record<string, unknown> = {};
   const parser = require('@babel/parser');
   const ast = parser.parse(code, { sourceType: 'module' });
@@ -58,7 +64,13 @@ beforeAll(async () => {
   const { coreRoutes, settingsRoutes } = populate([{ routeModule }]);
   // Medusa's core route tree mounts settings extensions inside /settings.
   expect(dashboard).toMatch(/path: "\/settings"/);
-  routes = [...coreRoutes, { path: '/settings', children: settingsRoutes }];
+  const mountSource = fs.readFileSync(path.join(dashboardRoot, 'src/dashboard-app/routes/get-route.map.tsx'), 'utf8');
+  // 2.22.6 removes the settings prefix at the mount, not in populateRoutes.
+  // Execute the installed expression: the old prefix shim double-stripped it.
+  const expression = mountSource.match(/children: (settingsRoutes\.flatMap\([^\n]+\)),/)?.[1];
+  expect(expression).toBeDefined();
+  const mounted = vm.runInNewContext(expression!, { settingsRoutes });
+  routes = [...coreRoutes, { path: '/settings', children: mounted }];
 });
 
 test('generated Availability page resolves on direct /app/settings/availability navigation', async () => {
@@ -113,12 +125,6 @@ test('Medusa source and bundles are unpatched', () => {
   }
 });
 
-test('prefix fix is scoped and tolerates an upstream correction', () => {
-  const plugin = settingsRoutePrefixFix();
-  expect(plugin.transform(dashboardSource, '/unrelated/dashboard-app.tsx')).toBeNull();
-  expect(plugin.transform(transformed, '/node_modules/@medusajs/dashboard/src/dashboard-app/dashboard-app.tsx')).toBeNull();
-});
-
 // Render the actual transformed sidebar with lightweight layout/hook stand-ins.
 // This checks which section receives each entry, not just generated routes.
 test('Settings sidebar places Availability immediately after Store, without duplicating it', () => {
@@ -139,7 +145,9 @@ test('Settings sidebar places Availability immediately after Store, without dupl
   const other = { to: '/settings/other', label: 'Other' };
   const render = (extensions: any[]) => vm.runInNewContext(`${compiled}; SettingsSidebar()`, {
     React: require('react'), Fragment: 'fragment', Header: 'header', Divider: 'divider', UserSection: 'user',
-    RadixCollapsibleSection: 'section', useTranslation: () => ({ t: (key: string) => key }),
+    LayoutComposer: 'section', CORE_LAYOUT_IDS: { SETTINGS_SIDEBAR: 'settings' },
+    CUSTOMIZE_IDS: { SETTINGS_SIDEBAR: 'settings' }, toNavEntries: (items: any[]) => items,
+    usePermittedNavItems: (items: any[]) => items.filter((item) => item.permitted !== false), useTranslation: () => ({ t: (key: string) => key }),
     useExtension: () => ({ getMenu: () => extensions }), useSettingRoutes: () => general,
     useDeveloperRoutes: () => [], useMyAccountRoutes: () => [],
   });
@@ -147,11 +155,13 @@ test('Settings sidebar places Availability immediately after Store, without dupl
     ...(node.type === 'section' ? [node.props] : []),
     ...require('react').Children.toArray(node.props?.children).flatMap(sections),
   ];
-  const rendered = sections(render([availability, other]));
-  expect(rendered.find((s) => s.label === 'app.nav.settings.general').items.map((i: any) => i.to))
+  const rendered = sections(render([availability, other]))[0].sections;
+  expect(rendered.general.map((i: any) => i.to))
     .toEqual(['/settings/store', '/settings/availability', '/settings/users']);
-  expect(rendered.find((s) => s.label === 'app.nav.common.extensions').items).toEqual([other]);
-  expect(sections(render([availability])).some((s) => s.label === 'app.nav.common.extensions')).toBe(false);
+  expect(rendered.extensions).toEqual([other]);
+  expect(sections(render([availability]))[0].sections.extensions).toEqual([]);
+  expect(sections(render([{ ...availability, permitted: false }, other]))[0].sections.general)
+    .toEqual(general);
   expect(general).toEqual([{ to: '/settings/store' }, { to: '/settings/users' }]);
 });
 

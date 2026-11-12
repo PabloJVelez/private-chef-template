@@ -1,0 +1,221 @@
+{"level":"info","message":"No link to load from /home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.","timestamp":"2026-11-12 03:59:32"}
+{"level":"info","message":"Running migrations...","timestamp":"2026-11-12 03:59:32"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: stock_location","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: inventory","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: product","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: pricing","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: promotion","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: customer","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: sales_channel","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: cart","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: region","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: api_key","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: store","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: tax","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: currency","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: payment","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: payment","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: payment","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: order","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: settings","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: auth","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: auth","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: auth","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: user","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: fulfillment","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: fulfillment","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: fulfillment","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: notification","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"MODULE: notification","timestamp":"2026-11-12 03:59:33"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: notification","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: search","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: search","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: search","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: cache","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: event_bus","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: workflows","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: locking","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: locking","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: locking","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: file","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: file","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: file","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: availability","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: menuModuleService","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: chefEventModuleService","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: experienceTypeModuleService","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: socialGalleryModuleService","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: stripeConnectAccountModuleService","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: googleCalendarConnectionModuleService","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"MODULE: scheduling","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Skipped. Database is up-to-date for module.","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Migrations completed","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Syncing links...","timestamp":"2026-11-12 03:59:34"}
+{"level":"info","message":"Database already up-to-date","timestamp":"2026-11-12 03:59:35"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:36"}
+{"level":"info","message":"No link to load from /home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.","timestamp":"2026-11-12 03:59:36"}
+{"level":"info","message":"Connection to Redis in module 'event-bus-redis' established","timestamp":"2026-11-12 03:59:37"}
+{"level":"info","message":"Connection to Redis in module 'cache-redis' established","timestamp":"2026-11-12 03:59:37"}
+{"level":"info","message":"[Workflow-engine-redis] Connection to Redis in module 'workflow-engine-redis' established","timestamp":"2026-11-12 03:59:37"}
+{"level":"info","message":"[Workflow-engine-redis] Connection to Redis PubSub in module 'workflow-engine-redis' established","timestamp":"2026-11-12 03:59:37"}
+{"level":"info","message":"Migrating search indexes...","timestamp":"2026-11-12 03:59:37"}
+{"level":"info","message":"Search indexes already up-to-date","timestamp":"2026-11-12 03:59:37"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:37"}
+{"level":"info","message":"No link to load from /home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.","timestamp":"2026-11-12 03:59:38"}
+{"level":"info","message":"Connection to Redis in module 'event-bus-redis' established","timestamp":"2026-11-12 03:59:39"}
+{"level":"info","message":"Connection to Redis in module 'cache-redis' established","timestamp":"2026-11-12 03:59:39"}
+{"level":"info","message":"[Workflow-engine-redis] Connection to Redis in module 'workflow-engine-redis' established","timestamp":"2026-11-12 03:59:39"}
+{"level":"info","message":"[Workflow-engine-redis] Connection to Redis PubSub in module 'workflow-engine-redis' established","timestamp":"2026-11-12 03:59:39"}
+{"level":"info","message":"No workflow to load from /home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/workflows. skipped.","timestamp":"2026-11-12 03:59:39"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:40"}
+{"level":"info","message":"Pending migration scripts to execute","timestamp":"2026-11-12 03:59:40"}
+{"level":"info","message":"/home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/medusa/dist/migration-scripts/create-super-admin-role.js\n/home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/medusa/dist/migration-scripts/migrate-rbac-role-assignments.js","timestamp":"2026-11-12 03:59:40"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:40"}
+{"level":"info","message":"Running migration scripts...","timestamp":"2026-11-12 03:59:40"}
+{"level":"info","message":"","timestamp":"2026-11-12 03:59:40"}
+{"level":"info","message":"Migration scripts completed","timestamp":"2026-11-12 03:59:40"}

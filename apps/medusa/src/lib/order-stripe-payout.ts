@@ -4,7 +4,7 @@
  * With direct charges, Stripe fees are visible in the chef's Express Dashboard,
  * so the admin only shows: Charged to customer, Platform commission, Chef take-home.
  */
-import type { HttpTypes } from '@medusajs/types';
+import type { HttpTypes } from '@medusajs/framework/types';
 import { getSmallestUnit } from '../modules/stripe-connect/utils/get-smallest-unit';
 
 /** Canonical Medusa payment provider id for this module (medusa-config `id` is `stripe-connect`). */

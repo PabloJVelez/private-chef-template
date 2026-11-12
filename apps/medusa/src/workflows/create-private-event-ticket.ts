@@ -1,3 +1,4 @@
+import { BOOKING_EXECUTION_RETENTION_SECONDS } from '../lib/booking-retention';
 import type { CreateProductWorkflowInputDTO } from '@medusajs/framework/types';
 import { MedusaError, Modules, ProductWorkflowEvents } from '@medusajs/framework/utils';
 import { createStep, createWorkflow, transform, WorkflowResponse } from '@medusajs/framework/workflows-sdk';
@@ -36,7 +37,7 @@ const validateOwner = createStep('validate-private-event-ticket-owner', async (i
  * It neither changes global core-workflow options nor replaces native commerce services.
  */
 export const createPrivateEventTicketWorkflow = createWorkflow(
-  { name: 'create-private-event-ticket', store: true, idempotent: true },
+  { name: 'create-private-event-ticket', store: true, idempotent: true, retentionTime: BOOKING_EXECUTION_RETENTION_SECONDS },
   function (input: TicketInput) {
     validateOwner(input);
     validateProductInputStep({ products: input.products });

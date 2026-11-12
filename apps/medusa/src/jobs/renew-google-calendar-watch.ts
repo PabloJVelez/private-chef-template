@@ -15,7 +15,7 @@ const RENEWAL_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 export default async function renewGoogleCalendarWatchJob(
   container: MedusaContainer,
 ): Promise<void> {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
 
   const svc = container.resolve(
     GOOGLE_CALENDAR_CONNECTION_MODULE,

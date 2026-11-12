@@ -19,7 +19,7 @@ export async function getSystemChargeVariantId(
     return process.env.SYSTEM_CHARGE_VARIANT_ID
   }
 
-  const query = container.resolve(ContainerRegistrationKeys.QUERY) as QueryClient
+  const query = container.resolve<import("@medusajs/framework/types").RemoteQueryFunction>(ContainerRegistrationKeys.QUERY) as QueryClient
   const { data } = await query.graph({
     entity: "product_variant",
     fields: ["id"],

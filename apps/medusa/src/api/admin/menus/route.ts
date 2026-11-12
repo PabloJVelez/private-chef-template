@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { MENU_MODULE } from "../../../modules/menu"
 import { createMenuWorkflow } from "../../../workflows/create-menu"
 import { MENU_STATUS_VALUES } from "../../../modules/menu/constants"
@@ -41,7 +41,7 @@ export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   
   try {
     const query = listMenusSchema.parse(req.query)
@@ -82,7 +82,7 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   
   try {
     const validatedData = createMenuSchema.parse(req.body)
@@ -98,7 +98,7 @@ export async function POST(
     if (error instanceof z.ZodError) {
       res.status(400).json({
         message: "Validation error",
-        errors: error.errors
+        errors: error.issues
       })
       return
     }

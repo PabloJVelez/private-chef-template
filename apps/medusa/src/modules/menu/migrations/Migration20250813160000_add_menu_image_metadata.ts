@@ -1,4 +1,4 @@
-import { Migration } from '@mikro-orm/migrations'
+import { Migration } from '@medusajs/framework/mikro-orm/migrations'
 
 export class Migration20250813160000_add_menu_image_metadata extends Migration {
   override async up(): Promise<void> {

@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { linkSalesChannelsToApiKeyWorkflow } from "@medusajs/medusa/core-flows"
 
 const linkSalesChannelApiKeySchema = z.object({
@@ -44,7 +44,7 @@ export async function POST(
     if (error instanceof z.ZodError) {
       res.status(400).json({
         message: "Invalid request data",
-        errors: error.errors,
+        errors: error.issues,
       })
       return
     }

@@ -1,5 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
-import { z } from "zod";
+import { z } from "@medusajs/framework/zod";
 import { STRIPE_CONNECT_ACCOUNT_MODULE } from "../../../../modules/stripe-connect-account";
 import type StripeConnectAccountModuleService from "../../../../modules/stripe-connect-account/service";
 

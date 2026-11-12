@@ -4,7 +4,7 @@ import {
   createWorkflow,
   StepResponse,
   WorkflowResponse
-} from "@medusajs/workflows-sdk"
+} from "@medusajs/framework/workflows-sdk"
 import { emitEventStep } from "@medusajs/medusa/core-flows"
 import { CHEF_EVENT_MODULE } from "../modules/chef-event"
 import ChefEventModuleService from "../modules/chef-event/service"

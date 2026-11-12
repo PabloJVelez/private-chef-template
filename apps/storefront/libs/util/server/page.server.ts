@@ -5,7 +5,7 @@ import { fetchProducts } from './products.server';
 export const getProductListData = async (request: Request) => {
   const region = await getSelectedRegion(request.headers);
 
-  const productsQuery: HttpTypes.StoreProductParams = {
+  const productsQuery: HttpTypes.StoreProductListParams = {
     limit: 10,
     offset: 0,
   };
@@ -13,7 +13,7 @@ export const getProductListData = async (request: Request) => {
   const { products } = await fetchProducts(request, {
     ...productsQuery,
     region_id: region.id,
-    fields: 'id,title,handle,thumbnail,variants.*,variants.prices.*',
+    fields: '*categories,+metadata,*variants.calculated_price,+variants.inventory_quantity',
   });
   const collectionTabs = new Map<string, StoreCollection>();
   const categoryTabs = new Map<string, StoreProductCategory>();

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { ImportError, importedPostSchema, type ImportedPost } from './contracts';
 import { normalizeInstagramSource } from './instagram';
 

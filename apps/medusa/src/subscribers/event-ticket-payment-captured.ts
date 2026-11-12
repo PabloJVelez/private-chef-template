@@ -23,7 +23,7 @@ export default async function eventTicketPaymentCapturedHandler({
   event,
   container,
 }: SubscriberArgs<PaymentCapturedPayload>) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
 
   if (!isPaymentCapturedPayload(event.data)) {
     logger.warn(`[event-ticket-payment-captured] Ignoring event: invalid payload (expected { id: string })`);

@@ -189,7 +189,7 @@ class StripeConnectAccountModuleService extends MedusaService({
     account: Stripe.Account,
   ): StripeConnectAccountType {
     if (account.type === "standard" || account.type === "express") {
-      return account.type;
+      return account.type === "standard" ? "standard" : "express";
     }
 
     throw new Error(

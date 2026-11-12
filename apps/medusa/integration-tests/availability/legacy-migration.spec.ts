@@ -1,4 +1,4 @@
-import { Client } from 'pg';
+import { Client } from '@medusajs/framework/pg';
 import { Migration20261015000300 } from '../../src/modules/chef-event/migrations/Migration20261015000300';
 
 // Run against disposable PostgreSQL: TEST_DATABASE_URL=... yarn jest integration-tests/availability/legacy-migration.spec.ts --runInBand

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import type { AdminExperienceTypeDTO } from '../../../sdk/admin/admin-experience-types';
 
 const numberOrUndefined = z.preprocess((val) => {

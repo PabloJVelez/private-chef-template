@@ -1,0 +1,266 @@
+{
+  "chef_event": [
+    {
+      "id": "upgrade-event-confirmed",
+      "status": "confirmed",
+      "requestedDate": "2027-08-02T10:00:00+00:00",
+      "requestedTime": "10:00",
+      "partySize": 4,
+      "eventType": "Synthetic rehearsal",
+      "templateProductId": "prod_upgrade_fixture",
+      "locationType": "customer_location",
+      "locationAddress": "Synthetic",
+      "firstName": "Fixture",
+      "lastName": "Guest",
+      "email": "fixture@example.invalid",
+      "phone": "",
+      "notes": "",
+      "totalPrice": 425.25,
+      "depositPaid": false,
+      "specialRequirements": "",
+      "estimatedDuration": 60,
+      "raw_totalPrice": {
+        "value": "425.25",
+        "precision": 20
+      },
+      "created_at": "2026-11-12T03:39:45.772+00:00",
+      "updated_at": "2026-11-12T03:39:45.792706+00:00",
+      "deleted_at": null,
+      "productId": "prod_upgrade_fixture",
+      "acceptedAt": "2026-11-12T03:39:45.792706+00:00",
+      "acceptedBy": "chef",
+      "rejectionReason": null,
+      "chefNotes": null,
+      "sendAcceptanceEmail": false,
+      "emailHistory": null,
+      "lastEmailSentAt": null,
+      "customEmailRecipients": null,
+      "tipAmount": null,
+      "tipMethod": null,
+      "eventMenuId": null,
+      "additionalCharges": null,
+      "attribution": null,
+      "timeZone": "UTC",
+      "experience_type_id": null,
+      "occupiedStart": "2027-08-02T10:00:00+00:00",
+      "occupiedEnd": "2027-08-02T11:00:00+00:00",
+      "availabilitySnapshot": {
+        "timezone": "UTC",
+        "duration_minutes": 60
+      },
+      "acceptanceToken": null,
+      "acceptanceExecution": "accept_fe029d7277318697a74d2247b721809cd40847c77b3a1479c8d284fe17821d18"
+    },
+    {
+      "id": "upgrade-event-held",
+      "status": "pending",
+      "requestedDate": "2027-08-01T10:00:00+00:00",
+      "requestedTime": "10:00",
+      "partySize": 4,
+      "eventType": "Synthetic rehearsal",
+      "templateProductId": "prod_upgrade_fixture",
+      "locationType": "customer_location",
+      "locationAddress": "Synthetic",
+      "firstName": "Fixture",
+      "lastName": "Guest",
+      "email": "fixture@example.invalid",
+      "phone": "",
+      "notes": "",
+      "totalPrice": 425.25,
+      "depositPaid": false,
+      "specialRequirements": "",
+      "estimatedDuration": 60,
+      "raw_totalPrice": {
+        "value": "425.25",
+        "precision": 20
+      },
+      "created_at": "2026-11-12T03:39:45.744+00:00",
+      "updated_at": "2026-11-12T03:39:45.762285+00:00",
+      "deleted_at": null,
+      "productId": null,
+      "acceptedAt": null,
+      "acceptedBy": null,
+      "rejectionReason": null,
+      "chefNotes": null,
+      "sendAcceptanceEmail": true,
+      "emailHistory": null,
+      "lastEmailSentAt": null,
+      "customEmailRecipients": null,
+      "tipAmount": null,
+      "tipMethod": null,
+      "eventMenuId": null,
+      "additionalCharges": null,
+      "attribution": null,
+      "timeZone": "UTC",
+      "experience_type_id": null,
+      "occupiedStart": "2027-08-01T10:00:00+00:00",
+      "occupiedEnd": "2027-08-01T11:00:00+00:00",
+      "availabilitySnapshot": {
+        "timezone": "UTC",
+        "duration_minutes": 60
+      },
+      "acceptanceToken": "accept_8f767616e2a6a95031702c5f544acf1e408ea345cc846304f97012bd5a21be4e",
+      "acceptanceExecution": "accept_8f767616e2a6a95031702c5f544acf1e408ea345cc846304f97012bd5a21be4e"
+    }
+  ],
+  "scheduling_reservation": [
+    {
+      "id": "accept_8f767616e2a6a95031702c5f544acf1e408ea345cc846304f97012bd5a21be4e",
+      "owner_id": "upgrade-event-held",
+      "attempt_id": "accept_8f767616e2a6a95031702c5f544acf1e408ea345cc846304f97012bd5a21be4e",
+      "starts_at": "2027-08-01T10:00:00+00:00",
+      "ends_at": "2027-08-01T11:00:00+00:00",
+      "state": "held",
+      "created_at": "2026-11-12T03:39:45.765852+00:00",
+      "updated_at": "2026-11-12T03:39:45.765852+00:00",
+      "deleted_at": null
+    },
+    {
+      "id": "accept_fe029d7277318697a74d2247b721809cd40847c77b3a1479c8d284fe17821d18",
+      "owner_id": "upgrade-event-confirmed",
+      "attempt_id": "accept_fe029d7277318697a74d2247b721809cd40847c77b3a1479c8d284fe17821d18",
+      "starts_at": "2027-08-02T10:00:00+00:00",
+      "ends_at": "2027-08-02T11:00:00+00:00",
+      "state": "confirmed",
+      "created_at": "2026-11-12T03:39:45.788121+00:00",
+      "updated_at": "2026-11-12T03:39:45.798267+00:00",
+      "deleted_at": null
+    }
+  ],
+  "chef_event_acceptance_attempt": [
+    {
+      "id": "accept_8f767616e2a6a95031702c5f544acf1e408ea345cc846304f97012bd5a21be4e",
+      "event_id": "upgrade-event-held",
+      "actor_id": "fixture-admin",
+      "request_key": "upgrade-event-held",
+      "input": {
+        "sendAcceptanceEmail": false
+      },
+      "state": "active",
+      "created_at": "2026-11-12T03:39:45.750993+00:00",
+      "updated_at": "2026-11-12T03:39:45.750993+00:00",
+      "deleted_at": null,
+      "cleanup_completed_at": null
+    },
+    {
+      "id": "accept_fe029d7277318697a74d2247b721809cd40847c77b3a1479c8d284fe17821d18",
+      "event_id": "upgrade-event-confirmed",
+      "actor_id": "fixture-admin",
+      "request_key": "upgrade-event-confirmed",
+      "input": {
+        "sendAcceptanceEmail": false
+      },
+      "state": "finalized",
+      "created_at": "2026-11-12T03:39:45.776462+00:00",
+      "updated_at": "2026-11-12T03:39:45.792706+00:00",
+      "deleted_at": null,
+      "cleanup_completed_at": null
+    }
+  ],
+  "product_product_chefeventmodule_chef_event": [
+    {
+      "product_id": "prod_upgrade_fixture",
+      "chef_event_id": "upgrade-event-confirmed",
+      "id": "link_01M76XE3RHMMWXS87Q5AJM0XVC",
+      "created_at": "2026-11-12T03:39:45.808522+00:00",
+      "updated_at": "2026-11-12T03:39:45.808522+00:00",
+      "deleted_at": null
+    }
+  ],
+  "workflow_execution": [
+    {
+      "id": "wf_exec_01M76XE3S6H7Z106GR98JXAC4V",
+      "workflow_id": "upgrade-fixture-history",
+      "transaction_id": "upgrade-fixture-history",
+      "execution": {
+        "state": "done",
+        "steps": {
+          "_root": {
+            "id": "_root",
+            "next": [
+              "_root.upgrade-fixture-marker"
+            ]
+          },
+          "_root.upgrade-fixture-marker": {
+            "id": "_root.upgrade-fixture-marker",
+            "next": [],
+            "uuid": "01M76XE25TKQ8PJDZTJ0K1G1KA",
+            "depth": 1,
+            "invoke": {
+              "state": "done",
+              "status": "ok"
+            },
+            "attempts": 1,
+            "failures": 0,
+            "startedAt": 1794454785845,
+            "compensate": {
+              "state": "dormant",
+              "status": "idle"
+            },
+            "definition": {
+              "uuid": "01M76XE25TKQ8PJDZTJ0K1G1KA",
+              "action": "upgrade-fixture-marker",
+              "noCompensation": true
+            },
+            "stepFailed": false,
+            "lastAttempt": 1794454785845,
+            "saveResponse": true
+          }
+        },
+        "modelId": "upgrade-fixture-history",
+        "options": {
+          "name": "upgrade-fixture-history",
+          "store": true,
+          "retentionTime": 7776000
+        },
+        "metadata": {
+          "sourcePath": "/tmp/medusa-upgrade-baseline/apps/medusa/integration-tests/upgrade/seed.ts",
+          "eventGroupId": "01M76XE3RTFSXE6F95D1FNJMBT"
+        },
+        "startedAt": 1794454785835,
+        "definition": {
+          "uuid": "01M76XE25TKQ8PJDZTJ0K1G1KA",
+          "action": "upgrade-fixture-marker",
+          "noCompensation": true
+        },
+        "timedOutAt": null,
+        "hasAsyncSteps": false,
+        "transactionId": "upgrade-fixture-history",
+        "hasFailedSteps": false,
+        "hasSkippedSteps": false,
+        "hasWaitingSteps": false,
+        "hasRevertedSteps": false,
+        "hasSkippedOnFailureSteps": false
+      },
+      "context": {
+        "data": {
+          "invoke": {
+            "upgrade-fixture-marker": {
+              "__type": "Symbol(WorkflowWorkflowData)",
+              "output": {
+                "__type": "Symbol(WorkflowStepResponse)",
+                "output": {
+                  "money": 425.25,
+                  "fixture": true
+                },
+                "compensateInput": {
+                  "money": 425.25,
+                  "fixture": true
+                }
+              }
+            }
+          },
+          "payload": {},
+          "compensate": {}
+        },
+        "errors": []
+      },
+      "state": "done",
+      "created_at": "2026-11-12T03:39:45.83",
+      "updated_at": "2026-11-12T03:39:45.864",
+      "deleted_at": null,
+      "retention_time": 7776000,
+      "run_id": "01M76YJ2XQ89W4EFBZ647TEFR5"
+    }
+  ]
+}

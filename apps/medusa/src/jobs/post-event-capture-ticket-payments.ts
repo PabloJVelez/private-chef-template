@@ -7,7 +7,7 @@ import { runPostEventTicketPaymentCapture } from '../workflows/post-event-captur
  * Runs once/day since events are date-based; no benefit to hourly polling.
  */
 export default async function postEventCaptureTicketPaymentsJob(container: MedusaContainer) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
   const result = await runPostEventTicketPaymentCapture(container);
   if (result.capturesAttempted > 0 || result.eventsScanned > 0) {
     logger.info(

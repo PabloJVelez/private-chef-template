@@ -24,7 +24,7 @@ export async function ensureGoogleCalendarWatchAndBootstrapSync(
   googleSvc: GoogleCalendarConnectionModuleService,
   options?: { skipIncrementalSync?: boolean },
 ): Promise<void> {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER) as Logger;
 
   const config = await googleSvc.getConfig();
   if (!config.webhookUrl) {

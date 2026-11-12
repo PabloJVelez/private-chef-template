@@ -1,0 +1,125 @@
+[
+  {
+    "name": "install",
+    "command": [
+      "corepack",
+      "yarn",
+      "install",
+      "--immutable"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "medusa-typecheck",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "medusa",
+      "typecheck"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "medusa-test-unit",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "medusa",
+      "test:unit"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "medusa-build",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "medusa",
+      "build"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "storefront-typecheck",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "storefront",
+      "typecheck"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "storefront-test-unit",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "storefront",
+      "test:unit"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "storefront-build",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "storefront",
+      "build"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "medusa-lint",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "medusa",
+      "lint"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "integration-http",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "medusa",
+      "test:integration:http",
+      "--testPathIgnorePatterns=health.spec"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "integration-health",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "medusa",
+      "test:integration:http",
+      "--runTestsByPath",
+      "integration-tests/http/health.spec.ts"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "integration-modules",
+    "command": [
+      "corepack",
+      "yarn",
+      "workspace",
+      "medusa",
+      "test:integration:modules"
+    ],
+    "exit_code": 0
+  }
+]

@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { MENU_MODULE } from "../../../../modules/menu"
 import { updateMenuWorkflow } from "../../../../workflows/update-menu"
 import { deleteMenuWorkflow } from "../../../../workflows/delete-menu"
@@ -38,7 +38,7 @@ export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   
   try {
     const { id } = req.params
@@ -69,7 +69,7 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   
   try {
     const { id } = req.params
@@ -100,7 +100,7 @@ export async function POST(
     if (error instanceof z.ZodError) {
       res.status(400).json({
         message: "Validation error",
-        errors: error.errors
+        errors: error.issues
       })
       return
     }
@@ -116,7 +116,7 @@ export async function DELETE(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   const getErrorMessage = (error: unknown): string => {
     if (error instanceof Error) {
       return error.message

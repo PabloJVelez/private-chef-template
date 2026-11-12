@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
-import { asValue } from 'awilix';
+import { asValue } from '@medusajs/framework/awilix';
 import { bookingApp } from '../booking/app';
 import { ApiLoader } from '@medusajs/framework/http';
 import { configManager } from '@medusajs/framework/config';
@@ -11,7 +11,7 @@ import type SchedulingModuleService from '../../src/modules/scheduling/service';
 import { readCalendar, readRequests } from '../../src/lib/chef-workspace/read';
 import { parseQuery, requestQuery } from '../../src/lib/chef-workspace/query';
 
-const { Client } = require('pg');
+const { Client } = require('@medusajs/framework/pg');
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const databaseName = 'booking_test_workspace_' + randomUUID().replace(/-/g, '');
@@ -95,7 +95,7 @@ describe('Workspace reads through Medusa modules, PostgreSQL and authenticated H
         `module.exports = require(${JSON.stringify(path.resolve(__dirname, '../../src/api/admin/chef-workspace', route, 'route.ts'))})`,
       );
     }
-    await new ApiLoader({ app, sourceDir: routesDir }).load();
+    await new ApiLoader({ app, sourceDir: routesDir, container: fixture.container }).load();
     server = await new Promise<any>((resolve) => {
       const s = app.listen(0, '127.0.0.1', () => resolve(s));
     });

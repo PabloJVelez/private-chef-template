@@ -74,7 +74,7 @@ export async function processSocialGalleryImportJob(container: MedusaContainer, 
   const database = galleryDatabase(container);
   const job = await claimImport(database, jobId);
   if (!job) return;
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
   const svc = container.resolve<SocialGalleryModuleService>(SOCIAL_GALLERY_MODULE);
   const files = container.resolve<IFileModuleService>(Modules.FILE);
   const controller = new AbortController();

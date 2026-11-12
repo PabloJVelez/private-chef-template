@@ -3,7 +3,7 @@ import type {
   SubscriberConfig,
 } from "@medusajs/medusa"
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { CreateNotificationDTO } from "@medusajs/types"
+import { CreateNotificationDTO } from "@medusajs/framework/types"
 import { DateTime } from "luxon"
 import { resolveChefEventTypeEmailLabel } from "../lib/chef-event-email-display"
 import { fallbackPricePerPersonFromStrings } from "../lib/chef-event-legacy-pricing"
@@ -20,8 +20,8 @@ export default async function chefEventAcceptedHandler({
   
   const notificationService = container.resolve(Modules.NOTIFICATION)
   const chefEventService = container.resolve("chefEventModuleService") as any
-  const productService = container.resolve("product")
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  const productService = container.resolve<import("@medusajs/framework/types").IProductModuleService>("product")
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER)
 
   try {
     // Fetch the chef event data from the database

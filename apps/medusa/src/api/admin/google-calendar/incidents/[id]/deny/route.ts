@@ -1,6 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { MedusaError } from "@medusajs/framework/utils";
-import { z } from "zod";
+import { z } from "@medusajs/framework/zod";
 import { GOOGLE_CALENDAR_CONNECTION_MODULE } from "../../../../../../modules/google-calendar-connection";
 import type GoogleCalendarConnectionModuleService from "../../../../../../modules/google-calendar-connection/service";
 import { CHEF_EVENT_MODULE } from "../../../../../../modules/chef-event";

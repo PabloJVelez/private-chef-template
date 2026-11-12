@@ -1,10 +1,10 @@
-import type { z } from 'zod';
+import type { z } from '@medusajs/framework/zod';
 import type { calendarQuery } from '../../lib/chef-workspace/query';
 import { summaryFields, type PrivateEventRead } from '../../lib/chef-workspace/private-event';
 import { createHash, randomUUID } from 'node:crypto';
 import { AcceptanceAttempt } from './models/acceptance-attempt';
 import type { Context } from '@medusajs/framework/types';
-import type { EntityManager } from '@mikro-orm/knex';
+import type { EntityManager } from '@medusajs/framework/mikro-orm/knex';
 import {
   InjectManager,
   InjectTransactionManager,

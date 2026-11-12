@@ -19,7 +19,7 @@ import {
   updateStoresWorkflow,
 } from '@medusajs/core-flows';
 import { createCollectionsWorkflow } from '@medusajs/medusa/core-flows';
-import type { ExecArgs } from '@medusajs/types';
+import type { ExecArgs } from '@medusajs/framework/types';
 import { ContainerRegistrationKeys, Modules } from '@medusajs/framework/utils';
 import {
   seedMenuEntities,
@@ -33,9 +33,9 @@ import type ExperienceTypeModuleService from '../modules/experience-type/service
 import ensureSystemChargeProduct from './ensure-system-charge-product';
 
 export default async function init({ container }: ExecArgs) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
-  const remoteLink = container.resolve(ContainerRegistrationKeys.LINK);
-  const storeModuleService = container.resolve(Modules.STORE);
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER);
+  const remoteLink = container.resolve<import("@medusajs/framework/modules-sdk").Link>(ContainerRegistrationKeys.LINK);
+  const storeModuleService = container.resolve<import("@medusajs/framework/types").IStoreModuleService>(Modules.STORE);
 
   logger.info('Starting init: seed (US-only, chef experiences)...');
   const [store] = await storeModuleService.listStores();
@@ -118,7 +118,7 @@ export default async function init({ container }: ExecArgs) {
   const digitalShippingProfile = shippingProfileResult[1];
 
   const fulfillmentResult = await container
-    .resolve(Modules.FULFILLMENT)
+    .resolve<import("@medusajs/framework/types").IFulfillmentModuleService>(Modules.FULFILLMENT)
     .createFulfillmentSets({
       name: 'US Delivery',
       type: 'shipping',

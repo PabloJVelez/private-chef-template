@@ -3,9 +3,7 @@ import { resolve } from 'node:path';
 import { createServer } from 'node:http';
 import { Client } from '@medusajs/js-sdk';
 import { AdminAvailabilityResource } from '../../src/sdk/admin/admin-availability';
-// Medusa 2.7 predates the framework/awilix re-export.
-// eslint-disable-next-line @medusajs/no-mikroorm-direct-import
-import { createContainer, asValue } from 'awilix';
+import { createContainer, asValue } from '@medusajs/framework/awilix';
 import { AvailabilitySetting } from '../../src/modules/availability/models/availability-setting';
 import { EXPERIENCE_TYPE_MODULE } from '../../src/modules/experience-type';
 import { GET, POST } from '../../src/api/admin/availability/route';
@@ -13,7 +11,8 @@ import { GET, POST } from '../../src/api/admin/availability/route';
 const url = process.env.AVAILABILITY_TEST_DATABASE_URL;
 if (url) {
   const testServer = new URL(url);
-  process.env.DB_HOST = testServer.host;
+  process.env.DB_HOST = testServer.hostname;
+  process.env.DB_PORT = testServer.port || '5432';
   process.env.DB_USERNAME = decodeURIComponent(testServer.username);
   process.env.DB_PASSWORD = decodeURIComponent(testServer.password);
   const { moduleIntegrationTestRunner } = require('@medusajs/test-utils');

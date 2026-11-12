@@ -16,7 +16,7 @@ export default async function chefEventEmailResendHandler({
   event: { data },
   container,
 }: SubscriberArgs<EventData>) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER)
   
   logger.info(`Processing email resend request for chef event: ${data.chefEventId}`)
 
@@ -34,7 +34,7 @@ export default async function chefEventEmailResendHandler({
     // Get product details if event is confirmed
     let product = null
     if (chefEvent.productId) {
-      const productModuleService = container.resolve(Modules.PRODUCT)
+      const productModuleService = container.resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT)
       product = await productModuleService.retrieveProduct(chefEvent.productId)
     }
 

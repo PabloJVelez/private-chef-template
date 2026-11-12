@@ -1,0 +1,21 @@
+const { chromium } = require('playwright');
+const assert=require('node:assert/strict');
+(async () => {
+ const browser=await chromium.launch({headless:true}); const page=await browser.newPage({ignoreHTTPSErrors:true});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/*', route => /^https?:\/\/(127\.0\.0\.1|localhost):/.test(route.request().url()) ? route.continue() : route.abort());
+ await page.goto('https://127.0.0.1:9020/app/login');
+ console.log((await page.locator('body').innerText()).slice(0,2000));
+ await page.screenshot({path:'/evidence/admin-login.png'});
+ console.log('inputs',await page.locator('input').evaluateAll(xs=>xs.map(x=>({type:x.type,name:x.name,placeholder:x.placeholder}))));
+ await page.locator('input[name=email]').fill('upgrade@example.invalid');
+ await page.locator('input[type=password]').fill('FixtureUpgrade123');
+ await page.getByRole('button',{name:/continue|log in|sign in/i}).click();
+ await page.waitForTimeout(1800);
+ await page.goto('https://127.0.0.1:9020/app/settings/availability');
+ await page.waitForTimeout(2000);
+ const body=await page.locator('body').innerText(); console.log('settings',body); assert(!body.includes('404 -')); assert(body.includes('Availability')); const links=await page.locator('a').evaluateAll(xs=>xs.map(x=>({text:x.textContent,url:x.getAttribute('href')}))); const store=links.findIndex(x=>x.url==='/app/settings/store'); assert.equal(links[store+1].url,'/app/settings/availability'); assert.equal(links.filter(x=>x.url==='/app/settings/availability').length,1); assert(!body.includes('Extensions'));
+ console.log('links',await page.locator('a').evaluateAll(xs=>xs.map(x=>({text:x.textContent,url:x.getAttribute('href')}))));
+ await page.screenshot({path:'/evidence/admin-availability.png',fullPage:true});
+ await page.goto('https://127.0.0.1:9020/app/settings'); await page.waitForTimeout(2000); console.log('settings-root',await page.locator('body').innerText()); console.log('settings-links',await page.locator('a').evaluateAll(xs=>xs.map(x=>({text:x.textContent,url:x.getAttribute('href')}))));await page.goto('https://127.0.0.1:9020/app/chef-events'); await page.waitForTimeout(2000); assert(!(await page.locator('body').innerText()).includes('404 -')); await page.screenshot({path:'/evidence/admin-workspace.png',fullPage:true}); console.log('workspace', (await page.locator('body').innerText()).slice(0,1500)); await page.goto('https://127.0.0.1:9020/app/orders'); await page.getByText('Upgrade fixture ticket',{exact:true}).waitFor(); console.log('PASS order list includes explicit ticket item'); await page.goto('https://127.0.0.1:9020/app/orders/order_01M76ZBP3YMX6TS29YQCQEND9A'); await page.getByText('Upgrade fixture ticket',{exact:true}).first().waitFor(); console.log('order-detail', (await page.locator('body').innerText()).slice(0,1800)); await page.screenshot({path:'/evidence/admin-order.png',fullPage:true}); console.log('errors',errors);assert.deepEqual(errors,[]);await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -1,4 +1,4 @@
-import type { ExecArgs } from "@medusajs/types"
+import type { ExecArgs } from "@medusajs/framework/types"
 import {
   createProductsWorkflow,
   linkSalesChannelsToStockLocationWorkflow,
@@ -21,12 +21,12 @@ type QueryClient = {
 export default async function ensureSystemChargeProduct({
   container,
 }: Pick<ExecArgs, "container">) {
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
-  const query = container.resolve(ContainerRegistrationKeys.QUERY) as QueryClient
-  const remoteLink = container.resolve(ContainerRegistrationKeys.LINK)
-  const storeModule = container.resolve(Modules.STORE)
-  const productModule = container.resolve(Modules.PRODUCT)
-  const inventoryModule = container.resolve(Modules.INVENTORY)
+  const logger = container.resolve<import("@medusajs/framework/types").Logger>(ContainerRegistrationKeys.LOGGER)
+  const query = container.resolve<import("@medusajs/framework/types").RemoteQueryFunction>(ContainerRegistrationKeys.QUERY) as QueryClient
+  const remoteLink = container.resolve<import("@medusajs/framework/modules-sdk").Link>(ContainerRegistrationKeys.LINK)
+  const storeModule = container.resolve<import("@medusajs/framework/types").IStoreModuleService>(Modules.STORE)
+  const productModule = container.resolve<import("@medusajs/framework/types").IProductModuleService>(Modules.PRODUCT)
+  const inventoryModule = container.resolve<import("@medusajs/framework/types").IInventoryService>(Modules.INVENTORY)
 
   const [store] = await storeModule.listStores()
   if (!store?.default_sales_channel_id) {

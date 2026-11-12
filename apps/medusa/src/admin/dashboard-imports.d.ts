@@ -52,7 +52,7 @@ declare module '~dashboard/components/common/form' {
 
 declare module '~dashboard/hooks/api' {
   import type { FetchError } from '@medusajs/js-sdk';
-  import type { HttpTypes } from '@medusajs/types';
+  import type { HttpTypes } from '@medusajs/framework/types';
   import type { UseMutationOptions, UseMutationResult } from '@tanstack/react-query';
 
   export function useSignInWithEmailPass(
@@ -122,7 +122,7 @@ declare module '~dashboard/components/table/data-table/data-table' {
 
 declare module '~dashboard/hooks/api/orders' {
   import type { FetchError } from '@medusajs/js-sdk';
-  import type { HttpTypes } from '@medusajs/types';
+  import type { HttpTypes } from '@medusajs/framework/types';
   import type { QueryKey, UseQueryOptions } from '@tanstack/react-query';
 
   export function useOrder(
@@ -152,7 +152,7 @@ declare module '~dashboard/hooks/api/orders' {
 }
 
 declare module '~dashboard/hooks/table/columns/use-order-table-columns' {
-  import type { HttpTypes } from '@medusajs/types';
+  import type { HttpTypes } from '@medusajs/framework/types';
   import type { ColumnDef } from '@tanstack/react-table';
 
   export function useOrderTableColumns(props?: {
@@ -172,7 +172,7 @@ declare module '~dashboard/hooks/table/filters/use-order-table-filters' {
 }
 
 declare module '~dashboard/hooks/table/query/use-order-table-query' {
-  import type { HttpTypes } from '@medusajs/types';
+  import type { HttpTypes } from '@medusajs/framework/types';
 
   export function useOrderTableQuery(props: {
     prefix?: string;

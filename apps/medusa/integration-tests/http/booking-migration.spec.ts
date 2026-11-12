@@ -5,7 +5,7 @@ import path from 'node:path';
 import { Migration20261109000100 } from '../../src/modules/chef-event/migrations/Migration20261109000100';
 import { Migration20261109000300 } from '../../src/modules/scheduling/migrations/Migration20261109000300';
 import { Migration20261109000200 } from '../../src/modules/scheduling/migrations/Migration20261109000200';
-const { Client } = require('pg');
+const { Client } = require('@medusajs/framework/pg');
 let db: any;
 const migrate = async (MigrationClass: any, direction = 'up') => {
   const migration = new MigrationClass(undefined, undefined);

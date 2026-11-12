@@ -1,5 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { availableSlots } from '../../../lib/availability/query';
 const query = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), experience_id: z.string().min(1) });
 export async function GET(req: MedusaRequest, res: MedusaResponse) {

@@ -102,7 +102,7 @@ async function calculateDates(
       });
       busy.push(...conflicts);
     } catch {
-      container.resolve('logger')?.warn('Google availability lookup unavailable; using internal bookings only.');
+      container.resolve<import("@medusajs/framework/types").Logger>('logger')?.warn('Google availability lookup unavailable; using internal bookings only.');
     }
   }
   return candidates.map(({ date, slots }) => ({

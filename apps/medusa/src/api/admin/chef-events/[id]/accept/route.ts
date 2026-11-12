@@ -8,7 +8,7 @@ import {
 } from '../../../../../lib/acceptance-messages';
 import type { AuthenticatedMedusaRequest, MedusaResponse } from '@medusajs/framework/http';
 import { MedusaError } from '@medusajs/framework/utils';
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { runEventAcceptance } from '../../../../../lib/run-event-acceptance';
 import { CHEF_EVENT_MODULE } from '../../../../../modules/chef-event';
 import type ChefEventModuleService from '../../../../../modules/chef-event/service';

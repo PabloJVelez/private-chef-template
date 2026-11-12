@@ -1,4 +1,4 @@
-import { Migration } from '@mikro-orm/migrations';
+import { Migration } from '@medusajs/framework/mikro-orm/migrations';
 
 /** Additive schema only. Application wiring and the legacy authority switch are separate. */
 export class Migration20261109000200 extends Migration {

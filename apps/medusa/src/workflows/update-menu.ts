@@ -3,7 +3,7 @@ import {
   createWorkflow,
   StepResponse,
   WorkflowResponse
-} from "@medusajs/workflows-sdk"
+} from "@medusajs/framework/workflows-sdk"
 import { MENU_MODULE } from "../modules/menu"
 import MenuModuleService from "src/modules/menu/service"
 import type { MenuStatus } from "../modules/menu/constants"

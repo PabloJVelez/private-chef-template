@@ -1,3 +1,4 @@
+import type { z } from '@medusajs/framework/zod';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Input, Label, Text } from '@medusajs/ui';
@@ -36,7 +37,7 @@ function hoursToMinutes(hours: number | null | undefined): number | null {
 }
 
 export const ExperienceTypeForm = ({ initialData, onSubmit, onCancel, isLoading }: ExperienceTypeFormProps) => {
-  const form = useForm<ExperienceTypeFormValues>({
+  const form = useForm<z.input<typeof experienceTypeSchema>, unknown, ExperienceTypeFormValues>({
     resolver: zodResolver(experienceTypeSchema),
     defaultValues: getDefaultExperienceTypeValues(initialData),
   });

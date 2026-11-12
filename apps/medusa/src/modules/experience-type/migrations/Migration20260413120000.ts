@@ -1,4 +1,4 @@
-import { Migration } from '@mikro-orm/migrations';
+import { Migration } from '@medusajs/framework/mikro-orm/migrations';
 
 /**
  * v1.1: Dynamic experience types — drop workflow_event_type; relax chef_event.eventType to free text.

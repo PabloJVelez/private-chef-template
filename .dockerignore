@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/.medusa
+**/build
+**/coverage
+**/.turbo
+out
+**/.env
+**/.env.*.local
+.yarn/install-state.gz

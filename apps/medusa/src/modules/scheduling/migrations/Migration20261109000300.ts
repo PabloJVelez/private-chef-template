@@ -1,4 +1,4 @@
-import { Migration } from '@mikro-orm/migrations';
+import { Migration } from '@medusajs/framework/mikro-orm/migrations';
 
 /** Maintenance cutover, after chef-event migrations. No duration recalculation. */
 export class Migration20261109000300 extends Migration {

@@ -1,0 +1,518 @@
+
+inputs [
+  { type: 'text', name: 'email', placeholder: 'Email' },
+  { type: 'password', name: 'password', placeholder: 'Password' }
+]
+settings Settings
+
+General
+
+Store
+
+Availability
+
+Users
+
+Regions
+
+Tax Regions
+
+Return Reasons
+
+Refund Reasons
+
+Sales Channels
+
+Product Types
+
+Product Tags
+
+Locations & Shipping
+
+Developer
+
+Publishable API Keys
+
+Secret API Keys
+
+Workflows
+
+Search
+
+My Account
+
+Profile
+
+U
+
+upgrade@example.invalid
+
+Settings
+Availability
+
+All changes saved
+
+No arrival times are offered until you save your schedule. Start with your timezone and usual hours. Your existing advance-notice requirements are included below. Review them before saving your first schedule.
+
+Your usual week
+
+Timezone: Not set
+
+Your timezone
+
+Choose a timezone from the list, such as Chicago or London.
+
+Done
+
+Days not listed are unavailable.
+
+No working days yet. Add the days you are available.
+
+Add working day
+Days off & special hours
+Add dates
+
+No exceptions yet. Your usual week applies every day.
+
+Advance notice
+
+Choose how many days ahead clients must book. Experiences without an enabled rule can accept same-day requests when hours allow.
+
+Booking notice
+Require advance notice
+Advance notice (days)
+Applies to
+All experiences (including future experiences)
+Selected experiences
+Buffet Style
+Cooking Class
+Plated Dinner
+Meal Prep
+Google Calendar
+Not connected
+Check for conflicts in
+Bookings and Google Calendar (when connected)
+Bookings only — ignore Google conflicts
+Connect Google Calendar
+links [
+  { text: 'Settings', url: '/app/orders' },
+  { text: 'Store', url: '/app/settings/store' },
+  { text: 'Availability', url: '/app/settings/availability' },
+  { text: 'Users', url: '/app/settings/users' },
+  { text: 'Regions', url: '/app/settings/regions' },
+  { text: 'Tax Regions', url: '/app/settings/tax-regions' },
+  { text: 'Return Reasons', url: '/app/settings/return-reasons' },
+  { text: 'Refund Reasons', url: '/app/settings/refund-reasons' },
+  { text: 'Sales Channels', url: '/app/settings/sales-channels' },
+  { text: 'Product Types', url: '/app/settings/product-types' },
+  { text: 'Product Tags', url: '/app/settings/product-tags' },
+  { text: 'Locations & Shipping', url: '/app/settings/locations' },
+  {
+    text: 'Publishable API Keys',
+    url: '/app/settings/publishable-api-keys'
+  },
+  { text: 'Secret API Keys', url: '/app/settings/secret-api-keys' },
+  { text: 'Workflows', url: '/app/settings/workflows' },
+  { text: 'Search', url: '/app/settings/search' },
+  { text: 'Profile', url: '/app/settings/profile' }
+]
+settings-root Settings
+
+General
+
+Store
+
+Availability
+
+Users
+
+Regions
+
+Tax Regions
+
+Return Reasons
+
+Refund Reasons
+
+Sales Channels
+
+Product Types
+
+Product Tags
+
+Locations & Shipping
+
+Developer
+
+Publishable API Keys
+
+Secret API Keys
+
+Workflows
+
+Search
+
+My Account
+
+Profile
+
+U
+
+upgrade@example.invalid
+
+Settings
+Store
+Store
+
+Manage your store's details
+
+Name
+
+Medusa Store
+
+Default currency
+
+USD
+
+US Dollar
+
+Default region
+
+-
+
+Default sales channel
+
+Default Sales Channel
+
+Default location
+
+-
+
+Currencies
+	
+Code
+	
+Name
+	Tax inclusive pricing	
+
+	
+USD
+	
+US Dollar
+	
+False
+	
+
+1
+
+1 of 1 results
+
+1 of 1 pages
+
+Prev
+Next
+Metadata
+0 keys
+JSON
+9 keys
+
+Google Calendar settings have moved to Availability.
+
+Stripe Connect
+Not connected
+
+Connect your Stripe account to accept payments and receive payouts.
+
+Connect Stripe
+settings-links [
+  { text: 'Settings', url: '/app/orders' },
+  { text: 'Store', url: '/app/settings/store' },
+  { text: 'Availability', url: '/app/settings/availability' },
+  { text: 'Users', url: '/app/settings/users' },
+  { text: 'Regions', url: '/app/settings/regions' },
+  { text: 'Tax Regions', url: '/app/settings/tax-regions' },
+  { text: 'Return Reasons', url: '/app/settings/return-reasons' },
+  { text: 'Refund Reasons', url: '/app/settings/refund-reasons' },
+  { text: 'Sales Channels', url: '/app/settings/sales-channels' },
+  { text: 'Product Types', url: '/app/settings/product-types' },
+  { text: 'Product Tags', url: '/app/settings/product-tags' },
+  { text: 'Locations & Shipping', url: '/app/settings/locations' },
+  {
+    text: 'Publishable API Keys',
+    url: '/app/settings/publishable-api-keys'
+  },
+  { text: 'Secret API Keys', url: '/app/settings/secret-api-keys' },
+  { text: 'Workflows', url: '/app/settings/workflows' },
+  { text: 'Search', url: '/app/settings/search' },
+  { text: 'Profile', url: '/app/settings/profile' },
+  { text: 'Settings', url: '/app/settings' },
+  {
+    text: 'Default Sales Channel',
+    url: '/app/settings/sales-channels/sc_01M76XQBX8BW8E3V4E0HXZA1TD'
+  },
+  { text: '', url: '/app/settings/store/metadata/edit' },
+  { text: 'Availability', url: '/app/settings/availability' }
+]
+workspace M
+
+Medusa Store
+
+Search
+
+⌘K
+
+Events
+
+Orders
+
+Menus
+
+Experiences
+
+Social Gallery
+
+Customers
+
+Promotions
+
+Menus
+
+Chef Events
+
+Social Gallery
+
+Experiences
+
+Settings
+
+U
+
+upgrade@example.invalid
+
+Chef Events
+Chef Events
+Create
+Google Calendar sync: Not connected
+Times shown in UTC
+About this calendar
+Add filter
+Today
+November 2026
+Month
+Day
+Agenda
+No events in this range.
+Sun
+	
+Mon
+	
+Tue
+	
+Wed
+	
+Thu
+	
+Fri
+	
+Sat
+
+
+1
+	
+2
+	
+3
+	
+4
+	
+5
+	
+6
+	
+7
+
+
+8
+	
+9
+	
+10
+	
+11
+	
+12
+	
+13
+	
+14
+
+
+15
+	
+16
+	
+17
+	
+18
+	
+19
+	
+20
+	
+21
+
+
+22
+	
+23
+	
+24
+	
+25
+	
+26
+	
+27
+	
+28
+
+
+29
+	
+30
+	
+1
+	
+2
+	
+3
+	
+4
+	
+5
+PASS order list includes explicit ticket item
+order-detail M
+
+Medusa Store
+
+Search
+
+⌘K
+
+Events
+
+Orders
+
+Drafts
+
+Menus
+
+Experiences
+
+Social Gallery
+
+Customers
+
+Promotions
+
+Menus
+
+Chef Events
+
+Social Gallery
+
+Experiences
+
+Settings
+
+U
+
+upgrade@example.invalid
+
+Orders
+#1
+#1
+
+Nov 12, 2026 4:13 AM from
+
+Not paid
+Not fulfilled
+Summary
+
+Upgrade fixture ticket
+
+EVENT-upgrade-fixture
+
+$425.25
+
+1x
+
+$425.25
+
+Item Total
+
+$425.25
+
+Shipping Total
+
+$0.00
+
+Discount Total
+
+-
+
+Tax Total (included)
+
+$0.00
+
+Order Total
+
+$ 425.25 USD
+
+Paid Total
+
+$ 0.00 USD
+
+Outstanding amount
+
+$ 425.25 USD
+
+Payments
+Not paid
+
+Total paid by customer
+
+$ 0.00 USD
+
+Metadata
+0 keys
+JSON
+41 keys
+Customer
+
+ID
+
+F
+
+fixture@example.invalid
+
+Contact
+
+fixture@example.invalid
+
+Shipping address
+
+-
+
+Billing address
+
+-
+
+Activity
+
+Order placed
+
+1 minute ago
+
+$ 425.25 USD
+errors []

@@ -6,7 +6,7 @@ import {
   MedusaError,
   MedusaService,
 } from '@medusajs/framework/utils';
-import type { EntityManager } from '@mikro-orm/knex';
+import type { EntityManager } from '@medusajs/framework/mikro-orm/knex';
 import { Reservation } from './models/reservation';
 
 type Owner = { id: string; ownerId: string; attemptId: string };

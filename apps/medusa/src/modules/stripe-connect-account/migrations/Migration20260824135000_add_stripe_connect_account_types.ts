@@ -1,4 +1,4 @@
-import { Migration } from "@mikro-orm/migrations";
+import { Migration } from "@medusajs/framework/mikro-orm/migrations";
 
 export class Migration20260824135000_add_stripe_connect_account_types extends Migration {
   override async up(): Promise<void> {

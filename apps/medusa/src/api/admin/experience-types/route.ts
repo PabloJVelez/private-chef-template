@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from '@medusajs/framework/http';
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { EXPERIENCE_TYPE_MODULE } from '../../../modules/experience-type';
 import type ExperienceTypeModuleService from '../../../modules/experience-type/service';
 

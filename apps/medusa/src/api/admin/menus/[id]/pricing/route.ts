@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { z } from "zod"
+import { z } from "@medusajs/framework/zod"
 import { MENU_MODULE } from "../../../../../modules/menu"
 
 const upsertPricingSchema = z.object({
@@ -35,7 +35,7 @@ export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
 ): Promise<void> {
-  const logger = req.scope.resolve("logger")
+  const logger = req.scope.resolve<import("@medusajs/framework/types").Logger>("logger")
   const { id: menuId } = req.params
 
   try {
@@ -106,7 +106,7 @@ export async function POST(
     )
 
     if (error instanceof z.ZodError) {
-      res.status(400).json({ message: "Validation error", errors: error.errors })
+      res.status(400).json({ message: "Validation error", errors: error.issues })
       return
     }
 

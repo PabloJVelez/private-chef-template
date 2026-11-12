@@ -1,0 +1,211 @@
+PASS integration-tests/http/booking-native-execution.spec.ts (240.96 s)
+  ● Console
+
+    console.log
+      native crash/resume evidence [
+        { type: 'write', value: 'original' },
+        { type: 'write', value: 'original' },
+        { type: 'dispatch', value: 'original' },
+        { type: 'result', result: 'original', state: 'done', errors: [] }
+      ]
+
+      at Object.log (integration-tests/http/booking-native-execution.spec.ts:105:13)
+
+    console.log
+      product recovery evidence [ { type: 'result', state: 'done', result: [ [Object] ], errors: [] } ]
+
+      at Object.log (integration-tests/http/booking-native-execution.spec.ts:117:13)
+
+    console.log
+      acceptance finalization recovery [
+        {
+          type: 'result',
+          state: 'done',
+          result: {
+            success: true,
+            chefEventId: '74dffa62-2ce6-44c0-9d53-0b481359edc2',
+            productId: 'prod_01M76Z4T4YFY0WFHD7RGPENT87',
+            emailSent: false
+          },
+          errors: [],
+          eventStatus: 'confirmed',
+          productId: 'prod_01M76Z4T4YFY0WFHD7RGPENT87',
+          products: [ [Object] ],
+          notifications: [ 'google-calendar.sync-requested' ],
+          reservations: [ [Object] ]
+        }
+      ]
+
+      at Object.log (integration-tests/http/booking-native-execution.spec.ts:140:13)
+
+    console.log
+      normal-config route evidence {
+        eventId: '01M76Z56TARPWGAQXZJPF141YH',
+        status: 200,
+        elapsedMs: 1150.456916,
+        finalizedMs: 968.1181539999998,
+        productCreateCalls: 1,
+        handle: 'event-dinner-party-va-guest-2027-01-07-01m76z56tarpwgaqxzjpf141yh'
+      }
+
+      at log (integration-tests/http/booking-native-execution.spec.ts:181:15)
+
+    console.log
+      normal-config route evidence {
+        eventId: '01M70EQY8KJDNQN7WD745FQDY1',
+        status: 200,
+        elapsedMs: 1057.7125420000002,
+        finalizedMs: 881.5626050000001,
+        productCreateCalls: 1,
+        handle: 'event-dinner-fixture-guest-2027-01-08-01m70eqy8kjdnqn7wd745fqdy1'
+      }
+
+      at log (integration-tests/http/booking-native-execution.spec.ts:181:15)
+
+    console.log
+      elapsed arrival evidence {
+        status: 409,
+        elapsedMs: 169.5109269999998,
+        body: {
+          success: false,
+          attemptId: '5b83c54b-3109-4545-9562-5fc1abe869bf',
+          executionId: 'accept_3713e6cd5cb703f73998a6fc26df97d43a0d9bae1fb8a8beb7258f4f7ffe21bf',
+          pending: false,
+          resolved: true,
+          message: 'That arrival time is no longer available. Please choose another time. This attempt was cancelled and cleanup completed.'
+        }
+      }
+
+      at Object.log (integration-tests/http/booking-native-execution.spec.ts:233:13)
+
+    console.log
+      conflicting arrival evidence {
+        status: 409,
+        elapsedMs: 197.24773200000027,
+        body: {
+          success: false,
+          attemptId: 'b2641a42-a9b4-450a-ade4-691321091b70',
+          executionId: 'accept_165a63247a3483905493c1fb9540ea8b891b80961026752c238af12d587e1de3',
+          pending: false,
+          resolved: true,
+          message: 'That arrival time is no longer available. Please choose another time. This attempt was cancelled and cleanup completed.'
+        }
+      }
+
+      at Object.log (integration-tests/http/booking-native-execution.spec.ts:273:13)
+
+    console.log
+      deterministic validation evidence {
+        status: 409,
+        elapsedMs: 698.546715,
+        productCreateCalls: 1,
+        body: {
+          success: false,
+          attemptId: '727fd3f3-42e6-4d19-aac7-4fb0ef15ff77',
+          executionId: 'accept_de358ad07dc0bb9af43656b512628761296d74eb96961ba7ba396547eb38728f',
+          pending: false,
+          resolved: true,
+          message: 'Ticket details are invalid. Review the event details before retrying acceptance. This attempt was cancelled and cleanup completed.'
+        }
+      }
+
+      at Object.log (integration-tests/http/booking-native-execution.spec.ts:325:13)
+
+    console.log
+      legacy child evidence {
+        type: 'legacy',
+        state: 'reverted',
+        errors: [
+          {
+            action: 'create-products',
+            handlerType: 'invoke',
+            error: [Object]
+          },
+          {}
+        ],
+        productCreateCalls: 1
+      }
+
+      at Object.log (integration-tests/http/booking-native-execution.spec.ts:367:13)
+
+PASS integration-tests/http/availability-concurrency.spec.ts
+PASS integration-tests/http/booking-migration.spec.ts
+(node:1005842) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS integration-tests/http/availability-save.spec.ts
+PASS integration-tests/http/scheduling-domain.spec.ts
+  ● Console
+
+    console.info
+      (node:1014487) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+      (Use `node --trace-warnings ...` to show where the warning was created)
+      PASS integration-tests/scheduling/domain-cases.spec.ts
+        Scheduling native module contract
+          ✓ allows only one concurrent overlapping acquire and permits adjacency (68 ms)
+          ✓ preserves ownership and exact retry semantics (56 ms)
+          ✓ selects reservations starting before the window and excludes half-open adjacency (29 ms)
+          ✓ rolls back through a real module-local Medusa transaction context (32 ms)
+          ✓ rejects incomplete overlap reads and never returns a false free window (390 ms)
+      
+      Test Suites: 1 passed, 1 total
+      Tests:       5 passed, 5 total
+      Snapshots:   0 total
+      Time:        1.823 s
+      Ran all test suites within paths "/tmp/medusa-upgrade-final-v2/apps/medusa/integration-tests/scheduling/domain-cases.spec.ts".
+      Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+      at Object.info (integration-tests/http/scheduling-domain.spec.ts:25:11)
+
+PASS integration-tests/http/booking-scheduling.spec.ts (8.658 s)
+  ● Console
+
+    console.info
+      (node:1014505) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+      (Use `node --trace-warnings ...` to show where the warning was created)
+      PASS integration-tests/booking/scheduling-cases.spec.ts (7.988 s)
+        Scheduling with native Medusa modules and PostgreSQL
+          ✓ propagates a real PostgreSQL read timeout instead of reporting free time (5066 ms)
+          ✓ stale cancellation cleanup cannot release a newer attempt on a reopened request (129 ms)
+          ✓ resolves cancellation of an unclaimed attempt before allowing a new attempt on a reopened request (83 ms)
+          ✓ binds an attempt to actor, event and input and rejects stale finalization (95 ms)
+          ✓ keeps an interrupted cleanup addressable and blocks a new attempt until release is verified (68 ms)
+      
+      Test Suites: 1 passed, 1 total
+      Tests:       5 passed, 5 total
+      Snapshots:   0 total
+      Time:        8.029 s
+      Ran all test suites within paths "/tmp/medusa-upgrade-final-v2/apps/medusa/integration-tests/booking/scheduling-cases.spec.ts".
+      Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+      at Object.info (integration-tests/http/booking-scheduling.spec.ts:25:11)
+
+PASS integration-tests/http/chef-workspace.spec.ts (9.606 s)
+  ● Console
+
+    console.info
+      (node:1014551) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+      (Use `node --trace-warnings ...` to show where the warning was created)
+      PASS integration-tests/workspace/read-cases.spec.ts (8.922 s)
+        Workspace reads through Medusa modules, PostgreSQL and authenticated HTTP
+          ✓ rejects anonymous and customer reads and validates bounds before access (86 ms)
+          ✓ includes crossing intervals, excludes touching ends, preserves display/appointment/protection distinctions (163 ms)
+          ✓ paginates tied timestamps beyond 1000 without gaps and returns the whole bounded calendar (526 ms)
+          ✓ reports oversized ranges as incomplete, never a silently truncated first page (1462 ms)
+          ✓ returns an empty complete range and propagates real database timeout failures (5058 ms)
+      
+      Test Suites: 1 passed, 1 total
+      Tests:       5 passed, 5 total
+      Snapshots:   0 total
+      Time:        8.962 s
+      Ran all test suites within paths "/tmp/medusa-upgrade-final-v2/apps/medusa/integration-tests/workspace/read-cases.spec.ts".
+      Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+      at Object.info (integration-tests/http/chef-workspace.spec.ts:18:11)
+
+
+Test Suites: 7 passed, 7 total
+Tests:       37 passed, 37 total
+Snapshots:   0 total
+Time:        264.447 s
+Ran all test suites.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

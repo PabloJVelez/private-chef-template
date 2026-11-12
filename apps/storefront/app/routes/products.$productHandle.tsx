@@ -20,7 +20,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
   const { products } = await fetchProducts(args.request, {
     handle: args.params.productHandle,
-    fields: '*categories,variants.*,variants.sku,variants.options,variants.inventory_quantity,variants.manage_inventory',
+    fields: '*categories,+metadata,*variants.calculated_price,+variants.inventory_quantity',
   });
 
   if (!products.length) {

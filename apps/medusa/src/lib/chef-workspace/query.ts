@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@medusajs/framework/zod';
 import { MedusaError } from '@medusajs/framework/utils';
 
 const status = z.enum(['pending', 'confirmed', 'cancelled', 'completed']);

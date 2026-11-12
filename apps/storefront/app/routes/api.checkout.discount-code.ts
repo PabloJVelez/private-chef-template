@@ -27,13 +27,12 @@ export async function action(actionArgs: ActionFunctionArgs) {
       promo_codes: [data.code],
     });
 
-    if (cart.promotions.length)
-      if (!cart) {
-        return remixData(
-          { errors: { root: { message: 'Cart could not be updated. Please try again.' } } },
-          { status: 400 },
-        );
-      }
+    if (!cart?.promotions?.some((promotion) => promotion.code === data.code)) {
+      return remixData(
+        { errors: { root: { message: 'Discount code is invalid.' } } },
+        { status: 400 },
+      );
+    }
 
     return remixData({ cart });
   } catch (error) {
