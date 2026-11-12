@@ -152,3 +152,24 @@ production data and the inaccessible Arbor assessment remain explicit release ga
 
 No hosted CI, merge, deployment or production verification was performed. The
 remaining gates are material release conditions, not claims of completed proof.
+
+## PR #34 follow-up: main-sidebar deduplication
+
+The original Admin screenshots above are historical pre-fix evidence: they show
+promoted routes duplicated in the main sidebar. The follow-up adapter composes
+with Unlock's real menu patch and filters only top-level extensions whose paths
+are already in the resulting core routes. Target permission filtering and nested
+extension attachment remain unchanged; source-marker drift fails the build.
+
+Validation on Node 24.22.1: both workspace typechecks and production builds exited
+0 (including both Medusa build phases). The main-sidebar and Availability-routing
+suites passed all 9 tests, including reproducing the unadapted preset's duplicates,
+checking all four promoted paths occur once, and preserving permitted unrelated
+and nested extensions. `git diff --check` passed for the follow-up change.
+
+A Chromium/Playwright 1.56.1 run against the new production Admin bundle, in a
+network-disabled container with synthetic API responses, found exactly one link
+for each of `/menus`, `/experience-types`, `/chef-events` and `/social-gallery`,
+zero `/products` links and no page errors. The screenshot was visually inspected.
+This is built-UI fixture proof, not authenticated backend or real-role RBAC proof;
+provider, database and deployment release gates above are unchanged.

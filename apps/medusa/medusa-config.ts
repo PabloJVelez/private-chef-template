@@ -1,6 +1,6 @@
 import { availabilitySettingsSidebar } from './src/lib/admin-settings-sidebar';
 import { unlock } from '@unlockable/vite-plugin-unlock';
-import { medusa as unlockMedusa } from '@unlockable/vite-plugin-unlock/medusa';
+import { privateChefAdminPreset } from './src/lib/admin-main-sidebar';
 import { defineConfig, loadEnv } from '@medusajs/framework/utils';
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd());
@@ -224,7 +224,7 @@ module.exports = defineConfig({
       plugins: [
         availabilitySettingsSidebar(),
         unlock(
-          unlockMedusa({
+          privateChefAdminPreset({
             overrides: './src/admin/overrides',
             debug: IS_DEV,
           }),
