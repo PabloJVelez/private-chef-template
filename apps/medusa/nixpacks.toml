@@ -13,7 +13,7 @@ cmds = [
 cmds = ["yarn install --immutable"]
 
 [phases.build]
-cmds = ["bash -lc 'cd apps/medusa && yarn build:standalone'"]
+cmds = ["bash -c 'cd apps/medusa && yarn build:standalone'"]
 
 [start]
-cmd = "bash -lc 'cd apps/medusa && yarn predeploy && yarn start:standalone'"
+cmd = "bash -c 'cd apps/medusa && yarn predeploy && yarn start:standalone'"
