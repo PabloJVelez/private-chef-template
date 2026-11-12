@@ -1,0 +1,360 @@
+info:    redisUrl not found. A fake redis instance will be used.
+info:    Generating types...
+info:    No link to load from /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.
+(node:1154325) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+info:    Types generated successfully
+info:    Linting project...
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/routes/chef-events/[id]/page.tsx
+  635:23  warning  Dynamic UI routes aren't added to the sidebar, so `defineRouteConfig` has no effect here and the framework warns at runtime. Remove it from this dynamic route  @medusajs/no-config-on-dynamic-ui-route
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/routes/experience-types/[id]/page.tsx
+  74:23  warning  Dynamic UI routes aren't added to the sidebar, so `defineRouteConfig` has no effect here and the framework warns at runtime. Remove it from this dynamic route  @medusajs/no-config-on-dynamic-ui-route
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/routes/menus/[id]/page.tsx
+  104:23  warning  Dynamic UI routes aren't added to the sidebar, so `defineRouteConfig` has no effect here and the framework warns at runtime. Remove it from this dynamic route  @medusajs/no-config-on-dynamic-ui-route
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/chef-events/[id]/derive-menu/route.ts
+  6:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/chef-events/[id]/reject/route.ts
+  14:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/chef-events/[id]/resend-email/route.ts
+  14:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/chef-events/[id]/revert-menu/route.ts
+  11:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/chef-events/[id]/send-receipt/route.ts
+  16:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/menus/[id]/duplicate/route.ts
+  13:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/menus/[id]/pricing/route.ts
+  38:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/menus/[id]/route.ts
+   41:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+   72:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+  119:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/menus/route.ts
+  44:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+  85:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/sentry-test/route.ts
+  11:9  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/social-gallery-imports/route.ts
+  64:25  warning  Avoid calling `svc.createSocialAccounts(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`    @medusajs/no-service-mutations-in-api-route
+  78:17  warning  Avoid calling `svc.createSocialImportJobs(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`  @medusajs/no-service-mutations-in-api-route
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/social-gallery-posts/[id]/route.ts
+  29:37  warning  Avoid calling `svc.updateSocialGalleryPosts(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`  @medusajs/no-service-mutations-in-api-route
+  42:9   warning  Avoid calling `svc.updateSocialGalleryPosts(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`  @medusajs/no-service-mutations-in-api-route
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/admin/social-gallery-posts/route.ts
+  41:37  warning  Avoid calling `svc.createSocialGalleryPosts(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`  @medusajs/no-service-mutations-in-api-route
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/store/chef-events/route.ts
+  50:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/store/menus/[id]/route.ts
+  9:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/store/menus/route.ts
+  17:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/api/store/sentry-test/route.ts
+  10:9  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/abort-event-acceptance.ts
+  38:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  42:25  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/admin-chef-chat.ts
+  16:37  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  37:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/admin-main-sidebar.ts
+  10:25  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  18:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/admin-settings-sidebar.ts
+  13:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/availability/google-busy.ts
+  44:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  51:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  53:57  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  63:61  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  68:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  72:9   warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/availability/query.ts
+  105:69  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/availability/slots.ts
+   89:55  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  107:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/booking-execution.ts
+  53:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  77:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  88:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  97:25  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/chef-ai/chat.ts
+  34:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  57:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  62:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/chef-ai/provider.ts
+  27:5   warning  Use `Modules.STORE` instead of the bare key `store`                                                                                               @medusajs/link-create-keys-modules-enum
+  46:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  49:43  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/chef-ai/schedule.ts
+   72:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+   77:49  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+   85:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+   88:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  112:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/google-calendar/crypto.ts
+   6:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  10:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/google-calendar/events.ts
+  41:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  71:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  95:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/google-calendar/incremental-sync.ts
+  313:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/google-calendar/oauth-state.ts
+  12:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  29:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  38:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  46:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/google-calendar/tokens.ts
+  30:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  51:17  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  57:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  84:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/google-calendar/watch.ts
+  32:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  67:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/release-event-reservations.ts
+  38:42  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/social-gallery/instagram.ts
+  25:44  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  39:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  57:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/lib/social-gallery/job-store.ts
+  59:76  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  64:34  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/modules/availability/service.ts
+  3:1  warning  Unused eslint-disable directive (no problems were reported from '@medusajs/no-mikroorm-direct-import')
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/modules/google-calendar-connection/service.ts
+   93:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  169:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/modules/menu/service.ts
+  125:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/modules/scheduling/service.ts
+  106:36  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/modules/stripe-connect-account/service.ts
+   70:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+   83:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  108:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  120:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  134:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  157:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  170:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  178:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  182:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  195:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  325:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/modules/stripe-connect/service.ts
+  315:17  warning  `amount` is set from a `amountInCents` value that looks like it's in the smallest currency unit. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+  345:17  warning  `amount` is set from a `amountInCents` value that looks like it's in the smallest currency unit. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+  693:31  warning  `amount` is set from a `amountInCents` value that looks like it's in the smallest currency unit. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/scripts/ensure-system-charge-product.ts
+   33:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+   47:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+   54:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  156:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/scripts/init.ts
+  143:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/scripts/old-scripts/seed-menus.ts
+  308:40  warning  `"remoteLink"` is deprecated. Resolve `"link"` (or `ContainerRegistrationKeys.LINK`) instead                                                      @medusajs/prefer-link-over-remote-link
+  319:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  346:40  warning  `"remoteLink"` is deprecated. Resolve `"link"` (or `ContainerRegistrationKeys.LINK`) instead                                                      @medusajs/prefer-link-over-remote-link
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/scripts/old-scripts/seed/menus.ts
+  711:19  warning  `amount` looks like it's multiplied to cents. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+  715:19  warning  `amount` looks like it's multiplied to cents. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/scripts/seed/chef-experiences.ts
+  118:28  warning  `amount` looks like it's multiplied to cents. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/sdk/admin/admin-chef-events.ts
+  288:17  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  291:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/sdk/admin/admin-chef-workspace.ts
+  26:33  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/sdk/admin/admin-uploads.ts
+  21:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  33:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/sdk/index.ts
+  50:25  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/subscribers/chef-event-accepted.ts
+  23:103  warning  Use `Modules.PRODUCT` instead of the magic string `product`                                                                                       @medusajs/prefer-modules-enum
+  32:13   warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  40:13   warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/subscribers/chef-event-email-resend.ts
+  31:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/subscribers/chef-event-receipt.ts
+  39:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  44:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  49:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/subscribers/chef-event-rejected.ts
+  30:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/subscribers/chef-event-requested.ts
+  30:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/accept-chef-event.ts
+   91:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+   98:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  228:38  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`                                                                       @medusajs/prefer-container-registration-keys
+  302:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  374:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  375:40  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`                                                                       @medusajs/prefer-container-registration-keys
+  483:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  573:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/create-chef-event.ts
+  30:3   warning  Step id `create-chef-event-step` should match the enclosing variable name or filename (expected `create-chef-event`)                              @medusajs/step-id-kebab-case
+  34:43  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  35:42  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  41:42  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  50:50  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  67:3   warning  Workflow id `create-chef-event-workflow` should match the exported workflow name or filename (expected `create-chef-event`)                       @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/create-menu.ts
+   30:3  warning  Step id `create-menu-step` should match the enclosing variable name or filename (expected `create-menu`)         @medusajs/step-id-kebab-case
+  101:3  warning  Workflow id `create-menu-workflow` should match the exported workflow name or filename (expected `create-menu`)  @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/create-or-get-chef-event-menu.ts
+  23:3  warning  Step id `create-or-get-chef-event-menu-step` should match the enclosing variable name or filename (expected `create-or-get-chef-event-menu`)         @medusajs/step-id-kebab-case
+  95:3  warning  Workflow id `create-or-get-chef-event-menu-workflow` should match the exported workflow name or filename (expected `create-or-get-chef-event-menu`)  @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/create-private-event-ticket.ts
+  20:34  warning  Step id `validate-private-event-ticket-owner` should match the enclosing variable name or filename (expected `validate-owner`)  @medusajs/step-id-kebab-case
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/delete-chef-event.ts
+  30:3   warning  Step id `cancel-chef-event-google-artifacts-step` should match the enclosing variable name or filename (expected `cancel-google-artifacts`)       @medusajs/step-id-kebab-case
+  74:3   warning  Step id `delete-chef-event-step` should match the enclosing variable name or filename (expected `delete-chef-event`)                              @medusajs/step-id-kebab-case
+  84:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  98:3   warning  Workflow id `delete-chef-event-workflow` should match the exported workflow name or filename (expected `delete-chef-event`)                       @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/delete-menu.ts
+  14:3   warning  Step id `delete-menu-step` should match the enclosing variable name or filename (expected `delete-menu`)                                          @medusajs/step-id-kebab-case
+  22:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  36:3   warning  Workflow id `delete-menu-workflow` should match the exported workflow name or filename (expected `delete-menu`)                                   @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/duplicate-menu.ts
+  16:3  warning  Step id `duplicate-menu-step` should match the enclosing variable name or filename (expected `duplicate-menu`)         @medusajs/step-id-kebab-case
+  29:3  warning  Workflow id `duplicate-menu-workflow` should match the exported workflow name or filename (expected `duplicate-menu`)  @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/initialize-chef-event-cart.ts
+   65:3  warning  Step id `initialize-chef-event-cart-step` should match the enclosing variable name or filename (expected `initialize-chef-event-cart`)         @medusajs/step-id-kebab-case
+  356:3  warning  Workflow id `initialize-chef-event-cart-workflow` should match the exported workflow name or filename (expected `initialize-chef-event-cart`)  @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/reject-chef-event.ts
+  20:3   warning  Step id `reject-chef-event-step` should match the enclosing variable name or filename (expected `reject-chef-event`)                              @medusajs/step-id-kebab-case
+  28:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  46:3   warning  Workflow id `reject-chef-event-workflow` should match the exported workflow name or filename (expected `reject-chef-event`)                       @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/resend-event-email.ts
+  20:3  warning  Step id `update-email-history-step` should match the enclosing variable name or filename (expected `update-email-history`)     @medusajs/step-id-kebab-case
+  50:3  warning  Workflow id `resend-event-email-workflow` should match the exported workflow name or filename (expected `resend-event-email`)  @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/revert-chef-event-menu.ts
+  23:3  warning  Step id `revert-chef-event-menu-step` should match the enclosing variable name or filename (expected `revert-chef-event-menu`)         @medusajs/step-id-kebab-case
+  69:3  warning  Workflow id `revert-chef-event-menu-workflow` should match the exported workflow name or filename (expected `revert-chef-event-menu`)  @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/save-availability.ts
+   5:25  warning  Step id `save-chef-availability` should match the enclosing variable name or filename (expected `save`)                           @medusajs/step-id-kebab-case
+  19:3   warning  Workflow id `save-chef-availability-settings` should match the exported workflow name or filename (expected `save-availability`)  @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/send-receipt.ts
+  20:3   warning  Step id `update-receipt-history-and-tip-step` should match the enclosing variable name or filename (expected `update-receipt-history-and-tip`)    @medusajs/step-id-kebab-case
+  29:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  83:3   warning  Workflow id `send-receipt-workflow` should match the exported workflow name or filename (expected `send-receipt`)                                 @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/update-chef-event.ts
+   48:3   warning  Step id `update-chef-event-step` should match the enclosing variable name or filename (expected `update-chef-event`)                              @medusajs/step-id-kebab-case
+   92:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+  113:3   warning  Workflow id `update-chef-event-workflow` should match the exported workflow name or filename (expected `update-chef-event`)                       @medusajs/workflow-id-matches-export-or-filename
+
+/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/workflows/update-menu.ts
+   35:3  warning  Step id `update-menu-step` should match the enclosing variable name or filename (expected `update-menu`)         @medusajs/step-id-kebab-case
+  141:3  warning  Workflow id `update-menu-workflow` should match the exported workflow name or filename (expected `update-menu`)  @medusajs/workflow-id-matches-export-or-filename
+
+✖ 170 problems (0 errors, 170 warnings)
+  0 errors and 53 warnings potentially fixable with the `--fix` option.
+warn:    Lint produced 170 warning(s).
+info:    Starting build...
+info:    Compiling backend source...
+info:    Removing existing ".medusa/server" folder
+info:    Compiling frontend source...
+[vite-plugin-unlock] Scanned 1216 files in @medusajs/dashboard (/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/node_modules/@medusajs/dashboard/src)
+[vite-plugin-unlock] Override: home -> /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/overrides/home.tsx
+[vite-plugin-unlock] Override: login -> /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/overrides/login.tsx
+[vite-plugin-unlock] Override: menu.config -> /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/overrides/menu.config.ts
+[vite-plugin-unlock] Override: order-detail -> /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/overrides/order-detail.tsx
+[vite-plugin-unlock] Override: order-list-table -> /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/overrides/order-list-table.tsx
+[vite-plugin-unlock] Override: order-summary-section -> /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/overrides/order-summary-section.tsx
+[vite-plugin-unlock] Override "menu.config" does not match any file in target packages — skipped
+[vite-plugin-unlock] Active overrides: 5
+[vite-plugin-unlock]   File-level: home, login, order-detail, order-list-table, order-summary-section
+[vite-plugin-unlock] Patch: menu.config -> /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/src/admin/overrides/menu.config.ts
+[vite-plugin-unlock] Auto-included 31 CJS deps for pre-bundling
+[vite-plugin-unlock] React plugin detected — handing over HMR to React Fast Refresh
+[vite-plugin-unlock] Entry redirect: app.mjs -> src/app.tsx
+[vite-plugin-unlock] CSS rewritten: ./index.css -> ../dist/app.css
+[vite-plugin-unlock] HMR boundary injected: @medusajs/dashboard entry
+info:    Backend build completed successfully (9.43s)
+[vite-plugin-unlock] Override: home -> home.tsx
+[vite-plugin-unlock] Override: order-detail -> order-detail.tsx
+[vite-plugin-unlock] Override: login -> login.tsx
+[vite-plugin-unlock] Patch applied: main-layout.tsx via menu.config
+[vite-plugin-unlock] Override: order-list-table -> order-list-table.tsx
+info:    Frontend build completed successfully (23.97s)
