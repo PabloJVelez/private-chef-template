@@ -1,0 +1,7 @@
+{"level":"info","message":"OTEL registered","timestamp":"2026-11-12 04:06:16"}
+{"level":"info","message":"Connection to Redis in module 'cache-redis' established","timestamp":"2026-11-12 04:06:17"}
+{"level":"info","message":"Connection to Redis in module 'event-bus-redis' established","timestamp":"2026-11-12 04:06:17"}
+{"level":"info","message":"Connection to Redis in module 'workflow-engine-redis' established","timestamp":"2026-11-12 04:06:17"}
+{"level":"info","message":"Connection to Redis PubSub in module 'workflow-engine-redis' established","timestamp":"2026-11-12 04:06:17"}
+{"activity_id":"01M76YYQJ52YP6ZE3TXT2C3C44","config":{},"level":"info","message":"Creating server","timestamp":"2026-11-12 04:06:18"}
+{"activity_id":"01M76YYQJ52YP6ZE3TXT2C3C44","duration":20,"level":"info","message":"Server is ready on port: 9019","timestamp":"2026-11-12 04:06:18"}

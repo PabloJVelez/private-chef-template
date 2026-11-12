@@ -1,0 +1,8 @@
+{"level":"info","message":"Executing script at /tmp/medusa-upgrade-evidence/history-check.ts...","timestamp":"2026-11-12 04:09:33"}
+{"level":"info","message":"Connection to Redis in module 'cache-redis' established","timestamp":"2026-11-12 04:09:34"}
+{"level":"info","message":"Connection to Redis in module 'event-bus-redis' established","timestamp":"2026-11-12 04:09:34"}
+{"level":"info","message":"Connection to Redis in module 'workflow-engine-redis' established","timestamp":"2026-11-12 04:09:34"}
+{"level":"info","message":"Connection to Redis PubSub in module 'workflow-engine-redis' established","timestamp":"2026-11-12 04:09:34"}
+{"level":"info","message":"No job to load from /tmp/medusa-upgrade-baseline/apps/medusa/node_modules/@medusajs/medusa/dist/jobs. skipped.","timestamp":"2026-11-12 04:09:35"}
+PASS completed workflow recovered from PostgreSQL with empty isolated Redis; no step replay, money 425.25
+{"level":"info","message":"Finished executing script.","timestamp":"2026-11-12 04:09:35"}

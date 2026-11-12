@@ -1,0 +1,29 @@
+PASS src/lib/__tests__/availability-ui.unit.spec.ts (5.344 s)
+PASS src/lib/__tests__/availability-calendar.unit.spec.ts
+PASS src/lib/social-gallery/__tests__/gallery.unit.spec.ts
+PASS src/lib/__tests__/admin-availability-routing.unit.spec.ts
+PASS src/lib/__tests__/availability-acceptance.unit.spec.ts
+PASS src/lib/__tests__/chef-workspace-ui.unit.spec.ts
+PASS src/lib/__tests__/availability.unit.spec.ts
+PASS src/lib/__tests__/availability-notice-editor.unit.spec.ts
+PASS src/lib/__tests__/acceptance-sdk-retry.unit.spec.ts
+PASS src/lib/__tests__/chef-workspace.unit.spec.ts
+PASS src/lib/__tests__/availability-initial-notice.unit.spec.ts
+PASS src/lib/__tests__/stripe-provider-idempotency.unit.spec.ts
+PASS src/lib/__tests__/availability-google.unit.spec.ts
+PASS src/lib/__tests__/availability-editor.unit.spec.ts
+PASS src/lib/__tests__/availability-preview-api.unit.spec.ts
+PASS src/lib/__tests__/booking-retention.unit.spec.ts
+PASS src/lib/__tests__/workspace-calendar-range.unit.spec.ts
+PASS src/lib/__tests__/chef-event-additional-charges.unit.spec.ts
+PASS src/lib/__tests__/chef-event-calendar-status-params.unit.spec.ts
+PASS src/lib/__tests__/availability-google-panel.unit.spec.ts
+PASS src/lib/__tests__/availability-tokens.unit.spec.ts
+PASS src/lib/__tests__/reviews-compatibility.unit.spec.ts
+PASS src/lib/__tests__/event-ticket.unit.spec.ts
+
+Test Suites: 23 passed, 23 total
+Tests:       204 passed, 204 total
+Snapshots:   0 total
+Time:        28.217 s
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

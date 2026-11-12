@@ -1,0 +1,501 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 999B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:24.22.1-alpine
+#2 DONE 0.2s
+
+#3 [base 1/4] FROM docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#3 resolve docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 0.0s done
+#3 CACHED
+
+#4 [base 2/4] RUN apk update && apk add --no-cache libc6-compat
+#4 0.509 v3.24.4-64-gd866828e3e6 [https://dl-cdn.alpinelinux.org/alpine/v3.24/main]
+#4 0.509 v3.24.4-61-g48794b399db [https://dl-cdn.alpinelinux.org/alpine/v3.24/community]
+#4 0.509 OK: 28673 distinct packages available
+#4 0.831 (1/3) Installing musl-obstack (1.2.3-r2)
+#4 0.840 (2/3) Installing libucontext (1.5.1-r0)
+#4 0.848 (3/3) Installing gcompat (1.1.0-r4)
+#4 0.864 OK: 11.0 MiB in 22 packages
+#4 DONE 1.0s
+
+#5 [base 3/4] RUN mkdir -p /app && chown node:node /app
+#5 DONE 0.2s
+
+#6 [base 4/4] WORKDIR /app
+#6 DONE 0.0s
+
+#7 [internal] load .dockerignore
+#7 transferring context: 154B done
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 153.86kB 0.1s done
+#8 DONE 0.1s
+
+#9 [builder 1/2] COPY --chown=node:node . .
+#9 DONE 2.0s
+
+#10 [builder 2/2] RUN npx --yes turbo@2.1.2 prune --scope=medusa --docker
+#10 2.376  WARNING  No locally installed `turbo` found. Using version: 2.1.2.
+#10 2.379 
+#10 2.379 Attention:
+#10 2.379 Turborepo now collects completely anonymous telemetry regarding usage.
+#10 2.379 This information is used to shape the Turborepo roadmap and prioritize features.
+#10 2.379 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#10 2.379 https://turbo.build/repo/docs/telemetry
+#10 2.379 
+#10 2.379 turbo 2.1.2
+#10 2.379 
+#10 2.564 Generating pruned monorepo for medusa in /app/out
+#10 2.623  - Added medusa
+#10 2.940 npm notice
+#10 2.940 npm notice New major version of npm available! 11.19.1 -> 12.2.2
+#10 2.940 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+#10 2.940 npm notice To update run: npm install -g npm@12.2.2
+#10 2.940 npm notice
+#10 DONE 3.9s
+
+#11 [installer 1/7] COPY --chown=node:node --from=builder /app/out/json/ .
+#11 DONE 0.0s
+
+#12 [installer 2/7] COPY --chown=node:node --from=builder /app/out/yarn.lock yarn.lock
+#12 DONE 0.1s
+
+#13 [installer 3/7] COPY --chown=node:node --from=builder /app/.yarnrc.yml .yarnrc.yml
+#13 DONE 0.1s
+
+#14 [installer 4/7] COPY --chown=node:node --from=builder /app/.yarn .yarn
+#14 DONE 0.1s
+
+#15 [installer 5/7] RUN yarn install --immutable
+#15 0.734 ➤ YN0000: · Yarn 4.5.0
+#15 0.742 ➤ YN0000: ┌ Resolution step
+#15 1.055 ➤ YN0000: └ Completed in 0s 313ms
+#15 1.056 ➤ YN0000: ┌ Post-resolution validation
+#15 1.056 ➤ YN0060: │ posthog-node is listed by your project with version 4.18.0 (p9773e), which doesn't satisfy what @medusajs/medusa and other dependencies request (^5.57.0).
+#15 1.056 ➤ YN0086: │ Some peer dependencies are incorrectly met by your project; run yarn explain peer-requirements <hash> for details, where <hash> is the six-letter p-prefixed code.
+#15 1.056 ➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+#15 1.112 ➤ YN0000: └ Completed
+#15 1.112 ➤ YN0000: ┌ Fetch step
+#15 11.59 ➤ YN0066: │ typescript@patch:typescript@npm%3A5.7.3#optional!builtin<compat/typescript>::version=5.7.3&hash=8c6c40: Cannot apply hunk #1
+#15 12.63 ➤ YN0013: │ 1864 packages were added to the project (+ 1.07 GiB).
+#15 12.63 ➤ YN0000: └ Completed in 11s 519ms
+#15 12.69 ➤ YN0000: ┌ Link step
+#15 28.03 ➤ YN0007: │ @biomejs/biome@npm:1.9.3 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ sharp@npm:0.34.3 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ esbuild@npm:0.25.3 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ protobufjs@npm:7.5.4 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ protobufjs@npm:7.4.0 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ @swc/core@npm:1.15.43 [73853] must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ esbuild@npm:0.28.2 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ esbuild@npm:0.25.0 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ sharp@npm:0.34.1 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ @medusajs/telemetry@npm:2.22.6 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ msgpackr-extract@npm:3.0.3 must be built because it never has been before or the last one failed
+#15 28.03 ➤ YN0007: │ protobufjs@npm:7.6.6 must be built because it never has been before or the last one failed
+#15 29.07 ➤ YN0000: └ Completed in 16s 386ms
+#15 29.33 ➤ YN0000: · Done with warnings in 28s 596ms
+#15 DONE 31.5s
+
+#16 [installer 1/7] COPY --chown=node:node --from=builder /app/out/json/ .
+#16 CACHED
+
+#17 [installer 2/7] COPY --chown=node:node --from=builder /app/out/yarn.lock yarn.lock
+#17 CACHED
+
+#18 [installer 3/7] COPY --chown=node:node --from=builder /app/.yarnrc.yml .yarnrc.yml
+#18 CACHED
+
+#19 [installer 4/7] COPY --chown=node:node --from=builder /app/.yarn .yarn
+#19 CACHED
+
+#20 [installer 5/7] RUN yarn install --immutable
+#20 CACHED
+
+#21 [installer 6/7] COPY --chown=node:node --from=builder /app/out/full/ .
+#21 DONE 0.2s
+
+#22 [installer 7/7] RUN yarn turbo build --filter=medusa &&     rm -rf node_modules/.cache .yarn/cache
+#22 1.476 
+#22 1.476 Attention:
+#22 1.476 Turborepo now collects completely anonymous telemetry regarding usage.
+#22 1.476 This information is used to shape the Turborepo roadmap and prioritize features.
+#22 1.476 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#22 1.476 https://turbo.build/repo/docs/telemetry
+#22 1.476 
+#22 1.476 turbo 2.4.2
+#22 1.476 
+#22 1.597 • Packages in scope: medusa
+#22 1.597 • Running build in 1 packages
+#22 1.597 • Remote caching disabled
+#22 6.012 medusa:build: cache miss, executing 255e16db0db90a23
+#22 10.59 medusa:build: ╔════════════════════════════════════════════════════════════════════════╗
+#22 10.59 medusa:build: ║                                                                        ║
+#22 10.59 medusa:build: ║   Medusa collects anonymous usage analytics                            ║
+#22 10.59 medusa:build: ║   to help improve Medusa for all users.                                ║
+#22 10.59 medusa:build: ║                                                                        ║
+#22 10.59 medusa:build: ║   If you'd like to opt-out, you can use `medusa telemetry --disable`   ║
+#22 10.59 medusa:build: ║                                                                        ║
+#22 10.59 medusa:build: ║                                                                        ║
+#22 10.59 medusa:build: ╚════════════════════════════════════════════════════════════════════════╝
+#22 10.87 medusa:build: [32minfo[39m:    redisUrl not found. A fake redis instance will be used.
+#22 10.89 medusa:build: [32minfo[39m:    Generating types...
+#22 10.89 medusa:build: [32minfo[39m:    No link to load from /app/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.
+#22 13.25 medusa:build: [32minfo[39m:    Types generated successfully
+#22 13.41 medusa:build: [32minfo[39m:    Linting project...
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/admin/routes/chef-events/[id]/page.tsx
+#22 16.55 medusa:build:   635:23  warning  Dynamic UI routes aren't added to the sidebar, so `defineRouteConfig` has no effect here and the framework warns at runtime. Remove it from this dynamic route  @medusajs/no-config-on-dynamic-ui-route
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/admin/routes/experience-types/[id]/page.tsx
+#22 16.55 medusa:build:   74:23  warning  Dynamic UI routes aren't added to the sidebar, so `defineRouteConfig` has no effect here and the framework warns at runtime. Remove it from this dynamic route  @medusajs/no-config-on-dynamic-ui-route
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/admin/routes/menus/[id]/page.tsx
+#22 16.55 medusa:build:   104:23  warning  Dynamic UI routes aren't added to the sidebar, so `defineRouteConfig` has no effect here and the framework warns at runtime. Remove it from this dynamic route  @medusajs/no-config-on-dynamic-ui-route
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/chef-events/[id]/derive-menu/route.ts
+#22 16.55 medusa:build:   6:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/chef-events/[id]/reject/route.ts
+#22 16.55 medusa:build:   14:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/chef-events/[id]/resend-email/route.ts
+#22 16.55 medusa:build:   14:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/chef-events/[id]/revert-menu/route.ts
+#22 16.55 medusa:build:   11:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/chef-events/[id]/send-receipt/route.ts
+#22 16.55 medusa:build:   16:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/menus/[id]/duplicate/route.ts
+#22 16.55 medusa:build:   13:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/menus/[id]/pricing/route.ts
+#22 16.55 medusa:build:   38:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/menus/[id]/route.ts
+#22 16.55 medusa:build:    41:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build:    72:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build:   119:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/menus/route.ts
+#22 16.55 medusa:build:   44:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build:   85:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/sentry-test/route.ts
+#22 16.55 medusa:build:   11:9  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/social-gallery-imports/route.ts
+#22 16.55 medusa:build:   64:25  warning  Avoid calling `svc.createSocialAccounts(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`    @medusajs/no-service-mutations-in-api-route
+#22 16.55 medusa:build:   78:17  warning  Avoid calling `svc.createSocialImportJobs(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`  @medusajs/no-service-mutations-in-api-route
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/social-gallery-posts/[id]/route.ts
+#22 16.55 medusa:build:   29:37  warning  Avoid calling `svc.updateSocialGalleryPosts(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`  @medusajs/no-service-mutations-in-api-route
+#22 16.55 medusa:build:   42:9   warning  Avoid calling `svc.updateSocialGalleryPosts(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`  @medusajs/no-service-mutations-in-api-route
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/admin/social-gallery-posts/route.ts
+#22 16.55 medusa:build:   41:37  warning  Avoid calling `svc.createSocialGalleryPosts(...)` directly in an API route handler. Move the mutation into a workflow step and invoke it via `someWorkflow(req.scope).run({ input })`  @medusajs/no-service-mutations-in-api-route
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/store/chef-events/route.ts
+#22 16.55 medusa:build:   50:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/store/menus/[id]/route.ts
+#22 16.55 medusa:build:   9:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/store/menus/route.ts
+#22 16.55 medusa:build:   17:80  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/api/store/sentry-test/route.ts
+#22 16.55 medusa:build:   10:9  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/abort-event-acceptance.ts
+#22 16.55 medusa:build:   38:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   42:25  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/admin-settings-sidebar.ts
+#22 16.55 medusa:build:   13:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/availability/google-busy.ts
+#22 16.55 medusa:build:   44:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   51:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   53:57  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   63:61  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   68:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   72:9   warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/availability/query.ts
+#22 16.55 medusa:build:   105:69  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`  @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/availability/slots.ts
+#22 16.55 medusa:build:    89:55  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   107:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/booking-execution.ts
+#22 16.55 medusa:build:   53:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   77:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   88:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   97:25  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/google-calendar/crypto.ts
+#22 16.55 medusa:build:    6:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   10:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/google-calendar/events.ts
+#22 16.55 medusa:build:   41:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   71:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   95:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/google-calendar/incremental-sync.ts
+#22 16.55 medusa:build:   313:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/google-calendar/oauth-state.ts
+#22 16.55 medusa:build:   12:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   29:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   38:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   46:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/google-calendar/tokens.ts
+#22 16.55 medusa:build:   30:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   51:17  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   57:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   84:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/google-calendar/watch.ts
+#22 16.55 medusa:build:   32:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   67:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/release-event-reservations.ts
+#22 16.55 medusa:build:   38:42  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/social-gallery/instagram.ts
+#22 16.55 medusa:build:   25:44  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   39:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   57:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/lib/social-gallery/job-store.ts
+#22 16.55 medusa:build:   59:76  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   64:34  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/modules/availability/service.ts
+#22 16.55 medusa:build:   3:1  warning  Unused eslint-disable directive (no problems were reported from '@medusajs/no-mikroorm-direct-import')
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/modules/google-calendar-connection/service.ts
+#22 16.55 medusa:build:    93:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   169:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/modules/menu/service.ts
+#22 16.55 medusa:build:   125:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/modules/scheduling/service.ts
+#22 16.55 medusa:build:   106:36  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/modules/stripe-connect-account/service.ts
+#22 16.55 medusa:build:    70:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:    83:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   108:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   120:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   134:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   157:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   170:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   178:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   182:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   195:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   325:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/modules/stripe-connect/service.ts
+#22 16.55 medusa:build:   315:17  warning  `amount` is set from a `amountInCents` value that looks like it's in the smallest currency unit. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+#22 16.55 medusa:build:   345:17  warning  `amount` is set from a `amountInCents` value that looks like it's in the smallest currency unit. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+#22 16.55 medusa:build:   693:31  warning  `amount` is set from a `amountInCents` value that looks like it's in the smallest currency unit. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/scripts/ensure-system-charge-product.ts
+#22 16.55 medusa:build:    33:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:    47:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:    54:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   156:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/scripts/init.ts
+#22 16.55 medusa:build:   143:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/scripts/old-scripts/seed-menus.ts
+#22 16.55 medusa:build:   308:40  warning  `"remoteLink"` is deprecated. Resolve `"link"` (or `ContainerRegistrationKeys.LINK`) instead                                                      @medusajs/prefer-link-over-remote-link
+#22 16.55 medusa:build:   319:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   346:40  warning  `"remoteLink"` is deprecated. Resolve `"link"` (or `ContainerRegistrationKeys.LINK`) instead                                                      @medusajs/prefer-link-over-remote-link
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/scripts/old-scripts/seed/menus.ts
+#22 16.55 medusa:build:   711:19  warning  `amount` looks like it's multiplied to cents. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+#22 16.55 medusa:build:   715:19  warning  `amount` looks like it's multiplied to cents. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/scripts/seed/chef-experiences.ts
+#22 16.55 medusa:build:   118:28  warning  `amount` looks like it's multiplied to cents. Medusa expects prices in major units (decimals)  @medusajs/prices-in-major-units
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/sdk/admin/admin-chef-events.ts
+#22 16.55 medusa:build:   288:17  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   291:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/sdk/admin/admin-chef-workspace.ts
+#22 16.55 medusa:build:   26:33  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/sdk/admin/admin-uploads.ts
+#22 16.55 medusa:build:   21:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   33:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/sdk/index.ts
+#22 16.55 medusa:build:   50:25  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/subscribers/chef-event-accepted.ts
+#22 16.55 medusa:build:   23:103  warning  Use `Modules.PRODUCT` instead of the magic string `product`                                                                                       @medusajs/prefer-modules-enum
+#22 16.55 medusa:build:   32:13   warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   40:13   warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/subscribers/chef-event-email-resend.ts
+#22 16.55 medusa:build:   31:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/subscribers/chef-event-receipt.ts
+#22 16.55 medusa:build:   39:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   44:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   49:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/subscribers/chef-event-rejected.ts
+#22 16.55 medusa:build:   30:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/subscribers/chef-event-requested.ts
+#22 16.55 medusa:build:   30:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/accept-chef-event.ts
+#22 16.55 medusa:build:    91:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:    98:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   228:38  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`                                                                       @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build:   302:11  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   374:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   375:40  warning  Use `ContainerRegistrationKeys.LOGGER` instead of the magic string `logger`                                                                       @medusajs/prefer-container-registration-keys
+#22 16.55 medusa:build:   483:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   573:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/create-chef-event.ts
+#22 16.55 medusa:build:   30:3   warning  Step id `create-chef-event-step` should match the enclosing variable name or filename (expected `create-chef-event`)                              @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   34:43  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   35:42  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   41:42  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   50:50  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   67:3   warning  Workflow id `create-chef-event-workflow` should match the exported workflow name or filename (expected `create-chef-event`)                       @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/create-menu.ts
+#22 16.55 medusa:build:    30:3  warning  Step id `create-menu-step` should match the enclosing variable name or filename (expected `create-menu`)         @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   101:3  warning  Workflow id `create-menu-workflow` should match the exported workflow name or filename (expected `create-menu`)  @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/create-or-get-chef-event-menu.ts
+#22 16.55 medusa:build:   23:3  warning  Step id `create-or-get-chef-event-menu-step` should match the enclosing variable name or filename (expected `create-or-get-chef-event-menu`)         @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   95:3  warning  Workflow id `create-or-get-chef-event-menu-workflow` should match the exported workflow name or filename (expected `create-or-get-chef-event-menu`)  @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/create-private-event-ticket.ts
+#22 16.55 medusa:build:   20:34  warning  Step id `validate-private-event-ticket-owner` should match the enclosing variable name or filename (expected `validate-owner`)  @medusajs/step-id-kebab-case
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/delete-chef-event.ts
+#22 16.55 medusa:build:   30:3   warning  Step id `cancel-chef-event-google-artifacts-step` should match the enclosing variable name or filename (expected `cancel-google-artifacts`)       @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   74:3   warning  Step id `delete-chef-event-step` should match the enclosing variable name or filename (expected `delete-chef-event`)                              @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   84:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   98:3   warning  Workflow id `delete-chef-event-workflow` should match the exported workflow name or filename (expected `delete-chef-event`)                       @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/delete-menu.ts
+#22 16.55 medusa:build:   14:3   warning  Step id `delete-menu-step` should match the enclosing variable name or filename (expected `delete-menu`)                                          @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   22:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   36:3   warning  Workflow id `delete-menu-workflow` should match the exported workflow name or filename (expected `delete-menu`)                                   @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/duplicate-menu.ts
+#22 16.55 medusa:build:   16:3  warning  Step id `duplicate-menu-step` should match the enclosing variable name or filename (expected `duplicate-menu`)         @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   29:3  warning  Workflow id `duplicate-menu-workflow` should match the exported workflow name or filename (expected `duplicate-menu`)  @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/initialize-chef-event-cart.ts
+#22 16.55 medusa:build:    65:3  warning  Step id `initialize-chef-event-cart-step` should match the enclosing variable name or filename (expected `initialize-chef-event-cart`)         @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   356:3  warning  Workflow id `initialize-chef-event-cart-workflow` should match the exported workflow name or filename (expected `initialize-chef-event-cart`)  @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/reject-chef-event.ts
+#22 16.55 medusa:build:   20:3   warning  Step id `reject-chef-event-step` should match the enclosing variable name or filename (expected `reject-chef-event`)                              @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   28:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   46:3   warning  Workflow id `reject-chef-event-workflow` should match the exported workflow name or filename (expected `reject-chef-event`)                       @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/resend-event-email.ts
+#22 16.55 medusa:build:   20:3  warning  Step id `update-email-history-step` should match the enclosing variable name or filename (expected `update-email-history`)     @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   50:3  warning  Workflow id `resend-event-email-workflow` should match the exported workflow name or filename (expected `resend-event-email`)  @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/revert-chef-event-menu.ts
+#22 16.55 medusa:build:   23:3  warning  Step id `revert-chef-event-menu-step` should match the enclosing variable name or filename (expected `revert-chef-event-menu`)         @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   69:3  warning  Workflow id `revert-chef-event-menu-workflow` should match the exported workflow name or filename (expected `revert-chef-event-menu`)  @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/save-availability.ts
+#22 16.55 medusa:build:    5:25  warning  Step id `save-chef-availability` should match the enclosing variable name or filename (expected `save`)                           @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   19:3   warning  Workflow id `save-chef-availability-settings` should match the exported workflow name or filename (expected `save-availability`)  @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/send-receipt.ts
+#22 16.55 medusa:build:   20:3   warning  Step id `update-receipt-history-and-tip-step` should match the enclosing variable name or filename (expected `update-receipt-history-and-tip`)    @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   29:13  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   83:3   warning  Workflow id `send-receipt-workflow` should match the exported workflow name or filename (expected `send-receipt`)                                 @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/update-chef-event.ts
+#22 16.55 medusa:build:    48:3   warning  Step id `update-chef-event-step` should match the enclosing variable name or filename (expected `update-chef-event`)                              @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:    92:15  warning  Throw `MedusaError` instead of a generic `Error`. Use `new MedusaError(MedusaError.Types.X, "...")` so the error maps to the correct HTTP status  @medusajs/use-medusa-error-not-generic-error
+#22 16.55 medusa:build:   113:3   warning  Workflow id `update-chef-event-workflow` should match the exported workflow name or filename (expected `update-chef-event`)                       @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: /app/apps/medusa/src/workflows/update-menu.ts
+#22 16.55 medusa:build:    35:3  warning  Step id `update-menu-step` should match the enclosing variable name or filename (expected `update-menu`)         @medusajs/step-id-kebab-case
+#22 16.55 medusa:build:   141:3  warning  Workflow id `update-menu-workflow` should match the exported workflow name or filename (expected `update-menu`)  @medusajs/workflow-id-matches-export-or-filename
+#22 16.55 medusa:build: 
+#22 16.55 medusa:build: ✖ 155 problems (0 errors, 155 warnings)
+#22 16.55 medusa:build:   0 errors and 52 warnings potentially fixable with the `--fix` option.
+#22 16.55 medusa:build: [33mwarn[39m:    Lint produced 155 warning(s).
+#22 16.55 medusa:build: [32minfo[39m:    Starting build...
+#22 16.64 medusa:build: [32minfo[39m:    Compiling backend source...
+#22 16.64 medusa:build: [32minfo[39m:    Removing existing ".medusa/server" folder
+#22 33.39 medusa:build: [32minfo[39m:    Compiling frontend source...
+#22 33.71 medusa:build: [vite-plugin-unlock] Scanned 1216 files in @medusajs/dashboard (/app/apps/medusa/node_modules/@medusajs/dashboard/src)
+#22 33.71 medusa:build: [vite-plugin-unlock] Override: home -> /app/apps/medusa/src/admin/overrides/home.tsx
+#22 33.71 medusa:build: [vite-plugin-unlock] Override: login -> /app/apps/medusa/src/admin/overrides/login.tsx
+#22 33.71 medusa:build: [vite-plugin-unlock] Override: menu.config -> /app/apps/medusa/src/admin/overrides/menu.config.ts
+#22 33.71 medusa:build: [vite-plugin-unlock] Override: order-detail -> /app/apps/medusa/src/admin/overrides/order-detail.tsx
+#22 33.71 medusa:build: [vite-plugin-unlock] Override: order-list-table -> /app/apps/medusa/src/admin/overrides/order-list-table.tsx
+#22 33.71 medusa:build: [vite-plugin-unlock] Override: order-summary-section -> /app/apps/medusa/src/admin/overrides/order-summary-section.tsx
+#22 33.71 medusa:build: [vite-plugin-unlock] Override "menu.config" does not match any file in target packages — skipped
+#22 33.71 medusa:build: [vite-plugin-unlock] Active overrides: 5
+#22 33.71 medusa:build: [vite-plugin-unlock]   File-level: home, login, order-detail, order-list-table, order-summary-section
+#22 33.71 medusa:build: [vite-plugin-unlock] Patch: menu.config -> /app/apps/medusa/src/admin/overrides/menu.config.ts
+#22 33.72 medusa:build: [vite-plugin-unlock] Auto-included 31 CJS deps for pre-bundling
+#22 33.88 medusa:build: [vite-plugin-unlock] React plugin detected — handing over HMR to React Fast Refresh
+#22 33.92 medusa:build: [32minfo[39m:    Backend build completed successfully (17.28s)
+#22 34.01 medusa:build: [vite-plugin-unlock] Entry redirect: app.mjs -> src/app.tsx
+#22 34.08 medusa:build: [vite-plugin-unlock] CSS rewritten: ./index.css -> ../dist/app.css
+#22 34.08 medusa:build: [vite-plugin-unlock] HMR boundary injected: @medusajs/dashboard entry
+#22 46.66 medusa:build: [vite-plugin-unlock] Override: home -> home.tsx
+#22 46.66 medusa:build: [vite-plugin-unlock] Override: order-detail -> order-detail.tsx
+#22 46.66 medusa:build: [vite-plugin-unlock] Override: login -> login.tsx
+#22 48.14 medusa:build: [vite-plugin-unlock] Patch applied: main-layout.tsx via menu.config
+#22 48.55 medusa:build: [vite-plugin-unlock] Override: order-list-table -> order-list-table.tsx
+#22 64.83 medusa:build: [32minfo[39m:    Frontend build completed successfully (48.18s)
+#22 65.20 
+#22 65.20  Tasks:    1 successful, 1 total
+#22 65.20 Cached:    0 cached, 1 total
+#22 65.20   Time:    1m3.714s 
+#22 65.20 
+#22 65.21  WARNING  no output files found for task medusa#build. Please check your `outputs` key in `turbo.json`
+#22 DONE 66.4s
+
+#23 [runner 1/2] COPY --chown=node:node --from=installer /app/ .
+#23 DONE 17.8s
+
+#24 [runner 2/2] WORKDIR /app/apps/medusa/.medusa/server
+#24 DONE 1.0s
+
+#25 exporting to image
+#25 exporting layers
+#25 exporting layers 64.5s done
+#25 exporting manifest sha256:4e7ba8ba09364b7508036376201193604a5f53390a98f44234c050a509e9bc8b 0.0s done
+#25 exporting config sha256:d631325dfac0343cefce5d8ed18eb9f3faf75b49283e68feca56a47e3def837b 0.0s done
+#25 exporting attestation manifest sha256:88671ea7a6cf57f3e72ec62aec5237eec4b69989d2204a20a42a03914b20c13c 0.0s done
+#25 exporting manifest list sha256:e062c0b89289603fe3888f71547fad53b2d8e946d0c3c4acac8097ad1bceff2e 0.0s done
+#25 naming to docker.io/library/medusa-upgrade-backend:a6c1672 done
+#25 unpacking to docker.io/library/medusa-upgrade-backend:a6c1672
+#25 unpacking to docker.io/library/medusa-upgrade-backend:a6c1672 28.5s done
+#25 DONE 93.1s

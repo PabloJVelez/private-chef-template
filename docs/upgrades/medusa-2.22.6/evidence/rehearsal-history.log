@@ -1,0 +1,10 @@
+{"level":"info","message":"Executing script at /tmp/medusa-upgrade-evidence/history-check.ts...","timestamp":"2026-11-12 04:10:25"}
+{"level":"info","message":"No link to load from /home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.","timestamp":"2026-11-12 04:10:25"}
+{"level":"info","message":"Connection to Redis in module 'event-bus-redis' established","timestamp":"2026-11-12 04:10:26"}
+{"level":"info","message":"Connection to Redis in module 'cache-redis' established","timestamp":"2026-11-12 04:10:26"}
+{"level":"info","message":"[Workflow-engine-redis] Connection to Redis in module 'workflow-engine-redis' established","timestamp":"2026-11-12 04:10:26"}
+{"level":"info","message":"[Workflow-engine-redis] Connection to Redis PubSub in module 'workflow-engine-redis' established","timestamp":"2026-11-12 04:10:26"}
+{"level":"info","message":"No workflow to load from /home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/workflows. skipped.","timestamp":"2026-11-12 04:10:26"}
+{"level":"info","message":"No subscriber to load from /home/openclaw/.t3/worktrees/private-chef-template/upgrade-medusa-2.22.6-node24/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/subscribers. skipped.","timestamp":"2026-11-12 04:10:27"}
+PASS completed workflow recovered from PostgreSQL with empty isolated Redis; no step replay, money 425.25
+{"level":"info","message":"Finished executing script.","timestamp":"2026-11-12 04:10:27"}
