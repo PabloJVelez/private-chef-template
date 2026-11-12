@@ -316,10 +316,8 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
         currency: currency_code.toLowerCase(),
         capture_method: this.config_.captureMethod,
         metadata: {
-          ...(context && {
-            session_id: String((context as Record<string, unknown>).session_id || ''),
-            resource_id: String((context as Record<string, unknown>).resource_id || ''),
-          }),
+          // Medusa supplies the durable session ID in data, not context.
+          session_id: String(dataObj?.session_id || ctx?.session_id || ctx?.resource_id || ''),
         },
       };
 
@@ -743,7 +741,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
 
   /**
    * Handles Stripe webhook events.
-   * Session correlation: resource_id (Medusa session) or session_id, then PaymentIntent id.
+   * Session correlation: session_id, then legacy resource_id. Stripe IDs are not Medusa session IDs.
    */
   async getWebhookActionAndData(payload: ProviderWebhookPayload['payload']): Promise<WebhookActionResult> {
     const { data, rawData, headers } = payload;
@@ -785,7 +783,8 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
       switch (event.type) {
         case 'payment_intent.succeeded': {
           const pi = event.data.object as Stripe.PaymentIntent;
-          const sessionId = pi.metadata?.resource_id || pi.metadata?.session_id || pi.id;
+          const sessionId = pi.metadata?.session_id || pi.metadata?.resource_id;
+          if (!sessionId) return { action: 'not_supported', data: { session_id: '', amount: new BigNumber(0) } };
 
           this.logger_.info(
             `${StripeConnectProviderService.LOG_PREFIX} Webhook: payment_intent.succeeded for ${pi.id} (session: ${sessionId})`,
@@ -795,14 +794,15 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             action: 'captured',
             data: {
               session_id: sessionId,
-              amount: new BigNumber(pi.amount),
+              amount: new BigNumber(pi.amount / getSmallestUnit(1, pi.currency)),
             },
           };
         }
 
         case 'payment_intent.amount_capturable_updated': {
           const pi = event.data.object as Stripe.PaymentIntent;
-          const sessionId = pi.metadata?.resource_id || pi.metadata?.session_id || pi.id;
+          const sessionId = pi.metadata?.session_id || pi.metadata?.resource_id;
+          if (!sessionId) return { action: 'not_supported', data: { session_id: '', amount: new BigNumber(0) } };
 
           this.logger_.info(
             `${StripeConnectProviderService.LOG_PREFIX} Webhook: payment_intent.amount_capturable_updated for ${pi.id} (session: ${sessionId})`,
@@ -812,14 +812,15 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             action: 'authorized',
             data: {
               session_id: sessionId,
-              amount: new BigNumber(pi.amount_capturable || 0),
+              amount: new BigNumber((pi.amount_capturable || 0) / getSmallestUnit(1, pi.currency)),
             },
           };
         }
 
         case 'payment_intent.payment_failed': {
           const pi = event.data.object as Stripe.PaymentIntent;
-          const sessionId = pi.metadata?.resource_id || pi.metadata?.session_id || pi.id;
+          const sessionId = pi.metadata?.session_id || pi.metadata?.resource_id;
+          if (!sessionId) return { action: 'not_supported', data: { session_id: '', amount: new BigNumber(0) } };
 
           this.logger_.warn(
             `${StripeConnectProviderService.LOG_PREFIX} Webhook: payment_intent.payment_failed for ${pi.id} (session: ${sessionId})`,
@@ -829,7 +830,7 @@ class StripeConnectProviderService extends AbstractPaymentProvider<StripeConnect
             action: 'failed',
             data: {
               session_id: sessionId,
-              amount: new BigNumber(pi.amount),
+              amount: new BigNumber(pi.amount / getSmallestUnit(1, pi.currency)),
             },
           };
         }

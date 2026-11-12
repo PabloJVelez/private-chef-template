@@ -27,7 +27,11 @@ See `verification.md` for the tested revision and results.
   payments. Explicit order `*items` remains. Shipping compiles against target
   types; balance-loading behavior is exercised by actual native module startup.
 - Native Stripe context idempotency keys now reach create/update/capture/refund/
-  cancel/delete mutations. No new recovery framework or invented payment keys.
+  cancel/delete mutations. Session metadata reads native `data.session_id`; uncorrelated
+  webhooks no longer substitute a Stripe intent ID. Webhook amounts are converted
+  from Stripe minor units to Medusa currency units (USD/JPY/KWD tests). These were
+  inherited provider defects found while auditing target webhook behavior. No new
+  recovery framework or invented payment keys.
   Promotion 400 errors and non-applied codes produce form errors. SDK line-item
   deletion passes authentication in the target argument position.
 - Native acceptance and child ticket workflows explicitly retain completed state
