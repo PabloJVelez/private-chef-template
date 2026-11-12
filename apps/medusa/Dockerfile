@@ -1,11 +1,17 @@
-FROM node:24.22.1-alpine AS base
+FROM node:26.13.1-alpine3.24@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS base
 
 RUN apk update && apk add --no-cache libc6-compat
+
+# Node 26 no longer bundles Corepack/Yarn; Yarn itself stays repository-pinned.
+RUN npm install --global corepack@0.36.0 && corepack enable
 
 RUN mkdir -p /app && chown node:node /app
 USER 1000
 
 WORKDIR /app
+
+# Keep the pinned Yarn cache in every stage, including the offline runtime image.
+RUN corepack install --global yarn@4.5.0
 
 FROM base AS builder
 

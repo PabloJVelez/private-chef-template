@@ -267,7 +267,7 @@ Each rule file contains extensive code examples demonstrating:
 - Rules are designed for Medusa v2.7.0+
 - React Router v7 compatibility
 - TypeScript 5.6+ features
-- Node.js 20+ patterns
+- Node.js 26.13.1 LTS patterns
 
 ---
 

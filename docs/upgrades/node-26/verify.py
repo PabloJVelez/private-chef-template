@@ -1,0 +1,51 @@
+"""Run from a clean archive of the implemented commit; use only task-owned fixtures.
+Node 26.13.1 must be first in PATH. Evidence directory is outside the source tree.
+Integration URLs are mandatory, never inferred from application .env files.
+"""
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+root = Path.cwd()
+out = Path(os.environ['UPGRADE_EVIDENCE_DIR'])
+out.mkdir(parents=True, exist_ok=True)
+assert subprocess.check_output(['node', '--version'], text=True).strip() == 'v26.13.1'
+for name in ['BOOKING_TEST_DATABASE_URL', 'BOOKING_TEST_REDIS_URL',
+             'AVAILABILITY_TEST_DATABASE_URL', 'SOCIAL_GALLERY_TEST_DATABASE_URL']:
+    from urllib.parse import urlparse
+    assert urlparse(os.environ[name]).hostname in ('localhost', '127.0.0.1'), name
+assert subprocess.check_output(['corepack', 'yarn', '--version'], text=True).strip() == '4.5.0'
+(out / 'runtime.json').write_text(json.dumps({
+    'code_sha': os.environ['UPGRADE_CODE_SHA'],
+    'node': subprocess.check_output(['node', '--version'], text=True).strip(),
+    'corepack': subprocess.check_output(['corepack', '--version'], text=True).strip(),
+    'yarn': subprocess.check_output(['corepack', 'yarn', '--version'], text=True).strip(),
+}, indent=2))
+results = []
+checks = [('install', ['install', '--immutable'])]
+for workspace in ['medusa', 'storefront']:
+    for check in ['typecheck', 'test:unit', 'build']:
+        checks.append((workspace + '-' + check.replace(':', '-'), ['workspace', workspace, check]))
+checks.extend([
+    ('medusa-lint', ['workspace', 'medusa', 'lint']),
+    ('integration-http', ['workspace', 'medusa', 'test:integration:http', '--testPathIgnorePatterns=health.spec']),
+    ('integration-health', ['workspace', 'medusa', 'test:integration:http', '--runTestsByPath', 'integration-tests/http/health.spec.ts']),
+    ('integration-modules', ['workspace', 'medusa', 'test:integration:modules']),
+])
+for name, args in checks:
+    command = ['corepack', 'yarn', *args]
+    started = time.time()
+    with (out / (name + '.log')).open('w') as log:
+        try:
+            code = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=1800).returncode
+        except subprocess.TimeoutExpired:
+            log.write('\nTIMEOUT after 1800 seconds\n')
+            code = 124
+    results.append(dict(name=name, command=command, exit_code=code, seconds=round(time.time() - started, 2)))
+    (out / 'results.json').write_text(json.dumps(results, indent=2))
+    print(name, code, flush=True)
+    if code and name == 'install': break
+sys.exit(any(x['exit_code'] for x in results))
