@@ -1,0 +1,88 @@
+{
+  "baseline": "9f9e2770d43f253728aae8c790ad2561a0181c66",
+  "implementation_sha": "17d0f3a034bb18710b670b8cd66d19ba76b0e09b",
+  "node": "26.13.1",
+  "yarn": "4.5.0",
+  "live_model_calls": false,
+  "checks": [
+    {
+      "command": "corepack yarn install --immutable",
+      "exit_code": 0,
+      "notes": "Clean baseline and fresh final-dependency source archive; peer warnings"
+    },
+    {
+      "command": "corepack yarn workspace medusa typecheck",
+      "exit_code": 0,
+      "notes": "Passed final source and clean archive"
+    },
+    {
+      "command": "corepack yarn workspace storefront typecheck",
+      "exit_code": 0,
+      "notes": "Passed worktree and clean archive"
+    },
+    {
+      "command": "corepack yarn workspace medusa build",
+      "exit_code": 0,
+      "notes": "Backend and built Admin; final source and clean archive"
+    },
+    {
+      "command": "corepack yarn workspace storefront build",
+      "exit_code": 0,
+      "notes": "Passed worktree and clean archive"
+    },
+    {
+      "command": "corepack yarn workspace medusa test:unit",
+      "exit_code": 0,
+      "notes": "29 suites / 262 tests"
+    },
+    {
+      "command": "corepack yarn workspace medusa test:unit --runTestsByPath src/lib/__tests__/admin-chef-chat.unit.spec.ts",
+      "exit_code": 0,
+      "notes": "3 installed-source mount tests"
+    },
+    {
+      "command": "corepack yarn workspace storefront test:unit",
+      "exit_code": 0,
+      "notes": "3 suites / 18 tests"
+    },
+    {
+      "command": "corepack yarn workspace medusa test:integration:http --runTestsByPath integration-tests/http/chef-workspace.spec.ts",
+      "exit_code": 0,
+      "notes": "1 wrapper, 5 real PostgreSQL cases; task-owned loopback database"
+    },
+    {
+      "command": "corepack yarn workspace medusa lint",
+      "exit_code": 0,
+      "notes": "0 errors, 170 warnings"
+    },
+    {
+      "command": "node docs/chef-ai/http-acceptance.cjs",
+      "exit_code": 0,
+      "notes": "Real Medusa auth, parser privacy and size caps including trailing slash/case variants"
+    },
+    {
+      "command": "node docs/chef-ai/browser-acceptance.cjs",
+      "exit_code": 0,
+      "notes": "Built Admin, real Medusa/database, OpenAI HTTP transport mocked"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "notes": "Passed"
+    }
+  ],
+  "evidence_sha256": {
+    "backend-admin-build.log": "041b4010cb0995e2b213e4c301505315c435ccd7d487fff947912dc5ec4a0bab",
+    "backend-unit.log": "1b529cb0317faaa28ac5bc13494ed0d01cc6167c8f3604ca92d6e4cda8f5eabd",
+    "baseline-install.log": "fc9942a76f7f1a1d673adef95308b058e81be1593bafbe0185326b501804cc9c",
+    "browser.log": "46196225136624a1c3e99acf360d70579aa2851ea35e34c7a0c29db506feaf60",
+    "calendar-integration.log": "48ccc3c4e0a0e6428fc1a72fd8ec887121a2914d4dcf3b3b439462d950d09d56",
+    "chat-dark-mobile.png": "ede8478d3bd1f98c51b6f2ed991374718c6168df8459344996afecdce8eee24d",
+    "chat-light.png": "58039061b3fad86f86e8ba90f03b2b59468d583218780486b29778e147387f11",
+    "http.log": "c754c48744f5cae040cc8153f161999adee078a258c1c974b38230e99eabfd25",
+    "immutable-install.log": "1b55d3ecaefd6e9443372a505d9cbd41a38feb243234f700808242521c995b65",
+    "mount-tests.log": "86ee1c24a3d424f34f6f317bf83a8aab479c03835091c54a0341928519d34a55",
+    "storefront-build.log": "e8219e1093f4140bf61d61cb198f8066f83db3f6d3c5792db7c981cd79f789c4",
+    "storefront-unit.log": "5c7272c290330dd7b278c44f8d2e68413dea441db8d88b77ce563ed028f95ce7"
+  }
+}

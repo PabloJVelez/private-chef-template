@@ -5,7 +5,8 @@ matched this SHA before editing and again before delivery. The T3-managed
 `feat/chef-admin-ai-schedule-chat-v1` worktree started clean at exactly this commit.
 No root checkout, Meal Prep branch, upgrade documentation, Node pin or booking module changed.
 
-Implementation SHA: recorded below after committing. Evidence-only changes may follow it.
+Tested implementation SHA: **17d0f3a034bb18710b670b8cd66d19ba76b0e09b**.
+The final follow-up commit changes only verification documents/evidence.
 All checks use **Node 26.13.1**, **Yarn 4.5.0**, Medusa/dashboard **2.22.6**, React **18.3.1**.
 The host default is Node 24; commands explicitly prepend the already-installed task tool:
 
@@ -15,7 +16,7 @@ export PATH=/tmp/private-chef-node26-tools/node-v26.13.1-linux-x64/bin:$PATH
 
 | Exact command (from repository root unless noted) | Result |
 | --- | --- |
-| `corepack yarn install --immutable` | Exit 0 on clean baseline, no existing node_modules; peer warnings |
+| `corepack yarn install --immutable` | Exit 0 on clean baseline and fresh final-dependency source archive, no reused node_modules; peer warnings |
 | `corepack yarn workspace medusa typecheck` | Exit 0 |
 | `corepack yarn workspace storefront typecheck` | Exit 0 |
 | `corepack yarn workspace medusa build` | Exit 0, backend and production Admin assets |
@@ -50,7 +51,8 @@ complete absence and write refusal, disabled send/loading, Escape/focus restorat
 retained memory across Menus/Settings/event-detail navigation, light/dark/mobile bounds,
 no durable chat history, refresh/logout clearing and the 429 error state. Screenshot evidence:
 [light](evidence/chat-light.png), [dark/mobile](evidence/chat-dark-mobile.png).
-The malformed JSON sentinel was absent from server logs and the response. Built Admin JS
+Malformed JSON and 12 KB caps were verified for canonical, trailing-slash and differently
+cased route variants; the private parser sentinel was absent from responses and server logs. Built Admin JS
 contained neither `CHEF_AI_OPENAI_API_KEY` nor the fixture key marker.
 
 T3 preview was attempted twice and failed with: “This host is missing libraries T3's browser
@@ -63,6 +65,13 @@ LD_LIBRARY_PATH=/tmp/bts-browser-libs/root/usr/lib/x86_64-linux-gnu \
 NODE_PATH=/home/openclaw/projects/bts/node_modules \
 node docs/chef-ai/browser-acceptance.cjs
 ```
+
+A fresh archive at `/tmp/bts11-clean-d37b045` verified the final dependency manifests with
+`corepack yarn install --immutable` (15.25 seconds, exit 0), then both workspace typechecks
+and builds also passed there. The final middleware privacy fix was rebuilt and rechecked
+against real HTTP and the built browser in the T3 worktree at the implementation SHA above.
+Evidence logs have ANSI colors and trailing whitespace removed; no substantive output
+was edited. `evidence/results.json` records command outcomes and evidence SHA-256 hashes.
 
 ## Disposable fixture reproduction
 

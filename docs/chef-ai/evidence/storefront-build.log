@@ -123,7 +123,7 @@ build/client/assets/index-DXJbeH6G.js                                           
 build/client/assets/chunk-AYJ5UCUI-DBKV_jUR.js                                               117.84 kB │ gzip: 39.58 kB
 build/client/assets/index-D0CtC41g.js                                                        133.97 kB │ gzip: 43.16 kB
 build/client/assets/data-table-router-form-KeQB8C-F.js                                       175.56 kB │ gzip: 53.24 kB
-✓ built in 5.97s
+✓ built in 6.61s
 vite v5.4.14 building SSR bundle for production...
 transforming...
 ✓ 954 modules transformed.
@@ -132,4 +132,4 @@ build/server/.vite/manifest.json                   0.45 kB
 build/server/assets/StripeBadge-D70kF_jj.png      28.41 kB
 build/server/assets/server-build-B_rG2rBN.css    123.76 kB
 build/server/index.js                          1,206.17 kB
-✓ built in 1.05s
+✓ built in 1.11s

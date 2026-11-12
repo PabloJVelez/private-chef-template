@@ -1,7 +1,7 @@
 info:    redisUrl not found. A fake redis instance will be used.
 info:    Generating types...
 info:    No link to load from /home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.
-(node:1154325) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(node:1156463) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
 (Use `node --trace-warnings ...` to show where the warning was created)
 info:    Types generated successfully
 info:    Linting project...
@@ -351,10 +351,10 @@ info:    Compiling frontend source...
 [vite-plugin-unlock] Entry redirect: app.mjs -> src/app.tsx
 [vite-plugin-unlock] CSS rewritten: ./index.css -> ../dist/app.css
 [vite-plugin-unlock] HMR boundary injected: @medusajs/dashboard entry
-info:    Backend build completed successfully (9.43s)
+info:    Backend build completed successfully (9.96s)
 [vite-plugin-unlock] Override: home -> home.tsx
 [vite-plugin-unlock] Override: order-detail -> order-detail.tsx
 [vite-plugin-unlock] Override: login -> login.tsx
 [vite-plugin-unlock] Patch applied: main-layout.tsx via menu.config
 [vite-plugin-unlock] Override: order-list-table -> order-list-table.tsx
-info:    Frontend build completed successfully (23.97s)
+info:    Frontend build completed successfully (25.45s)
