@@ -6,7 +6,7 @@ This guide will help you integrate Medusa with Resend for email notifications, r
 
 ## Prerequisites
 
-- Node.js v20+
+- Node.js 26.13.1 LTS
 - Medusa v2 application (already set up)
 - Resend account (create at [resend.com](https://resend.com))
 

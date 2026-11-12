@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/3c10d2f5-91b8-405c-a47c-c8ae8a4be575
 
 Before you begin, ensure you have the following installed:
 
-- ✅ Node.js 20+
+- ✅ Node.js 26.13.1 LTS (see `.nvmrc`)
 - ✅ Yarn 4.5.0
 - ✅ Remix
 - ✅ Docker and Docker Compose
@@ -51,9 +51,13 @@ You can view a live demo of the project [here](https://barrio.lambdacurry.dev/).
 ## Getting Started
 
 1. Clone this repository
-2. Install dependencies:
-   ```
-   yarn
+2. Select the pinned runtime and install dependencies (Node 26 needs an explicit Corepack install):
+   ```sh
+   nvm install
+   nvm use
+   npm install --global corepack@0.36.0
+   corepack enable
+   yarn install --immutable
    ```
 3. Test the setup:
    ```

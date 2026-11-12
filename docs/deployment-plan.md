@@ -14,7 +14,7 @@ This document outlines the step-by-step deployment plan for the Medusa monorepo 
 ## Pre-Deployment Checklist
 
 ### ✅ Environment Setup
-- [ ] Node.js 20+ installed
+- [ ] Node.js 26.13.1 LTS installed
 - [ ] Yarn package manager configured
 - [ ] Git repository ready
 - [ ] Railway CLI installed (`npm install -g @railway/cli`)
