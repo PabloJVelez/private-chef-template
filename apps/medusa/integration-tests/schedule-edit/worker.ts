@@ -122,6 +122,9 @@ async function main() {
     });
     const preview = await previewScheduleEdit(container, 'admin', { eventId, time: '11:00' }, secret);
     process.send?.({ type: 'preview', preview });
+  } else if (process.argv[2] === 'execution-boundary') {
+    const { verifyExecutionBoundary } = require('./execution-boundary');
+    await verifyExecutionBoundary(container, process.env.SCHEDULE_REFERENCE!, secret);
   } else {
     if (process.argv[2] === 'later-edit')
       await chef.updateChefEvents({

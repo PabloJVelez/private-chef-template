@@ -21,6 +21,19 @@ const originalErrorHandler = errorHandler()
 
 export default defineMiddlewares({
   routes: [{
+    matcher: '/admin/workflows-executions/:workflow_id/*',
+    methods: ['POST'],
+    middlewares: [(_req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) => {
+      // This workflow accepts trusted, already-verified input from scheduleEditHandler.
+      // Core run and step callbacks must not let Admin callers supply that input.
+      // Match the decoded parameter, including percent-encoded workflow IDs.
+      if (_req.params.workflow_id !== 'edit-pending-event-schedule') return next()
+      res.setHeader('Cache-Control', 'no-store')
+      return res.status(403).json({
+        message: 'Use the signed schedule-edit confirmation and recovery endpoints.',
+      })
+    }],
+  }, {
     matcher: /^\/admin\/chef-events\/schedule-edit\/(preview|confirm|recover)\/?$/i,
     methods: ['POST'],
     bodyParser: { sizeLimit: '6kb' },

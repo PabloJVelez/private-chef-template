@@ -16,6 +16,12 @@ The configured Admin JWT secret must be at least 32 characters. References use d
 
 Bodies are limited to 6 KB. Extra fields, fuzzy identifiers, confirmation text, conversation history, patches and caller-chosen operation IDs are unsupported. The signed payload contains identifiers and normalized schedule data, not customer/contact/menu data. Responses use `Cache-Control: no-store`; request errors omit the reference from monitoring payloads.
 
+### Framework execution boundary
+
+The registered `edit-pending-event-schedule` workflow is an internal execution primitive: its normalized input is trusted only after the dedicated handler authenticates the caller and verifies the actor-bound signed reference. It is **not** a second public write API. Project middleware denies POSTs under `/admin/workflows-executions/:workflow_id/*` for this workflow, including core `run`, `steps/success`, and `steps/failure`. Matching uses the decoded workflow ID, so percent-encoding does not evade the guard. Other workflows are unchanged. This restriction applies even to allowlisted Admins and regardless of the write-enable flag; use dedicated confirmation/recovery instead. Internal Redis execution/restart does not traverse this HTTP middleware.
+
+The previous implementation left core dispatch exposed. Review reproduced an authenticated, non-allowlisted caller sending unsigned modified input with an allowlisted `actorId`. The regression now loads the installed core routes/validators together with project middleware through the actual Medusa HTTP loader, using fixture bearer identities, PostgreSQL and the production Redis engine (RBAC not installed). Nine denied cases cover modified/unsigned input, impersonation, a signed reference from another caller, disabled writes, encoded IDs, trailing slash, and both step callbacks. Every denial verifies unchanged event time and absent receipts; dispatch occurs only after the later valid dedicated confirmation. A harmless control workflow still executes, and dedicated HTTP recovery returns the saved result without another emission.
+
 Successful preview example (identifiers/reference shortened):
 
 ```json
@@ -91,6 +97,18 @@ Use ports assigned to newly created disposable fixtures, not an existing databas
 Results: immutable install, typecheck, backend/Admin build, **30 unit suites / 272 tests**, and all four selected integration wrappers passed. New coverage comprises **41 real PostgreSQL/HTTP contract cases and four persistent-engine process/retry cases**. Existing Scheduling and read/auth wrappers each ran five nested cases; the availability-concurrency suite ran six cases. The PR body records the tested commit SHA.
 
 Limits: no live Google, email, model, production migration, deployment, browser/UI test, or full unrelated repository integration run. Provider dispatch is an instrumented local emitter; its database acknowledgement-loss behavior is real. Policy checks intentionally occur outside row locks and do not reserve pending time. Current-user verification is exercised with a fixture user service, with real Medusa bearer authentication separately. No shared write flag, environment file, secret or production data was changed.
+
+## PR #37 execution-boundary correction verification
+
+Follow-up checks on Node 26.13.1 / Yarn 4.5.0 used a detached review checkout continued on a fix branch, with matching dependency trees reused (not a fresh immutable install):
+
+- Both Medusa and storefront typechecks and production builds passed, including both backend and Admin phases.
+- All 30 Medusa unit suites / 272 tests passed.
+- The schedule integration wrapper passed: 41 PostgreSQL/HTTP contract cases, four process/retry/crash cases, and the new nine-scenario execution-boundary case with valid confirmation/recovery and unrelated-workflow controls.
+- Removing only the production middleware guard makes the new regression fail with HTTP 200 and a saved 12:00 event instead of denial; restoring the guard passes. This verifies the test detects the original defect.
+- Disposable loopback PostgreSQL 16 / Redis 7 fixtures only; no live providers, production migration, deployed runtime, UI acceptance or hosted CI claimed. Writes remain default-off. No merge/deploy authorized by these results.
+
+Reproduce with the existing `test:integration:http --runTestsByPath integration-tests/http/schedule-edit.spec.ts` command and fresh disposable `BOOKING_TEST_DATABASE_URL` / `BOOKING_TEST_REDIS_URL`. The workspace script supplies Jest's required `--experimental-vm-modules`; bypassing it without that flag fails migration loading rather than testing application behavior.
 
 ## Arbor-ready handoff
 

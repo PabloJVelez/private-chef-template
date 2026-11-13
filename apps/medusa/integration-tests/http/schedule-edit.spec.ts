@@ -68,6 +68,33 @@ describe('schedule edit durable recovery across process replacement', () => {
     await admin.query(`drop database ${databaseName} with (force)`);
     await admin.end();
   });
+  it('blocks generic workflow writes over authenticated HTTP without affecting signed confirmation', async () => {
+    const [seed] = await run('seed');
+    const results = await run('execution-boundary', { SCHEDULE_REFERENCE: seed.preview.reference });
+    const denials = results.filter(x => x.type === 'boundary');
+    expect(denials.map(x => x.name)).toEqual([
+      'unsigned-modified', 'impersonated-actor', 'original-unsigned',
+      'signed-reference-different-caller', 'writes-disabled', 'encoded-id',
+      'trailing-slash', 'step-success', 'step-failure',
+    ]);
+    for (const denied of denials) {
+      expect(denied).toMatchObject({ code: 403, time: '10:00' });
+      expect(denied.receipt).toBeNull();
+      expect(denied.originalReceipt).toBeNull();
+    }
+    expect(results.find(x => x.type === 'control')).toMatchObject({
+      code: 200, body: { acknowledgement: { workflowId: 'schedule-boundary-control', hasFinished: true, hasFailed: false } },
+    });
+    // Dispatch must occur only after every denied attempt and the control workflow.
+    expect(results.map(x => x.type)).toEqual([
+      ...Array(9).fill('boundary'), 'control', 'dispatch', 'dedicated', 'recovered',
+    ]);
+    for (const type of ['dedicated', 'recovered']) {
+      expect(results.find(x => x.type === type)).toMatchObject({
+        code: 200, body: { outcome: { outcome: 'saved', time: '11:00' }, googleSync: 'requested' },
+      });
+    }
+  }, 60000);
   it('replays a completed workflow across restart without a second Google dispatch', async () => {
     const [seed] = await run('seed');
     const extra = { SCHEDULE_REFERENCE: seed.preview.reference };
