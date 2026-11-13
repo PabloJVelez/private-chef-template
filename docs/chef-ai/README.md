@@ -1,4 +1,6 @@
-# BTS-11 — read-only schedule chat
+# BTS-11 — Sous Chef
+
+**Sous Chef** is the user-facing assistant name. V1 is a read-only schedule assistant; the launcher is **Ask Sous Chef**. Earlier evidence screenshots retain the branding present when captured.
 
 A floating, non-modal Admin dialog answers bounded schedule questions using the existing
 `readCalendar` service. The only model-selected tool is `get_schedule`. The server renders

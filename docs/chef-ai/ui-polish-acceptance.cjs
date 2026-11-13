@@ -68,8 +68,8 @@ const server = http.createServer((req, res) => {
     unknown.push(`${req.method()} ${url.pathname}`);
     return json({ message: 'Unmocked validation route' }, 404);
   });
-  const open = () => page.getByRole('button', { name: 'Open schedule chat', exact: true }).click();
-  const close = () => page.getByRole('button', { name: 'Close schedule chat', exact: true }).click();
+  const open = () => page.getByRole('button', { name: 'Ask Sous Chef', exact: true }).click();
+  const close = () => page.getByRole('button', { name: 'Close Sous Chef', exact: true }).click();
   const dialog = page.getByRole('dialog');
   const quick = page.getByRole('button', { name: "What's on my schedule this week?", exact: true });
   async function shot(name) { await page.screenshot({ path: path.join(out, name + '.png') }); }
@@ -121,7 +121,7 @@ const server = http.createServer((req, res) => {
     assert((await dialog.locator('article details').first().innerText()).includes('3:30 PM'));
     await shot('details-dark-desktop');
     await page.keyboard.press('Escape');
-    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Open schedule chat');
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Ask Sous Chef');
     await page.locator('a[href="/app/menus"]').first().click();
     await page.waitForURL('**/app/menus'); await open();
     assert.equal(requests.length, 1); assert.equal(await dialog.locator('article').count(), 5);

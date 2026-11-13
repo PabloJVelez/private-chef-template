@@ -92,7 +92,7 @@ for this frontend-only change.
 1. Pull this same branch and rebuild the Admin with Node 26.13.1 / Yarn 4.5.0.
    Use the existing authorized local configuration; no migration or new env is
    needed. Serve the built Admin, then refresh to discard old assets/history.
-2. Open Schedule chat: verify four visible suggestions and no chat network call.
+2. Open Ask Sous Chef: verify four visible suggestions and no chat network call.
    Click a suggestion once; expect one request containing only `message`.
 3. Repeat week → weekend → explicit date (for example November 16, 2026).
    Inspect each returned `period`, `range`, `timeZone` and event list. Relative
@@ -105,3 +105,18 @@ for this frontend-only change.
    logout should clear history. Confirm an empty read never claims availability.
 
 Review only: no merge, deployment, production data/secrets changes or Arbor post.
+
+## Owner-selected name: Sous Chef
+
+The copy-only follow-up from `166176e4503c2273186288346abbb76a7f57db6b`
+uses **Ask Sous Chef** for the launcher and **Sous Chef** for the panel title,
+with **Read-only schedule assistant** as its scope. Greeting, placeholder, close
+label and frontend error copy follow that name. Suggestions, API payloads,
+behavior, internal symbols and backend code are unchanged. Browser harness
+selectors were updated; screenshots above document the earlier UI-polish build.
+
+Passed on Node 26.13.1 / Yarn 4.5.0:
+`corepack yarn workspace medusa test:unit --runTestsByPath src/lib/__tests__/chef-chat-ui.unit.spec.ts`
+(7 tests), `corepack yarn workspace medusa typecheck`,
+`corepack yarn workspace medusa build` (backend and production Admin), and
+`git diff --check`. No new browser, live-model or database run for this copy change.

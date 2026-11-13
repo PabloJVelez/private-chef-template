@@ -57,7 +57,7 @@ it("posts only each latest question while retaining the three questions and dist
     await act(async () => {
       (
         document.querySelector(
-          '[aria-label="Open schedule chat"]',
+          '[aria-label="Ask Sous Chef"]',
         ) as HTMLButtonElement
       ).click();
     });
@@ -161,7 +161,7 @@ async function withChat(fetch: jest.Mock, test: () => Promise<void>) {
     await act(async () => {
       (
         document.querySelector(
-          '[aria-label="Open schedule chat"]',
+          '[aria-label="Ask Sous Chef"]',
         ) as HTMLButtonElement
       ).click();
     });
@@ -205,7 +205,14 @@ it.each(promptQuestions)(
     );
     await withChat(fetch, async () => {
       expect(document.body.textContent).toContain(
-        "What would you like to know?",
+        "What can I help you with?",
+      );
+      expect(button("Ask Sous Chef").textContent).toContain("Ask Sous Chef");
+      expect(document.querySelector('[role="dialog"]')!.textContent).toContain(
+        "Read-only schedule assistant",
+      );
+      expect(document.querySelector("textarea")!.placeholder).toBe(
+        "Ask Sous Chef about your schedule...",
       );
       expect(promptQuestions.map((q) => button(q).disabled)).toEqual([
         false,
@@ -246,8 +253,8 @@ it.each(promptQuestions)(
       expect(document.querySelector('[role="status"]')).toBeNull();
       await draft("A new question for tomorrow");
       expect(button("Send").disabled).toBe(false);
-      await act(async () => button("Close schedule chat").click());
-      await act(async () => button("Open schedule chat").click());
+      await act(async () => button("Close Sous Chef").click());
+      await act(async () => button("Ask Sous Chef").click());
       expect(fetch).toHaveBeenCalledTimes(1);
       expect(document.querySelector('[role="log"]')!.textContent).toContain(
         question,

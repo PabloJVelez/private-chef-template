@@ -333,18 +333,18 @@ export function ChefChat({
           owner: userId,
           turns: [
             {
-              question: "Schedule chat access",
+              question: "Sous Chef access",
               error:
-                "Your session or schedule chat permission could not be verified. Sign in again or ask the site operator to configure access.",
+                "Your session or Sous Chef permission could not be verified. Sign in again or ask the site operator to configure access.",
             },
           ],
         });
       } else {
         const messages: Record<number, string> = {
           400: "Please shorten your question to 1–1000 characters.",
-          422: "Set a valid business timezone in Settings → Availability to use schedule chat.",
-          429: "The schedule chat request limit has been reached. Please try again later.",
-          503: "Schedule chat is not configured yet. Ask the site operator to configure the model provider.",
+          422: "Set a valid business timezone in Settings → Availability to use Sous Chef.",
+          429: "The Sous Chef request limit has been reached. Please try again later.",
+          503: "Sous Chef is not configured yet. Ask the site operator to configure the model provider.",
         };
         setSession({
           owner: userId,
@@ -375,9 +375,9 @@ export function ChefChat({
             right: "max(1rem, env(safe-area-inset-right))",
             bottom: "max(1rem, env(safe-area-inset-bottom))",
           }}
-          aria-label="Open schedule chat"
+          aria-label="Ask Sous Chef"
         >
-          <ChatBubble /> Schedule chat
+          <ChatBubble /> Ask Sous Chef
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -407,10 +407,10 @@ export function ChefChat({
               </span>
               <div>
                 <Dialog.Title className="text-sm font-medium">
-                  Chef schedule assistant
+                  Sous Chef
                 </Dialog.Title>
                 <Dialog.Description className="text-ui-fg-muted mt-0.5 text-xs">
-                  Read-only · Here to help you plan your day
+                  Read-only schedule assistant
                 </Dialog.Description>
               </div>
             </div>
@@ -418,7 +418,7 @@ export function ChefChat({
               <IconButton
                 size="small"
                 variant="transparent"
-                aria-label="Close schedule chat"
+                aria-label="Close Sous Chef"
               >
                 <XMark />
               </IconButton>
@@ -435,7 +435,7 @@ export function ChefChat({
               <div className="space-y-5 py-2">
                 <div className="space-y-2">
                   <h2 className="text-ui-fg-base text-lg font-medium">
-                    What would you like to know?
+                    What can I help you with?
                   </h2>
                   <p className="text-ui-fg-subtle text-sm leading-relaxed">
                     See your recorded requests and appointments, with the
@@ -530,7 +530,7 @@ export function ChefChat({
               maxLength={1000}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="What’s on my schedule tomorrow?"
+              placeholder="Ask Sous Chef about your schedule..."
               onKeyDown={(event) => {
                 if (
                   event.key === "Enter" &&
