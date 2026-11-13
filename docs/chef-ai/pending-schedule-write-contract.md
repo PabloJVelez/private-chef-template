@@ -4,7 +4,7 @@ Stack: [PR #36](https://github.com/PabloJVelez/private-chef-template/pull/36) â†
 
 ## HTTP contract
 
-All three endpoints are authenticated Admin POSTs under `/admin/chef-events/schedule-edit/`. They use Medusa session/bearer authentication, current-user retrieval, `CHEF_AI_SCOPE=single_site`, and `CHEF_AI_ADMIN_USER_IDS`. A separate `CHEF_AI_SCHEDULE_WRITE_ENABLED=true` is required, including for recovery; absent/other values deny access. Nothing in this change enables it on any installation.
+All three endpoints are authenticated Admin POSTs under `/admin/chef-events/schedule-edit/`. They use Medusa session/bearer authentication, current-user retrieval, `CHEF_AI_SCOPE=single_site`, and a verified single active Medusa store (all current Admin accounts). A separate `CHEF_AI_SCHEDULE_WRITE_ENABLED=true` is required, including for recovery; absent/other values deny access. Nothing in this change enables it on any installation.
 
 The configured Admin JWT secret must be at least 32 characters. References use domain-separated HMAC-SHA256 with that existing secret, not a new credential. The operator must supply a high-entropy secret; character count is only a minimum configuration check. Rotating it invalidates old references; reconcile outstanding operations before rotation. Access is explicitly site-wide, not a cross-chef tenancy boundary.
 
@@ -18,7 +18,7 @@ Bodies are limited to 6 KB. Extra fields, fuzzy identifiers, confirmation text, 
 
 ### Framework execution boundary
 
-The registered `edit-pending-event-schedule` workflow is an internal execution primitive: its normalized input is trusted only after the dedicated handler authenticates the caller and verifies the actor-bound signed reference. It is **not** a second public write API. Project middleware denies POSTs under `/admin/workflows-executions/:workflow_id/*` for this workflow, including core `run`, `steps/success`, and `steps/failure`. Matching uses the decoded workflow ID, so percent-encoding does not evade the guard. Other workflows are unchanged. This restriction applies even to allowlisted Admins and regardless of the write-enable flag; use dedicated confirmation/recovery instead. Internal Redis execution/restart does not traverse this HTTP middleware.
+The registered `edit-pending-event-schedule` workflow is an internal execution primitive: its normalized input is trusted only after the dedicated handler authenticates the caller and verifies the actor-bound signed reference. It is **not** a second public write API. Project middleware denies POSTs under `/admin/workflows-executions/:workflow_id/*` for this workflow, including core `run`, `steps/success`, and `steps/failure`. Matching uses the decoded workflow ID, so percent-encoding does not evade the guard. Other workflows are unchanged. This restriction applies to every authenticated Admin and regardless of the write-enable flag; use dedicated confirmation/recovery instead. Internal Redis execution/restart does not traverse this HTTP middleware.
 
 The previous implementation left core dispatch exposed. Review reproduced an authenticated, non-allowlisted caller sending unsigned modified input with an allowlisted `actorId`. The regression now loads the installed core routes/validators together with project middleware through the actual Medusa HTTP loader, using fixture bearer identities, PostgreSQL and the production Redis engine (RBAC not installed). Nine denied cases cover modified/unsigned input, impersonation, a signed reference from another caller, disabled writes, encoded IDs, trailing slash, and both step callbacks. Every denial verifies unchanged event time and absent receipts; dispatch occurs only after the later valid dedicated confirmation. A harmless control workflow still executes, and dedicated HTTP recovery returns the saved result without another emission.
 
@@ -42,7 +42,7 @@ Confirm/recovery returns `{ outcome, googleSync, historical: true, reserved: fal
 
 HTTP 200 = saved/no-change; 409 = recorded rejection without an event mutation; 202 with top-level `outcome: unknown` = processing/history unavailable/response uncertainty, requiring same-reference recovery. Preview validation uses 400/404/422, authorization 401/403, and missing strong signing configuration 503. A lost response is not proof of rollback. Expired, unused references cannot write; if no proof exists the response conservatively remains unknown. Missing history is never permission to mint an operation automatically.
 
-The future UI must retain the exact reference through refresh/retry, recover before offering another operation after uncertain delivery, label returned receipts as historical, and invalidate the exact event/calendar queries after a save. A fresh preview is required after an ordinary recorded rejection or an event change. No action-card integration is included here.
+The [action-card UI](pending-schedule-ui.md) retains the exact reference through refresh/retry, recover before offering another operation after uncertain delivery, label returned receipts as historical, and invalidate the exact event/calendar queries after a save. A fresh preview is required after an ordinary recorded rejection or an event change. This document describes the backend layer; the linked UI handoff describes its stacked increment.
 
 ## Eligibility and concurrency
 

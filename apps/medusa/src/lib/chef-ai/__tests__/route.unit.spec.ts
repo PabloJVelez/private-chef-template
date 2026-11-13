@@ -7,6 +7,7 @@ jest.mock("../../chef-workspace/read", () => ({ readCalendar: jest.fn() }));
 const model = selectSchedule as jest.Mock;
 const read = readCalendar as jest.Mock;
 const retrieveUser = jest.fn();
+const listStores = jest.fn();
 const listAvailabilitySettings = jest.fn();
 let req: any, res: any;
 const env = { ...process.env };
@@ -21,7 +22,11 @@ beforeEach(() => {
     body: { message: "today" },
     scope: {
       resolve: (name: string) =>
-        name === "user" ? { retrieveUser } : { listAvailabilitySettings },
+        name === "store"
+          ? { listStores }
+          : name === "user"
+            ? { retrieveUser }
+            : { listAvailabilitySettings },
     },
   };
   res = {
@@ -29,6 +34,7 @@ beforeEach(() => {
     status: jest.fn().mockReturnThis(),
     json: jest.fn(),
   };
+  listStores.mockResolvedValue([{ id: "store" }]);
   retrieveUser.mockResolvedValue({ id: "fixture" });
   listAvailabilitySettings.mockResolvedValue([
     { id: "chef-default", timezone: "America/Chicago" },
@@ -57,7 +63,6 @@ afterAll(() => {
 });
 it.each([
   undefined,
-  { actor_id: "other", actor_type: "user" },
   { actor_id: "fixture", actor_type: "customer" },
   { actor_id: "fixture", actor_type: "api-key" },
 ])(
@@ -124,3 +129,19 @@ it("provider and backend failures return safe missing-data errors", async () => 
     ),
   ).toBe(true);
 });
+
+it("allows Admin B outside the obsolete allowlist on a configured single store", async () => {
+  req.auth_context.actor_id = "other";
+  await POST(req, res);
+  expect(retrieveUser).toHaveBeenCalledWith("other");
+  expect(read).toHaveBeenCalledTimes(1);
+});
+it.each([[[]], [[{ id: "a" }, { id: "b" }]]])(
+  "fails closed on ambiguous store configuration %j",
+  async (stores) => {
+    listStores.mockResolvedValue(stores);
+    await POST(req, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(read).not.toHaveBeenCalled();
+  },
+);

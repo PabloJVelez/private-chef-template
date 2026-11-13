@@ -1,20 +1,31 @@
+import type {
+  MedusaContainer,
+  IStoreModuleService,
+} from "@medusajs/framework/types";
+import { Modules, MedusaError } from "@medusajs/framework/utils";
+
+/** These events have no store ownership column. Never guess among stores. */
+export async function requireSingleStore(container: MedusaContainer) {
+  const stores = await container
+    .resolve<IStoreModuleService>(Modules.STORE)
+    .listStores({}, { select: ["id"], take: 2 });
+  if (stores.length !== 1)
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      "Sous Chef requires a dedicated single-store instance.",
+    );
+}
+
 export function authorizedSiteAdmin(
   auth: { actor_id?: string; actor_type?: string } | undefined,
   env: NodeJS.ProcessEnv = process.env,
 ) {
-  // Existing workspace reads are site-wide, with no chef ownership column.
-  // Explicit operator attestation + user IDs are required; never infer tenancy.
-  const ids = (env.CHEF_AI_ADMIN_USER_IDS || "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
+  // Dedicated one-store instance only. Authentication is established by Medusa,
+  // and callers also verify the current account and unambiguous store below.
   return (
     env.CHEF_AI_SCOPE === "single_site" &&
-    ids.length > 0 &&
-    ids.length <= 20 &&
     auth?.actor_type === "user" &&
-    !!auth.actor_id &&
-    ids.includes(auth.actor_id)
+    !!auth.actor_id
   );
 }
 

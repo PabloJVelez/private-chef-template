@@ -10,7 +10,7 @@ import type {
   ScheduleSnapshot,
   ScheduleEditReceipt,
 } from '../../modules/chef-event/schedule-edit';
-import { authorizedSiteAdmin } from '../chef-ai/access';
+import { authorizedSiteAdmin, requireSingleStore } from '../chef-ai/access';
 import { isValidIanaZone, wallClockToUtcJsDate } from '../chef-event-wall-clock';
 import { requireSlot } from '../availability/query';
 import { previewInput, signPreview } from './contract';
@@ -22,9 +22,10 @@ export async function authorizeScheduleEdit(container: MedusaContainer, actorId:
   )
     throw new MedusaError(
       MedusaError.Types.NOT_ALLOWED,
-      'Sous Chef schedule writes are not enabled for this Admin user.',
+      'Schedule changes are unavailable.',
     );
   try {
+    await requireSingleStore(container);
     await container.resolve<IUserModuleService>(Modules.USER).retrieveUser(actorId);
   } catch {
     throw new MedusaError(MedusaError.Types.NOT_ALLOWED, 'Current Admin user could not be verified.');

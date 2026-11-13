@@ -8,6 +8,7 @@ import type AvailabilityModuleService from "../../../../modules/availability/ser
 import { readCalendar } from "../../../../lib/chef-workspace/read";
 import {
   authorizedSiteAdmin,
+  requireSingleStore,
   createChatLimiter,
 } from "../../../../lib/chef-ai/access";
 import { answerSchedule, chatInput } from "../../../../lib/chef-ai/chat";
@@ -26,10 +27,11 @@ export async function POST(
   if (!authorizedSiteAdmin(req.auth_context))
     return fail(
       403,
-      "Schedule chat is not authorized for this Admin user. Ask the site operator to configure access.",
+      "Schedule chat is unavailable. Ask the site operator to check single-store configuration.",
     );
   // Check the current user still exists; signed tokens alone may outlive deletion.
   try {
+    await requireSingleStore(req.scope);
     await req.scope
       .resolve<IUserModuleService>(Modules.USER)
       .retrieveUser(req.auth_context.actor_id);

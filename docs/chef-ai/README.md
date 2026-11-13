@@ -1,6 +1,6 @@
 # BTS-11 — Sous Chef
 
-**Sous Chef** is the user-facing assistant name. V1 is a read-only schedule assistant; the launcher is **Ask Sous Chef**. Earlier evidence screenshots retain the branding present when captured.
+**Sous Chef** is the user-facing assistant name. V1 is a read-only schedule assistant; the launcher is **Ask Sous Chef**. Earlier evidence screenshots retain the branding present when captured. BTS-21 now adds an explicit [pending-event date/time action](pending-schedule-ui.md) beside these read-only answers.
 
 A floating, non-modal Admin dialog answers bounded schedule questions using the existing
 `readCalendar` service. The only model-selected tool is `get_schedule`. The server renders
@@ -9,7 +9,7 @@ model call, write tool, request search, event-details tool, Booking module or me
 
 Scope: [BTS-11](https://arborthreads.com/threads/thr_a4864934-79cc-460d-8730-e31e050125fa/chef-admin-ai-assistant-v1-scope-and-design-handoff),
 [Nov 12 proposal](https://arborthreads.com/threads/thr_a4864934-79cc-460d-8730-e31e050125fa#c-con_e34dd9825aa9b1387c91a5cdde2508ab22971b72a724a43634ea76eeb46ec20d).
-The supplied newer read-only scope governs this implementation. No Arbor connector was
+Those links describe the original read-only increment; the BTS-21 handoff governs the new action UI. No Arbor connector was
 available in the implementation session; no claim of reading or posting private Arbor comments.
 
 ## Identity boundary and configuration
@@ -17,25 +17,26 @@ available in the implementation session; no claim of reading or posting private 
 The merged calendar service has **site-wide data**. `chef_event` has no chef-owner column,
 and Availability uses the `chef-default` singleton. There is no safe per-chef predicate to
 invent. Consequently this feature is disabled unless an operator explicitly attests a
-dedicated single-chef/site database and allowlists its authorized Admin users:
+dedicated single-chef/site database. Exactly one active Medusa store is required:
 
 ```dotenv
 CHEF_AI_SCOPE=single_site
-CHEF_AI_ADMIN_USER_IDS=user_actual_medusa_admin_id
 CHEF_AI_PROVIDER=openai
 CHEF_AI_MODEL=gpt-4.1-mini
 CHEF_AI_OPENAI_API_KEY=<server-only provider key>
 ```
 
-Do not enable this on a shared database with separate chef tenants. A user ID list is an
-explicit grant to read the **whole site's** existing workspace calendar, not tenant
-filtering or an inferred chef role. At most 20 IDs. Missing attestation/identity denies
-access before model or calendar calls. `/admin/chef-ai/chat` uses Medusa's real Admin
-route loader plus explicit `authenticate('user', ['session', 'bearer'])`, preserving MFA
-handling. Anonymous, customer and API-key actors are denied. The route additionally
-checks the allowlist and retrieves the current user, so a deleted user's token is denied.
-Existing sidebar and RBAC behavior is unchanged; this extra grant is stricter than the
-workspace endpoints and must only be given to users authorized to see the site's data.
+Do not enable this on a shared database with separate chef tenants. All authenticated
+Medusa Admin accounts on this dedicated store can use Sous Chef. The obsolete
+`CHEF_AI_ADMIN_USER_IDS` setting has no effect and should be removed. Missing attestation,
+zero/multiple stores, unavailable store configuration, or a deleted current account fail closed.
+`/admin/chef-ai/chat` uses Medusa's real Admin route loader plus explicit
+`authenticate('user', ['session', 'bearer'])`, preserving MFA handling. Anonymous, customer
+and API-key actors are denied. Existing sidebar and RBAC behavior is unchanged.
+
+The [pending-event action UI](pending-schedule-ui.md) adds explicit preview/confirmation
+outside conversational model tools. `CHEF_AI_SCHEDULE_WRITE_ENABLED=true` separately opts
+in to these endpoints, including recovery; it defaults OFF. No per-chef roles or capability API.
 
 Save a valid IANA timezone in **Settings → Availability**. The endpoint reads only `id`
 and `timezone` from the existing singleton. No fallback to server UTC, event-model default,

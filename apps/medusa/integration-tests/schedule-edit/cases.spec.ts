@@ -16,6 +16,7 @@ import {
 } from '../../src/lib/private-event-schedule/command';
 import { verifyReference } from '../../src/lib/private-event-schedule/contract';
 import { scheduleEditHandler } from '../../src/lib/private-event-schedule/http';
+jest.mock('../../src/lib/chef-ai/provider', () => ({ selectSchedule: async () => ({ calls: [{ name: 'get_schedule', arguments: JSON.stringify({ period: 'today', startDate: null, endDate: null, timeZone: 'America/New_York' }) }] }) }));
 const { Client } = require('@medusajs/framework/pg');
 const express = require('express');
 const jwt = require('jsonwebtoken');
@@ -24,6 +25,7 @@ const secret = 'isolated-test-signing-secret-32-characters';
 const databaseName = 'booking_test_schedule_' + randomUUID().replace(/-/g, '');
 let admin: any, db: any, fixture: Awaited<ReturnType<typeof bookingApp>>;
 let chef: ChefEventModuleService, scheduling: SchedulingModuleService;
+const listStores = jest.fn();
 const emit = jest.fn(),
   user = jest.fn();
 const eventInput = (id: string) => ({
@@ -91,6 +93,7 @@ beforeAll(async () => {
   await db.connect();
   chef = fixture.container.resolve('chefEventModuleService');
   scheduling = fixture.container.resolve('scheduling');
+  fixture.container.register('store', asValue({ listStores }));
   fixture.container.register('user', asValue({ retrieveUser: user }));
   fixture.container.register('event_bus', asValue({ emit }));
   fixture.container.register('configModule', asValue({ projectConfig: { http: { jwtSecret: secret } } }));
@@ -123,6 +126,9 @@ beforeAll(async () => {
       `module.exports = require(${JSON.stringify(path.resolve(__dirname, '../../src/api/admin/chef-events/schedule-edit', action, 'route.ts'))})`,
     );
   }
+  const chatDir = path.join(routesDir, 'admin/chef-ai/chat');
+  fs.mkdirSync(chatDir, { recursive: true });
+  fs.writeFileSync(path.join(chatDir, 'route.js'), `module.exports = require(${JSON.stringify(path.resolve(__dirname, '../../src/api/admin/chef-ai/chat/route.ts'))})`);
   fs.writeFileSync(
     path.join(routesDir, 'middlewares.js'),
     `module.exports = require(${JSON.stringify(path.resolve(__dirname, '../../src/api/middlewares.ts'))})`,
@@ -151,10 +157,14 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   jest.restoreAllMocks();
+  listStores.mockReset().mockResolvedValue([{ id: 'store' }]);
   emit.mockReset().mockResolvedValue(undefined);
-  user.mockReset().mockResolvedValue({ id: 'admin' });
+  user.mockReset().mockImplementation(async (id: string) => {
+    if (!['admin', 'other'].includes(id)) throw new Error('Unknown fixture account');
+    return { id };
+  });
   process.env.CHEF_AI_SCOPE = 'single_site';
-  process.env.CHEF_AI_ADMIN_USER_IDS = 'admin,other';
+  process.env.CHEF_AI_ADMIN_USER_IDS = 'admin'; // Obsolete setting must not restrict Admin B.
   process.env.CHEF_AI_SCHEDULE_WRITE_ENABLED = 'true';
   Settings.now = () => Date.parse('2030-02-01T00:00:00Z');
   await db.query(
@@ -428,13 +438,14 @@ it('expired unused reference and missing history return unknown, recovery never 
   expect((await row()).requestedTime).toBe('10:00');
   expect(emit).not.toHaveBeenCalled();
 });
-it.each(['scope', 'opt-in', 'allowlist', 'deleted-user', 'customer'])(
+it.each(['scope', 'opt-in', 'multiple-stores', 'missing-store', 'deleted-user', 'customer'])(
   'denies %s at preview, confirm and recover before event access',
   async (kind) => {
     const p = await preview();
     if (kind === 'scope') process.env.CHEF_AI_SCOPE = 'multi_site';
     if (kind === 'opt-in') delete process.env.CHEF_AI_SCHEDULE_WRITE_ENABLED;
-    if (kind === 'allowlist') process.env.CHEF_AI_ADMIN_USER_IDS = '';
+    if (kind === 'multiple-stores') listStores.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
+    if (kind === 'missing-store') listStores.mockResolvedValue([]);
     if (kind === 'deleted-user') user.mockRejectedValue(new Error('deleted'));
     const read = jest.spyOn(chef, 'readScheduleEditEvent');
     for (const action of ['preview', 'confirm', 'recover'] as const) {
@@ -576,4 +587,30 @@ it('loads the real HTTP routes and middleware: auth, body limit, read-only previ
   expect(emit).toHaveBeenCalledTimes(1);
   user.mockRejectedValue(new Error('user deleted'));
   expect((await post('recover', { reference: p.reference })).status).toBe(403);
+});
+
+it('Admin B outside the obsolete allowlist can read and prepare its own preview but cannot use A’s reference over real HTTP', async () => {
+  process.env.CHEF_AI_OPENAI_API_KEY = 'fixture-never-network';
+  const post = (route: string, body: unknown, actorId = 'other', actorType = 'user') => fetch(baseUrl.replace('/chef-events/schedule-edit', '') + route, {
+    method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${jwt.sign({ actor_id: actorId, actor_type: actorType, auth_identity_id: 'fixture' }, secret)}` }, body: JSON.stringify(body),
+  });
+  for (const actor of ['admin', 'other']) {
+    const read = await post('/chef-ai/chat', { message: 'today' }, actor);
+    expect(read.status).toBe(200);
+    expect(await read.json()).toMatchObject({ complete: true, entries: [] });
+  }
+  expect((await post('/chef-ai/chat', { message: 'today' }, 'customer', 'customer')).status).toBe(401);
+  expect((await fetch(baseUrl.replace('/chef-events/schedule-edit', '/chef-ai/chat'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: 'today' }) })).status).toBe(401);
+  expect((await post('/chef-ai/chat', { message: 'today' }, 'deleted')).status).toBe(403);
+  const p = await preview();
+  const own = await post('/chef-events/schedule-edit/preview', { eventId: 'event', time: '12:00' });
+  expect(own.status).toBe(200);
+  expect(verifyReference((await own.json() as any).reference, 'other', secret).actorId).toBe('other');
+  for (const action of ['confirm', 'recover'])
+    expect((await post('/chef-events/schedule-edit/' + action, { reference: p.reference })).status).toBe(403);
+  expect((await row()).requestedTime).toBe('10:00');
+  delete process.env.CHEF_AI_SCHEDULE_WRITE_ENABLED;
+  expect((await post('/chef-events/schedule-edit/preview', { eventId: 'event', time: '12:00' })).status).toBe(403);
+  listStores.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
+  expect((await post('/chef-ai/chat', { message: 'today' })).status).toBe(403);
 });

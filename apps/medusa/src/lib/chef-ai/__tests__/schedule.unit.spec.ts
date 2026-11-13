@@ -267,7 +267,7 @@ describe("tool and answer boundary", () => {
 
 describe("authorization and cost limits", () => {
   const env = { CHEF_AI_SCOPE: "single_site", CHEF_AI_ADMIN_USER_IDS: "chef" };
-  it("requires explicit scope, allowed user identity and user actor, never API keys/customers", () => {
+  it("requires explicit scope, existing user identity and user actor, never API keys/customers", () => {
     expect(
       authorizedSiteAdmin({ actor_id: "chef", actor_type: "user" }, env),
     ).toBe(true);
@@ -277,7 +277,7 @@ describe("authorization and cost limits", () => {
       );
     expect(
       authorizedSiteAdmin({ actor_id: "other", actor_type: "user" }, env),
-    ).toBe(false);
+    ).toBe(true);
     expect(authorizedSiteAdmin(undefined, env)).toBe(false);
     expect(
       authorizedSiteAdmin({ actor_id: "chef", actor_type: "user" }, {}),

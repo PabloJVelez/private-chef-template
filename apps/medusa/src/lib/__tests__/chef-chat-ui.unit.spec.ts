@@ -209,7 +209,7 @@ it.each(promptQuestions)(
       );
       expect(button("Ask Sous Chef").textContent).toContain("Ask Sous Chef");
       expect(document.querySelector('[role="dialog"]')!.textContent).toContain(
-        "Read-only schedule assistant",
+        "Schedule assistant",
       );
       expect(document.querySelector("textarea")!.placeholder).toBe(
         "Ask Sous Chef about your schedule...",
