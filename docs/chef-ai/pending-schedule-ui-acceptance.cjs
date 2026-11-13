@@ -53,7 +53,7 @@ const server = http.createServer((req, res) => {
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     if (url.pathname.startsWith('/admin/chef-events/schedule-edit/')) {
       const action = url.pathname.split('/').at(-1), body = req.postDataJSON(); writes.push({ action, body });
-      if (action === 'preview' && conversational) return writeMode === 'policy' ? json({ message: 'That arrival time is no longer available. Please choose another time.' }, 422) : json({ ...preview(body.eventId), current: { ...local('11:00'), date: '2026-11-30', instant: '2026-11-30T17:00:00.000Z' }, proposed: { ...local('11:00'), date: body.date || '2026-11-30', instant: `${body.date || '2026-11-30'}T17:00:00.000Z` } });
+      if (action === 'preview' && conversational) return writeMode === 'policy' ? json({ message: 'That arrival time is no longer available. Please choose another time.' }, 422) : json({ ...preview(body.eventId), current: { ...local('11:00'), date: '2026-11-30', instant: '2026-11-30T17:00:00.000Z' }, proposed: { ...local('11:00'), date: body.date || '2026-11-30', time: body.time || '11:00', instant: `${body.date || '2026-11-30'}T${body.time === '14:00' ? '20' : '17'}:00:00.000Z` } });
       if (action === 'preview') return writeMode === 'off' ? json({ message: 'unavailable' }, 403) : writeMode === 'policy' ? json({ message: 'ineligible' }, 422) : json(preview(body.eventId));
       assert.deepEqual(body, { reference: 'fixture-signed-reference' });
       if (writeMode === 'lost' && action === 'confirm') { liveTime = '11:00'; return route.abort('failed'); }
@@ -241,6 +241,53 @@ const server = http.createServer((req, res) => {
     await dialog.getByText(/That proposal was discarded/).waitFor();
     assert.equal(writes.length, beforeLate); assert.equal(await edit.count(), 0);
     assert.equal(writes.filter(x => x.action === 'confirm').length, confirmsBeforeConversation);
+    // Third-run owner prompts: unfinished 2 PM task -> date target clarification -> independent lookup.
+    const timeProposal = { entries: [], message: 'Review this change before confirming.', editProposal: { eventId: 'synthetic-0', expectedRevision: 'a'.repeat(32), time: '14:00' } };
+    for (const theme of ['dark', 'light']) {
+      for (const viewport of [{ width: 1532, height: 1024 }, { width: 390, height: 844 }, { width: 320, height: 740 }]) {
+        await page.evaluate(theme => localStorage.setItem('medusa_admin_theme', theme), theme);
+        await page.setViewportSize(viewport); await fresh(); writeMode = 'saved';
+        if (viewport.width > 640) {
+          const normal = await dialog.boundingBox(); assert(normal.width <= 490);
+          await button('Expand Sous Chef').click(); const expanded = await dialog.boundingBox();
+          assert(expanded.width >= 620 && expanded.width <= 680); assert(expanded.height > normal.height);
+          assert.equal(await button('Collapse Sous Chef').getAttribute('aria-expanded'), 'true');
+        } else {
+          const box = await dialog.boundingBox(); assert(box.width >= viewport.width - 20); assert(box.height >= viewport.height - 20); assert.equal(await button('Expand Sous Chef').isVisible(), false);
+        }
+        assert.equal(await dialog.locator('textarea').getAttribute('rows'), '1');
+        const task = { version: 1, intent: { target: 'context', targetDate: null, date: null, time: '14:00', clarification: 'none', continuation: false }, expiresAt: Date.now() + 300000 };
+        chatReply = { entries: [], message: 'Which event should I move to 2 PM?', editTask: task };
+        const beforeOwner = writes.length; await ask('can you update the time to 2pm?');
+        await dialog.getByText('Which event should I move to 2 PM?', { exact: true }).waitFor();
+        await button('Cancel change').waitFor(); assert.equal(writes.length, beforeOwner);
+        await screenshot(`owner-clarification-${theme}-${viewport.width}`);
+        chatReply = body => { assert.equal(body.task.intent.time, '14:00'); assert.equal(body.message, 'this is for the event on the 30th'); return timeProposal; };
+        await ask('this is for the event on the 30th'); await button('Confirm change').waitFor();
+        assert.deepEqual(writes.at(-1), { action: 'preview', body: { eventId: 'synthetic-0', time: '14:00' } });
+        assert.equal(await edit.getByLabel('Date (optional)').inputValue(), '');
+        assert((await dialog.innerText()).includes('2026-11-30 · 14:00'));
+        await screenshot(`owner-preview-${theme}-${viewport.width}`);
+        await fresh();
+        chatReply = body => { assert.deepEqual(body, { message: 'Can you update the event I have on the 30th to 2pm?' }); return timeProposal; };
+        await ask('Can you update the event I have on the 30th to 2pm?'); await button('Confirm change').waitFor();
+        assert.equal(writes.length, beforeOwner + 2);
+        assert.equal(writes.filter(x => x.action === 'confirm').length, confirmsBeforeConversation);
+        await page.keyboard.press('Escape'); assert.equal(await edit.count(), 0); assert(await dialog.isVisible());
+        await page.keyboard.press('Escape'); assert.equal(await dialog.count(), 0); await open();
+      }
+    }
+    // Rejected 2 PM keeps only the proposed time in the same editable panel.
+    await fresh(); writeMode = 'policy'; chatReply = timeProposal;
+    await ask('Can you update the event I have on the 30th to 2pm?'); await dialog.getByRole('alert').waitFor();
+    assert.equal(await edit.getByLabel('Local time (optional)').inputValue(), '14:00');
+    assert.equal(await button('Confirm change').count(), 0);
+    await screenshot('owner-policy-refusal-mobile');
+    // Escape cancels only the typed task first; navigation remains nonmodal.
+    await fresh(); writeMode = 'saved'; chatReply = { entries: [], message: 'Which event should I move to 2 PM?', editTask: { version: 1, intent: { target: 'context', date: null, time: '14:00', clarification: 'none' }, expiresAt: Date.now() + 300000 } };
+    await ask('can you update the time to 2pm?'); await button('Cancel change').waitFor();
+    await page.keyboard.press('Escape'); assert.equal(await button('Cancel change').count(), 0); assert(await dialog.isVisible());
+    assert.equal(await dialog.locator('textarea').evaluate(el => document.activeElement === el), true);
     assert.deepEqual(errors, []); assert.deepEqual(unknown, []);
     console.log(JSON.stringify({ passed: true, screenshots: out, previewRequests: writes.filter(x => x.action === 'preview').length, confirmRequests: writes.filter(x => x.action === 'confirm').length, recoverRequests: writes.filter(x => x.action === 'recover').length, unknownRoutes: unknown, browserErrors: errors }, null, 2));
   } catch (error) {

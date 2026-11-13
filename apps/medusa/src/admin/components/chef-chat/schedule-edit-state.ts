@@ -1,6 +1,7 @@
 import type {
   EditContext,
   EditProposal,
+  EditTask,
 } from "../../../lib/chef-ai/edit-intent";
 import type {
   SchedulePreview,
@@ -46,6 +47,7 @@ type Selection = {
   message?: string;
 };
 type State = {
+  task?: EditTask;
   selection?: Selection;
   attempts: Record<string, AttemptView>;
   revision: number;
@@ -123,7 +125,7 @@ export class ScheduleEditState {
     } catch {
       this.blocked = true;
     }
-    this.publish({ selection: undefined, attempts });
+    this.publish({ selection: undefined, task: undefined, attempts });
   }
   clearIdentity() {
     // Synchronous epoch invalidation survives component remount and late requests.
@@ -138,11 +140,12 @@ export class ScheduleEditState {
     } catch {
       /* No new writes until bind verifies storage. */
     }
-    this.publish({ selection: undefined, attempts: {} });
+    this.publish({ selection: undefined, task: undefined, attempts: {} });
   }
   select(eventId: string, context?: EditContext) {
     this.previewGeneration++;
     this.publish({
+      task: undefined,
       selection: {
         eventId,
         date: "",
@@ -154,6 +157,11 @@ export class ScheduleEditState {
   /** Capture identity/backend + edit generation, consume selection context. Every prompt/selection/cancel/manual input supersedes it. */
   beginProposal() {
     const context = this.state.selection?.context;
+    const task =
+      this.state.task && this.state.task.expiresAt > Date.now()
+        ? this.state.task
+        : undefined;
+    this.publish({ task: undefined });
     const epoch = this.generation,
       request = ++this.previewGeneration;
     if (this.state.selection)
@@ -162,14 +170,34 @@ export class ScheduleEditState {
       });
     return {
       context,
+      task,
       current: () =>
-        epoch === this.generation && request === this.previewGeneration,
+        epoch === this.generation &&
+        request === this.previewGeneration &&
+        (!task || task.expiresAt > Date.now()),
     };
+  }
+  retainTask(task: EditTask | undefined, current: () => boolean) {
+    if (!current()) return;
+    this.publish({
+      ...(task ? { selection: undefined } : {}),
+      task:
+        task &&
+        task.expiresAt > Date.now() &&
+        task.expiresAt <= Date.now() + 300_000
+          ? task
+          : undefined,
+    });
+  }
+  expireTask() {
+    if (this.state.task && this.state.task.expiresAt <= Date.now())
+      this.close();
   }
   async propose(proposal: EditProposal, current: () => boolean) {
     if (!current() || this.state.attempts[proposal.eventId]) return false;
     this.previewGeneration++;
     this.publish({
+      task: undefined,
       selection: {
         eventId: proposal.eventId,
         date: proposal.date ?? "",
@@ -182,12 +210,13 @@ export class ScheduleEditState {
   }
   close() {
     this.previewGeneration++;
-    this.publish({ selection: undefined });
+    this.publish({ selection: undefined, task: undefined });
   }
   edit(field: "date" | "time", value: string) {
     if (!this.state.selection) return;
     this.previewGeneration++;
     this.publish({
+      task: undefined,
       selection: {
         ...this.state.selection,
         [field]: value,
@@ -314,6 +343,7 @@ export class ScheduleEditState {
     this.previewGeneration++; // An attempted write supersedes any pending conversational proposal.
     // Published synchronously BEFORE any await: repeated cards/clicks share one guard.
     this.publish({
+      task: undefined,
       selection: undefined,
       attempts: { ...this.state.attempts, [a.eventId]: { ...a, busy: true } },
     });

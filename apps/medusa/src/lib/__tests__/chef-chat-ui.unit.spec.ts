@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  * @jest-environment-options {"customExportConditions":["node","node-addons"]}
  */
+jest.mock("../../admin/components/chef-chat/chef-chat.css", () => ({}));
 import React from "react";
 import { act } from "react-dom/test-utils";
 import { createRoot } from "react-dom/client";
@@ -212,7 +213,7 @@ it.each(promptQuestions)(
         "Schedule assistant",
       );
       expect(document.querySelector("textarea")!.placeholder).toBe(
-        "Ask Sous Chef about your schedule...",
+        "Ask about events or propose a change…",
       );
       expect(promptQuestions.map((q) => button(q).disabled)).toEqual([
         false,
@@ -247,7 +248,7 @@ it.each(promptQuestions)(
       expect(document.body.textContent).toContain(
         "does not mean you are free or available",
       );
-      expect(document.body.textContent).toContain(
+      expect(document.body.textContent).not.toContain(
         "Recorded events don’t establish availability.",
       );
       expect(document.querySelector('[role="status"]')).toBeNull();

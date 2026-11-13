@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  * @jest-environment-options {"customExportConditions":["node","node-addons"]}
  */
+jest.mock("../../admin/components/chef-chat/chef-chat.css", () => ({}));
 import React from "react";
 import { act } from "react-dom/test-utils";
 import { createRoot } from "react-dom/client";
@@ -697,5 +698,147 @@ it("historical cards cannot be reused as implicit conversational context after a
     expect(fetch.mock.calls.at(-1)[1].body).toEqual({
       message: "Move it to the 29th",
     });
+  });
+});
+
+it("the three owner prompts retain 2 PM only for clarification and prepare time-only previews, never confirmation", async () => {
+  await fixture(async ({ fetch, preview, attempt }) => {
+    const task = {
+      version: 1,
+      intent: {
+        target: "context",
+        targetDate: null,
+        date: null,
+        time: "14:00",
+        clarification: "none",
+        continuation: false,
+      },
+      expiresAt: Date.now() + 300000,
+    };
+    fetch.mockResolvedValueOnce({
+      entries: [],
+      message: "Which event should I move to 2 PM?",
+      editTask: task,
+    });
+    await ask("can you update the time to 2pm?");
+    expect(
+      document.querySelector('[aria-label="Unfinished schedule change"]'),
+    ).not.toBeNull();
+    expect(preview).not.toHaveBeenCalled();
+    fetch.mockResolvedValueOnce({
+      entries: [],
+      message: "Review this change before confirming.",
+      editProposal: {
+        eventId: "immutable-0",
+        expectedRevision: "a".repeat(32),
+        time: "14:00",
+      },
+    });
+    await ask("this is for the event on the 30th");
+    expect(fetch.mock.calls.at(-1)[1].body).toEqual({
+      message: "this is for the event on the 30th",
+      task,
+    });
+    expect(preview.mock.calls.at(-1)[0]).toEqual({
+      eventId: "immutable-0",
+      time: "14:00",
+    });
+    expect(
+      document.querySelector('[aria-label="Unfinished schedule change"]'),
+    ).toBeNull();
+    await click("Cancel edit");
+    fetch.mockResolvedValueOnce({
+      entries: [],
+      message: "Review this change before confirming.",
+      editProposal: {
+        eventId: "immutable-0",
+        expectedRevision: "a".repeat(32),
+        time: "14:00",
+      },
+    });
+    await ask("Can you update the event I have on the 30th to 2pm?");
+    expect(fetch.mock.calls.at(-1)[1].body).toEqual({
+      message: "Can you update the event I have on the 30th to 2pm?",
+    });
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(attempt).not.toHaveBeenCalled();
+  });
+});
+it.each(["cancel", "read", "identity", "remount"])(
+  "unfinished task cannot resurrect after %s",
+  async (kind) => {
+    await fixture(async ({ fetch, qc, remount }) => {
+      const task = {
+        version: 1,
+        intent: {
+          target: "context",
+          date: null,
+          time: "14:00",
+          clarification: "none",
+        },
+        expiresAt: Date.now() + 300000,
+      };
+      fetch.mockResolvedValueOnce({
+        entries: [],
+        message: "Which event?",
+        editTask: task,
+      });
+      await ask("Update time to 2pm");
+      if (kind === "cancel") await click("Cancel change");
+      if (kind === "read") {
+        fetch.mockResolvedValueOnce({
+          entries: [],
+          message: "No recorded events.",
+          complete: true,
+        });
+        await ask("What is on tomorrow?");
+      }
+      if (kind === "identity")
+        await act(async () => qc.removeQueries({ queryKey: ["users", "me"] }));
+      if (kind === "remount") {
+        await remount();
+        await click("Ask Sous Chef");
+      }
+      fetch.mockResolvedValueOnce({
+        entries: [],
+        message: "No unfinished change.",
+      });
+      await ask("this is for the event on the 30th");
+      expect(fetch.mock.calls.at(-1)[1].body.task).toBeUndefined();
+    });
+  },
+);
+it("desktop expand toggle is accessible; composer starts compact and Escape cancels unfinished task first", async () => {
+  await fixture(async ({ fetch }) => {
+    expect(document.querySelector("textarea")?.rows).toBe(1);
+    await click("Expand");
+    expect(buttons("Collapse")).toHaveLength(1);
+    await click("Collapse");
+    fetch.mockResolvedValueOnce({
+      entries: [],
+      message: "Which event?",
+      editTask: {
+        version: 1,
+        intent: {
+          target: "context",
+          date: null,
+          time: "14:00",
+          clarification: "none",
+        },
+        expiresAt: Date.now() + 300000,
+      },
+    });
+    await ask("Update time to 2pm");
+    await act(async () =>
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    expect(scheduleEdits.snapshot().task).toBeUndefined();
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   });
 });

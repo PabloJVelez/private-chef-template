@@ -1,5 +1,6 @@
 import {
   editContextSchema,
+  editTaskSchema,
   editIntentSchema,
   type EditContext,
   type EditIntent,
@@ -14,6 +15,7 @@ export const chatInput = z
   .object({
     message: z.string().trim().min(1).max(1000),
     context: editContextSchema.optional(),
+    task: editTaskSchema.optional(),
     previousQuestions: z
       .array(z.string().trim().min(1).max(1000))
       .max(4)
@@ -21,7 +23,7 @@ export const chatInput = z
   })
   .strict();
 const clarification =
-  "Ask about recorded events for a day, week, weekend, or a date range of up to 31 days. I can read schedule facts and propose pending-event date/time changes. Only the Confirm change button saves a preview; chat text cannot confirm or decide availability.";
+  "Ask for a schedule or a pending-event date/time change. To save a preview, use Confirm change; chat text cannot confirm or decide availability.";
 
 export async function answerSchedule(
   input: ChatInput,
@@ -47,10 +49,51 @@ export async function answerSchedule(
   )
     throw new Error("Invalid model tool call");
   if (calls[0].name === "propose_pending_event_date_time_edit") {
-    const intent = editIntentSchema.parse(JSON.parse(calls[0].arguments));
-    return propose
-      ? propose(intent, parsed.context)
-      : { message: clarification, entries: [] };
+    let intent = editIntentSchema.parse(JSON.parse(calls[0].arguments));
+    let context = parsed.context;
+    const continuing = intent.continuation === true;
+    if (continuing) {
+      const task = parsed.task;
+      if (
+        !task ||
+        task.expiresAt <= now.getTime() ||
+        task.expiresAt > now.getTime() + 300_000
+      )
+        return {
+          entries: [],
+          message:
+            "No unfinished change to continue. Tell me the event date and new date or time.",
+        };
+      intent = editIntentSchema.parse({
+        ...task.intent,
+        ...intent,
+        target: intent.targetDate ? "date" : task.intent.target,
+        targetDate: intent.targetDate ?? task.intent.targetDate,
+        date:
+          intent.clarification === "date"
+            ? null
+            : (intent.date ?? task.intent.date),
+        time:
+          intent.clarification === "time"
+            ? null
+            : (intent.time ?? task.intent.time),
+        continuation: false,
+      });
+      context = parsed.context ?? task.context;
+    }
+    if (!propose) return { message: clarification, entries: [] };
+    const answer = await propose(intent, context);
+    if (
+      continuing &&
+      answer.editTask &&
+      parsed.task &&
+      parsed.task.expiresAt > now.getTime()
+    )
+      answer.editTask.expiresAt = Math.min(
+        answer.editTask.expiresAt,
+        parsed.task.expiresAt,
+      );
+    return answer;
   }
   let range: { start: string; end: string };
   let period: ScheduleAnswer["period"];
@@ -100,8 +143,8 @@ export async function answerSchedule(
   });
   return {
     message: entries.length
-      ? `${entries.length} recorded event${entries.length === 1 ? "" : "s"} overlap this window. All statuses are included. These records do not determine availability.`
-      : "No matching recorded events in this window. This does not mean you are free or available.",
+      ? `${entries.length} recorded event${entries.length === 1 ? "" : "s"}.`
+      : "No recorded events in this window; availability is not checked.",
     timeZone,
     period,
     range,

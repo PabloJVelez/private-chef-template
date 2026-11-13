@@ -1,3 +1,4 @@
+import "./chef-chat.css";
 import { Badge, Button, IconButton, Textarea } from "@medusajs/ui";
 import { Calendar, ChatBubble, XMark } from "@medusajs/icons";
 import { Dialog } from "radix-ui";
@@ -195,14 +196,13 @@ function Answer({
               </Badge>
             )}
           </div>
-          <p className="text-ui-fg-muted text-xs">
-            {zone} · Start included, end excluded
-          </p>
         </div>
       )}
-      <p className="text-ui-fg-subtle text-xs leading-relaxed">
-        {answer.message}
-      </p>
+      {!answer.entries.length && (
+        <p className="text-ui-fg-subtle text-sm leading-relaxed">
+          {answer.message}
+        </p>
+      )}
       <div className="space-y-2">
         {answer.entries.map((event) => {
           const status = statuses[event.status];
@@ -211,13 +211,10 @@ function Answer({
               key={event.id}
               className="border-ui-border-base bg-ui-bg-base rounded-lg border p-3"
             >
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                 <Badge size="xsmall" color={status.color}>
                   {status.label}
                 </Badge>
-                <span className="text-ui-fg-muted min-w-0 max-w-full break-words text-xs">
-                  {event.category.replace(/_/g, " ")}
-                </span>
               </div>
               <Link
                 to={event.detailPath}
@@ -261,6 +258,10 @@ function Answer({
                   Details
                 </summary>
                 <dl className="border-ui-border-base mt-2 space-y-2 border-t pt-2 leading-relaxed">
+                  <p>
+                    Display intervals may be estimates; appointment and
+                    protection are recorded separately.
+                  </p>
                   <div>
                     <dt className="text-ui-fg-base font-medium">
                       Requested time
@@ -320,12 +321,6 @@ function Answer({
           );
         })}
       </div>
-      {!!answer.entries.length && (
-        <p className="text-ui-fg-muted text-xs leading-relaxed">
-          Display times may be estimates. Details show appointment and
-          protection separately. Google busy data is not included.
-        </p>
-      )}
     </div>
   );
 }
@@ -352,6 +347,8 @@ export function ChefChat({
     if (scheduleTransport) scheduleEdits.bind(userId, scheduleTransport);
   }, [userId, scheduleTransport]);
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [showEarlier, setShowEarlier] = useState(false);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [choice, setChoice] = useState<{
@@ -374,7 +371,21 @@ export function ChefChat({
     setOpen(false);
     scheduleEdits.close();
   }, [location.key]);
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(
+    () => () => {
+      controller.current?.abort();
+      scheduleEdits.close();
+    },
+    [],
+  );
+  useEffect(() => {
+    if (!editState.task) return;
+    const timer = setTimeout(
+      () => scheduleEdits.expireTask(),
+      Math.max(0, editState.task.expiresAt - Date.now()) + 20,
+    );
+    return () => clearTimeout(timer);
+  }, [editState.task]);
   useEffect(() => {
     if (!open || !turns.length) return;
     // Start a completed answer at its question/window, not its last event.
@@ -407,6 +418,7 @@ export function ChefChat({
     const readStarted = historyRevision.current;
     setSession({ owner: userId, turns: next });
     setDraft("");
+    if (input.current) input.current.style.height = "auto";
     setLoading(true);
     controller.current = new AbortController();
     try {
@@ -415,12 +427,16 @@ export function ChefChat({
         signal: controller.current.signal,
         body: selection
           ? { selection }
-          : { message: question, ...(context ? { context } : {}) },
+          : {
+              message: question,
+              ...(context ? { context } : {}),
+              ...(ticket.task ? { task: ticket.task } : {}),
+            },
       });
       if (epoch !== generation.current) return;
       if (!ticket.current()) {
         answer =
-          answer.editProposal || answer.editClarification
+          answer.editProposal || answer.editClarification || answer.editTask
             ? {
                 entries: [],
                 message:
@@ -431,10 +447,11 @@ export function ChefChat({
       if (answer.editClarification && ticket.current()) {
         setChoice({
           ...answer.editClarification,
-          cards,
+          cards: answer.editClarification.cards ?? cards,
           current: ticket.current,
         });
       }
+      scheduleEdits.retainTask(answer.editTask, ticket.current);
       if (epoch === generation.current)
         setSession((s) => ({
           ...s,
@@ -442,7 +459,11 @@ export function ChefChat({
             turn === pending
               ? {
                   question,
-                  answer,
+                  answer: {
+                    ...answer,
+                    editTask: undefined,
+                    editClarification: undefined,
+                  },
                   historicalIds: [...changed.current]
                     .filter(([, at]) => at > readStarted)
                     .map(([id]) => id),
@@ -459,7 +480,8 @@ export function ChefChat({
           setSession((s) => ({
             ...s,
             turns: s.turns.map((turn) =>
-              turn.answer === answer
+              turn.question === question &&
+              turn.answer?.editProposal === answer.editProposal
                 ? {
                     ...turn,
                     answer: {
@@ -628,15 +650,21 @@ export function ChefChat({
         <Dialog.Content
           onEscapeKeyDown={(event) => {
             const selected = scheduleEdits.snapshot().selection;
-            if (!selected) return;
+            if (
+              !selected &&
+              !scheduleEdits.snapshot().task &&
+              !choice?.current()
+            )
+              return;
             event.preventDefault();
             scheduleEdits.close();
+            if (!selected) input.current?.focus();
             [
               ...document.querySelectorAll<HTMLButtonElement>(
                 "[data-schedule-event]",
               ),
             ]
-              .find((el) => el.dataset.scheduleEvent === selected.eventId)
+              .find((el) => el.dataset.scheduleEvent === selected?.eventId)
               ?.focus();
           }}
           onInteractOutside={(event) => event.preventDefault()}
@@ -644,17 +672,9 @@ export function ChefChat({
             event.preventDefault();
             input.current?.focus();
           }}
-          className="bg-ui-bg-base border-ui-border-base text-ui-fg-base shadow-elevation-modal fixed z-50 flex flex-col overflow-hidden rounded-xl border"
-          style={{
-            right: "max(1rem, env(safe-area-inset-right))",
-            bottom: "max(1rem, env(safe-area-inset-bottom))",
-            width:
-              "min(490px, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)))",
-            maxHeight:
-              "min(740px, 75dvh, calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)))",
-          }}
+          className={`chef-chat-panel ${expanded ? "chef-chat-expanded" : ""} bg-ui-bg-base border-ui-border-base text-ui-fg-base shadow-elevation-modal fixed z-50 flex flex-col overflow-hidden rounded-xl border`}
         >
-          <div className="border-ui-border-base flex shrink-0 items-center justify-between gap-3 border-b px-5 py-4">
+          <div className="border-ui-border-base flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
             <div className="flex items-center gap-3">
               <span
                 className="bg-ui-bg-subtle text-ui-fg-subtle shadow-borders-base flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
@@ -671,22 +691,37 @@ export function ChefChat({
                 </Dialog.Description>
               </div>
             </div>
-            <Dialog.Close asChild>
-              <IconButton
-                size="small"
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
                 variant="transparent"
-                aria-label="Close Sous Chef"
+                size="small"
+                className="chef-chat-expand"
+                aria-label={
+                  expanded ? "Collapse Sous Chef" : "Expand Sous Chef"
+                }
+                aria-expanded={expanded}
+                onClick={() => setExpanded((value) => !value)}
               >
-                <XMark />
-              </IconButton>
-            </Dialog.Close>
+                {expanded ? "Collapse" : "Expand"}
+              </Button>
+              <Dialog.Close asChild>
+                <IconButton
+                  size="small"
+                  variant="transparent"
+                  aria-label="Close Sous Chef"
+                >
+                  <XMark />
+                </IconButton>
+              </Dialog.Close>
+            </div>
           </div>
           <div
             role="log"
             aria-label="Schedule conversation"
             aria-live="polite"
             aria-relevant="additions text"
-            className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain break-words px-5 py-4 text-sm"
+            className="chef-chat-log min-h-0 flex-1 flex flex-col gap-3 overflow-y-auto overscroll-contain break-words px-4 py-3 text-sm"
           >
             {!turns.length && (
               <div className="space-y-5 py-2">
@@ -734,8 +769,20 @@ export function ChefChat({
                 </p>
               </div>
             )}
+            {turns.length > 3 && (
+              <button
+                type="button"
+                className="text-ui-fg-subtle text-xs underline"
+                onClick={() => setShowEarlier((value) => !value)}
+              >
+                {showEarlier
+                  ? "Hide earlier messages"
+                  : `Show ${turns.length - 3} earlier messages`}
+              </button>
+            )}
             {turns.map((turn, i) => (
               <div
+                hidden={!showEarlier && i < turns.length - 3}
                 key={i}
                 ref={i === turns.length - 1 ? latestTurn : undefined}
                 className="space-y-3"
@@ -771,104 +818,132 @@ export function ChefChat({
                 Checking your request…
               </p>
             )}
-            {choice && choice.current() && (
-              <section
-                aria-label="Choose event for proposed change"
-                className="space-y-2"
-              >
-                <p className="font-medium">Which event?</p>
-                {choice.context.candidates.map((candidate) => {
-                  const card = choice.cards.find(
-                    (card) => card.source.id === candidate.id,
-                  );
-                  return (
+            <div className="mt-auto space-y-2">
+              {(editState.task || choice?.current()) && (
+                <section
+                  aria-label="Active schedule task"
+                  className="border-ui-border-base bg-ui-bg-subtle rounded-lg border p-3 space-y-2"
+                >
+                  {editState.task && (
                     <div
-                      key={candidate.id}
-                      className="border-ui-border-base rounded-lg border p-3 space-y-2"
+                      className="flex items-center justify-between gap-2 text-xs"
+                      aria-label="Unfinished schedule change"
                     >
-                      <p>
-                        {card?.title ?? "Event"} ·{" "}
-                        {card?.status ?? "Review required"}
-                      </p>
-                      <p className="text-ui-fg-muted text-xs break-all">
-                        Event ID: {candidate.id}
-                      </p>
+                      <span>
+                        {editState.task.intent.time
+                          ? `Proposed arrival ${editState.task.intent.time}`
+                          : "Date/time change"}{" "}
+                        · awaiting details
+                      </span>
                       <Button
                         type="button"
                         size="small"
-                        variant="secondary"
-                        disabled={loading}
-                        data-proposal-candidate={candidate.id}
+                        variant="transparent"
                         onClick={() => {
-                          if (choice.current())
-                            void send("Proposed change for selected event", {
-                              intent: choice.intent,
-                              context: {
-                                ...choice.context,
-                                selectedId: candidate.id,
-                              },
-                            });
+                          scheduleEdits.close();
+                          input.current?.focus();
                         }}
                       >
-                        Choose this event
+                        Cancel change
                       </Button>
                     </div>
-                  );
-                })}
-              </section>
-            )}
-            <ScheduleEditPanel
-              onReceipt={onReceipt}
-              closeChat={() => {
-                scheduleEdits.close();
-                setOpen(false);
-              }}
-            />
+                  )}
+                  {choice && choice.current() && (
+                    <section
+                      aria-label="Choose event for proposed change"
+                      className="space-y-2"
+                    >
+                      {choice.context.candidates.map((candidate) => {
+                        const card = choice.cards.find(
+                          (card) => card.source.id === candidate.id,
+                        );
+                        return (
+                          <div
+                            key={candidate.id}
+                            className="border-ui-border-base rounded-lg border p-2 space-y-1"
+                          >
+                            <p>
+                              {card?.title ?? "Event"} ·{" "}
+                              {card?.status ?? "Review required"}
+                            </p>
+                            <p className="text-ui-fg-muted text-xs break-all">
+                              Event ID: {candidate.id}
+                            </p>
+                            <Button
+                              type="button"
+                              size="small"
+                              variant="secondary"
+                              disabled={loading}
+                              data-proposal-candidate={candidate.id}
+                              onClick={() => {
+                                if (choice.current())
+                                  void send(
+                                    "Proposed change for selected event",
+                                    {
+                                      intent: choice.intent,
+                                      context: {
+                                        ...choice.context,
+                                        selectedId: candidate.id,
+                                      },
+                                    },
+                                  );
+                              }}
+                            >
+                              Choose this event
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </section>
+                  )}
+                </section>
+              )}
+              <ScheduleEditPanel
+                onReceipt={onReceipt}
+                closeChat={() => {
+                  scheduleEdits.close();
+                  setOpen(false);
+                }}
+              />
+            </div>
             <div ref={tail} />
           </div>
           <form
-            className="border-ui-border-base shrink-0 space-y-2.5 border-t px-5 pb-4 pt-3"
+            className="border-ui-border-base shrink-0 border-t p-3"
             onSubmit={(event) => {
               event.preventDefault();
               void send();
             }}
           >
-            <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
-              <label
-                htmlFor="chef-schedule-question"
-                className="text-ui-fg-subtle font-medium"
-              >
-                Schedule question
-              </label>
-              <span id="chef-schedule-hint" className="text-ui-fg-muted">
-                Propose a change; confirm by button
-              </span>
-            </div>
-            <Textarea
-              id="chef-schedule-question"
-              ref={input}
-              aria-describedby="chef-schedule-hint"
-              className="max-h-24 min-h-0 resize-none"
-              rows={2}
-              maxLength={1000}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Ask Sous Chef about your schedule..."
-              onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  !event.shiftKey &&
-                  !event.nativeEvent.isComposing
-                ) {
-                  event.preventDefault();
-                  void send();
-                }
-              }}
-            />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-ui-fg-muted text-xs">
-                Recorded events don’t establish availability.
-              </span>
+            <label htmlFor="chef-schedule-question" className="sr-only">
+              Schedule question
+            </label>
+            <div className="flex items-end gap-2">
+              <Textarea
+                id="chef-schedule-question"
+                ref={input}
+                className="max-h-28 min-h-0 flex-1 resize-none"
+                rows={1}
+                maxLength={1000}
+                value={draft}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  event.target.style.height = "auto";
+                  event.target.style.height = `${Math.min(event.target.scrollHeight, 112)}px`;
+                }}
+                placeholder="Ask about events or propose a change…"
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault();
+                    void send();
+                  }
+                }}
+              />
+
               <Button
                 type="submit"
                 size="small"

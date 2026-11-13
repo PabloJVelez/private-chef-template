@@ -230,10 +230,10 @@ export function ScheduleEditPanel({
             Open selected event
           </Link>
           <p className="text-ui-fg-subtle text-xs">
-            Enter a date, local arrival time, or both. Leave a field blank to
-            keep its saved value. The preview uses the event’s saved timezone.
+            Blank fields keep the saved value. Times use the event’s saved
+            timezone.
           </p>
-          <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3">
             <label htmlFor={`${id}-date`} className="text-xs space-y-1">
               <span>Date (optional)</span>
               <Input
@@ -271,7 +271,7 @@ export function ScheduleEditPanel({
               className="border-ui-border-base border-t pt-3 space-y-3 outline-none"
               aria-label="Schedule change preview"
             >
-              <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 text-xs">
                 <div>
                   <p className="font-medium mb-1">Before</p>
                   <LocalTime value={selection.preview.current} />

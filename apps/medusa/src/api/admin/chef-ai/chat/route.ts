@@ -87,7 +87,7 @@ export async function POST(
             parsed.data.selection.intent,
             parsed.data.selection.context,
             zone,
-            new Date(),
+            new Date(Date.now()),
             true,
           )
         : await answerSchedule(
@@ -95,7 +95,7 @@ export async function POST(
             zone,
             selectSchedule,
             (range) => readCalendar(req.scope, range),
-            new Date(),
+            new Date(Date.now()),
             (intent, context) =>
               resolveEditProposal(req.scope, intent, context, zone),
           );

@@ -6,7 +6,9 @@ A floating, non-modal Admin dialog answers bounded schedule questions using the 
 `readCalendar` service. One model call selects either `get_schedule` or the bounded
 `propose_pending_event_date_time_edit` intent; neither can execute a write. The server renders
 facts from domain records; it never displays model-authored factual prose. Exact event selection
-and date resolution belong to the application, outside model context. Only the existing signed
+and date resolution belong to the application, outside model context. Date-described targets
+use a bounded single-day lookup; a five-minute typed draft preserves proposed fields through
+clarification without sending prior text to the provider. Only the existing signed
 preview and explicit **Confirm change** button can save. No second model executor or memory store.
 
 Scope: [BTS-11](https://arborthreads.com/threads/thr_a4864934-79cc-460d-8730-e31e050125fa/chef-admin-ai-assistant-v1-scope-and-design-handoff),
@@ -82,11 +84,11 @@ hallucinated summaries and keeps returned customer names/event text out of model
 The model sees only the **current question**, the timezone, local date and fixed
 instructions/schema. Visible history stays in React memory for the chef’s reference; it
 is not model context. Older clients may still send up to four bounded `previousQuestions`,
-but the provider ignores them. Each question must name its own date or period; references
-like “that same day” need clarification. Previous assistant responses and tool results are
-never sent to the model. The response exposes only the validated `period` enum alongside
-its existing resolved `range` and `timeZone` for safe selection diagnostics. Prompt injection can at most select another bounded schedule read within
-the caller's granted site scope; it cannot gain another tool or write capability.
+but the provider ignores them. Each independent schedule read must name its own date or period. Edit clarification can
+continue a bounded typed unfinished task; no raw history is used for that continuation. Previous assistant responses and tool results are
+never sent to the model. Read responses expose the validated `period`, `range` and `timeZone`. Edit responses may carry
+a typed draft, exact-ID candidates or a proposed date/time for the existing preview path.
+Prompt injection cannot gain a confirm tool or write capability.
 
 ## UI lifecycle and global mount evidence
 

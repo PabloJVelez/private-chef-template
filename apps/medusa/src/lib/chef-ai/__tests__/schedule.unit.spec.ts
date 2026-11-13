@@ -100,8 +100,8 @@ describe("tool and answer boundary", () => {
   it("a complete empty read states absence, not availability", async () => {
     const result = await answerSchedule(question, zone, selection(), read, now);
     expect(result.complete).toBe(true);
-    expect(result.message).toContain("No matching recorded events");
-    expect(result.message).toContain("does not mean you are free or available");
+    expect(result.message).toContain("No recorded events");
+    expect(result.message).toContain("availability is not checked");
     expect(read).toHaveBeenCalledTimes(1);
   });
   it.each([
@@ -150,7 +150,7 @@ describe("tool and answer boundary", () => {
             now,
           )
         ).message,
-      ).toContain("Ask about recorded events");
+      ).toContain("Ask for a schedule");
     }
     expect(read).not.toHaveBeenCalled();
   });

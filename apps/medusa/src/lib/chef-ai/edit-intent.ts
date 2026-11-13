@@ -27,7 +27,7 @@ export const editContextSchema = z
         value.candidates.some((c) => c.id === value.selectedId)),
     "Invalid event selection.",
   );
-const dateExpression = z.discriminatedUnion("kind", [
+export const dateExpression = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("iso"),
@@ -57,7 +57,10 @@ const dateExpression = z.discriminatedUnion("kind", [
 ]);
 export const editIntentSchema = z
   .object({
-    target: z.enum(["context", "clarify"]),
+    target: z.enum(["context", "clarify", "date"]),
+    // Optional only for v1 clients. The provider strict schema requires both fields.
+    targetDate: dateExpression.nullable().optional(),
+    continuation: z.boolean().optional(),
     date: dateExpression.nullable(),
     time: z
       .string()
@@ -67,9 +70,22 @@ export const editIntentSchema = z
   })
   .strict()
   .refine(
-    (i) => i.date !== null || i.time !== null || i.clarification !== "none",
+    (i) =>
+      i.date !== null ||
+      i.time !== null ||
+      i.clarification !== "none" ||
+      i.targetDate != null,
     "An edit needs a proposed date or time.",
   );
+export const editTaskSchema = z
+  .object({
+    version: z.literal(1),
+    intent: editIntentSchema,
+    context: editContextSchema.optional(),
+    expiresAt: z.number().int().positive(),
+  })
+  .strict();
+export type EditTask = z.infer<typeof editTaskSchema>;
 export type EditIntent = z.infer<typeof editIntentSchema>;
 export type EditContext = z.infer<typeof editContextSchema>;
 export type EditProposal = {
@@ -87,52 +103,59 @@ export function editIntentTool() {
     required: Object.keys(properties),
     additionalProperties: false,
   });
+  const dateSchema = {
+    anyOf: [
+      object({
+        kind: { type: "string", enum: ["iso"] },
+        value: {
+          type: "string",
+          description: "Explicit full YYYY-MM-DD only.",
+        },
+      }),
+      object({
+        kind: { type: "string", enum: ["day_of_month"] },
+        day: {
+          type: "integer",
+          description:
+            "Bare ordinal such as the 29th. Do not infer month/year.",
+        },
+      }),
+      object({
+        kind: { type: "string", enum: ["relative_day"] },
+        offset: {
+          type: "integer",
+          description:
+            "Calendar days relative to business-local TODAY, e.g. tomorrow=1. Never relative to event date.",
+        },
+      }),
+      object({
+        kind: { type: "string", enum: ["month_day"] },
+        month: { type: "integer" },
+        day: { type: "integer" },
+        year: {
+          type: ["integer", "null"],
+          description:
+            "Explicit year if supplied, otherwise null. Do not invent a year.",
+        },
+      }),
+      { type: "null" },
+    ],
+  };
   return {
     type: "function" as const,
     function: {
       name: "propose_pending_event_date_time_edit",
       description:
-        "Propose only a pending event date and/or local arrival time. Never executes an edit. No IDs or selection by names. Use context for anaphoric/selected event; otherwise clarify target. Preserve date expression semantics; never decide availability or suggest an alternate date.",
+        "Propose only a pending event date and/or local arrival time. Never executes an edit. No IDs or selection by names. Use context for anaphoric/selected event, date plus targetDate for event ON a date, clarify for other descriptions. targetDate identifies the event; date is the proposed NEW date (TO). Preserve date expression semantics; never decide availability or suggest an alternate date.",
       strict: true,
       parameters: object({
-        target: { type: "string", enum: ["context", "clarify"] },
-        date: {
-          anyOf: [
-            object({
-              kind: { type: "string", enum: ["iso"] },
-              value: {
-                type: "string",
-                description: "Explicit full YYYY-MM-DD only.",
-              },
-            }),
-            object({
-              kind: { type: "string", enum: ["day_of_month"] },
-              day: {
-                type: "integer",
-                description:
-                  "Bare ordinal such as the 29th. Do not infer month/year.",
-              },
-            }),
-            object({
-              kind: { type: "string", enum: ["relative_day"] },
-              offset: {
-                type: "integer",
-                description:
-                  "Calendar days relative to business-local TODAY, e.g. tomorrow=1. Never relative to event date.",
-              },
-            }),
-            object({
-              kind: { type: "string", enum: ["month_day"] },
-              month: { type: "integer" },
-              day: { type: "integer" },
-              year: {
-                type: ["integer", "null"],
-                description:
-                  "Explicit year if supplied, otherwise null. Do not invent a year.",
-              },
-            }),
-            { type: "null" },
-          ],
+        target: { type: "string", enum: ["context", "clarify", "date"] },
+        targetDate: dateSchema,
+        date: dateSchema,
+        continuation: {
+          type: "boolean",
+          description:
+            "True only for a clarification fragment such as 'this is for the event on the 30th' or 'at 2 PM'. False for a new complete edit request. The application may combine a fragment with its unfinished typed task.",
         },
         time: {
           type: ["string", "null"],

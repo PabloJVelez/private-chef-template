@@ -178,7 +178,7 @@ it("isolates week → weekend → explicit-date requests, including history sent
     expect(JSON.stringify(answer)).not.toContain("UNTRUSTED_MODEL_PROSE");
     if (index === 1)
       expect(answer.message).toContain(
-        "does not mean you are free or available",
+        "availability is not checked",
       );
     if (index === 2)
       expect(answer.entries[0]).toMatchObject({

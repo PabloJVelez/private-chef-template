@@ -315,3 +315,69 @@ it("an unresolved attempt supersedes a new conversational proposal for the same 
   expect(preview).toHaveBeenCalledTimes(1);
   expect(attempt).toHaveBeenCalledTimes(1);
 });
+
+const unfinishedTask = () => ({
+  version: 1 as const,
+  intent: {
+    target: "context" as const,
+    date: null,
+    time: "14:00",
+    clarification: "none" as const,
+  },
+  expiresAt: Date.now() + 300_000,
+});
+it("unfinished conversational task is memory-only, consumed on next prompt and separate from attempted references", async () => {
+  const ticket = state.beginProposal();
+  state.retainTask(unfinishedTask(), ticket.current);
+  expect(state.snapshot().task?.intent.time).toBe("14:00");
+  expect(Object.keys(sessionStorage)).toHaveLength(0);
+  const next = state.beginProposal();
+  expect(next.task?.intent.time).toBe("14:00");
+  expect(state.snapshot().task).toBeUndefined();
+  expect(preview).not.toHaveBeenCalled();
+  expect(attempt).not.toHaveBeenCalled();
+  state.retainTask(unfinishedTask(), next.current);
+  const newer = state.beginProposal();
+  state.retainTask(unfinishedTask(), next.current);
+  expect(state.snapshot().task).toBeUndefined();
+  expect(newer.current()).toBe(true);
+});
+it.each(["close", "selection", "manual", "actor", "backend", "expiry"])(
+  "invalidates unfinished task on %s without persisting or writing",
+  async (change) => {
+    state.select("event");
+    const ticket = state.beginProposal();
+    state.retainTask(unfinishedTask(), ticket.current);
+    if (change === "close") state.close();
+    if (change === "selection") state.select("other");
+    if (change === "manual") {
+      state.select("event");
+      state.edit("time", "15:00");
+    }
+    if (change === "actor") state.bind("B", transport);
+    if (change === "backend")
+      state.bind("A", { ...transport, backend: "https://different.invalid" });
+    if (change === "expiry") {
+      jest.spyOn(Date, "now").mockReturnValue(Date.now() + 300001);
+      state.expireTask();
+      jest.restoreAllMocks();
+    }
+    expect(state.snapshot().task).toBeUndefined();
+    expect(ticket.current()).toBe(false);
+    state.retainTask(unfinishedTask(), ticket.current);
+    expect(state.snapshot().task).toBeUndefined();
+    expect(attempt).not.toHaveBeenCalled();
+  },
+);
+it("a clarification response arriving after task expiry cannot resurrect the draft", () => {
+  state.retainTask(unfinishedTask(), state.beginProposal().current);
+  const ticket = state.beginProposal();
+  const clock = jest.spyOn(Date, "now").mockReturnValue(Date.now() + 300001);
+  try {
+    expect(ticket.current()).toBe(false);
+    state.retainTask(unfinishedTask(), ticket.current);
+    expect(state.snapshot().task).toBeUndefined();
+  } finally {
+    clock.mockRestore();
+  }
+});
