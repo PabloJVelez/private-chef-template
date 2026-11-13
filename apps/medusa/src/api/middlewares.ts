@@ -21,6 +21,11 @@ const originalErrorHandler = errorHandler()
 
 export default defineMiddlewares({
   routes: [{
+    matcher: /^\/admin\/chef-events\/schedule-edit\/(preview|confirm|recover)\/?$/i,
+    methods: ['POST'],
+    bodyParser: { sizeLimit: '6kb' },
+    middlewares: [authenticate('user', ['session', 'bearer'])],
+  }, {
     matcher: /^\/admin\/chef-ai\/chat\/?$/i,
     methods: ['POST'],
     bodyParser: { sizeLimit: '12kb' },
@@ -34,7 +39,7 @@ export default defineMiddlewares({
     next: MedusaNextFunction
   ) => {
     ensureSentry()
-    if (/^\/admin\/chef-ai\/chat\/?$/i.test(req.path)) {
+    if (/^\/admin\/(chef-ai\/chat|chef-events\/schedule-edit\/(preview|confirm|recover))\/?$/i.test(req.path)) {
       // Keep error monitoring, but never attach a parser/provider error containing a prompt.
       Sentry.withScope((scope) => {
         scope.addEventProcessor((event) => {
