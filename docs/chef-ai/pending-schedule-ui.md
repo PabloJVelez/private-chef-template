@@ -47,7 +47,7 @@ Terminal results remain displayed until **Done**, which clears their stored refe
 
 ## Verification
 
-All runtime checks used Node **26.13.1** / Yarn **4.5.0**, with no manifest/lockfile changes. Final immutable installation also passed on Node 26.13.1. The exact implementation commit is recorded in the verification addendum below and in the PR body.
+All runtime checks used Node **26.13.1** / Yarn **4.5.0**, with no manifest/lockfile changes. Final immutable installation also passed on Node 26.13.1. Verified implementation commit: **`b0be360df858eb68ac8144609f28aed9d63b4be9`**. The following documentation-only commit records this SHA and final browser evidence; executable source is unchanged.
 
 | Check | Result |
 | --- | --- |
