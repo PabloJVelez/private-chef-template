@@ -205,10 +205,9 @@ it.each(promptQuestions)(
         }),
     );
     await withChat(fetch, async () => {
-      expect(document.body.textContent).toContain(
-        "What can I help you with?",
-      );
-      expect(button("Ask Sous Chef").textContent).toContain("Ask Sous Chef");
+      expect(document.body.textContent).toContain("What can I help you with?");
+      expect(button("Ask Sous Chef").querySelector("svg")).not.toBeNull();
+      expect(button("Ask Sous Chef").textContent).toBe("");
       expect(document.querySelector('[role="dialog"]')!.textContent).toContain(
         "Schedule assistant",
       );
@@ -302,14 +301,12 @@ it("keeps distinct requests, all statuses, exact intervals and direct links, wit
           ? [{ ...protection, state: "confirmed" }]
           : [],
   }));
-  const fetch = jest
-    .fn()
-    .mockResolvedValue({
-      ...emptyAnswer,
-      entries,
-      message:
-        "Five recorded events. These records do not determine availability.",
-    });
+  const fetch = jest.fn().mockResolvedValue({
+    ...emptyAnswer,
+    entries,
+    message:
+      "Five recorded events. These records do not determine availability.",
+  });
   await withChat(fetch, async () => {
     await act(async () => button(promptQuestions[0]).click());
     const cards = [...document.querySelectorAll("article")];
@@ -344,7 +341,7 @@ it("keeps distinct requests, all statuses, exact intervals and direct links, wit
       expect(details.textContent).toContain("3:00 PM");
       expect(details.textContent).toContain("4:00 PM");
       expect(details.textContent).toContain("plated_dinner");
-      expect(details.textContent).toContain("America/Chicago");
+      expect(details.textContent).not.toContain("America/Chicago");
       if (!entries[index].appointmentTime)
         expect(details.textContent).toContain("No appointment recorded");
       if (!entries[index].protectedTime.length)

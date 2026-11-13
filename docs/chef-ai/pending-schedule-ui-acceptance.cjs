@@ -115,7 +115,10 @@ const server = http.createServer((req, res) => {
     assert.deepEqual(writes[0], { action: 'preview', body: { eventId: 'synthetic-0', time: '11:00' } });
     assert.equal(await dialog.locator('article').count(), 5);
     assert.equal(await button('Change date/time').count(), 2);
-    assert((await dialog.innerText()).includes('America/Chicago'));
+    assert(!(await dialog.innerText()).includes('America/Chicago'));
+    assert(!(await dialog.innerText()).includes('UTC'));
+    assert(!(await dialog.innerText()).includes('Google'));
+    assert(!(await dialog.innerText()).includes('Questions go to the AI provider'));
     assert((await dialog.innerText()).includes('not reserved'));
     assert(!await page.getByText('fixture-signed-reference', { exact: false }).count());
     await screenshot('preview-dark-desktop');
@@ -134,10 +137,26 @@ const server = http.createServer((req, res) => {
     await button('Confirm change').evaluate(el => { el.click(); el.click(); });
     await dialog.getByText('Live event now · pending', { exact: true }).waitFor();
     assert.equal(writes.filter(x => x.action === 'confirm').length, 1);
-    assert((await dialog.innerText()).includes('Local arrival 12:00'));
+    assert((await dialog.innerText()).includes('12:00'));
     assert((await dialog.innerText()).includes('Historical schedule snapshot'));
-    assert((await dialog.innerText()).includes('synchronization is not verified'));
-    await screenshot('saved-dark-desktop'); await button('Done').click();
+    assert(!(await dialog.innerText()).includes('Google'));
+    await screenshot('saved-dark-desktop');
+    // Refresh before Done must not restore a successful operation as unknown.
+    assert.equal(await page.evaluate(() => Object.keys(sessionStorage).filter(k => k.startsWith('chef-schedule-attempt:')).length), 0);
+    await fresh();
+    assert.equal(await dialog.getByText('Check previous change', { exact: true }).count(), 0);
+    assert.equal(await dialog.getByText('Outcome unknown', { exact: true }).count(), 0);
+    // Outside click closes without swallowing the dashboard action or writing.
+    await page.getByRole('heading', { name: 'Chef Events', exact: true }).click();
+    assert.equal(await dialog.count(), 0);
+    const launcher = page.getByRole('button', { name: 'Ask Sous Chef', exact: true });
+    const launcherBox = await launcher.boundingBox();
+    assert.equal(launcherBox.width, 48); assert.equal(launcherBox.height, 48);
+    assert.equal(await launcher.evaluate(el => getComputedStyle(el).borderRadius), '50%');
+    assert.equal(await launcher.innerText(), '');
+    await launcher.hover(); await page.getByRole('tooltip', { name: 'Ask Sous Chef' }).waitFor();
+    await page.screenshot({ path: path.join(out, 'assistant-launcher-dark-desktop.png') });
+    await open(); await screenshot('welcome-dark-desktop');
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => localStorage.setItem('medusa_admin_theme', theme), theme);
       await page.setViewportSize({ width: 390, height: 844 }); await fresh(); await ready();
@@ -146,19 +165,24 @@ const server = http.createServer((req, res) => {
     }
     // Commit + lost HTTP response, refresh to an empty chat, then recover the exact old reference.
     writeMode = 'lost'; await fresh(); await ready(); await button('Confirm change').click();
-    await dialog.getByText('Outcome unknown', { exact: true }).waitFor();
+    await dialog.getByText('Check previous change', { exact: true }).waitFor();
     const beforeRefresh = writes.length; await fresh(); assert.equal(writes.length, beforeRefresh);
     assert(await dialog.getByText('What can I help you with?', { exact: true }).isVisible());
     assert.equal(await dialog.locator('article').count(), 0);
     const stored = await page.evaluate(() => Object.entries(sessionStorage).filter(([key]) => key.startsWith('chef-schedule-attempt:')));
     assert.equal(stored.length, 1); assert(stored[0][1].includes('fixture-signed-reference'));
     assert(!stored[0][1].includes('Family supper'));
+    assert.equal(await button('Recover outcome').isVisible(), false);
+    await screenshot('recovery-collapsed-dark-mobile');
+    await dialog.getByText('Check previous change', { exact: true }).click();
     writeMode = 'off'; await button('Recover outcome').click();
     await dialog.getByText(/does not prove the earlier save rolled back/).waitFor();
     writeMode = 'saved'; await button('Recover outcome').click();
     await dialog.getByText('Live event now · pending', { exact: true }).waitFor();
-    assert((await dialog.innerText()).includes('Local arrival 12:00'));
-    await screenshot('recovered-dark-mobile'); await button('Done').click();
+    assert((await dialog.innerText()).includes('12:00'));
+    await screenshot('recovered-dark-mobile');
+    await fresh();
+    assert.equal(await dialog.getByText('Check previous change', { exact: true }).count(), 0);
     for (const [mode, text] of [['no_change', 'No change needed'], ['rejected', 'Rejected / stale preview'], ['refetch-failed', 'Current view unavailable. This historical outcome remains SAVED.']]) {
       writeMode = mode; await fresh(); await ready(); await button('Confirm change').click();
       await dialog.getByText(text, { exact: true }).waitFor(); await button('Done').click();
@@ -201,8 +225,8 @@ const server = http.createServer((req, res) => {
         assert.equal(writes.length, before + 1);
         assert.deepEqual(writes.at(-1), { action: 'preview', body: { eventId: 'synthetic-0', date: '2026-11-29' } });
         assert.equal(await edit.getByLabel('Local time (optional)').inputValue(), '');
-        assert((await dialog.innerText()).includes('2026-11-30'));
-        assert((await dialog.innerText()).includes('2026-11-29'));
+        assert((await dialog.innerText()).includes('Nov 30, 2026'));
+        assert((await dialog.innerText()).includes('Nov 29, 2026'));
         await screenshot(`conversational-preview-${theme}-${viewport.width}`);
         chatReply = { entries: [], message: 'Use the explicit Confirm change button to save.' };
         await ask('yes'); await dialog.getByText(chatReply.message, { exact: true }).waitFor();
@@ -266,7 +290,7 @@ const server = http.createServer((req, res) => {
         await ask('this is for the event on the 30th'); await button('Confirm change').waitFor();
         assert.deepEqual(writes.at(-1), { action: 'preview', body: { eventId: 'synthetic-0', time: '14:00' } });
         assert.equal(await edit.getByLabel('Date (optional)').inputValue(), '');
-        assert((await dialog.innerText()).includes('2026-11-30 · 14:00'));
+        assert((await dialog.innerText()).includes('Nov 30, 2026, 2:00 PM'));
         await screenshot(`owner-preview-${theme}-${viewport.width}`);
         await fresh();
         chatReply = body => { assert.deepEqual(body, { message: 'Can you update the event I have on the 30th to 2pm?' }); return timeProposal; };

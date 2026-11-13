@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type PropsWithChildren,
 } from "react";
 import { Link } from "react-router-dom";
 import { type LiveSchedule, scheduleEdits } from "./schedule-edit-state";
@@ -15,27 +16,40 @@ import type {
 
 function LocalTime({ value }: { value: SchedulePreview["current"] }) {
   return (
-    <>
-      <p>
-        {value.date} · {value.time}
-      </p>
-      <p className="text-ui-fg-muted text-xs break-all">
-        {value.timezone}
-        <br />
-        UTC {value.instant}
-      </p>
-    </>
+    <p>
+      {new Intl.DateTimeFormat(undefined, {
+        timeZone: value.timezone,
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(value.instant))}
+    </p>
   );
 }
-const google = {
-  requested: "Google dispatch acknowledged; synchronization is not verified.",
-  not_requested: "Google dispatch was not requested.",
-  pending: "Google dispatch is pending; synchronization is not verified.",
-  unknown:
-    "Google dispatch acknowledgement is unknown. Check the integration before retrying sync.",
-  failed:
-    "Google dispatch acknowledgement failed. The event save is unchanged; check the integration.",
-};
+function OutcomeDetails({
+  eventId,
+  active,
+  children,
+}: PropsWithChildren<{ eventId: string; active: boolean }>) {
+  const [expanded, setExpanded] = useState(active);
+  useEffect(() => {
+    if (active) setExpanded(true);
+  }, [active]);
+  return (
+    <details
+      open={expanded}
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
+      data-attempt-event={eventId}
+      tabIndex={-1}
+      className="border-ui-border-base bg-ui-bg-subtle rounded-lg border p-3 space-y-3"
+      aria-label="Schedule change outcome"
+    >
+      {children}
+    </details>
+  );
+}
 export function ScheduleEditPanel({
   onReceipt,
   closeChat,
@@ -89,13 +103,20 @@ export function ScheduleEditPanel({
   return (
     <div ref={panel} className="space-y-3" aria-label="Schedule changes">
       {Object.values(attempts).map((a) => (
-        <section
+        <OutcomeDetails
           key={a.eventId}
-          data-attempt-event={a.eventId}
-          tabIndex={-1}
-          className="border-ui-border-base bg-ui-bg-subtle rounded-lg border p-3 space-y-3"
-          aria-label="Schedule change outcome"
+          eventId={a.eventId}
+          active={Boolean(
+            a.result || a.busy || selection?.eventId === a.eventId,
+          )}
         >
+          <summary className="cursor-pointer text-sm font-medium focus-visible:shadow-borders-focus rounded-sm">
+            {a.result
+              ? "Change result"
+              : a.busy
+                ? "Checking change…"
+                : "Check previous change"}
+          </summary>
           <Link
             className="text-ui-fg-interactive underline"
             to={`/chef-events/${encodeURIComponent(a.eventId)}`}
@@ -124,18 +145,19 @@ export function ScheduleEditPanel({
                     and preview again.
                   </p>
                 )}
-                <p className="text-ui-fg-subtle text-xs">
-                  {google[a.result.googleSync]}
-                </p>
                 {a.live && (
                   <div className="border-ui-border-base border-t pt-2 text-xs">
                     <p className="font-medium">
                       Live event now · {a.live.status}
                     </p>
-                    <p>
-                      Local arrival {a.live.requestedTime} · {a.live.timeZone}
-                    </p>
-                    <p>UTC {a.live.requestedDate}</p>
+                    <LocalTime
+                      value={{
+                        date: "",
+                        time: a.live.requestedTime,
+                        timezone: a.live.timeZone,
+                        instant: a.live.requestedDate,
+                      }}
+                    />
                   </div>
                 )}
                 {a.currentView === "loading" && <p>Refreshing current view…</p>}
@@ -156,11 +178,7 @@ export function ScheduleEditPanel({
                 </p>
                 <p>
                   {a.message ||
-                    "An attempted change is retained in this tab. Recover its outcome before starting another change for this event."}
-                </p>
-                <p className="text-ui-fg-subtle text-xs">
-                  Recovery checks this same attempt and may dispatch its pending
-                  Google sync. It does not confirm a new change.
+                    "Check whether your previous change was saved before trying again."}
                 </p>
                 {a.recoveries >= 3 && (
                   <p>
@@ -192,7 +210,7 @@ export function ScheduleEditPanel({
               Recover outcome
             </Button>
           )}
-        </section>
+        </OutcomeDetails>
       ))}
       {selection && !attempts[selection.eventId] && (
         <form
@@ -230,8 +248,7 @@ export function ScheduleEditPanel({
             Open selected event
           </Link>
           <p className="text-ui-fg-subtle text-xs">
-            Blank fields keep the saved value. Times use the event’s saved
-            timezone.
+            Leave a field blank to keep it unchanged.
           </p>
           <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3">
             <label htmlFor={`${id}-date`} className="text-xs space-y-1">
@@ -282,11 +299,13 @@ export function ScheduleEditPanel({
                 </div>
               </div>
               <p className="text-ui-fg-muted text-xs">
-                Expires {selection.preview.expiresAt} (UTC).
+                {expired
+                  ? "Preview expired."
+                  : `Confirm by ${new Intl.DateTimeFormat(undefined, { timeZone: selection.preview.proposed.timezone, hour: "numeric", minute: "2-digit" }).format(new Date(selection.preview.expiresAt))}.`}
               </p>
               <p className="text-ui-fg-subtle text-xs">
-                This pending slot is not reserved. Google availability is
-                advisory. No customer notification will be sent.
+                This pending slot is not reserved. No customer notification will
+                be sent.
               </p>
               {expired ? (
                 <p role="status">

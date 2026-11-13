@@ -128,7 +128,7 @@ it("saves synchronously before dispatch and guards same-tick confirms and repeat
   d.resolve(receipt);
   await request;
   expect(state.snapshot().attempts.event.result).toEqual(receipt);
-  expect(sessionStorage.length).toBe(1); // Clear only after presentation/acknowledgement.
+  expect(sessionStorage.length).toBe(0); // Terminal receipt resolves persisted uncertainty immediately.
   state.acknowledge("event");
   expect(sessionStorage.length).toBe(0);
 });
@@ -380,4 +380,43 @@ it("a clarification response arriving after task expiry cannot resurrect the dra
   } finally {
     clock.mockRestore();
   }
+});
+
+it.each(["saved", "no_change", "rejected"] as const)(
+  "terminal %s receipt does not resurrect as unknown after refresh without Done",
+  async (outcome) => {
+    await ready();
+    attempt.mockResolvedValueOnce({
+      ...receipt,
+      outcome: { ...receipt.outcome, outcome },
+    });
+    const refreshRead = deferred<undefined>();
+    onReceipt.mockReturnValueOnce(refreshRead.promise);
+    const confirmation = state.confirm(onReceipt);
+    await Promise.resolve();
+    expect(state.snapshot().attempts.event.result?.outcome.outcome).toBe(
+      outcome,
+    );
+    expect(sessionStorage.length).toBe(0);
+    // Reload even before cache invalidation/live-view reads finish.
+    const refreshed = new ScheduleEditState();
+    refreshed.bind("A", transport);
+    expect(refreshed.snapshot().attempts).toEqual({});
+    expect(attempt).toHaveBeenCalledTimes(1);
+    refreshRead.resolve(undefined);
+    await confirmation;
+  },
+);
+it("terminal recovery also removes the reference without Done even when live refresh fails", async () => {
+  await ready();
+  attempt.mockRejectedValueOnce(new Error("lost"));
+  await state.confirm(onReceipt);
+  expect(sessionStorage.length).toBe(1);
+  onReceipt.mockRejectedValueOnce(new Error("offline"));
+  await state.recover("event", onReceipt);
+  expect(state.snapshot().attempts.event.result).toEqual(receipt);
+  expect(sessionStorage.length).toBe(0);
+  const refreshed = new ScheduleEditState();
+  refreshed.bind("A", transport);
+  expect(refreshed.snapshot().attempts).toEqual({});
 });

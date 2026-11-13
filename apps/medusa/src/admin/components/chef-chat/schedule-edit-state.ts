@@ -435,6 +435,15 @@ export class ScheduleEditState {
       return;
     }
     const receipt = result as ScheduleReceipt;
+    // A validated terminal receipt resolves uncertainty immediately. Keeping only
+    // the reference until Done would resurrect it as "unknown" on page refresh.
+    // Keep the result in memory for presentation, never persist event details.
+    try {
+      this.storage().removeItem(key(a));
+    } catch {
+      // If storage becomes inaccessible, retain the in-memory terminal outcome.
+      // A later reload may still require explicit recovery of the old reference.
+    }
     this.update(a.eventId, {
       busy: false,
       result: receipt,

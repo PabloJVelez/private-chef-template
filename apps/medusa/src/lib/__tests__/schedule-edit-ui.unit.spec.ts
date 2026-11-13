@@ -216,7 +216,7 @@ it("distinct same-looking cards use source ids; unsupported statuses have no con
       expect.any(Function),
     );
     expect(attempt).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("America/New_York");
+    expect(document.body.textContent).not.toContain("America/New_York");
     expect(document.body.textContent).not.toContain(
       "signed-reference-not-chat-content",
     );
@@ -251,11 +251,10 @@ it("explicit confirm once invalidates chef-events prefix and labels historical c
     );
     expect(document.body.textContent).toContain("Historical schedule snapshot");
     expect(document.body.textContent).toContain("Historical operation result");
-    expect(document.body.textContent).toContain("Local arrival 12:00");
+    expect(document.body.textContent).toContain("12:00");
     expect(document.body.textContent).toContain("11:00");
-    expect(document.body.textContent).toContain(
-      "synchronization is not verified",
-    );
+    expect(document.body.textContent).not.toContain("Google");
+    expect(document.body.textContent).not.toContain("UTC");
     expect(document.body.textContent).toContain("Refreshed schedule");
     expect(document.querySelectorAll("article")[0].textContent).toContain(
       "Historical schedule snapshot",
@@ -286,12 +285,19 @@ it("response lost, empty-chat remount and explicit recover use the exact origina
     expect(attempt).toHaveBeenCalledTimes(1);
     await click("Ask Sous Chef");
     expect(document.body.textContent).toContain("What can I help you with?");
+    const recovery = document.querySelector(
+      'details[aria-label="Schedule change outcome"]',
+    ) as HTMLDetailsElement;
+    expect(recovery.open).toBe(false);
+    expect(recovery.querySelector("summary")?.textContent).toBe(
+      "Check previous change",
+    );
     expect(document.body.textContent).toContain("Recover outcome");
     expect(document.body.textContent).not.toContain("Identical event");
     await click("Recover outcome");
     expect(attempt.mock.calls[1][0]).toBe("recover");
     expect(attempt.mock.calls[1][1]).toBe("signed-reference-not-chat-content");
-    expect(document.body.textContent).toContain("Local arrival 12:00");
+    expect(document.body.textContent).toContain("12:00");
   });
 });
 it("duplicate appearances of the same event share an unresolved operation", async () => {
@@ -811,9 +817,9 @@ it.each(["cancel", "read", "identity", "remount"])(
 it("desktop expand toggle is accessible; composer starts compact and Escape cancels unfinished task first", async () => {
   await fixture(async ({ fetch }) => {
     expect(document.querySelector("textarea")?.rows).toBe(1);
-    await click("Expand");
-    expect(buttons("Collapse")).toHaveLength(1);
-    await click("Collapse");
+    await click("Expand Sous Chef");
+    expect(buttons("Collapse Sous Chef")).toHaveLength(1);
+    await click("Collapse Sous Chef");
     fetch.mockResolvedValueOnce({
       entries: [],
       message: "Which event?",
@@ -840,5 +846,41 @@ it("desktop expand toggle is accessible; composer starts compact and Escape canc
     );
     expect(scheduleEdits.snapshot().task).toBeUndefined();
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+});
+
+it("clean preview omits timezone, UTC, sync and provider instructions while retaining explicit confirmation", async () => {
+  await fixture(async ({ attempt }) => {
+    expect(document.body.textContent).not.toContain("AI provider");
+    await ready();
+    const text = document.querySelector(
+      '[aria-label="Schedule change preview"]',
+    )!.textContent!;
+    expect(text).toContain("Before");
+    expect(text).toContain("After");
+    expect(text).toContain("Mar 9, 2030");
+    expect(text).toContain("10:00 AM");
+    expect(text).toContain("11:00 AM");
+    expect(text).toContain("Confirm by");
+    for (const removed of ["UTC", "America/", "Google", "2030-03-09T"])
+      expect(text).not.toContain(removed);
+    expect(buttons("Confirm change")).toHaveLength(1);
+    expect(attempt).not.toHaveBeenCalled();
+  });
+});
+it("outside focus dismisses the nonmodal chat and cancels an unused preview", async () => {
+  await fixture(async ({ attempt }) => {
+    await ready();
+    const outside = document.createElement("button");
+    outside.textContent = "Dashboard action";
+    document.body.appendChild(outside);
+    try {
+      await act(async () => outside.focus());
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(scheduleEdits.snapshot().selection).toBeUndefined();
+      expect(attempt).not.toHaveBeenCalled();
+    } finally {
+      outside.remove();
+    }
   });
 });

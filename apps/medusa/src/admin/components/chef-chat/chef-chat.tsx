@@ -1,6 +1,18 @@
 import "./chef-chat.css";
-import { Badge, Button, IconButton, Textarea } from "@medusajs/ui";
-import { Calendar, ChatBubble, XMark } from "@medusajs/icons";
+import {
+  Badge,
+  Button,
+  IconButton,
+  Textarea,
+  Tooltip,
+  TooltipProvider,
+} from "@medusajs/ui";
+import {
+  Calendar,
+  CaretMaximizeDiagonal,
+  CaretMinimizeDiagonal,
+  XMark,
+} from "@medusajs/icons";
 import { Dialog } from "radix-ui";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,6 +31,7 @@ import type { ScheduleAnswer } from "../../../lib/chef-ai/contracts";
 import type { TimeInterval } from "../../../lib/chef-workspace/contracts";
 
 import { type LiveSchedule, scheduleEdits } from "./schedule-edit-state";
+import { SousChefIcon } from "./sous-chef-icon";
 import { ScheduleEditPanel } from "./schedule-edit-panel";
 import type {
   ScheduleReceipt,
@@ -106,7 +119,6 @@ function interval(time: TimeInterval, zone: string) {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZoneName: "short",
   });
   return `${format.format(new Date(time.start))} – ${format.format(new Date(time.end))}`;
 }
@@ -148,7 +160,6 @@ function compactInterval(time: TimeInterval, zone: string) {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZoneName: "short",
   }).formatRange(new Date(time.start), new Date(time.end));
 }
 
@@ -303,11 +314,9 @@ function Answer({
                   </div>
                   <div>
                     <dt className="text-ui-fg-base font-medium">
-                      Recorded category / timezone
+                      Recorded category
                     </dt>
-                    <dd>
-                      {event.category} · {event.timeZone}
-                    </dd>
+                    <dd>{event.category}</dd>
                   </div>
                 </dl>
               </details>
@@ -630,22 +639,33 @@ export function ChefChat({
       }}
       modal={false}
     >
-      <Dialog.Trigger asChild>
-        <Button
-          variant="secondary"
-          className="fixed z-40 gap-2 shadow-elevation-flyout"
-          style={{
-            right: "max(1rem, env(safe-area-inset-right))",
-            bottom: "max(1rem, env(safe-area-inset-bottom))",
-          }}
-          aria-label="Ask Sous Chef"
-        >
-          <ChatBubble /> Ask Sous Chef
-          {Object.keys(editState.attempts).length > 0 && (
-            <span className="text-xs"> · Change to review</span>
-          )}
-        </Button>
-      </Dialog.Trigger>
+      <TooltipProvider>
+        <Tooltip content="Ask Sous Chef" side="left">
+          <Dialog.Trigger asChild>
+            <IconButton
+              variant="primary"
+              className="chef-chat-launcher fixed z-40 shadow-elevation-flyout"
+              aria-label="Ask Sous Chef"
+              aria-describedby={
+                Object.values(editState.attempts).some((a) => !a.result)
+                  ? "chef-chat-review-hint"
+                  : undefined
+              }
+            >
+              <SousChefIcon />
+              {Object.values(editState.attempts).some((a) => !a.result) && (
+                <span
+                  className="bg-ui-tag-orange-icon absolute right-0 top-0 h-2 w-2 rounded-full"
+                  aria-hidden="true"
+                />
+              )}
+            </IconButton>
+          </Dialog.Trigger>
+        </Tooltip>
+      </TooltipProvider>
+      <span id="chef-chat-review-hint" className="sr-only">
+        Previous change to check
+      </span>
       <Dialog.Portal>
         <Dialog.Content
           onEscapeKeyDown={(event) => {
@@ -667,7 +687,6 @@ export function ChefChat({
               .find((el) => el.dataset.scheduleEvent === selected?.eventId)
               ?.focus();
           }}
-          onInteractOutside={(event) => event.preventDefault()}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             input.current?.focus();
@@ -680,7 +699,7 @@ export function ChefChat({
                 className="bg-ui-bg-subtle text-ui-fg-subtle shadow-borders-base flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                 aria-hidden="true"
               >
-                <ChatBubble />
+                <SousChefIcon />
               </span>
               <div>
                 <Dialog.Title className="text-sm font-medium">
@@ -692,10 +711,11 @@ export function ChefChat({
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button
+              <IconButton
                 type="button"
                 variant="transparent"
                 size="small"
+                title={expanded ? "Collapse Sous Chef" : "Expand Sous Chef"}
                 className="chef-chat-expand"
                 aria-label={
                   expanded ? "Collapse Sous Chef" : "Expand Sous Chef"
@@ -703,8 +723,12 @@ export function ChefChat({
                 aria-expanded={expanded}
                 onClick={() => setExpanded((value) => !value)}
               >
-                {expanded ? "Collapse" : "Expand"}
-              </Button>
+                {expanded ? (
+                  <CaretMinimizeDiagonal />
+                ) : (
+                  <CaretMaximizeDiagonal />
+                )}
+              </IconButton>
               <Dialog.Close asChild>
                 <IconButton
                   size="small"
@@ -730,9 +754,8 @@ export function ChefChat({
                     What can I help you with?
                   </h2>
                   <p className="text-ui-fg-subtle text-sm leading-relaxed">
-                    See your recorded requests and appointments, with the
-                    details close at hand. Ask to move a pending event, then
-                    review and confirm its preview.
+                    Check your schedule or adjust a pending event. You review
+                    every change before it’s saved.
                   </p>
                 </div>
                 <div
@@ -763,10 +786,6 @@ export function ChefChat({
                     </button>
                   ))}
                 </div>
-                <p className="text-ui-fg-muted text-xs leading-relaxed">
-                  Questions go to the AI provider. Leave out customer contact
-                  details.
-                </p>
               </div>
             )}
             {turns.length > 3 && (
