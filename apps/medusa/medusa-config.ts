@@ -1,4 +1,5 @@
 import { availabilitySettingsSidebar } from './src/lib/admin-settings-sidebar';
+import { chefChatMount } from './src/lib/admin-chef-chat';
 import { unlock } from '@unlockable/vite-plugin-unlock';
 import { privateChefAdminPreset } from './src/lib/admin-main-sidebar';
 import { defineConfig, loadEnv } from '@medusajs/framework/utils';
@@ -222,6 +223,7 @@ module.exports = defineConfig({
     backendUrl: process.env.ADMIN_BACKEND_URL,
     vite: () => ({
       plugins: [
+        chefChatMount(),
         availabilitySettingsSidebar(),
         unlock(
           privateChefAdminPreset({

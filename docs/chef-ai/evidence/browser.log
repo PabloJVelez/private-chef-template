@@ -1,0 +1,4 @@
+PASS week facts, links, Escape and focus
+PASS history through core/settings navigation and event detail link
+PASS weekend, day absence and write refusal
+PASS built Admin login; authenticated model-SDK/tool/calendar flow; week/weekend/day; event links; pending/confirmed/protection; empty/refusal; loading/disabled; Escape/focus; core/settings navigation memory; light/dark/mobile; no durable history; refresh/logout clear; rate cap.
