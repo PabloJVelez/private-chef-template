@@ -1,3 +1,6 @@
+import {
+  scheduleSnapshot, scheduleReceipt, commitScheduleEdit, type ScheduleEditInput,
+} from './schedule-edit';
 import type { z } from '@medusajs/framework/zod';
 import type { calendarQuery } from '../../lib/chef-workspace/query';
 import { summaryFields, type PrivateEventRead } from '../../lib/chef-workspace/private-event';
@@ -34,6 +37,50 @@ class ChefEventModuleService extends MedusaService({
   AcceptanceAttempt,
   ChefEvent: ChefEventModel,
 }) {
+  @InjectManager()
+  async readScheduleEditEvent(id: string, @MedusaContext() context: Context<EntityManager> = {}) {
+    return scheduleSnapshot(context.transactionManager ?? context.manager!, id);
+  }
+
+  @InjectManager()
+  async readScheduleEdit(input: ScheduleEditInput, @MedusaContext() context: Context<EntityManager> = {}) {
+    return scheduleReceipt(context.transactionManager ?? context.manager!, input);
+  }
+
+  @InjectManager()
+  async editPendingSchedule(
+    input: ScheduleEditInput, rejection?: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    return this.editPendingSchedule_(input, rejection, context);
+  }
+
+  @InjectTransactionManager()
+  protected async editPendingSchedule_(
+    input: ScheduleEditInput, rejection?: string,
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    return commitScheduleEdit(context.transactionManager!, input, rejection);
+  }
+
+  /** A crash after the dispatch claim is uncertainty, never permission to emit twice. */
+  @InjectManager()
+  async claimScheduleEditDispatch(input: ScheduleEditInput, @MedusaContext() context: Context<EntityManager> = {}) {
+    const manager = context.transactionManager ?? context.manager!;
+    const rows = await manager.execute(`update chef_event_schedule_edit set google_sync = 'unknown'
+      where id = ? and input = ?::jsonb and google_sync = 'pending' returning id`, [input.operationId, JSON.stringify(input)]);
+    return rows.length === 1;
+  }
+
+  @InjectManager()
+  async finishScheduleEditDispatch(
+    input: ScheduleEditInput, state: 'requested' | 'failed',
+    @MedusaContext() context: Context<EntityManager> = {},
+  ) {
+    await (context.transactionManager ?? context.manager!).execute(`update chef_event_schedule_edit set google_sync = ?
+      where id = ? and input = ?::jsonb and google_sync = 'unknown'`, [state, input.operationId, JSON.stringify(input)]);
+  }
+
   /** Read only, bounded to display intervals. SQL is needed for per-row duration overlap. */
   @InjectManager()
   async readCalendarEvents(
