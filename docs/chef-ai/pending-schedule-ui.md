@@ -121,6 +121,44 @@ git diff --check
 
 The database tests create random `booking_test_*` databases and remove only their fixtures. The outer schedule wrapper has six Jest tests: one executes the 53-case PostgreSQL/HTTP suite; the other five exercise persistent execution, including the alternate-route guard. HTTP tests use real Medusa authentication/middleware with fixture current-user/store services. Browser APIs are intercepted synthetic responses over built Admin assets; they are not a live paid-provider or production acceptance test. No live model, Google, customer email, production database, deployment, or hosted CI success is claimed. Private Arbor was not read or posted; the owner's reproduced final handoff/review supplied the scope.
 
+## Chat polish and resolved-attempt cleanup (owner follow-up)
+
+Tested implementation: **`3b213b7b013ae5edc977a8f2c71fcc18f93abaa3`**, continuing from clean remote `7040b26fd6a023be663cb90de06fe206940ac0be` on the same managed branch. PR #38 remains stacked on #37; no backend guard, workflow, authentication, model selection, dependency, migration or production setting changed.
+
+The refresh bug was that terminal receipts were shown in memory but their attempted references stayed in sessionStorage until **Done**. Reload discarded the receipt and restored the reference as unknown. A validated terminal receipt now removes that reference synchronously before live-view refresh, while leaving the result visible in memory. Unknown/lost-response attempts still retain their exact reference and one-operation guard; restored details start collapsed. Old references created before this fix require one explicit recovery to determine their outcome, not an automatic save or recovery.
+
+Chat presentation now omits UTC, timezone names, Google sync notices and the provider privacy notice. Dates/times still format in the saved event zone. Desktop expand/collapse use labeled icons; outside interaction dismisses chat and invalidates unused proposals. The bottom-right launcher is a 48px round chef-hat/sparkle icon with tooltip and accessible name, reducing its footprint without modifying the dashboard shell.
+
+Validation on Node **26.13.1** / Yarn **4.5.0**:
+
+- Full **35 unit suites / 413 tests passed**. Final display-deadline adjustment: **3 targeted suites / 81 tests passed**. New coverage includes saved/no_change/rejected refresh before Done and before live read completes, recovered-reference cleanup with failed live read, collapsed uncertainty, outside dismissal, icon accessibility and removed technical copy.
+- All five real HTTP/DB integration wrappers passed: **53 schedule cases**, **5 persistent Redis/process cases including all nine generic-workflow denial scenarios**, workspace/booking/scheduling cases and availability constraints. Disposable `bts21-polish-pg` and `bts21-polish-redis` containers were removed after testing.
+- Medusa and storefront typechecks/builds passed. Admin build lint: **0 errors / 176 existing warnings**. `git diff --check` passed.
+- Built Admin acceptance passed with intercepted synthetic APIs: light/dark desktop, expanded layout, 390px/320px mobile, all three owner prompts, explicit-only confirmation, refresh before Done, collapsed recovery, outside click, 48px round launcher/tooltip, storage failure and 409 receipts. **32 previews / 5 explicit confirmations / 2 recoveries; zero browser errors / unmocked routes**. No live model, Google or customer email calls.
+
+Screenshots: [launcher](pending-ui-evidence/polish-launcher-dark-desktop.png), [welcome](pending-ui-evidence/polish-welcome-dark-desktop.png), [local-time mobile preview](pending-ui-evidence/polish-preview-light-mobile.png), [collapsed recovery](pending-ui-evidence/polish-recovery-dark-mobile.png). Synthetic records only. Acceptance used the existing Playwright/library workaround described above; no new host-browser success is claimed.
+
+Commands from the repository root unless noted:
+
+```bash
+export PATH=/tmp/bts21-node26/node-v26.13.1-linux-x64/bin:$PATH
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa test:unit
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa test:unit --runTestsByPath src/lib/__tests__/schedule-edit-ui.unit.spec.ts src/lib/__tests__/chef-chat-ui.unit.spec.ts src/lib/__tests__/schedule-edit-state.unit.spec.ts
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa typecheck
+MEDUSA_DISABLE_TELEMETRY=true node .yarn/releases/yarn-4.5.0.cjs workspace medusa build
+node .yarn/releases/yarn-4.5.0.cjs workspace storefront typecheck
+node .yarn/releases/yarn-4.5.0.cjs workspace storefront build
+# Disposable fixture containers assigned loopback ports 32791 and 32792 for this run only.
+docker run -d --name bts21-polish-pg -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=booking_test_polish -p 127.0.0.1::5432 postgres:16
+docker run -d --name bts21-polish-redis -p 127.0.0.1::6379 redis:7
+cd apps/medusa
+BOOKING_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:32791/booking_test_polish BOOKING_TEST_REDIS_URL=redis://127.0.0.1:32792 AVAILABILITY_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:32791/booking_test_polish node ../../.yarn/releases/yarn-4.5.0.cjs test:integration:http --runTestsByPath integration-tests/http/schedule-edit.spec.ts integration-tests/http/chef-workspace.spec.ts integration-tests/http/booking-scheduling.spec.ts integration-tests/http/scheduling-domain.spec.ts integration-tests/http/availability-concurrency.spec.ts
+cd ../..
+LD_LIBRARY_PATH=/tmp/bts-browser-libs/root/usr/lib/x86_64-linux-gnu NODE_PATH=/home/openclaw/projects/bts/node_modules BTS21_UI_EVIDENCE_DIR=/tmp/bts21-polish-browser-evidence node docs/chef-ai/pending-schedule-ui-acceptance.cjs
+git diff --check
+docker rm -f bts21-polish-pg bts21-polish-redis
+```
+
 ## Arbor-ready handoff
 
 PR #38 now retains unfinished typed edits through clarification, performs bounded target-date lookup and provides a more spacious, compact chat. The three owner prompts prepare Nov 30 at 14:00 in the isolated CST fixture with no confirms. It supports natural-language pending-event date/time proposals through one fixed structured intent, exact current-event context and the existing authoritative preview. The model never confirms; typing yes/confirm never writes. It retains pending-event action cards, explicit actor-bound preview/confirmation, validated historical 409 receipt transport, and same-tab attempted-operation recovery. One-store access now grants existing authenticated Admin accounts without an allowlist, and fails closed for ambiguous stores. The workflow-specific alternate-route guard remains byte-for-byte unchanged. The UI preserves unknown outcomes, distinguishes saved from current-view refresh failure, marks historical schedule snapshots, and never treats Google dispatch as synchronization. Review the stacked UI PR before any merge or enabling writes; this work does not authorize deployment or production writes.
