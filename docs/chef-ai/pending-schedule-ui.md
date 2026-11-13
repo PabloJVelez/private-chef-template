@@ -79,7 +79,7 @@ Terminal results remain displayed until **Done**, which clears their stored refe
 
 ## Verification
 
-The conversational follow-up used Node **26.13.1** / Yarn **4.5.0**, with no dependency, lockfile or migration changes. The third run continues from verified clean PR #38 head `92d4263c7add81c3ec822bd8153089ae590d1297` on the same managed branch. The tested implementation SHA is recorded by the final documentation commit.
+The conversational follow-up used Node **26.13.1** / Yarn **4.5.0**, with no dependency, lockfile or migration changes. The third run continues from verified clean PR #38 head `92d4263c7add81c3ec822bd8153089ae590d1297` on the same managed branch. Tested implementation commit: **`d11acc63bd4088ef4d6eee7fe9dc2e982696cd2e`**. The following documentation-only commit records this SHA; executable source is unchanged.
 
 | Check | Result |
 | --- | --- |
