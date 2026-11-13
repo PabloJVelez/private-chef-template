@@ -1,11 +1,13 @@
 # BTS-11 — Sous Chef
 
-**Sous Chef** is the user-facing assistant name. V1 is a read-only schedule assistant; the launcher is **Ask Sous Chef**. Earlier evidence screenshots retain the branding present when captured. BTS-21 now adds an explicit [pending-event date/time action](pending-schedule-ui.md) beside these read-only answers.
+**Sous Chef** is the user-facing assistant name. V1 is a read-only schedule assistant; the launcher is **Ask Sous Chef**. Earlier evidence screenshots retain the branding present when captured. BTS-21 now adds [conversational proposals and an explicit pending-event date/time action](pending-schedule-ui.md) beside these schedule answers.
 
 A floating, non-modal Admin dialog answers bounded schedule questions using the existing
-`readCalendar` service. The only model-selected tool is `get_schedule`. The server renders
-facts from the returned contract; it never displays model-authored factual prose. No second
-model call, write tool, request search, event-details tool, Booking module or memory store.
+`readCalendar` service. One model call selects either `get_schedule` or the bounded
+`propose_pending_event_date_time_edit` intent; neither can execute a write. The server renders
+facts from domain records; it never displays model-authored factual prose. Exact event selection
+and date resolution belong to the application, outside model context. Only the existing signed
+preview and explicit **Confirm change** button can save. No second model executor or memory store.
 
 Scope: [BTS-11](https://arborthreads.com/threads/thr_a4864934-79cc-460d-8730-e31e050125fa/chef-admin-ai-assistant-v1-scope-and-design-handoff),
 [Nov 12 proposal](https://arborthreads.com/threads/thr_a4864934-79cc-460d-8730-e31e050125fa#c-con_e34dd9825aa9b1387c91a5cdde2508ab22971b72a724a43634ea76eeb46ec20d).
@@ -35,7 +37,7 @@ zero/multiple stores, unavailable store configuration, or a deleted current acco
 and API-key actors are denied. Existing sidebar and RBAC behavior is unchanged.
 
 The [pending-event action UI](pending-schedule-ui.md) adds explicit preview/confirmation
-outside conversational model tools. `CHEF_AI_SCHEDULE_WRITE_ENABLED=true` separately opts
+after a manual form entry or a conversational proposal. The model never confirms or writes. `CHEF_AI_SCHEDULE_WRITE_ENABLED=true` separately opts
 in to these endpoints, including recovery; it defaults OFF. No per-chef roles or capability API.
 
 Save a valid IANA timezone in **Settings → Availability**. The endpoint reads only `id`
@@ -50,8 +52,8 @@ Missing key/unsupported provider returns a safe 503 configuration state.
 
 ## Bounded factual behavior
 
-- A single OpenAI Chat Completions call selects a named relative period or explicit local
-  dates. `strict: true`, closed schema, no parallel calls. Server validation remains
+- A single OpenAI Chat Completions call selects a schedule period or a typed pending-event
+  edit intent (or clarification). `strict: true`, closed schema, no parallel calls. Server validation remains
   authoritative even if the model violates its schema or prompt.
 - Relative periods: today, tomorrow, this/next week, this/next weekend. Weeks start Monday;
   weekends are Saturday and Sunday of that week (including the current Saturday on Sunday).

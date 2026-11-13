@@ -1,3 +1,7 @@
+import { Client as MedusaClient } from '@medusajs/js-sdk';
+import { ScheduleEditState } from '../../src/admin/components/chef-chat/schedule-edit-state';
+import { createScheduleTransport } from '../../src/admin/components/chef-chat/schedule-edit-transport';
+import type { ScheduleAnswer } from '../../src/lib/chef-ai/contracts';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
@@ -16,7 +20,11 @@ import {
 } from '../../src/lib/private-event-schedule/command';
 import { verifyReference } from '../../src/lib/private-event-schedule/contract';
 import { scheduleEditHandler } from '../../src/lib/private-event-schedule/http';
-jest.mock('../../src/lib/chef-ai/provider', () => ({ selectSchedule: async () => ({ calls: [{ name: 'get_schedule', arguments: JSON.stringify({ period: 'today', startDate: null, endDate: null, timeZone: 'America/New_York' }) }] }) }));
+const modelCall = jest.fn();
+jest.mock('openai', () => ({ __esModule: true, default: class {
+  chat = { completions: { create: (...args: unknown[]) => modelCall(...args) } };
+} }));
+const modelTool = (name: string, args: unknown) => ({ choices: [{ finish_reason: 'tool_calls', message: { tool_calls: [{ type: 'function', function: { name, arguments: JSON.stringify(args) } }] } }] });
 const { Client } = require('@medusajs/framework/pg');
 const express = require('express');
 const jwt = require('jsonwebtoken');
@@ -157,10 +165,11 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   jest.restoreAllMocks();
+  modelCall.mockReset().mockResolvedValue(modelTool('get_schedule', { period: 'today', startDate: null, endDate: null, timeZone: 'America/New_York' }));
   listStores.mockReset().mockResolvedValue([{ id: 'store' }]);
   emit.mockReset().mockResolvedValue(undefined);
   user.mockReset().mockImplementation(async (id: string) => {
-    if (!['admin', 'other'].includes(id)) throw new Error('Unknown fixture account');
+    if (!['admin', 'other'].includes(id) && !id.startsWith('chat-fixture-')) throw new Error('Unknown fixture account');
     return { id };
   });
   process.env.CHEF_AI_SCOPE = 'single_site';
@@ -613,4 +622,202 @@ it('Admin B outside the obsolete allowlist can read and prepare its own preview 
   expect((await post('/chef-events/schedule-edit/preview', { eventId: 'event', time: '12:00' })).status).toBe(403);
   listStores.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
   expect((await post('/chef-ai/chat', { message: 'today' })).status).toBe(403);
+});
+
+
+const moveTo29 = {
+  target: 'context',
+  date: { kind: 'day_of_month', day: 29 },
+  time: null,
+  clarification: 'none',
+};
+async function conversationalFixture(kind: string, secondStatus?: 'pending' | 'confirmed') {
+  process.env.CHEF_AI_OPENAI_API_KEY = 'fixture-never-network';
+  Settings.now = () => Date.parse('2026-11-13T12:00:00Z');
+  await chef.updateChefEvents({
+    id: 'event',
+    requestedDate: new Date('2026-11-30T16:00:00Z'),
+    requestedTime: '11:00',
+  });
+  if (secondStatus)
+    await chef.updateChefEvents({
+      id: 'unselected',
+      requestedDate: new Date('2026-11-30T16:00:00Z'),
+      requestedTime: '11:00',
+    });
+  if (secondStatus === 'confirmed') {
+    const bound = await chef.bindAcceptance({ eventId: 'unselected', actorId: 'admin', body: {} });
+    const event = await chef.retrieveChefEvent('unselected');
+    await chef.claimAcceptance({
+      id: event.id,
+      token: bound.id,
+      updatedAt: event.updated_at,
+      start: '2026-11-30T16:00:00Z',
+      end: '2026-11-30T17:00:00Z',
+      snapshot: { duration_minutes: 60, timezone: event.timeZone },
+    });
+    await chef.finalizeAcceptance({ id: event.id, token: bound.id, productId: 'fixture-ticket' });
+  }
+  const actor = 'chat-fixture-' + kind;
+  const token = jwt.sign({ actor_id: actor, actor_type: 'user', auth_identity_id: 'fixture' }, secret);
+  const backendUrl = baseUrl.replace('/admin/chef-events/schedule-edit', '');
+  const sdk = new MedusaClient({
+    baseUrl: backendUrl,
+    auth: { type: 'jwt', jwtTokenStorageMethod: 'memory' },
+  });
+  await sdk.setToken(token);
+  modelCall.mockResolvedValueOnce(
+    modelTool('get_schedule', {
+      period: 'dates',
+      startDate: '2026-11-30',
+      endDate: '2026-12-01',
+      timeZone: 'America/New_York',
+    }),
+  );
+  const answer = await sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', {
+    method: 'POST',
+    body: { message: 'What is on November 30 2026?' },
+  });
+  expect(answer.editContext?.candidates).toHaveLength(secondStatus ? 2 : 1);
+  return { sdk, answer, actor, backendUrl, token };
+}
+it.each([true, false])(
+  'actual provider/HTTP + installed SDK + shared UI state proposes Nov 29 without confirming; Sunday open=%s',
+  async (open) => {
+    const f = await conversationalFixture(open ? 'open' : 'closed');
+    if (!open)
+      await fixture.container
+        .resolve<any>('availability')
+        .updateAvailabilitySettings({
+          id: 'chef-default',
+          weekly: Object.fromEntries(
+            [1, 2, 3, 4, 5, 6, 7].map((day) => [day, day === 7 ? [] : [{ start: '00:00', end: '23:59' }]]),
+          ),
+        });
+    modelCall.mockResolvedValueOnce(modelTool('propose_pending_event_date_time_edit', moveTo29));
+    const answer = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', {
+      method: 'POST',
+      body: { message: 'Can you move it to the 29th?', context: f.answer.editContext },
+    });
+    expect(answer.editProposal).toEqual({
+      eventId: 'event',
+      date: '2026-11-29',
+      expectedRevision: expect.any(String),
+    });
+    const payload = modelCall.mock.calls.at(-1)[0];
+    expect(payload.messages.slice(1)).toEqual([{ role: 'user', content: 'Can you move it to the 29th?' }]);
+    expect(JSON.stringify(payload)).not.toContain('Private Guest');
+    expect(JSON.stringify(payload)).not.toContain(f.answer.editContext!.candidates[0].revision);
+    const transport = createScheduleTransport({
+      backendUrl: f.backendUrl,
+      authType: 'jwt',
+      getToken: () => f.sdk.getToken(),
+    });
+    const attempts = jest.spyOn(transport, 'attempt');
+    const state = new ScheduleEditState(() => ({}) as Storage);
+    state.bind(f.actor, transport);
+    const ticket = state.beginProposal();
+    await state.propose(answer.editProposal!, ticket.current);
+    expect(state.snapshot().selection?.date).toBe('2026-11-29');
+    expect(state.snapshot().selection?.time).toBe('');
+    if (open)
+      expect(state.snapshot().selection?.preview?.proposed).toMatchObject({
+        date: '2026-11-29',
+        time: '11:00',
+        timezone: 'America/New_York',
+      });
+    else {
+      expect(state.snapshot().selection?.preview).toBeUndefined();
+      expect(state.snapshot().selection?.message).toBe(
+        'That arrival time is no longer available. Please choose another time.',
+      );
+    }
+    expect((await row()).requestedDate.toISOString()).toBe('2026-11-30T16:00:00.000Z');
+    expect((await db.query('select * from chef_event_schedule_edit')).rows).toHaveLength(0);
+    expect(attempts).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+    expect(modelCall).toHaveBeenCalledTimes(2);
+  },
+);
+it.each(['pending', 'confirmed'] as const)(
+  'two identical-looking events including %s require exact selection without a second model executor',
+  async (status) => {
+    const f = await conversationalFixture('two-' + status, status);
+    modelCall.mockResolvedValueOnce(modelTool('propose_pending_event_date_time_edit', moveTo29));
+    const answer = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', {
+      method: 'POST',
+      body: { message: 'Move it to the 29th', context: f.answer.editContext },
+    });
+    expect(answer.editProposal).toBeUndefined();
+    expect(answer.editClarification?.context.candidates).toHaveLength(2);
+    const selected = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', {
+      method: 'POST',
+      body: {
+        selection: {
+          intent: answer.editClarification!.intent,
+          context: { ...answer.editClarification!.context, selectedId: 'event' },
+        },
+      },
+    });
+    expect(selected.editProposal?.eventId).toBe('event');
+    expect(selected.editProposal?.date).toBe('2026-11-29');
+    expect(modelCall).toHaveBeenCalledTimes(2);
+  },
+);
+it('HTTP rejects forged/oversized candidate context, detects stale event dates, and exposes no confirm tool', async () => {
+  const f = await conversationalFixture('forged');
+  for (const context of [
+    { ...f.answer.editContext, selectedId: 'forged' },
+    { ...f.answer.editContext, candidates: Array(21).fill(f.answer.editContext!.candidates[0]) },
+  ])
+    await expect(
+      f.sdk.fetch('/admin/chef-ai/chat', { method: 'POST', body: { message: 'move it', context } }),
+    ).rejects.toMatchObject({ status: 400 });
+  await chef.updateChefEvents({ id: 'event', requestedDate: new Date('2026-12-30T16:00:00Z') });
+  modelCall.mockResolvedValueOnce(modelTool('propose_pending_event_date_time_edit', moveTo29));
+  const stale = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', {
+    method: 'POST',
+    body: { message: 'move it to the 29th', context: f.answer.editContext },
+  });
+  expect(stale.editProposal).toBeUndefined();
+  expect(stale.message).toContain('changed');
+  for (const message of ['yes', 'confirm']) {
+    modelCall.mockResolvedValueOnce({
+      choices: [{ finish_reason: 'stop', message: { content: 'untrusted prose' } }],
+    });
+    const answer = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', {
+      method: 'POST',
+      body: { message },
+    });
+    expect(answer.editProposal).toBeUndefined();
+    expect(answer.message).toContain('chat text cannot confirm');
+  }
+  expect((await db.query('select * from chef_event_schedule_edit')).rows).toHaveLength(0);
+});
+it('conversational DST-gap proposal reaches the dedicated preview and is refused without writing', async () => {
+  const f = await conversationalFixture('dst');
+  modelCall.mockResolvedValueOnce(
+    modelTool('propose_pending_event_date_time_edit', {
+      ...moveTo29,
+      date: { kind: 'iso', value: '2027-03-14' },
+      time: '02:30',
+    }),
+  );
+  const answer = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', {
+    method: 'POST',
+    body: { message: 'Move it to March 14 2027 at 02:30', context: f.answer.editContext },
+  });
+  expect(answer.editProposal).toMatchObject({ date: '2027-03-14', time: '02:30' });
+  const transport = createScheduleTransport({
+    backendUrl: f.backendUrl,
+    authType: 'jwt',
+    getToken: () => f.sdk.getToken(),
+  });
+  const state = new ScheduleEditState(() => ({}) as Storage);
+  state.bind(f.actor, transport);
+  const ticket = state.beginProposal();
+  await state.propose(answer.editProposal!, ticket.current);
+  expect(state.snapshot().selection?.message).toContain('DST gaps/folds');
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  expect((await db.query('select * from chef_event_schedule_edit')).rows).toHaveLength(0);
 });

@@ -257,3 +257,61 @@ it("new actor or backend never loads another scope’s actionable reference", as
   expect(refresh.snapshot().attempts).toEqual({});
   expect(sessionStorage.length).toBe(0);
 });
+it.each(["manual", "event", "close", "actor", "backend", "newer"])(
+  "a late conversational proposal cannot reopen the editor after %s",
+  async (change) => {
+    const ticket = state.beginProposal();
+    if (change === "manual") {
+      state.select("event");
+      state.edit("time", "12:00");
+    }
+    if (change === "event") state.select("other");
+    if (change === "close") state.close();
+    if (change === "actor") state.bind("B", transport);
+    if (change === "backend")
+      state.bind("A", { ...transport, backend: "https://other.invalid" });
+    if (change === "newer") state.beginProposal();
+    expect(
+      await state.propose(
+        {
+          eventId: "event",
+          expectedRevision: "a".repeat(32),
+          date: "2026-11-29",
+        },
+        ticket.current,
+      ),
+    ).toBe(false);
+    expect(preview).not.toHaveBeenCalled();
+    expect(attempt).not.toHaveBeenCalled();
+  },
+);
+it("conversational proposal uses the shared runner, and a revision change before preview prevents confirmation", async () => {
+  preview.mockResolvedValueOnce({ ...p(), expectedRevision: "b".repeat(32) });
+  const ticket = state.beginProposal();
+  await state.propose(
+    { eventId: "event", expectedRevision: "a".repeat(32), date: "2026-11-29" },
+    ticket.current,
+  );
+  expect(preview).toHaveBeenCalledWith(
+    { eventId: "event", date: "2026-11-29" },
+    expect.any(Function),
+  );
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  expect(state.snapshot().selection?.message).toContain("event changed");
+  await state.confirm(onReceipt);
+  expect(attempt).not.toHaveBeenCalled();
+});
+it("an unresolved attempt supersedes a new conversational proposal for the same event", async () => {
+  await ready();
+  attempt.mockResolvedValueOnce({ outcome: "unknown", operationId });
+  await state.confirm(onReceipt);
+  const ticket = state.beginProposal();
+  expect(
+    await state.propose(
+      { eventId: "event", expectedRevision: "a".repeat(32), time: "12:00" },
+      ticket.current,
+    ),
+  ).toBe(false);
+  expect(preview).toHaveBeenCalledTimes(1);
+  expect(attempt).toHaveBeenCalledTimes(1);
+});

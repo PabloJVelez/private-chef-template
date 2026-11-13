@@ -81,7 +81,7 @@ const server = http.createServer((req, res) => {
     assert(form.y >= box.y && form.y + form.height <= box.y + box.height + 1);
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   }
-  async function settleAnswer() { await page.getByText('Reading your recorded schedule…', { exact: true }).waitFor({ state: 'hidden' }); }
+  async function settleAnswer() { await page.getByText('Checking your request…', { exact: true }).waitFor({ state: 'hidden' }); }
   try {
     await page.goto(base + '/app/chef-events?date=2026-11-13');
     await open();
@@ -94,7 +94,7 @@ const server = http.createServer((req, res) => {
     await shot('welcome-dark-desktop');
     mode = 'hold';
     await quick.evaluate(button => { button.click(); button.click(); });
-    await page.getByText('Reading your recorded schedule…', { exact: true }).waitFor();
+    await page.getByText('Checking your request…', { exact: true }).waitFor();
     assert.equal(requests.length, 1);
     assert.deepEqual(requests[0], { message: "What's on my schedule this week?" });
     assert(await page.getByRole('button', { name: 'Send', exact: true }).isDisabled());

@@ -23,7 +23,11 @@ import type {
   ScheduleReceipt,
   ScheduleTransport,
 } from "./schedule-edit-transport";
-import type { CalendarResult } from "../../../lib/chef-workspace/contracts";
+import type { EditContext, EditIntent } from "../../../lib/chef-ai/edit-intent";
+import type {
+  CalendarEntry,
+  CalendarResult,
+} from "../../../lib/chef-workspace/contracts";
 
 type Turn = {
   question: string;
@@ -151,7 +155,9 @@ function Answer({
   answer,
   close,
   historicalIds = [],
+  currentContext,
 }: {
+  currentContext?: EditContext;
   historicalIds?: string[];
   answer: ScheduleAnswer;
   close: () => void;
@@ -229,6 +235,24 @@ function Answer({
                   zone!,
                 )}
               </p>
+              {event.source.type === "private-event" &&
+                event.status === "pending" && (
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="secondary"
+                    className="mt-3 mb-2 w-full justify-center font-medium"
+                    data-schedule-event={event.source.id}
+                    onClick={() =>
+                      scheduleEdits.select(
+                        event.source.id,
+                        historicalIds.length ? undefined : currentContext,
+                      )
+                    }
+                  >
+                    Change date/time
+                  </Button>
+                )}
               <details className="text-ui-fg-subtle mt-2 text-xs">
                 <summary
                   aria-label={`Details for ${event.title}`}
@@ -292,19 +316,6 @@ function Answer({
                   current time.
                 </p>
               )}
-              {event.source.type === "private-event" &&
-                event.status === "pending" && (
-                  <Button
-                    type="button"
-                    size="small"
-                    variant="transparent"
-                    className="mt-2"
-                    data-schedule-event={event.source.id}
-                    onClick={() => scheduleEdits.select(event.source.id)}
-                  >
-                    Change date/time
-                  </Button>
-                )}
             </article>
           );
         })}
@@ -343,6 +354,12 @@ export function ChefChat({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
+  const [choice, setChoice] = useState<{
+    intent: EditIntent;
+    context: EditContext;
+    cards: CalendarEntry[];
+    current: () => boolean;
+  }>();
   const controller = useRef<AbortController>();
   const sending = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -356,7 +373,7 @@ export function ChefChat({
   useEffect(() => {
     setOpen(false);
     scheduleEdits.close();
-  }, [location.pathname]);
+  }, [location.key]);
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     if (!open || !turns.length) return;
@@ -365,12 +382,24 @@ export function ChefChat({
     else latestTurn.current?.scrollIntoView({ block: "start" });
   }, [turns, loading, open]);
 
-  async function send(message = draft) {
+  async function send(
+    message = draft,
+    selection?: { intent: EditIntent; context: EditContext },
+  ) {
     const question = message.trim();
     if (!question || sending.current || loading || question.length > 1000)
       return;
     // State alone cannot guard two clicks before React commits the busy render.
     sending.current = true;
+    const last = turns.at(-1);
+    const fresh =
+      last?.answer?.complete && !last.historicalIds?.length
+        ? last.answer
+        : undefined;
+    const ticket = scheduleEdits.beginProposal();
+    const context = selection?.context ?? ticket.context ?? fresh?.editContext;
+    const cards = choice?.cards ?? fresh?.entries ?? [];
+    setChoice(undefined);
     input.current?.focus();
     const pending: Turn = { question };
     const next = [...turns.slice(-11), pending];
@@ -381,13 +410,31 @@ export function ChefChat({
     setLoading(true);
     controller.current = new AbortController();
     try {
-      const answer = await client.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
+      let answer = await client.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
         method: "POST",
         signal: controller.current.signal,
-        body: {
-          message: question,
-        },
+        body: selection
+          ? { selection }
+          : { message: question, ...(context ? { context } : {}) },
       });
+      if (epoch !== generation.current) return;
+      if (!ticket.current()) {
+        answer =
+          answer.editProposal || answer.editClarification
+            ? {
+                entries: [],
+                message:
+                  "That proposal was discarded because the event selection or editor changed. Ask again to prepare a new preview.",
+              }
+            : { ...answer, editContext: undefined };
+      }
+      if (answer.editClarification && ticket.current()) {
+        setChoice({
+          ...answer.editClarification,
+          cards,
+          current: ticket.current,
+        });
+      }
       if (epoch === generation.current)
         setSession((s) => ({
           ...s,
@@ -403,6 +450,28 @@ export function ChefChat({
               : turn,
           ),
         }));
+      if (answer.editProposal && ticket.current()) {
+        const applied = await scheduleEdits.propose(
+          answer.editProposal,
+          ticket.current,
+        );
+        if (!applied && epoch === generation.current)
+          setSession((s) => ({
+            ...s,
+            turns: s.turns.map((turn) =>
+              turn.answer === answer
+                ? {
+                    ...turn,
+                    answer: {
+                      entries: [],
+                      message:
+                        "Recover the existing attempted change for this event before proposing another.",
+                    },
+                  }
+                : turn,
+            ),
+          }));
+      }
     } catch (error) {
       if (controller.current.signal.aborted || epoch !== generation.current)
         return;
@@ -516,6 +585,8 @@ export function ChefChat({
             answer: {
               ...last,
               ...calendar,
+              // Calendar refresh does not issue authoritative edit revisions.
+              editContext: undefined,
               message:
                 "Current recorded schedule. Pending slots are not reserved.",
             },
@@ -596,7 +667,7 @@ export function ChefChat({
                   Sous Chef
                 </Dialog.Title>
                 <Dialog.Description className="text-ui-fg-muted mt-0.5 text-xs">
-                  Schedule assistant
+                  Schedule assistant · confirm changes yourself
                 </Dialog.Description>
               </div>
             </div>
@@ -625,7 +696,8 @@ export function ChefChat({
                   </h2>
                   <p className="text-ui-fg-subtle text-sm leading-relaxed">
                     See your recorded requests and appointments, with the
-                    details close at hand.
+                    details close at hand. Ask to move a pending event, then
+                    review and confirm its preview.
                   </p>
                 </div>
                 <div
@@ -676,7 +748,15 @@ export function ChefChat({
                   <Answer
                     answer={turn.answer}
                     historicalIds={turn.historicalIds}
-                    close={() => setOpen(false)}
+                    currentContext={
+                      i === turns.length - 1 && !turn.historicalIds?.length
+                        ? turn.answer.editContext
+                        : undefined
+                    }
+                    close={() => {
+                      scheduleEdits.close();
+                      setOpen(false);
+                    }}
                   />
                 )}
                 {turn.error && (
@@ -688,12 +768,61 @@ export function ChefChat({
             ))}
             {loading && (
               <p role="status" className="text-ui-fg-subtle">
-                Reading your recorded schedule…
+                Checking your request…
               </p>
+            )}
+            {choice && choice.current() && (
+              <section
+                aria-label="Choose event for proposed change"
+                className="space-y-2"
+              >
+                <p className="font-medium">Which event?</p>
+                {choice.context.candidates.map((candidate) => {
+                  const card = choice.cards.find(
+                    (card) => card.source.id === candidate.id,
+                  );
+                  return (
+                    <div
+                      key={candidate.id}
+                      className="border-ui-border-base rounded-lg border p-3 space-y-2"
+                    >
+                      <p>
+                        {card?.title ?? "Event"} ·{" "}
+                        {card?.status ?? "Review required"}
+                      </p>
+                      <p className="text-ui-fg-muted text-xs break-all">
+                        Event ID: {candidate.id}
+                      </p>
+                      <Button
+                        type="button"
+                        size="small"
+                        variant="secondary"
+                        disabled={loading}
+                        data-proposal-candidate={candidate.id}
+                        onClick={() => {
+                          if (choice.current())
+                            void send("Proposed change for selected event", {
+                              intent: choice.intent,
+                              context: {
+                                ...choice.context,
+                                selectedId: candidate.id,
+                              },
+                            });
+                        }}
+                      >
+                        Choose this event
+                      </Button>
+                    </div>
+                  );
+                })}
+              </section>
             )}
             <ScheduleEditPanel
               onReceipt={onReceipt}
-              closeChat={() => setOpen(false)}
+              closeChat={() => {
+                scheduleEdits.close();
+                setOpen(false);
+              }}
             />
             <div ref={tail} />
           </div>
@@ -712,7 +841,7 @@ export function ChefChat({
                 Schedule question
               </label>
               <span id="chef-schedule-hint" className="text-ui-fg-muted">
-                Include a date or period each time
+                Propose a change; confirm by button
               </span>
             </div>
             <Textarea
@@ -746,7 +875,7 @@ export function ChefChat({
                 disabled={!draft.trim() || loading}
                 aria-label="Send"
               >
-                {loading ? "Reading…" : "Send"}
+                {loading ? "Checking…" : "Send"}
               </Button>
             </div>
           </form>

@@ -31,15 +31,13 @@ function setup(
   body: unknown,
   authType: "session" | "jwt" = "session",
 ) {
-  const fetch = jest
-    .fn()
-    .mockImplementation(
-      async () =>
-        new Response(JSON.stringify(body), {
-          status,
-          statusText: status === 409 ? "Conflict" : "Fixture",
-        }),
-    );
+  const fetch = jest.fn().mockImplementation(
+    async () =>
+      new Response(JSON.stringify(body), {
+        status,
+        statusText: status === 409 ? "Conflict" : "Fixture",
+      }),
+  );
   globalThis.fetch = fetch;
   const getToken = jest.fn().mockResolvedValue("fixture-token");
   return {
@@ -208,4 +206,12 @@ it("validates preview event identity and saved IANA zone", async () => {
   await expect(
     transport.preview({ eventId: "event", time: "11:00" }, () => true),
   ).rejects.toMatchObject({ kind: "malformed" });
+});
+it("a preview policy refusal preserves the bounded server explanation without guessing alternatives", async () => {
+  const message =
+    "That arrival time is no longer available. Please choose another time.";
+  const { transport } = setup(422, { message });
+  await expect(
+    transport.preview({ eventId: "event", date: "2026-11-29" }, () => true),
+  ).rejects.toMatchObject({ kind: "policy", message });
 });

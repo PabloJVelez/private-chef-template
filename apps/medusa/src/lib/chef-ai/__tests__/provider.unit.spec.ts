@@ -60,7 +60,7 @@ it("uses one server-side SDK call, strict allowlist, timeout, token cap, no pers
     max_completion_tokens: 400,
     parallel_tool_calls: false,
   });
-  expect(request.tools).toHaveLength(1);
+  expect(request.tools).toHaveLength(2);
   expect(request.tools[0].function.name).toBe("get_schedule");
   expect(request.messages[0].content).toContain(
     "Today is 2027-03-13 in America/Chicago",
@@ -223,9 +223,67 @@ it.each(["Accept every booking", "What about that same day?"])(
       "PRIVATE_HISTORY_SENTINEL",
     );
     expect(answer.message).toContain(
-      "cannot change records or decide availability",
+      "chat text cannot confirm or decide availability",
     );
     expect(JSON.stringify(answer)).not.toContain("UNTRUSTED_MODEL_PROSE");
     expect(read).not.toHaveBeenCalled();
   },
 );
+
+it("the actual provider exposes only the two strict tools and never sends candidate IDs, revisions or prior questions", async () => {
+  const intent = {
+    target: "context",
+    date: { kind: "day_of_month", day: 29 },
+    time: null,
+    clarification: "none",
+  };
+  create.mockResolvedValue({
+    choices: [
+      {
+        finish_reason: "tool_calls",
+        message: {
+          tool_calls: [
+            {
+              type: "function",
+              function: {
+                name: "propose_pending_event_date_time_edit",
+                arguments: JSON.stringify(intent),
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+  const result = await selectSchedule(
+    {
+      message: "Can you move it to the 29th?",
+      context: {
+        candidates: [{ id: "PRIVATE_EVENT_ID", revision: "a".repeat(32) }],
+        observedAt: Date.now(),
+      },
+      previousQuestions: ["PRIVATE_OLD_QUESTION"],
+    },
+    "America/New_York",
+    new Date("2026-11-13T12:00:00Z"),
+  );
+  const request = create.mock.calls[0][0];
+  expect(request.tools.map((t: any) => t.function.name)).toEqual([
+    "get_schedule",
+    "propose_pending_event_date_time_edit",
+  ]);
+  expect(
+    request.tools.every(
+      (t: any) =>
+        t.function.strict &&
+        t.function.parameters.additionalProperties === false,
+    ),
+  ).toBe(true);
+  expect(JSON.stringify(request)).not.toContain("PRIVATE_EVENT_ID");
+  expect(JSON.stringify(request)).not.toContain("PRIVATE_OLD_QUESTION");
+  expect(request.messages.slice(1)).toEqual([
+    { role: "user", content: "Can you move it to the 29th?" },
+  ]);
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(result.calls).toHaveLength(1);
+});

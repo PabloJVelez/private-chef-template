@@ -1,3 +1,9 @@
+import {
+  editContextSchema,
+  editIntentSchema,
+  type EditContext,
+  type EditIntent,
+} from "./edit-intent";
 import { z } from "@medusajs/framework/zod";
 import type { CalendarResult } from "../chef-workspace/contracts";
 import type { ChatInput, ScheduleAnswer } from "./contracts";
@@ -7,6 +13,7 @@ import { resolveScheduleRange, scheduleArgs } from "./schedule";
 export const chatInput = z
   .object({
     message: z.string().trim().min(1).max(1000),
+    context: editContextSchema.optional(),
     previousQuestions: z
       .array(z.string().trim().min(1).max(1000))
       .max(4)
@@ -14,7 +21,7 @@ export const chatInput = z
   })
   .strict();
 const clarification =
-  "Ask about recorded events for a day, week, weekend, or a date range of up to 31 days. I can only read schedule facts; I cannot change records or decide availability.";
+  "Ask about recorded events for a day, week, weekend, or a date range of up to 31 days. I can read schedule facts and propose pending-event date/time changes. Only the Confirm change button saves a preview; chat text cannot confirm or decide availability.";
 
 export async function answerSchedule(
   input: ChatInput,
@@ -22,16 +29,29 @@ export async function answerSchedule(
   select: SelectSchedule,
   read: (range: { start: string; end: string }) => Promise<CalendarResult>,
   now = new Date(),
+  propose?: (
+    intent: EditIntent,
+    context?: EditContext,
+  ) => Promise<ScheduleAnswer>,
 ): Promise<ScheduleAnswer> {
-  const { calls } = await select(chatInput.parse(input), timeZone, now);
+  const parsed = chatInput.parse(input);
+  const { calls } = await select({ message: parsed.message }, timeZone, now);
   if (!calls.length) return { message: clarification, entries: [] };
   // Reject the entire batch before any read, including duplicate/replayed calls.
   if (
     calls.length !== 1 ||
-    calls[0].name !== "get_schedule" ||
+    !["get_schedule", "propose_pending_event_date_time_edit"].includes(
+      calls[0].name,
+    ) ||
     calls[0].arguments.length > 1000
   )
     throw new Error("Invalid model tool call");
+  if (calls[0].name === "propose_pending_event_date_time_edit") {
+    const intent = editIntentSchema.parse(JSON.parse(calls[0].arguments));
+    return propose
+      ? propose(intent, parsed.context)
+      : { message: clarification, entries: [] };
+  }
   let range: { start: string; end: string };
   let period: ScheduleAnswer["period"];
   try {
@@ -89,3 +109,17 @@ export async function answerSchedule(
     entries,
   };
 }
+
+export const proposalSelectionInput = z
+  .object({
+    selection: z
+      .object({
+        intent: editIntentSchema,
+        context: editContextSchema.refine(
+          (context) => !!context.selectedId,
+          "Choose an exact event.",
+        ),
+      })
+      .strict(),
+  })
+  .strict();

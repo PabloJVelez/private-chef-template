@@ -1,4 +1,8 @@
 import type {
+  EditContext,
+  EditProposal,
+} from "../../../lib/chef-ai/edit-intent";
+import type {
   SchedulePreview,
   ScheduleReceipt,
   ScheduleResult,
@@ -32,6 +36,8 @@ export type AttemptView = Attempt & {
   live?: LiveSchedule;
 };
 type Selection = {
+  context?: EditContext;
+  expectedRevision?: string;
   eventId: string;
   date: string;
   time: string;
@@ -134,9 +140,45 @@ export class ScheduleEditState {
     }
     this.publish({ selection: undefined, attempts: {} });
   }
-  select(eventId: string) {
+  select(eventId: string, context?: EditContext) {
     this.previewGeneration++;
-    this.publish({ selection: { eventId, date: "", time: "" } });
+    this.publish({
+      selection: {
+        eventId,
+        date: "",
+        time: "",
+        context: context && { ...context, selectedId: eventId },
+      },
+    });
+  }
+  /** Capture identity/backend + edit generation, consume selection context. Every prompt/selection/cancel/manual input supersedes it. */
+  beginProposal() {
+    const context = this.state.selection?.context;
+    const epoch = this.generation,
+      request = ++this.previewGeneration;
+    if (this.state.selection)
+      this.publish({
+        selection: { ...this.state.selection, context: undefined, busy: false },
+      });
+    return {
+      context,
+      current: () =>
+        epoch === this.generation && request === this.previewGeneration,
+    };
+  }
+  async propose(proposal: EditProposal, current: () => boolean) {
+    if (!current() || this.state.attempts[proposal.eventId]) return false;
+    this.previewGeneration++;
+    this.publish({
+      selection: {
+        eventId: proposal.eventId,
+        date: proposal.date ?? "",
+        time: proposal.time ?? "",
+        expectedRevision: proposal.expectedRevision,
+      },
+    });
+    await this.preview(); // The same dedicated preview runner as the manual form.
+    return true;
   }
   close() {
     this.previewGeneration++;
@@ -149,6 +191,8 @@ export class ScheduleEditState {
       selection: {
         ...this.state.selection,
         [field]: value,
+        expectedRevision: undefined,
+        context: undefined,
         preview: undefined,
         busy: false,
         message: undefined,
@@ -180,7 +224,35 @@ export class ScheduleEditState {
         },
         current,
       );
-      if (current()) this.publish({ selection: { ...s, preview } });
+      if (current()) {
+        if (
+          s.expectedRevision &&
+          preview.expectedRevision !== s.expectedRevision
+        ) {
+          this.publish({
+            selection: {
+              ...s,
+              busy: false,
+              expectedRevision: undefined,
+              message:
+                "The event changed while preparing this proposal. Refresh the event and review the proposed date/time before previewing again.",
+            },
+          });
+        } else
+          this.publish({
+            selection: {
+              ...s,
+              preview,
+              context: {
+                candidates: [
+                  { id: s.eventId, revision: preview.expectedRevision },
+                ],
+                selectedId: s.eventId,
+                observedAt: Date.now(),
+              },
+            },
+          });
+      }
     } catch (error) {
       if (current())
         this.publish({
@@ -239,6 +311,7 @@ export class ScheduleEditState {
       });
       return;
     }
+    this.previewGeneration++; // An attempted write supersedes any pending conversational proposal.
     // Published synchronously BEFORE any await: repeated cards/clicks share one guard.
     this.publish({
       selection: undefined,

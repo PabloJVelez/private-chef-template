@@ -1,6 +1,6 @@
 # BTS-21: pending Private Event schedule write contract
 
-Stack: [PR #36](https://github.com/PabloJVelez/private-chef-template/pull/36) → backend contract PR → future action-card UI PR. The backend PR starts at `877b6fd14853c56c9991cd8555b6f6d8bc2fc258` and targets `feat/chef-admin-ai-schedule-chat-v1`. No React write UI or model write tool is included.
+Stack: [PR #36](https://github.com/PabloJVelez/private-chef-template/pull/36) → [backend PR #37](https://github.com/PabloJVelez/private-chef-template/pull/37) → [UI PR #38](https://github.com/PabloJVelez/private-chef-template/pull/38). This document describes the backend layer. The [UI handoff](pending-schedule-ui.md) adds manual editing and bounded conversational proposals through these same endpoints. No model tool can confirm or write; only the explicit confirmation button submits the actor-bound signed reference.
 
 ## HTTP contract
 

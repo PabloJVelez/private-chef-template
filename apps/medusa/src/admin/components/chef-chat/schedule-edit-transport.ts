@@ -83,12 +83,14 @@ export class ScheduleTransportError extends Error {
       | "network"
       | "cancelled",
     public status?: number,
+    policyMessage?: string,
   ) {
     super(
       kind === "access" || kind === "configuration"
         ? "Schedule changes are unavailable."
         : kind === "policy"
-          ? "This change could not be prepared. Check the event and availability, then preview again."
+          ? (policyMessage ??
+            "This change could not be prepared. Check the event and availability, then preview again.")
           : "The schedule response could not be verified.",
     );
   }
@@ -137,8 +139,21 @@ export function createScheduleTransport(config: {
         throw new ScheduleTransportError("access", response.status);
       if (response.status === 503)
         throw new ScheduleTransportError("configuration", 503);
-      if ([400, 404, 422].includes(response.status))
-        throw new ScheduleTransportError("policy", response.status);
+      if ([400, 404, 422].includes(response.status)) {
+        // Preview accepts no reference and returns bounded, server-owned policy
+        // messages. Never surface raw error bodies from attempted writes/recovery.
+        const policy =
+          action === "preview"
+            ? z
+                .object({ message: z.string().min(1).max(500) })
+                .safeParse(await response.json().catch(() => null))
+            : undefined;
+        throw new ScheduleTransportError(
+          "policy",
+          response.status,
+          policy?.success ? policy.data.message : undefined,
+        );
+      }
       const data: unknown = await response.json().catch(() => {
         throw new ScheduleTransportError("malformed");
       });

@@ -240,7 +240,7 @@ it.each(promptQuestions)(
       );
       expect(button("Send").disabled).toBe(true);
       expect(document.querySelector('[role="status"]')!.textContent).toContain(
-        "Reading",
+        "Checking",
       );
       expect(document.activeElement).toBe(document.querySelector("textarea"));
       await act(async () => resolve(emptyAnswer));

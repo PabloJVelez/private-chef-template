@@ -14,6 +14,7 @@ export type ScheduleEditInput = {
 };
 export type ScheduleSnapshot = {
   id: string;
+  status: string;
   revision: string;
   requestedDate: Date | string;
   requestedTime: string;
@@ -41,7 +42,7 @@ export type ScheduleEditReceipt = {
 const revision = `md5(to_jsonb(e)::text || ':' || e.xmin::text)`;
 export async function scheduleSnapshot(manager: EntityManager, id: string): Promise<ScheduleSnapshot> {
   const [row] = await manager.execute(
-    `select e.id, ${revision} as revision, e."requestedDate", e."requestedTime",
+    `select e.id, e.status, ${revision} as revision, e."requestedDate", e."requestedTime",
     e."timeZone", e.experience_type_id,
     (e.status = 'pending' and e."acceptanceToken" is null and e."productId" is null
       and e."occupiedStart" is null and e."occupiedEnd" is null and e."availabilitySnapshot" is null

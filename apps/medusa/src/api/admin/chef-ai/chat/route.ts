@@ -11,7 +11,15 @@ import {
   requireSingleStore,
   createChatLimiter,
 } from "../../../../lib/chef-ai/access";
-import { answerSchedule, chatInput } from "../../../../lib/chef-ai/chat";
+import {
+  attachEditContext,
+  resolveEditProposal,
+} from "../../../../lib/chef-ai/edit-proposal";
+import {
+  answerSchedule,
+  chatInput,
+  proposalSelectionInput,
+} from "../../../../lib/chef-ai/chat";
 import { selectSchedule } from "../../../../lib/chef-ai/provider";
 import { validTimeZone } from "../../../../lib/chef-ai/schedule";
 
@@ -38,15 +46,16 @@ export async function POST(
   } catch {
     return fail(403, "Schedule chat access could not be verified.");
   }
-  const parsed = chatInput.safeParse(req.body);
+  const parsed = chatInput.or(proposalSelectionInput).safeParse(req.body);
   if (!parsed.success)
     return fail(
       400,
       "Send a question of 1–1000 characters with at most four previous questions.",
     );
   if (
-    (process.env.CHEF_AI_PROVIDER || "openai") !== "openai" ||
-    !process.env.CHEF_AI_OPENAI_API_KEY
+    "message" in parsed.data &&
+    ((process.env.CHEF_AI_PROVIDER || "openai") !== "openai" ||
+      !process.env.CHEF_AI_OPENAI_API_KEY)
   )
     return fail(
       503,
@@ -71,11 +80,26 @@ export async function POST(
         422,
         "Set a valid business timezone in Settings → Availability before asking schedule questions.",
       );
-    res.json(
-      await answerSchedule(parsed.data, zone, selectSchedule, (range) =>
-        readCalendar(req.scope, range),
-      ),
-    );
+    const answer =
+      "selection" in parsed.data
+        ? await resolveEditProposal(
+            req.scope,
+            parsed.data.selection.intent,
+            parsed.data.selection.context,
+            zone,
+            new Date(),
+            true,
+          )
+        : await answerSchedule(
+            parsed.data,
+            zone,
+            selectSchedule,
+            (range) => readCalendar(req.scope, range),
+            new Date(),
+            (intent, context) =>
+              resolveEditProposal(req.scope, intent, context, zone),
+          );
+    res.json(await attachEditContext(req.scope, answer));
   } catch {
     // Do not log provider exceptions, prompts, request bodies or customer data.
     // Catch here so the generic Sentry error handler cannot attach chat contents.

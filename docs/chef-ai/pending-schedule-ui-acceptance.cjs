@@ -37,6 +37,7 @@ const server = http.createServer((req, res) => {
   const page = await browser.newPage({ viewport: { width: 1532, height: 1024 } });
   const errors = [], unknown = [], requests = [];
   let mode = 'events', release;
+  let chatReply, conversational = false;
   let writeMode = 'saved', liveTime = '10:00';
   const writes = [];
   const op = '00000000-0000-4000-8000-000000000001';
@@ -52,6 +53,7 @@ const server = http.createServer((req, res) => {
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     if (url.pathname.startsWith('/admin/chef-events/schedule-edit/')) {
       const action = url.pathname.split('/').at(-1), body = req.postDataJSON(); writes.push({ action, body });
+      if (action === 'preview' && conversational) return writeMode === 'policy' ? json({ message: 'That arrival time is no longer available. Please choose another time.' }, 422) : json({ ...preview(body.eventId), current: { ...local('11:00'), date: '2026-11-30', instant: '2026-11-30T17:00:00.000Z' }, proposed: { ...local('11:00'), date: body.date || '2026-11-30', instant: `${body.date || '2026-11-30'}T17:00:00.000Z` } });
       if (action === 'preview') return writeMode === 'off' ? json({ message: 'unavailable' }, 403) : writeMode === 'policy' ? json({ message: 'ineligible' }, 422) : json(preview(body.eventId));
       assert.deepEqual(body, { reference: 'fixture-signed-reference' });
       if (writeMode === 'lost' && action === 'confirm') { liveTime = '11:00'; return route.abort('failed'); }
@@ -68,8 +70,9 @@ const server = http.createServer((req, res) => {
     }
     if (url.pathname === '/admin/chef-ai/chat') {
       const body = req.postDataJSON(); requests.push(body);
-      assert.deepEqual(Object.keys(body), ['message']);
+      if (!conversational) assert.deepEqual(Object.keys(body), ['message']);
       if (mode === 'hold') await new Promise(resolve => { release = resolve; });
+      if (chatReply) return json(typeof chatReply === 'function' ? chatReply(body) : chatReply);
       if (mode === 'error') return json({ message: 'Synthetic unavailable response' }, 503);
       return json(mode === 'empty' ? { ...answer, entries: [], message: 'No matching recorded events in this window. This does not mean you are free or available.' } : answer);
     }
@@ -176,6 +179,68 @@ const server = http.createServer((req, res) => {
     assert.equal(writes.filter(x => x.action === 'confirm').length, confirmsBeforeStorageFailure);
     await page.evaluate(() => { Storage.prototype.setItem = window.fixtureStorageSetItem; });
     await page.setViewportSize({ width: 320, height: 740 }); await bounds();
+    // Conversational proposal uses the same production editor/transport; never a confirm tool.
+    conversational = true; writeMode = 'saved'; mode = 'events';
+    const intent = { target: 'context', date: { kind: 'day_of_month', day: 29 }, time: null, clarification: 'none' };
+    const sole = { ...entries[0], requestedTime: { start: '2026-11-30T17:00:00.000Z', end: '2026-11-30T19:30:00.000Z' }, displayTime: { start: '2026-11-30T17:00:00.000Z', end: '2026-11-30T19:30:00.000Z' } };
+    const context = { candidates: [{ id: 'synthetic-0', revision: 'a'.repeat(32) }], observedAt: Date.now() };
+    const soleAnswer = { ...answer, message: '1 recorded event overlaps this window. These records do not determine availability.', range: { start: '2026-11-30T06:00:00.000Z', end: '2026-12-01T06:00:00.000Z' }, entries: [sole], editContext: context };
+    const proposal = { entries: [], message: 'Review the proposed change below. Only Confirm change can save it.', editProposal: { eventId: 'synthetic-0', date: '2026-11-29', expectedRevision: 'a'.repeat(32) } };
+    async function ask(text) { await dialog.locator('textarea').fill(text); await button('Send').click(); }
+    const confirmsBeforeConversation = writes.filter(x => x.action === 'confirm').length;
+    for (const theme of ['dark', 'light']) {
+      for (const viewport of [{ width: 1532, height: 1024 }, { width: 390, height: 844 }]) {
+        await page.evaluate(theme => localStorage.setItem('medusa_admin_theme', theme), theme);
+        await page.setViewportSize(viewport); chatReply = soleAnswer; await fresh(); await quick();
+        await button('Change date/time').waitFor();
+        assert(await dialog.locator('article').evaluate(el => !!(el.querySelector('button').compareDocumentPosition(el.querySelector('details')) & Node.DOCUMENT_POSITION_FOLLOWING)));
+        await screenshot(`conversational-card-${theme}-${viewport.width}`);
+        const before = writes.length; chatReply = proposal; await ask('Can you move it to the 29th?');
+        await button('Confirm change').waitFor();
+        assert.deepEqual(requests.at(-1), { message: 'Can you move it to the 29th?', context });
+        assert.equal(writes.length, before + 1);
+        assert.deepEqual(writes.at(-1), { action: 'preview', body: { eventId: 'synthetic-0', date: '2026-11-29' } });
+        assert.equal(await edit.getByLabel('Local time (optional)').inputValue(), '');
+        assert((await dialog.innerText()).includes('2026-11-30'));
+        assert((await dialog.innerText()).includes('2026-11-29'));
+        await screenshot(`conversational-preview-${theme}-${viewport.width}`);
+        chatReply = { entries: [], message: 'Use the explicit Confirm change button to save.' };
+        await ask('yes'); await dialog.getByText(chatReply.message, { exact: true }).waitFor();
+        await ask('confirm'); await button('Send').waitFor({ state: 'visible' });
+        assert.equal(writes.filter(x => x.action === 'confirm').length, confirmsBeforeConversation);
+      }
+    }
+    // Backend refusal retains exactly the requested Sunday, without inventing Monday.
+    chatReply = soleAnswer; await fresh(); await quick(); await button('Change date/time').waitFor();
+    writeMode = 'policy'; chatReply = proposal; await ask('Move it to the 29th');
+    await dialog.getByRole('alert').waitFor();
+    assert((await dialog.innerText()).includes('no longer available'));
+    assert.equal(await edit.getByLabel('Date (optional)').inputValue(), '2026-11-29');
+    assert.equal(await button('Confirm change').count(), 0);
+    await screenshot('conversational-refusal-mobile');
+    // One pending + one confirmed (same appearance) must be an explicit exact-ID choice.
+    writeMode = 'saved';
+    const other = { ...sole, id: 'presentation-other', source: { type: 'private-event', id: 'synthetic-2' }, status: 'confirmed' };
+    const bothContext = { ...context, candidates: [...context.candidates, { id: 'synthetic-2', revision: 'a'.repeat(32) }] };
+    chatReply = { ...soleAnswer, message: '2 recorded events overlap this window.', entries: [sole, other], editContext: bothContext }; await fresh(); await quick();
+    await button('Change date/time').waitFor();
+    chatReply = { entries: [], message: 'Which event?', editClarification: { intent, context: bothContext } };
+    const beforeChoice = writes.length; await ask('Move it to the 29th');
+    const choices = dialog.getByRole('region', { name: 'Choose event for proposed change' });
+    await choices.waitFor(); assert.equal(writes.length, beforeChoice);
+    assert((await choices.innerText()).includes('synthetic-0')); assert((await choices.innerText()).includes('synthetic-2'));
+    chatReply = body => { assert.equal(body.selection.context.selectedId, 'synthetic-0'); return proposal; };
+    await choices.getByRole('button', { name: 'Choose this event' }).first().click();
+    await button('Confirm change').waitFor(); assert.equal(writes.length, beforeChoice + 1);
+    // Late model reply after manual selection/cancel may not reopen the editor.
+    chatReply = soleAnswer; await fresh(); await quick(); await button('Change date/time').waitFor();
+    mode = 'hold'; chatReply = proposal; await ask('Move it to the 29th');
+    await dialog.getByText('Checking your request…', { exact: true }).waitFor();
+    await change(0); await button('Cancel edit').click();
+    const beforeLate = writes.length; release(); mode = 'events';
+    await dialog.getByText(/That proposal was discarded/).waitFor();
+    assert.equal(writes.length, beforeLate); assert.equal(await edit.count(), 0);
+    assert.equal(writes.filter(x => x.action === 'confirm').length, confirmsBeforeConversation);
     assert.deepEqual(errors, []); assert.deepEqual(unknown, []);
     console.log(JSON.stringify({ passed: true, screenshots: out, previewRequests: writes.filter(x => x.action === 'preview').length, confirmRequests: writes.filter(x => x.action === 'confirm').length, recoverRequests: writes.filter(x => x.action === 'recover').length, unknownRoutes: unknown, browserErrors: errors }, null, 2));
   } catch (error) {

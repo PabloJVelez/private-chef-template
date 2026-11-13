@@ -12,6 +12,7 @@ import {
   ChefChatSession,
 } from "../../admin/components/chef-chat/chef-chat";
 import { scheduleEdits } from "../../admin/components/chef-chat/schedule-edit-state";
+import { ScheduleTransportError } from "../../admin/components/chef-chat/schedule-edit-transport";
 import type {
   SchedulePreview,
   ScheduleReceipt,
@@ -448,5 +449,253 @@ it("current-read refresh preserves the bounded chat result limit after a save", 
     await click("Confirm change");
     expect(document.body.textContent).toContain("remains SAVED");
     expect(document.querySelectorAll("article")).toHaveLength(5);
+  });
+});
+
+const moveIntent = {
+  target: "context",
+  date: { kind: "day_of_month", day: 29 },
+  time: null,
+  clarification: "none",
+};
+const conversationalAnswer = (cards = [entries[0]]) => ({
+  ...answer,
+  entries: cards,
+  editContext: {
+    candidates: cards.map((card) => ({
+      id: card.source.id,
+      revision: "a".repeat(32),
+    })),
+    observedAt: Date.now(),
+  },
+});
+const proposedAnswer = {
+  message: "Review the proposed change",
+  entries: [],
+  editProposal: {
+    eventId: "immutable-0",
+    expectedRevision: "a".repeat(32),
+    date: "2026-11-29",
+  },
+};
+async function ask(message: string) {
+  await act(async () => {
+    const textarea = document.querySelector("textarea")!;
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(textarea, message);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await click("Send");
+}
+it("natural move it to the 29th starts the shared date-only preview without manual form opening or confirmation", async () => {
+  await fixture(async ({ fetch, preview, attempt }) => {
+    fetch.mockResolvedValueOnce(conversationalAnswer());
+    await click("What's on my schedule today?");
+    const card = document.querySelector("article")!;
+    const editControl = card.querySelector("[data-schedule-event]")!;
+    expect(
+      editControl.compareDocumentPosition(card.querySelector("details")!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(editControl.className).toContain("w-full");
+    fetch.mockResolvedValueOnce(proposedAnswer);
+    await ask("Can you move it to the 29th?");
+    expect(fetch.mock.calls[1][1].body).toMatchObject({
+      message: "Can you move it to the 29th?",
+      context: {
+        candidates: [{ id: "immutable-0", revision: "a".repeat(32) }],
+      },
+    });
+    expect(JSON.stringify(fetch.mock.calls[1][1].body)).not.toContain(
+      "Identical event",
+    );
+    expect(preview).toHaveBeenCalledWith(
+      { eventId: "immutable-0", date: "2026-11-29" },
+      expect.any(Function),
+    );
+    expect(
+      (document.querySelector('input[type="date"]') as HTMLInputElement).value,
+    ).toBe("2026-11-29");
+    expect(
+      (document.querySelector('input[type="time"]') as HTMLInputElement).value,
+    ).toBe("");
+    expect(buttons("Confirm change")).toHaveLength(1);
+    expect(attempt).not.toHaveBeenCalled();
+    fetch.mockResolvedValueOnce({
+      entries: [],
+      message: "Use the Confirm change button; prose cannot confirm.",
+    });
+    await ask("yes");
+    expect(attempt).not.toHaveBeenCalled();
+  });
+});
+it("two visually identical cards, including a confirmed one, retain the proposal until an exact source-id choice", async () => {
+  await fixture(async ({ fetch, preview, attempt }) => {
+    const read = conversationalAnswer([entries[0], entries[2]]);
+    fetch.mockResolvedValueOnce(read);
+    await click("What's on my schedule today?");
+    fetch.mockResolvedValueOnce({
+      entries: [],
+      message: "Which event?",
+      editClarification: { intent: moveIntent, context: read.editContext },
+    });
+    await ask("Move it to the 29th");
+    expect(preview).not.toHaveBeenCalled();
+    expect(
+      [...document.querySelectorAll("[data-proposal-candidate]")].map((el) =>
+        el.getAttribute("data-proposal-candidate"),
+      ),
+    ).toEqual(["immutable-0", "immutable-2"]);
+    fetch.mockResolvedValueOnce(proposedAnswer);
+    await click("Choose this event", 0);
+    expect(fetch.mock.calls[2][1].body).toEqual({
+      selection: {
+        intent: moveIntent,
+        context: { ...read.editContext, selectedId: "immutable-0" },
+      },
+    });
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(attempt).not.toHaveBeenCalled();
+  });
+});
+it("explicit current selection takes precedence over a multi-event previous answer", async () => {
+  await fixture(async ({ fetch, preview }) => {
+    fetch.mockResolvedValueOnce(conversationalAnswer([entries[0], entries[1]]));
+    await click("What's on my schedule today?");
+    await click("Change date/time", 1);
+    expect(preview).not.toHaveBeenCalled();
+    fetch.mockResolvedValueOnce({
+      ...proposedAnswer,
+      editProposal: { ...proposedAnswer.editProposal, eventId: "immutable-1" },
+    });
+    await ask("Move it to the 29th");
+    expect(fetch.mock.calls[1][1].body.context.selectedId).toBe("immutable-1");
+    expect(preview).toHaveBeenCalledWith(
+      { eventId: "immutable-1", date: "2026-11-29" },
+      expect.any(Function),
+    );
+  });
+});
+it.each(["manual", "event", "close", "navigation", "identity"])(
+  "late model response is discarded after %s",
+  async (kind) => {
+    await fixture(async ({ fetch, preview, qc }) => {
+      fetch.mockResolvedValueOnce(
+        conversationalAnswer([entries[0], entries[1]]),
+      );
+      await click("What's on my schedule today?");
+      let resolve!: (value: unknown) => void;
+      fetch.mockImplementationOnce(
+        () =>
+          new Promise((done) => {
+            resolve = done;
+          }),
+      );
+      await ask("Move it to the 29th");
+      if (kind === "manual") {
+        await click("Change date/time");
+        await value("time", "12:00");
+      }
+      if (kind === "event") await click("Change date/time", 1);
+      if (kind === "close") await click("Close Sous Chef");
+      if (kind === "navigation")
+        await act(async () =>
+          (
+            document.querySelector(
+              'a[href="/chef-events/immutable-0"]',
+            ) as HTMLAnchorElement
+          ).click(),
+        );
+      if (kind === "identity")
+        await act(async () => qc.removeQueries({ queryKey: ["users", "me"] }));
+      await act(async () => resolve(proposedAnswer));
+      expect(preview).not.toHaveBeenCalled();
+      expect(buttons("Confirm change")).toHaveLength(0);
+      if (kind === "manual")
+        expect(
+          (document.querySelector('input[type="time"]') as HTMLInputElement)
+            .value,
+        ).toBe("12:00");
+    });
+  },
+);
+it.each(["empty", "incomplete", "unrelated", "failed"])(
+  "a prior sole-event context is not reused after an intervening %s answer/question",
+  async (kind) => {
+    await fixture(async ({ fetch }) => {
+      fetch.mockResolvedValueOnce(conversationalAnswer());
+      await click("What's on my schedule today?");
+      if (kind === "failed") fetch.mockRejectedValueOnce({ status: 502 });
+      else
+        fetch.mockResolvedValueOnce({
+          message: "Independent answer",
+          entries: [],
+          complete:
+            kind === "empty" ? true : kind === "incomplete" ? false : undefined,
+        });
+      await ask("What is on my schedule tomorrow?");
+      fetch.mockResolvedValueOnce({ entries: [], message: "Which event?" });
+      await ask("Move it to the 29th");
+      expect(fetch.mock.calls[2][1].body).toEqual({
+        message: "Move it to the 29th",
+      });
+    });
+  },
+);
+it("refresh/remount and historical results cannot implicitly reselect a previous event", async () => {
+  await fixture(async ({ fetch, remount }) => {
+    fetch.mockResolvedValueOnce(conversationalAnswer());
+    await click("What's on my schedule today?");
+    await remount();
+    await click("Ask Sous Chef");
+    fetch.mockResolvedValueOnce({ entries: [], message: "Which event?" });
+    await ask("Move it to the 29th");
+    expect(fetch.mock.calls.at(-1)[1].body).toEqual({
+      message: "Move it to the 29th",
+    });
+  });
+});
+it("preview refusal keeps the proposed form available without guessing an alternate slot", async () => {
+  await fixture(async ({ fetch, preview, attempt }) => {
+    fetch.mockResolvedValueOnce(conversationalAnswer());
+    await click("What's on my schedule today?");
+    preview.mockRejectedValueOnce(
+      new ScheduleTransportError(
+        "policy",
+        422,
+        "That arrival time is no longer available. Please choose another time.",
+      ),
+    );
+    fetch.mockResolvedValueOnce(proposedAnswer);
+    await ask("Move it to the 29th");
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+      "no longer available",
+    );
+    expect(
+      (document.querySelector('input[type="date"]') as HTMLInputElement).value,
+    ).toBe("2026-11-29");
+    expect(buttons("Confirm change")).toHaveLength(0);
+    expect(attempt).not.toHaveBeenCalled();
+    await value("date", "2026-12-01");
+    await click("Preview");
+    expect(preview.mock.calls[1][0]).toEqual({
+      eventId: "immutable-0",
+      date: "2026-12-01",
+    });
+  });
+});
+it("historical cards cannot be reused as implicit conversational context after a save", async () => {
+  await fixture(async ({ fetch }) => {
+    fetch.mockResolvedValueOnce(conversationalAnswer());
+    await ready();
+    await click("Confirm change");
+    await click("Change date/time", 0); // The old historical card may still open a manual form.
+    fetch.mockResolvedValueOnce({ entries: [], message: "Which event?" });
+    await ask("Move it to the 29th");
+    expect(fetch.mock.calls.at(-1)[1].body).toEqual({
+      message: "Move it to the 29th",
+    });
   });
 });
