@@ -24,15 +24,17 @@ Explicit “this event” summaries read page B even after discussion of A; ambi
 
 [Actual built-Admin video](pending-ui-evidence/automatic-preview.webm?raw=true) shows greeting/help, current-page summary, noon refusal, manually entering 5 PM, automatic checking, verified before/after and button-only confirmation. It includes dark desktop plus light/dark 390/320px mobile. The recording visibly labels synthetic API fixtures and mocked model responses. It sends **10 preview requests, zero confirm and zero recover requests**. The separate HTTP tests execute the real provider wrapper/Medusa routes/SDK/domain policy against isolated PostgreSQL; only the provider network boundary is mocked. No live paid-model interpretation, Google dispatch or email was performed. Live-model owner acceptance remains necessary.
 
+Hosted proof: [play/download the committed WebM](https://github.com/PabloJVelez/private-chef-template/raw/c8fef53db2ae95aba163414fa0ce3769af1f2ad9/docs/chef-ai/pending-ui-evidence/automatic-preview.webm). Retrieved from GitHub with authenticated repository access and matched byte-for-byte: **2,639,155 bytes**, SHA-256 `00151404969982a67037ea49b34c92b93b531563ab0b8c5ffc6789a5ccce9470`. Chromium verified **40.12 seconds**, **1280×900**, playback progress and seeking near the end with no media error. Reviewers need private repository access; this is a committed playable/downloadable artifact, not a native GitHub attachment. Test-only PostgreSQL/Redis containers were removed after validation.
+
 Screenshots: [greeting and summary](pending-ui-evidence/automatic-summary.png), [noon refusal](pending-ui-evidence/automatic-refusal.png), [validated 5 PM](pending-ui-evidence/automatic-ready.png), [light mobile](pending-ui-evidence/automatic-mobile.png). Earlier [page-awareness](page-awareness.md) and [bubble](pending-ui-evidence/chat-bubbles.webm?raw=true) evidence remains intact.
 
 Validation uses Node **26.13.1**, Yarn **4.5.0**:
 
-- Full unit run: **40 suites / 499 tests passed**, followed by **10 rendered page tests** including two new summary rendering/selection cases.
+- Final full unit run at `c8fef53db2ae95aba163414fa0ce3769af1f2ad9`: **40 suites / 501 tests passed**, including the new summary rendering/selection cases.
 - **67 actual HTTP/PostgreSQL cases passed**, including noon→5 PM through provider wrapper, chat route, typed transport and shared UI state; typed non-slot 422 reasons; greeting/help/summary without provider/write/Availability configuration; authentication and limits.
 - **Five persistent Redis/process cases passed**, including the unchanged **nine generic-workflow HTTP denial scenarios**, lost-response recovery beyond expiry, concurrency and no duplicate dispatch. Workspace, booking-scheduling and scheduling-domain wrappers each passed five cases; availability constraints passed six cases.
 - Both Medusa and storefront typechecks and production builds passed. `git diff --check` passed.
-- Built-Admin legacy acceptance passed: **31 previews / 5 explicit confirmations / 2 manual recoveries**. The page-conflict walkthrough passed: **2 previews / zero confirmations or recoveries**. Both had zero browser errors/unmocked routes. Exact tested commit is recorded in PR #38.
+- Built-Admin legacy acceptance passed: **31 previews / 5 explicit confirmations / 2 manual recoveries**. The page-conflict walkthrough passed: **2 previews / zero confirmations or recoveries**. Both had zero browser errors/unmocked routes. Exact tested implementation and recorded built-Admin source: `c8fef53db2ae95aba163414fa0ce3769af1f2ad9`.
 
 T3 browser failed twice with “This host is missing libraries T3's browser needs (libatk-1.0.so.0, libatk-bridge-2.0.so.0, libXcomposite.so.1, libXdamage.so.1, libXfixes.so.3, libXrandr.so.2, libasound.so.2, libatspi.so.0).” The existing Playwright Chromium/unpacked-library workaround recorded actual built Admin; no host packages were installed.
 
