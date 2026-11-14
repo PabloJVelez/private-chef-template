@@ -1,3 +1,9 @@
+import {
+  assistantRead,
+  basicReadIntent,
+  summarySelectionInput,
+} from "../../../../lib/chef-ai/assistant-read";
+import { MissingBusinessTimezone } from "../../../../lib/chef-ai/chat";
 import type {
   AuthenticatedMedusaRequest,
   MedusaResponse,
@@ -46,20 +52,14 @@ export async function POST(
   } catch {
     return fail(403, "Schedule chat access could not be verified.");
   }
-  const parsed = chatInput.or(proposalSelectionInput).safeParse(req.body);
+  const parsed = chatInput
+    .or(proposalSelectionInput)
+    .or(summarySelectionInput)
+    .safeParse(req.body);
   if (!parsed.success)
     return fail(
       400,
       "Send a question of 1–1000 characters with at most four previous questions.",
-    );
-  if (
-    "message" in parsed.data &&
-    ((process.env.CHEF_AI_PROVIDER || "openai") !== "openai" ||
-      !process.env.CHEF_AI_OPENAI_API_KEY)
-  )
-    return fail(
-      503,
-      "Schedule chat is not configured yet. The site operator must configure the model provider.",
     );
   const release = take(req.auth_context.actor_id);
   if (!release)
@@ -68,32 +68,52 @@ export async function POST(
       "Schedule chat has reached its request limit. Please try again later.",
     );
   try {
+    if ("summarySelection" in parsed.data)
+      return res.json(
+        await assistantRead(
+          req.scope,
+          "context_event",
+          {},
+          parsed.data.summarySelection.eventId,
+        ),
+      );
+    const input = parsed.data;
+    if ("message" in input) {
+      const basic = basicReadIntent(input.message);
+      if (basic) return res.json(await assistantRead(req.scope, basic, input));
+    }
+    if (
+      "message" in input &&
+      ((process.env.CHEF_AI_PROVIDER || "openai") !== "openai" ||
+        !process.env.CHEF_AI_OPENAI_API_KEY)
+    )
+      return fail(
+        503,
+        "Schedule chat is not configured yet. The site operator must configure the model provider.",
+      );
     const settings = await req.scope
       .resolve<AvailabilityModuleService>("availability")
       .listAvailabilitySettings(
         { id: "chef-default" },
         { select: ["id", "timezone"], take: 2 },
       );
-    const zone = settings.length === 1 ? settings[0].timezone : undefined;
-    if (!validTimeZone(zone))
-      return fail(
-        422,
-        "Set a valid business timezone in Settings → Availability before asking schedule questions.",
-      );
+    const configured = settings.length === 1 ? settings[0].timezone : undefined;
+    const zone = validTimeZone(configured) ? configured : "";
+    if ("selection" in input && !zone) throw new MissingBusinessTimezone();
     const answer =
-      "selection" in parsed.data
+      "selection" in input
         ? await resolveEditProposal(
             req.scope,
-            parsed.data.selection.intent,
-            parsed.data.selection.context,
+            input.selection.intent,
+            input.selection.context,
             zone,
             new Date(Date.now()),
             true,
             undefined,
-            parsed.data.page,
+            input.page,
           )
         : await answerSchedule(
-            parsed.data,
+            input,
             zone,
             selectSchedule,
             (range) => readCalendar(req.scope, range),
@@ -107,11 +127,17 @@ export async function POST(
                 new Date(Date.now()),
                 false,
                 undefined,
-                parsed.data.page,
+                input.page,
               ),
+            (kind) => assistantRead(req.scope, kind, input),
           );
     res.json(await attachEditContext(req.scope, answer));
-  } catch {
+  } catch (error) {
+    if (error instanceof MissingBusinessTimezone)
+      return fail(
+        422,
+        "Set a valid business timezone in Settings → Availability before asking schedule questions.",
+      );
     // Do not log provider exceptions, prompts, request bodies or customer data.
     // Catch here so the generic Sentry error handler cannot attach chat contents.
     return fail(

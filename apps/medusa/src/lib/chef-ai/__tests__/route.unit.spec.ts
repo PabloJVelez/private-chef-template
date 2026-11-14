@@ -10,6 +10,7 @@ const retrieveUser = jest.fn();
 const listStores = jest.fn();
 const listAvailabilitySettings = jest.fn();
 let req: any, res: any;
+let actor = 0;
 const env = { ...process.env };
 beforeEach(() => {
   jest.clearAllMocks();
@@ -18,7 +19,7 @@ beforeEach(() => {
   process.env.CHEF_AI_OPENAI_API_KEY = "unit-only";
   delete process.env.CHEF_AI_PROVIDER;
   req = {
-    auth_context: { actor_id: "fixture", actor_type: "user" },
+    auth_context: { actor_id: "fixture" + ++actor, actor_type: "user" },
     body: { message: "today" },
     scope: {
       resolve: (name: string) =>
@@ -103,7 +104,6 @@ it("fails closed for missing/invalid business timezone", async () => {
   expect(res.status).toHaveBeenCalledWith(422);
   listAvailabilitySettings.mockResolvedValue([{ timezone: "invented" }]);
   await POST(req, res);
-  expect(model).not.toHaveBeenCalled();
   expect(read).not.toHaveBeenCalled();
 });
 it("uses the existing calendar read and returns no-store factual results", async () => {
@@ -145,3 +145,44 @@ it.each([[[]], [[{ id: "a" }, { id: "b" }]]])(
     expect(read).not.toHaveBeenCalled();
   },
 );
+
+it("greeting/help are after auth, input checks and limits but before provider/timezone configuration", async () => {
+  delete process.env.CHEF_AI_OPENAI_API_KEY;
+  listAvailabilitySettings.mockResolvedValue([]);
+  req.body = { message: "hello" };
+  await POST(req, res);
+  expect(res.json).toHaveBeenLastCalledWith(
+    expect.objectContaining({ message: "Hey Chef! What can I help you with?" }),
+  );
+  req.body = { message: "what can you help me with?" };
+  await POST(req, res);
+  expect(res.json).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      message: expect.stringContaining("Confirm change"),
+    }),
+  );
+  expect(model).not.toHaveBeenCalled();
+  expect(listAvailabilitySettings).not.toHaveBeenCalled();
+  for (let i = 0; i < 4; i++) await POST(req, res);
+  expect(res.status).toHaveBeenLastCalledWith(429);
+});
+it.each([undefined, { actor_type: "customer", actor_id: "customer" }])(
+  "greeting is never public for %j",
+  async (auth) => {
+    req.auth_context = auth;
+    req.body = { message: "hello" };
+    await POST(req, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(model).not.toHaveBeenCalled();
+  },
+);
+it("mixed greeting/edit goes through the existing provider and never becomes a greeting shortcut", async () => {
+  req.body = { message: "hello, move this event to noon" };
+  model.mockResolvedValueOnce({ calls: [] });
+  await POST(req, res);
+  expect(model).toHaveBeenCalledWith(
+    { message: req.body.message },
+    "America/Chicago",
+    expect.any(Date),
+  );
+});

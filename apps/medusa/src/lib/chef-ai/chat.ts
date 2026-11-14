@@ -1,3 +1,5 @@
+import { assistantReadSchema, type AssistantRead } from "./assistant-read";
+import { validTimeZone } from "./schedule";
 import { pageHintSchema } from "./page-context";
 import { composeSchedule } from "./presentation";
 import {
@@ -26,7 +28,8 @@ export const chatInput = z
   })
   .strict();
 const clarification =
-  "Ask for a schedule or a pending-event date/time change. To save a preview, use Confirm change; chat text cannot confirm or decide availability.";
+  "I can help with your schedule, this event, or a pending date/time change. What would you like to check?";
+export class MissingBusinessTimezone extends Error {}
 
 export async function answerSchedule(
   input: ChatInput,
@@ -38,6 +41,7 @@ export async function answerSchedule(
     intent: EditIntent,
     context?: EditContext,
   ) => Promise<ScheduleAnswer>,
+  assistant?: (kind: AssistantRead) => Promise<ScheduleAnswer>,
 ): Promise<ScheduleAnswer> {
   const parsed = chatInput.parse(input);
   const { calls } = await select({ message: parsed.message }, timeZone, now);
@@ -45,12 +49,21 @@ export async function answerSchedule(
   // Reject the entire batch before any read, including duplicate/replayed calls.
   if (
     calls.length !== 1 ||
-    !["get_schedule", "propose_pending_event_date_time_edit"].includes(
-      calls[0].name,
-    ) ||
+    ![
+      "get_schedule",
+      "propose_pending_event_date_time_edit",
+      "assistant_read",
+    ].includes(calls[0].name) ||
     calls[0].arguments.length > 1000
   )
     throw new Error("Invalid model tool call");
+  if (calls[0].name === "assistant_read") {
+    const { kind } = assistantReadSchema.parse(JSON.parse(calls[0].arguments));
+    return assistant
+      ? assistant(kind)
+      : { message: clarification, entries: [] };
+  }
+  if (!validTimeZone(timeZone)) throw new MissingBusinessTimezone();
   if (calls[0].name === "propose_pending_event_date_time_edit") {
     let intent = editIntentSchema.parse(JSON.parse(calls[0].arguments));
     let context = parsed.context;

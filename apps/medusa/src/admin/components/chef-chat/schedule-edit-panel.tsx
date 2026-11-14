@@ -67,9 +67,7 @@ export function ScheduleEditPanel({
   const first = useRef<HTMLInputElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
   const id = useId();
-  const [, tick] = useState(0);
   useEffect(() => {
     if (selection) {
       const target = [
@@ -83,10 +81,8 @@ export function ScheduleEditPanel({
   }, [selection?.eventId]);
   useEffect(() => {
     if (!selection?.preview) return;
-    previewRef.current?.focus({ preventScroll: true });
-    previewRef.current?.scrollIntoView({ block: "nearest" });
     const timer = setTimeout(
-      () => tick((x) => x + 1),
+      () => scheduleEdits.expirePreview(),
       Math.max(0, Date.parse(selection.preview.expiresAt) - Date.now()) + 20,
     );
     return () => clearTimeout(timer);
@@ -219,7 +215,6 @@ export function ScheduleEditPanel({
           className="border-ui-border-base bg-ui-bg-subtle rounded-lg border p-3 space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void scheduleEdits.preview();
           }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
@@ -272,18 +267,33 @@ export function ScheduleEditPanel({
               />
             </label>
           </div>
-          {selection.message && <p role="alert">{selection.message}</p>}
-          <Button
-            type="submit"
-            size="small"
-            variant="secondary"
-            disabled={selection.busy || (!selection.date && !selection.time)}
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="text-xs"
           >
-            {selection.busy ? "Preparing…" : "Preview"}
-          </Button>
+            {selection.busy
+              ? "Checking availability…"
+              : selection.message ||
+                (selection.preview && !expired
+                  ? "Ready to confirm"
+                  : "Enter a date or time to check availability.")}
+          </p>
+          {["expired", "check_failed", "refused"].includes(
+            selection.phase || "",
+          ) && (
+            <Button
+              type="button"
+              size="small"
+              variant="transparent"
+              onClick={() => void scheduleEdits.preview(true)}
+            >
+              Recheck availability
+            </Button>
+          )}
           {selection.preview && (
             <div
-              ref={previewRef}
               tabIndex={-1}
               className="border-ui-border-base border-t pt-3 space-y-3 outline-none"
               aria-label="Schedule change preview"

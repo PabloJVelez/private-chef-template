@@ -48,13 +48,27 @@ let state: ScheduleEditState,
   attempt: jest.Mock,
   onReceipt: jest.Mock;
 beforeEach(() => {
+  jest.useFakeTimers();
   sessionStorage.clear();
   state = new ScheduleEditState();
-  preview = jest.fn().mockImplementation(async () => p());
+  preview = jest
+    .fn()
+    .mockImplementation(async (input) => ({
+      ...p(),
+      proposed: {
+        ...p().proposed,
+        ...(input.date ? { date: input.date } : {}),
+        ...(input.time ? { time: input.time } : {}),
+      },
+    }));
   attempt = jest.fn().mockResolvedValue(receipt);
   transport = { backend: "https://backend.invalid", preview, attempt };
   onReceipt = jest.fn().mockResolvedValue(undefined);
   state.bind("A", transport);
+});
+afterEach(() => {
+  state.clearIdentity();
+  jest.useRealTimers();
 });
 async function ready() {
   state.select("event");
@@ -296,6 +310,7 @@ it("conversational proposal uses the shared runner, and a revision change before
     ...p(),
     expectedRevision: "b".repeat(32),
     target: { ...p().target, revision: "b".repeat(32) },
+    proposed: { ...p().proposed, date: "2026-11-29" },
   });
   const ticket = state.beginProposal();
   await state.propose(
@@ -445,5 +460,161 @@ it.each(["id", "revision"])(
     expect(state.snapshot().selection?.preview).toBeUndefined();
     await state.confirm(onReceipt);
     expect(attempt).not.toHaveBeenCalled();
+  },
+);
+
+it("debounces edits once, invalidates ready immediately, deduplicates unchanged input and never writes", async () => {
+  state.select("event");
+  state.edit("time", "12:00");
+  await jest.advanceTimersByTimeAsync(499);
+  expect(preview).not.toHaveBeenCalled();
+  state.edit("time", "17:00");
+  await jest.advanceTimersByTimeAsync(500);
+  expect(preview).toHaveBeenCalledTimes(1);
+  expect(preview.mock.calls[0][0]).toEqual({ eventId: "event", time: "17:00" });
+  expect(state.snapshot().selection?.phase).toBe("ready");
+  state.edit("time", "17:00");
+  await jest.advanceTimersByTimeAsync(1000);
+  await state.preview();
+  expect(preview).toHaveBeenCalledTimes(1);
+  state.edit("time", "18:00");
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  await state.confirm(onReceipt);
+  expect(attempt).not.toHaveBeenCalled();
+});
+it("noon refusal retains the exact proposal, then a manual 5PM edit is checked once", async () => {
+  state.select("event");
+  preview.mockRejectedValueOnce(
+    new ScheduleTransportError("policy", 422, "unavailable", {
+      code: "slot_unavailable",
+      message: "unavailable",
+      proposal: {
+        eventId: "event",
+        title: "QA RejectionK",
+        revision: "a".repeat(32),
+        date: "2026-11-27",
+        time: "12:00",
+        timezone: "America/Chicago",
+      },
+    }),
+  );
+  state.edit("time", "12:00");
+  await jest.advanceTimersByTimeAsync(500);
+  expect(state.snapshot().selection).toMatchObject({
+    time: "12:00",
+    phase: "refused",
+    message:
+      "Noon on Nov 27 isn't available for QA RejectionK. No change was made. Choose another time.",
+  });
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  state.edit("time", "17:00");
+  await jest.advanceTimersByTimeAsync(500);
+  expect(state.snapshot().selection?.preview?.proposed.time).toBe("17:00");
+  expect(preview).toHaveBeenCalledTimes(2);
+  expect(attempt).not.toHaveBeenCalled();
+});
+it.each(["refusal", "success"])(
+  "ignores out-of-order noon %s after 5PM succeeds",
+  async (kind) => {
+    const d = deferred<SchedulePreview>();
+    preview.mockReturnValueOnce(
+      d.promise.then((value) => {
+        if (kind === "refusal")
+          throw new ScheduleTransportError("policy", 422, "old refusal");
+        return value;
+      }),
+    );
+    state.select("event");
+    state.edit("time", "12:00");
+    await jest.advanceTimersByTimeAsync(500);
+    state.edit("time", "17:00");
+    await jest.advanceTimersByTimeAsync(500);
+    d.resolve({ ...p(), proposed: { ...local, time: "12:00" } });
+    await jest.advanceTimersByTimeAsync(0);
+    expect(state.snapshot().selection?.preview?.proposed.time).toBe("17:00");
+    expect(state.snapshot().selection?.message).toBeUndefined();
+  },
+);
+it.each(["", "7", "25:00"])(
+  "empty/invalid time %j never dispatches",
+  async (time) => {
+    state.select("event");
+    state.edit("time", time);
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(preview).not.toHaveBeenCalled();
+  },
+);
+it("invalid dates do not roll over and explicit retry is bounded by user action", async () => {
+  state.select("event");
+  state.edit("date", "2026-02-30");
+  await jest.advanceTimersByTimeAsync(500);
+  expect(preview).not.toHaveBeenCalled();
+  state.edit("date", "2026-02-28");
+  preview.mockRejectedValueOnce(new ScheduleTransportError("network"));
+  await jest.advanceTimersByTimeAsync(500);
+  await jest.advanceTimersByTimeAsync(10000);
+  expect(preview).toHaveBeenCalledTimes(1);
+  expect(state.snapshot().selection?.phase).toBe("check_failed");
+  await state.preview(true);
+  expect(state.snapshot().selection?.phase).toBe("ready");
+  expect(preview).toHaveBeenCalledTimes(2);
+  jest.setSystemTime(Date.now() + 300001);
+  state.expirePreview();
+  expect(state.snapshot().selection?.phase).toBe("expired");
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  await state.confirm(onReceipt);
+  expect(attempt).not.toHaveBeenCalled();
+});
+it.each(["actor", "backend", "event", "close", "newer"])(
+  "cancels scheduled debounce after %s",
+  async (change) => {
+    state.select("event");
+    state.edit("time", "12:00");
+    if (change === "actor") state.bind("B", transport);
+    if (change === "backend")
+      state.bind("A", { ...transport, backend: "https://other.invalid" });
+    if (change === "event") state.select("other");
+    if (change === "close") state.close();
+    if (change === "newer") state.beginProposal();
+    await jest.advanceTimersByTimeAsync(500);
+    expect(preview).not.toHaveBeenCalled();
+  },
+);
+it.each(["date", "time"])(
+  "rejects mismatched returned proposal %s even with a valid event/revision",
+  async (field) => {
+    preview.mockResolvedValueOnce({
+      ...p(),
+      proposed: {
+        ...local,
+        [field]: field === "date" ? "2030-03-10" : "17:00",
+      },
+    });
+    await ready();
+    expect(state.snapshot().selection?.preview).toBeUndefined();
+    await state.confirm(onReceipt);
+    expect(attempt).not.toHaveBeenCalled();
+  },
+);
+it.each([
+  "timezone_mismatch",
+  "availability_unconfigured",
+  "experience_inactive",
+  "invalid_local_time",
+  "preview_unavailable",
+] as const)(
+  "422 %s never claims a slot is booked or an attempted operation rolled back",
+  async (code) => {
+    preview.mockRejectedValueOnce(
+      new ScheduleTransportError("policy", 422, "internal", {
+        code,
+        message: "public",
+      }),
+    );
+    await ready();
+    expect(state.snapshot().selection?.message).not.toMatch(
+      /isn't available|booked|rolled back/,
+    );
+    expect(state.snapshot().selection?.preview).toBeUndefined();
   },
 );

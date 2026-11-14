@@ -4,6 +4,7 @@ import type {
   EditTask,
 } from "../../../lib/chef-ai/edit-intent";
 import type {
+  PreviewRejection,
   SchedulePreview,
   ScheduleReceipt,
   ScheduleResult,
@@ -37,6 +38,14 @@ export type AttemptView = Attempt & {
   live?: LiveSchedule;
 };
 type Selection = {
+  draftExpiresAt?: number;
+  phase?:
+    | "editing"
+    | "checking"
+    | "ready"
+    | "refused"
+    | "check_failed"
+    | "expired";
   context?: EditContext;
   expectedRevision?: string;
   eventId: string;
@@ -65,6 +74,64 @@ const persisted = (a: Attempt): Attempt => ({
   recoveries: a.recoveries,
 });
 
+function validDraft(s: Selection) {
+  if (!s.date && !s.time) return false;
+  if (s.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)) return false;
+  if (s.date) {
+    const date = new Date(s.date + "T00:00:00Z");
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(s.date) ||
+      !Number.isFinite(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== s.date
+    )
+      return false;
+  }
+  return true;
+}
+function previewFailure(error: unknown, s: Selection) {
+  if (!(error instanceof ScheduleTransportError))
+    return "I can't check scheduling right now. Try again later.";
+  const rejection = error.rejection;
+  const p = rejection?.proposal;
+  if (
+    rejection?.code === "slot_unavailable" &&
+    p &&
+    p.eventId === s.eventId &&
+    (!s.expectedRevision || p.revision === s.expectedRevision) &&
+    (!s.date || p.date === s.date) &&
+    (!s.time || p.time === s.time)
+  ) {
+    const [hour, minute] = p.time.split(":").map(Number);
+    const time =
+      p.time === "12:00"
+        ? "Noon"
+        : `${hour % 12 || 12}${minute ? ":" + String(minute).padStart(2, "0") : ""} ${hour < 12 ? "AM" : "PM"}`;
+    const date = new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(p.date + "T00:00:00Z"));
+    return `${time} on ${date} isn't available for ${p.title}. No change was made. Choose another time.`;
+  }
+  const messages: Partial<Record<PreviewRejection["code"], string>> = {
+    slot_unavailable:
+      "That date/time isn't available. No change was made. Choose another date or time.",
+    event_ineligible:
+      "This event can't be changed here. Open the event to review its current status.",
+    timezone_mismatch:
+      "The event's timezone needs to be reconciled with Availability settings before checking a change.",
+    availability_unconfigured:
+      "I can't check scheduling until Availability settings are configured.",
+    experience_inactive:
+      "Choose an active experience on the event before checking a change.",
+    invalid_local_time:
+      "Choose a valid local date and time. Ambiguous or missing times during daylight-saving changes aren't supported.",
+    preview_unavailable:
+      "I can't check scheduling right now. Open the event or try again later.",
+  };
+  return rejection ? messages[rejection.code]! : error.message;
+}
+
 /** Feature-specific state, outside cards/history. sessionStorage is same-origin user
  * data, NOT an XSS vault. Auth and the signed server reference remain authoritative.
  */
@@ -73,6 +140,12 @@ export class ScheduleEditState {
   private listeners = new Set<() => void>();
   private generation = 0;
   private previewGeneration = 0;
+  private debounce?: ReturnType<typeof setTimeout>;
+  private invalidatePreview() {
+    clearTimeout(this.debounce);
+    this.debounce = undefined;
+    return ++this.previewGeneration;
+  }
   private actor = "";
   private transport?: ScheduleTransport;
   private blocked = false;
@@ -130,7 +203,7 @@ export class ScheduleEditState {
   clearIdentity() {
     // Synchronous epoch invalidation survives component remount and late requests.
     this.generation++;
-    this.previewGeneration++;
+    this.invalidatePreview();
     this.actor = "";
     this.transport = undefined;
     try {
@@ -143,7 +216,7 @@ export class ScheduleEditState {
     this.publish({ selection: undefined, task: undefined, attempts: {} });
   }
   select(eventId: string, context?: EditContext) {
-    this.previewGeneration++;
+    this.invalidatePreview();
     this.publish({
       task: undefined,
       selection: {
@@ -156,17 +229,47 @@ export class ScheduleEditState {
   }
   /** Capture identity/backend + edit generation, consume selection context. Every prompt/selection/cancel/manual input supersedes it. */
   beginProposal() {
-    const context = this.state.selection?.context;
+    const selection = this.state.selection;
+    const context = selection?.context;
+    const refusedTask: EditTask | undefined =
+      selection?.phase === "refused" &&
+      context &&
+      selection.draftExpiresAt &&
+      selection.draftExpiresAt > Date.now() &&
+      validDraft(selection)
+        ? {
+            version: 1,
+            context,
+            expiresAt: selection.draftExpiresAt,
+            intent: {
+              target: "context",
+              targetDate: null,
+              date: selection.date
+                ? { kind: "iso", value: selection.date }
+                : null,
+              time: selection.time || null,
+              clarification: "none",
+              continuation: false,
+            },
+          }
+        : undefined;
     const task =
       this.state.task && this.state.task.expiresAt > Date.now()
         ? this.state.task
-        : undefined;
+        : refusedTask;
     this.publish({ task: undefined });
     const epoch = this.generation,
-      request = ++this.previewGeneration;
+      request = this.invalidatePreview();
     if (this.state.selection)
       this.publish({
-        selection: { ...this.state.selection, context: undefined, busy: false },
+        selection: {
+          ...this.state.selection,
+          context: undefined,
+          busy: false,
+          phase: this.state.selection.busy
+            ? "editing"
+            : this.state.selection.phase,
+        },
       });
     return {
       context,
@@ -195,7 +298,7 @@ export class ScheduleEditState {
   }
   async propose(proposal: EditProposal, current: () => boolean) {
     if (!current() || this.state.attempts[proposal.eventId]) return false;
-    this.previewGeneration++;
+    this.invalidatePreview();
     this.publish({
       task: undefined,
       selection: {
@@ -203,32 +306,71 @@ export class ScheduleEditState {
         date: proposal.date ?? "",
         time: proposal.time ?? "",
         expectedRevision: proposal.expectedRevision,
+        draftExpiresAt: Date.now() + 300000,
+        context: {
+          candidates: [
+            { id: proposal.eventId, revision: proposal.expectedRevision },
+          ],
+          selectedId: proposal.eventId,
+          observedAt: Date.now(),
+        },
       },
     });
     await this.preview(); // The same dedicated preview runner as the manual form.
     return true;
   }
   close() {
-    this.previewGeneration++;
+    this.invalidatePreview();
     this.publish({ selection: undefined, task: undefined });
   }
   edit(field: "date" | "time", value: string) {
-    if (!this.state.selection) return;
-    this.previewGeneration++;
+    if (!this.state.selection || this.state.selection[field] === value) return;
+    this.invalidatePreview();
     this.publish({
       task: undefined,
       selection: {
         ...this.state.selection,
         [field]: value,
-        expectedRevision: undefined,
+        draftExpiresAt:
+          this.state.selection.draftExpiresAt ?? Date.now() + 300000,
+        expectedRevision:
+          this.state.selection.preview?.expectedRevision ??
+          this.state.selection.expectedRevision,
         context: undefined,
+        phase: "editing",
         preview: undefined,
         busy: false,
         message: undefined,
       },
     });
+    if (
+      validDraft(this.state.selection!) &&
+      !this.state.attempts[this.state.selection!.eventId]
+    ) {
+      const request = this.previewGeneration;
+      this.debounce = setTimeout(() => {
+        this.debounce = undefined;
+        if (request === this.previewGeneration) void this.preview();
+      }, 500);
+    }
   }
-  async preview() {
+  expirePreview() {
+    const s = this.state.selection;
+    if (s?.preview && Date.now() >= Date.parse(s.preview.expiresAt)) {
+      this.invalidatePreview();
+      this.publish({
+        selection: {
+          ...s,
+          preview: undefined,
+          phase: "expired",
+          busy: false,
+          message:
+            "This check expired. Recheck availability before confirming.",
+        },
+      });
+    }
+  }
+  async preview(recheck = false) {
     const s = this.state.selection,
       t = this.transport;
     if (
@@ -236,14 +378,23 @@ export class ScheduleEditState {
       !t ||
       s.busy ||
       this.state.attempts[s.eventId] ||
-      (!s.date && !s.time)
+      !validDraft(s) ||
+      (!recheck && ["ready", "refused", "check_failed"].includes(s.phase || ""))
     )
       return;
     const epoch = this.generation,
-      request = ++this.previewGeneration;
+      request = this.invalidatePreview();
     const current = () =>
       epoch === this.generation && request === this.previewGeneration;
-    this.publish({ selection: { ...s, preview: undefined, busy: true } });
+    this.publish({
+      selection: {
+        ...s,
+        preview: undefined,
+        message: undefined,
+        busy: true,
+        phase: "checking",
+      },
+    });
     try {
       const preview = await t.preview(
         {
@@ -254,10 +405,25 @@ export class ScheduleEditState {
         current,
       );
       if (current()) {
+        if (Date.now() >= Date.parse(preview.expiresAt)) {
+          this.publish({
+            selection: {
+              ...s,
+              busy: false,
+              phase: "expired",
+              message:
+                "This check expired. Recheck availability before confirming.",
+            },
+          });
+          return;
+        }
         if (
           preview.eventId !== s.eventId ||
           preview.target?.id !== s.eventId ||
-          preview.target.revision !== preview.expectedRevision
+          preview.target.revision !== preview.expectedRevision ||
+          preview.proposed.date !== (s.date || preview.current.date) ||
+          preview.proposed.time !== (s.time || preview.current.time) ||
+          preview.proposed.timezone !== preview.current.timezone
         )
           throw new ScheduleTransportError("malformed");
         if (
@@ -268,6 +434,7 @@ export class ScheduleEditState {
             selection: {
               ...s,
               busy: false,
+              phase: "check_failed",
               expectedRevision: undefined,
               message:
                 "The event changed while preparing this proposal. Refresh the event and review the proposed date/time before previewing again.",
@@ -278,6 +445,9 @@ export class ScheduleEditState {
             selection: {
               ...s,
               preview,
+              phase: "ready",
+              busy: false,
+              message: undefined,
               context: {
                 candidates: [
                   { id: s.eventId, revision: preview.expectedRevision },
@@ -294,10 +464,33 @@ export class ScheduleEditState {
           selection: {
             ...s,
             preview: undefined,
-            message:
-              error instanceof ScheduleTransportError
-                ? error.message
-                : "Preview unavailable. Please retry.",
+            busy: false,
+            phase:
+              error instanceof ScheduleTransportError && error.kind === "policy"
+                ? "refused"
+                : "check_failed",
+            message: previewFailure(error, s),
+            ...(error instanceof ScheduleTransportError &&
+            error.rejection?.proposal &&
+            error.rejection.proposal.eventId === s.eventId &&
+            (!s.expectedRevision ||
+              error.rejection.proposal.revision === s.expectedRevision) &&
+            (!s.date || error.rejection.proposal.date === s.date) &&
+            (!s.time || error.rejection.proposal.time === s.time)
+              ? {
+                  context: {
+                    candidates: [
+                      {
+                        id: s.eventId,
+                        revision: error.rejection.proposal.revision,
+                      },
+                    ],
+                    selectedId: s.eventId,
+                    observedAt: Date.now(),
+                  },
+                  expectedRevision: error.rejection.proposal.revision,
+                }
+              : {}),
           },
         });
     }
@@ -312,13 +505,7 @@ export class ScheduleEditState {
       p = s?.preview;
     if (!s || !p || !this.transport || this.state.attempts[s.eventId]) return;
     if (Date.now() >= Date.parse(p.expiresAt)) {
-      this.publish({
-        selection: {
-          ...s,
-          preview: undefined,
-          message: "Preview expired. Preview again before confirming.",
-        },
-      });
+      this.expirePreview();
       return;
     }
     const a: Attempt = {
@@ -346,7 +533,7 @@ export class ScheduleEditState {
       });
       return;
     }
-    this.previewGeneration++; // An attempted write supersedes any pending conversational proposal.
+    this.invalidatePreview(); // An attempted write supersedes any pending conversational proposal.
     // Published synchronously BEFORE any await: repeated cards/clicks share one guard.
     this.publish({
       task: undefined,

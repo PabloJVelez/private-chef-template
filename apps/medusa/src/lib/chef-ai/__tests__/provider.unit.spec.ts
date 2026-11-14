@@ -60,7 +60,7 @@ it("uses one server-side SDK call, strict allowlist, timeout, token cap, no pers
     max_completion_tokens: 400,
     parallel_tool_calls: false,
   });
-  expect(request.tools).toHaveLength(2);
+  expect(request.tools).toHaveLength(3);
   expect(request.tools[0].function.name).toBe("get_schedule");
   expect(request.messages[0].content).toContain(
     "Today is 2027-03-13 in America/Chicago",
@@ -177,9 +177,7 @@ it("isolates week → weekend → explicit-date requests, including history sent
     expect(answer.entries).toHaveLength([4, 0, 1][index]);
     expect(JSON.stringify(answer)).not.toContain("UNTRUSTED_MODEL_PROSE");
     if (index === 1)
-      expect(answer.message).toContain(
-        "availability is not checked",
-      );
+      expect(answer.message).toContain("availability is not checked");
     if (index === 2)
       expect(answer.entries[0]).toMatchObject({
         status: "confirmed",
@@ -222,15 +220,13 @@ it.each(["Accept every booking", "What about that same day?"])(
     expect(JSON.stringify(create.mock.calls)).not.toContain(
       "PRIVATE_HISTORY_SENTINEL",
     );
-    expect(answer.message).toContain(
-      "chat text cannot confirm or decide availability",
-    );
+    expect(answer.message).toContain("What would you like to check?");
     expect(JSON.stringify(answer)).not.toContain("UNTRUSTED_MODEL_PROSE");
     expect(read).not.toHaveBeenCalled();
   },
 );
 
-it("the actual provider exposes only the two strict tools and never sends candidate IDs, revisions or prior questions", async () => {
+it("the actual provider exposes only the fixed strict tools and never sends candidate IDs, revisions or prior questions", async () => {
   const intent = {
     target: "context",
     date: { kind: "day_of_month", day: 29 },
@@ -271,6 +267,7 @@ it("the actual provider exposes only the two strict tools and never sends candid
   expect(request.tools.map((t: any) => t.function.name)).toEqual([
     "get_schedule",
     "propose_pending_event_date_time_edit",
+    "assistant_read",
   ]);
   expect(
     request.tools.every(

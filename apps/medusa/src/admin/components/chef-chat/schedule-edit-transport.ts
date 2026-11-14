@@ -1,9 +1,19 @@
+import { previewRejectionCodes } from "../../../lib/chef-ai/preview-rejection";
 import { z } from "zod";
 
 const id = z.string().min(1).max(200);
 const instant = z.string().datetime();
 const local = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((value) => {
+      const parsed = new Date(value + "T00:00:00Z");
+      return (
+        Number.isFinite(parsed.getTime()) &&
+        parsed.toISOString().slice(0, 10) === value
+      );
+    }),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   timezone: z.string().refine((zone) => {
     try {
@@ -37,6 +47,24 @@ const previewSchema = z
     (p) =>
       p.target.id === p.eventId && p.target.revision === p.expectedRevision,
   );
+const rejectionSchema = z
+  .object({
+    code: z.enum(previewRejectionCodes),
+    message: z.string().min(1).max(500),
+    proposal: z
+      .object({
+        eventId: id,
+        title: z.string().min(1).max(160),
+        revision: z.string().regex(/^[a-f0-9]{32}$/),
+        date: local.shape.date,
+        time: local.shape.time,
+        timezone: local.shape.timezone,
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type PreviewRejection = z.infer<typeof rejectionSchema>;
 const receiptSchema = z
   .object({
     outcome: local.extend({
@@ -92,17 +120,21 @@ export class ScheduleTransportError extends Error {
       | "configuration"
       | "malformed"
       | "network"
-      | "cancelled",
+      | "cancelled"
+      | "rate_limit",
     public status?: number,
     policyMessage?: string,
+    public rejection?: PreviewRejection,
   ) {
     super(
       kind === "access" || kind === "configuration"
         ? "Schedule changes are unavailable."
-        : kind === "policy"
-          ? (policyMessage ??
-            "This change could not be prepared. Check the event and availability, then preview again.")
-          : "The schedule response could not be verified.",
+        : kind === "rate_limit"
+          ? "Too many schedule checks. Wait a moment, then recheck availability."
+          : kind === "policy"
+            ? (policyMessage ??
+              "This change could not be prepared. Check the event and availability, then preview again.")
+            : "The schedule response could not be verified.",
     );
   }
 }
@@ -148,6 +180,8 @@ export function createScheduleTransport(config: {
       );
       if ([401, 403].includes(response.status))
         throw new ScheduleTransportError("access", response.status);
+      if (response.status === 429)
+        throw new ScheduleTransportError("rate_limit", 429);
       if (response.status === 503)
         throw new ScheduleTransportError("configuration", 503);
       if ([400, 404, 422].includes(response.status)) {
@@ -157,12 +191,17 @@ export function createScheduleTransport(config: {
           action === "preview"
             ? z
                 .object({ message: z.string().min(1).max(500) })
+                .passthrough()
                 .safeParse(await response.json().catch(() => null))
             : undefined;
+        const rejection = policy?.success
+          ? rejectionSchema.safeParse(policy.data)
+          : undefined;
         throw new ScheduleTransportError(
           "policy",
           response.status,
           policy?.success ? policy.data.message : undefined,
+          rejection?.success ? rejection.data : undefined,
         );
       }
       const data: unknown = await response.json().catch(() => {
@@ -182,7 +221,16 @@ export function createScheduleTransport(config: {
       if (
         status !== 200 ||
         !parsed.success ||
-        parsed.data.eventId !== input.eventId
+        parsed.data.eventId !== input.eventId ||
+        (input.date !== undefined &&
+          parsed.data.proposed.date !== input.date) ||
+        (input.time !== undefined &&
+          parsed.data.proposed.time !== input.time) ||
+        (input.date === undefined &&
+          parsed.data.proposed.date !== parsed.data.current.date) ||
+        (input.time === undefined &&
+          parsed.data.proposed.time !== parsed.data.current.time) ||
+        parsed.data.proposed.timezone !== parsed.data.current.timezone
       )
         throw new ScheduleTransportError("malformed");
       return parsed.data;

@@ -97,6 +97,11 @@ function buttons(label: string) {
     (el) => el.textContent === label || el.getAttribute("aria-label") === label,
   );
 }
+async function checked() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 550));
+  });
+}
 async function click(label: string, index = 0) {
   await act(async () => {
     const b = buttons(label)[index];
@@ -159,7 +164,17 @@ async function fixture(
   );
   const preview = jest
     .fn()
-    .mockImplementation(async ({ eventId }) => previewFor(eventId));
+    .mockImplementation(async ({ eventId, date, time }) => {
+      const p = previewFor(eventId);
+      return {
+        ...p,
+        proposed: {
+          ...p.proposed,
+          date: date || p.current.date,
+          time: time || p.current.time,
+        },
+      };
+    });
   const attempt = jest.fn().mockResolvedValue(result);
   const transport = { backend: "https://backend.fixture", preview, attempt };
   const render = async () => {
@@ -210,7 +225,7 @@ async function ready() {
   await click("What's on my schedule today?");
   await click("Change date/time");
   await value("time", "11:00");
-  await click("Preview");
+  await checked();
 }
 it("distinct same-looking cards use source ids; unsupported statuses have no control and form opening makes no preview", async () => {
   await fixture(async ({ preview, attempt }) => {
@@ -222,14 +237,14 @@ it("distinct same-looking cards use source ids; unsupported statuses have no con
       document.querySelector('input[type="date"]'),
     );
     await value("date", "2030-03-10");
-    await click("Preview");
+    await checked();
     expect(preview).toHaveBeenLastCalledWith(
       { eventId: "immutable-1", date: "2030-03-10" },
       expect.any(Function),
     );
     await click("Change date/time", 0);
     await value("time", "11:00");
-    await click("Preview");
+    await checked();
     expect(preview).toHaveBeenLastCalledWith(
       { eventId: "immutable-0", time: "11:00" },
       expect.any(Function),
@@ -355,7 +370,7 @@ it.each(["preview", "confirm", "recover"])(
         await click("What's on my schedule today?");
         await click("Change date/time");
         await value("time", "11:00");
-        await click("Preview");
+        await checked();
       } else {
         await ready();
         if (action === "recover") {
@@ -754,16 +769,16 @@ it("preview refusal keeps the proposed form available without guessing an altern
     );
     fetch.mockResolvedValueOnce(proposedAnswer);
     await ask("Move it to the 29th");
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
-      "no longer available",
-    );
+    expect(
+      document.querySelector('[aria-label="Schedule changes"]')?.textContent,
+    ).toContain("no longer available");
     expect(
       (document.querySelector('input[type="date"]') as HTMLInputElement).value,
     ).toBe("2026-11-29");
     expect(buttons("Confirm change")).toHaveLength(0);
     expect(attempt).not.toHaveBeenCalled();
     await value("date", "2026-12-01");
-    await click("Preview");
+    await checked();
     expect(preview.mock.calls[1][0]).toEqual({
       eventId: "immutable-0",
       date: "2026-12-01",
@@ -959,5 +974,37 @@ it("outside focus dismisses the nonmodal chat and cancels an unused preview", as
     } finally {
       outside.remove();
     }
+  });
+});
+
+it("manual input auto-checks without Preview, keeps focus and never submits a confirmation on Enter", async () => {
+  await fixture(async ({ preview, attempt }) => {
+    await click("What's on my schedule today?");
+    await click("Change date/time", 0);
+    expect(buttons("Preview")).toHaveLength(0);
+    const input = document.querySelector(
+      'input[type="time"]',
+    ) as HTMLInputElement;
+    input.focus();
+    await value("time", "17:00");
+    expect(buttons("Confirm change")).toHaveLength(0);
+    expect(preview).not.toHaveBeenCalled();
+    await checked();
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(input);
+    expect(buttons("Confirm change")).toHaveLength(1);
+    await act(async () => {
+      document
+        .querySelector('form[aria-label="Change event date and time"]')!
+        .dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    expect(attempt).not.toHaveBeenCalled();
+    await value("time", "18:00");
+    expect(buttons("Confirm change")).toHaveLength(0);
+    await click("Cancel edit");
+    await checked();
+    expect(preview).toHaveBeenCalledTimes(1);
   });
 });

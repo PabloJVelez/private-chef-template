@@ -730,7 +730,7 @@ it.each([true, false])(
     else {
       expect(state.snapshot().selection?.preview).toBeUndefined();
       expect(state.snapshot().selection?.message).toBe(
-        'That arrival time is no longer available. Please choose another time.',
+        "11 AM on Nov 29 isn't available for Private Guest. No change was made. Choose another time.",
       );
     }
     expect((await row()).requestedDate.toISOString()).toBe('2026-11-30T16:00:00.000Z');
@@ -791,7 +791,7 @@ it('HTTP rejects forged/oversized candidate context, detects stale event dates, 
       body: { message },
     });
     expect(answer.editProposal).toBeUndefined();
-    expect(answer.message).toContain('chat text cannot confirm');
+    expect(answer.message).toContain('What would you like to check?');
   }
   expect((await db.query('select * from chef_event_schedule_edit')).rows).toHaveLength(0);
 });
@@ -818,7 +818,7 @@ it('conversational DST-gap proposal reaches the dedicated preview and is refused
   state.bind(f.actor, transport);
   const ticket = state.beginProposal();
   await state.propose(answer.editProposal!, ticket.current);
-  expect(state.snapshot().selection?.message).toContain('DST gaps/folds');
+  expect(state.snapshot().selection?.message).toContain('daylight-saving');
   expect(state.snapshot().selection?.preview).toBeUndefined();
   expect((await db.query('select * from chef_event_schedule_edit')).rows).toHaveLength(0);
 });
@@ -986,7 +986,7 @@ it('date lookup has no-match and preview policy refusal without replacing the pr
   await state.propose(result.editProposal!, ticket.current);
   expect(state.snapshot().selection?.time).toBe('14:00');
   expect(state.snapshot().selection?.preview).toBeUndefined();
-  expect(state.snapshot().selection?.message).toContain('no longer available');
+  expect(state.snapshot().selection?.message).toContain("isn't available");
   expect((await db.query('select * from chef_event_schedule_edit')).rows).toHaveLength(0);
 });
 
@@ -1037,4 +1037,236 @@ it('real chat validates incompatible page hints before provider calls and compos
   const calls = modelCall.mock.calls.length;
   await expect(f.sdk.fetch('/admin/chef-ai/chat', { method: 'POST', body: { message: 'Move it', page: { version: 1, surface: 'menus', view: 'detail', resource: { kind: 'private-event', id: 'event' } } } })).rejects.toMatchObject({ status: 400 });
   expect(modelCall).toHaveBeenCalledTimes(calls);
+});
+
+it("actual HTTP noon refusal is typed and target-bound; manual 5PM debounces one preview without any save", async () => {
+  const f = await conversationalFixture("noon-auto");
+  await chef.updateChefEvents({
+    id: "event",
+    firstName: "QA",
+    lastName: "RejectionK",
+    requestedDate: new Date("2026-11-27T16:00:00Z"),
+    requestedTime: "10:00",
+    timeZone: "America/Chicago",
+  });
+  await fixture.container
+    .resolve<any>("availability")
+    .updateAvailabilitySettings({
+      id: "chef-default",
+      timezone: "America/Chicago",
+      overrides: { "2026-11-27": [{ start: "16:00", end: "20:00" }] },
+    });
+  const before = await row();
+  const response = await fetch(baseUrl + "/preview", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: "Bearer " + f.token,
+    },
+    body: JSON.stringify({ eventId: "event", time: "12:00" }),
+  });
+  expect(response.status).toBe(422);
+  const rejected: any = await response.json();
+  expect(rejected).toMatchObject({
+    code: "slot_unavailable",
+    proposal: {
+      eventId: "event",
+      title: "QA RejectionK",
+      date: "2026-11-27",
+      time: "12:00",
+    },
+  });
+  expect(rejected.reference).toBeUndefined();
+  expect(rejected.operationId).toBeUndefined();
+  expect(JSON.stringify(rejected)).not.toMatch(
+    /private@example|Private address|Private notes/,
+  );
+  const transport = createScheduleTransport({
+    backendUrl: f.backendUrl,
+    authType: "jwt",
+    getToken: () => f.sdk.getToken(),
+  });
+  const previewSpy = jest.spyOn(transport, "preview"),
+    attempt = jest.spyOn(transport, "attempt");
+  const state = new ScheduleEditState(() => ({
+    length: 0,
+    key: () => null,
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+  }));
+  state.bind(f.actor, transport);
+  modelCall.mockResolvedValueOnce(modelTool('propose_pending_event_date_time_edit', {
+    target:'context',targetDate:null,date:null,time:'12:00',clarification:'none',continuation:false,
+  }));
+  const proposed = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', {method:'POST',body:{
+    message:'hello, move this event to noon',page:{version:1,surface:'chef-events',view:'detail',resource:{kind:'private-event',id:'event'}},
+  }});
+  expect(proposed.editProposal).toMatchObject({eventId:'event',time:'12:00'});
+  expect(modelCall.mock.calls.at(-1)[0].messages.slice(1)).toEqual([{role:'user',content:'hello, move this event to noon'}]);
+  expect(JSON.stringify(modelCall.mock.calls.at(-1)[0])).not.toContain('QA RejectionK');
+  await state.propose(proposed.editProposal!, state.beginProposal().current);
+  expect(state.snapshot().selection?.message).toBe(
+    "Noon on Nov 27 isn't available for QA RejectionK. No change was made. Choose another time.",
+  );
+  expect(state.snapshot().selection?.time).toBe("12:00");
+  const taskTicket = state.beginProposal();
+  expect(taskTicket.task?.intent.time).toBe("12:00");
+  state.edit("time", "17:00");
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      unsubscribe();
+      reject(new Error("Auto preview timeout"));
+    }, 4000);
+    const unsubscribe = state.subscribe(() => {
+      if (state.snapshot().selection?.phase === "ready") {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+  expect(previewSpy).toHaveBeenCalledTimes(2);
+  const prepared = state.snapshot().selection!.preview!;
+  expect(prepared).toMatchObject({
+    eventId: "event",
+    current: { time: "10:00" },
+    proposed: { time: "17:00", date: "2026-11-27" },
+  });
+  expect(verifyReference(prepared.reference, f.actor, secret)).toMatchObject({
+    eventId: "event",
+    time: "17:00",
+  });
+  expect(attempt).not.toHaveBeenCalled();
+  expect(await row()).toEqual(before);
+  expect(emit).not.toHaveBeenCalled();
+  expect(
+    (await db.query("select * from chef_event_schedule_edit")).rows,
+  ).toHaveLength(0);
+  state.clearIdentity();
+});
+it.each([
+  "availability_unconfigured",
+  "experience_inactive",
+  "timezone_mismatch",
+  "invalid_local_time",
+  "event_ineligible",
+])("actual HTTP 422 %s stays distinct from slot unavailable", async (code) => {
+  if (code === "availability_unconfigured")
+    await db.query("delete from availability_setting");
+  if (code === "experience_inactive")
+    await fixture.container
+      .resolve<any>("experienceTypeModuleService")
+      .updateExperienceTypes({ id: "experience", is_active: false });
+  if (code === "timezone_mismatch")
+    await fixture.container
+      .resolve<any>("availability")
+      .updateAvailabilitySettings({
+        id: "chef-default",
+        timezone: "America/Chicago",
+      });
+  if (code === "event_ineligible")
+    await chef.updateChefEvents({ id: "event", status: "cancelled" });
+  const token = jwt.sign(
+    { actor_id: "admin", actor_type: "user", auth_identity_id: "fixture" },
+    secret,
+  );
+  const r = await fetch(baseUrl + "/preview", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: "Bearer " + token,
+    },
+    body: JSON.stringify({
+      eventId: "event",
+      ...(code === "invalid_local_time"
+        ? { date: "2030-03-10", time: "02:30" }
+        : { time: "12:00" }),
+    }),
+  });
+  expect(r.status).toBe(422);
+  const body: any = await r.json();
+  expect(body.code).toBe(code);
+  expect(body.reference).toBeUndefined();
+  expect(body.proposal).toBeUndefined();
+});
+it("HTTP greeting/help and page B summary remain authenticated, limited, provider-free and independent of write/availability configuration", async () => {
+  // Fresh logical day isolates rate accounting from preceding boundary fixtures.
+  const realNow = Date.now();
+  jest.spyOn(Date, "now").mockReturnValue(realNow + 86400000);
+  const token = jwt.sign(
+    { actor_id: "other", actor_type: "user", auth_identity_id: "fixture" },
+    secret,
+  );
+  const url = baseUrl.replace(
+    "/admin/chef-events/schedule-edit",
+    "/admin/chef-ai/chat",
+  );
+  const post = (body: unknown, auth = token) =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(auth ? { authorization: "Bearer " + auth } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  delete process.env.CHEF_AI_OPENAI_API_KEY;
+  delete process.env.CHEF_AI_SCHEDULE_WRITE_ENABLED;
+  await db.query("delete from availability_setting");
+  await chef.updateChefEvents({ id: "unselected", status: "cancelled" });
+  const page = {
+    version: 1,
+    surface: "chef-events",
+    view: "detail",
+    resource: { kind: "private-event", id: "unselected" },
+  };
+  for (const message of [
+    "hello",
+    "what can you help me with?",
+    "what's this event about?",
+  ]) {
+    const r = await post({
+      message,
+      page,
+      context: {
+        candidates: [{ id: "event", revision: "a".repeat(32) }],
+        observedAt: realNow,
+      },
+    });
+    expect(r.status).toBe(200);
+    const body: any = await r.json();
+    if (message.startsWith("what's"))
+      expect(body.summary).toMatchObject({
+        source: { id: "unselected" },
+        status: "cancelled",
+        guestCount: 4,
+      });
+    expect(JSON.stringify(body)).not.toMatch(
+      /private@example|Private address|Private notes/,
+    );
+  }
+  expect(modelCall).not.toHaveBeenCalled();
+  expect(emit).not.toHaveBeenCalled();
+  expect((await post({ message: "hello" }, "")).status).toBe(401);
+  const customer = jwt.sign(
+    { actor_id: "other", actor_type: "customer", auth_identity_id: "fixture" },
+    secret,
+  );
+  expect([401, 403]).toContain(
+    (await post({ message: "hello" }, customer)).status,
+  );
+  expect(
+    (
+      await post({
+        message: "hello",
+        page: { ...page, resource: { kind: "menu", id: "unselected" } },
+      })
+    ).status,
+  ).toBe(400);
+  await post({ message: "hello" });
+  await post({ message: "hello" });
+  expect((await post({ message: "hello" })).status).toBe(429);
 });

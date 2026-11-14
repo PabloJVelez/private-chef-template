@@ -1,4 +1,4 @@
-import type { CalendarEntry } from "../chef-workspace/contracts";
+import type { RequestSummary } from "../chef-workspace/contracts";
 import type { ScheduleAnswer } from "./contracts";
 const labels = {
   pending: "pending request",
@@ -7,7 +7,7 @@ const labels = {
   completed: "completed appointment",
 };
 /** Deterministic facts only. No model verbalization, estimated arrival or availability inference. */
-export function eventSentence(event: CalendarEntry) {
+export function eventSentence(event: RequestSummary) {
   const interval =
     event.status === "confirmed" || event.status === "completed"
       ? event.appointmentTime

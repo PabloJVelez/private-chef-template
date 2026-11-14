@@ -171,12 +171,67 @@ function Answer({
   close,
   historicalIds = [],
   currentContext,
+  chooseSummary,
 }: {
+  chooseSummary: (id: string, title: string) => void;
   currentContext?: EditContext;
   historicalIds?: string[];
   answer: ScheduleAnswer;
   close: () => void;
 }) {
+  if (answer.summaryChoices)
+    return (
+      <div className="space-y-2">
+        <p>{answer.message}</p>
+        {answer.summaryChoices.map((event) => (
+          <Button
+            type="button"
+            size="small"
+            variant="secondary"
+            key={event.source.id}
+            onClick={() => chooseSummary(event.source.id, event.title)}
+            aria-label={`Read ${event.title} (${event.source.id})`}
+            className="h-auto whitespace-normal text-left"
+          >
+            {event.title}
+            {eventSentence(event).after} · {event.status} ·{" "}
+            {event.source.id.slice(-8)}
+          </Button>
+        ))}
+      </div>
+    );
+  if (answer.summary) {
+    const event = answer.summary,
+      words = eventSentence(event);
+    return (
+      <div className="space-y-2">
+        <p>
+          {historicalIds.includes(event.source.id) ? "Earlier snapshot: " : ""}
+          {words.before}
+          <Link
+            className="text-ui-fg-interactive underline"
+            to={`/chef-events/${encodeURIComponent(event.source.id)}`}
+            onClick={close}
+          >
+            {event.title}
+          </Link>
+          {event.timingUnavailable
+            ? ", with a local arrival time that needs to be verified on the event page."
+            : words.after}
+        </p>
+        {(event.category || event.guestCount) && (
+          <p className="text-xs text-ui-fg-subtle">
+            {[
+              event.category,
+              event.guestCount ? `${event.guestCount} guests` : undefined,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
+      </div>
+    );
+  }
   if (answer.presentation && answer.entries.length) {
     return (
       <div className="space-y-3">
@@ -234,6 +289,7 @@ function Answer({
                 <details className="text-xs text-ui-fg-subtle">
                   <summary className="cursor-pointer">Details</summary>
                   <Answer
+                    chooseSummary={chooseSummary}
                     answer={{
                       ...answer,
                       entries: [event],
@@ -505,6 +561,7 @@ export function ChefChat({
   async function send(
     message = draft,
     selection?: { intent: EditIntent; context: EditContext },
+    summaryEventId?: string,
   ) {
     const question = message.trim();
     if (!question || sending.current || loading || question.length > 1000)
@@ -532,14 +589,16 @@ export function ChefChat({
       let answer = await client.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
         method: "POST",
         signal: controller.current.signal,
-        body: selection
-          ? { selection, ...(page.surface !== "generic" ? { page } : {}) }
-          : {
-              message: question,
-              ...(page.surface !== "generic" ? { page } : {}),
-              ...(context ? { context } : {}),
-              ...(ticket.task ? { task: ticket.task } : {}),
-            },
+        body: summaryEventId
+          ? { summarySelection: { eventId: summaryEventId } }
+          : selection
+            ? { selection, ...(page.surface !== "generic" ? { page } : {}) }
+            : {
+                message: question,
+                ...(page.surface !== "generic" ? { page } : {}),
+                ...(context ? { context } : {}),
+                ...(ticket.task ? { task: ticket.task } : {}),
+              },
       });
       if (epoch !== generation.current || navigationKey !== navigation.current)
         return;
@@ -936,6 +995,9 @@ export function ChefChat({
                     {turn.answer && (
                       <Answer
                         answer={turn.answer}
+                        chooseSummary={(id, title) =>
+                          void send(`Tell me about ${title}`, undefined, id)
+                        }
                         historicalIds={turn.historicalIds}
                         currentContext={
                           i === turns.length - 1 && !turn.historicalIds?.length

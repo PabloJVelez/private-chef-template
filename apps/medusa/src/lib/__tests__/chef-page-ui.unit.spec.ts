@@ -321,3 +321,30 @@ it("reopening retains visible prose but never restores actionable focus from tha
     expect(preview).not.toHaveBeenCalled();
   });
 });
+
+it('renders a safe current-page summary as prose/link and retains verified focus without an edit',async()=>{
+  await fixture(async({fetch,preview,attempt})=>{
+    const summary={...entry,source:{type:'private-event',id:'B'},title:'QA <script>RejectionK</script>',guestCount:4};
+    fetch.mockResolvedValueOnce({presentation:'answer',entries:[],message:'Here is the recorded event.',summary,complete:true,editContext:{...context,candidates:[context.candidates[0]]}});
+    await ask("what's this event about?");
+    expect(fetch.mock.calls[0][1].body.page.resource.id).toBe('B');
+    const log=document.querySelector('[role="log"]')!;
+    expect(log.textContent).toContain('4 guests');expect(log.querySelector('script')).toBeNull();
+    expect(log.querySelector('article')).toBeNull();
+    expect(log.querySelector('a')?.getAttribute('href')).toBe('/custom-admin/chef-events/B');
+    fetch.mockResolvedValueOnce({entries:[],message:'Which change?'});
+    await ask('move it to noon');
+    expect(fetch.mock.calls[1][1].body.context.candidates).toEqual([context.candidates[0]]);
+    expect(preview).not.toHaveBeenCalled();expect(attempt).not.toHaveBeenCalled();
+  });
+});
+it('read-summary choices send only the explicitly chosen stable ID and never preview',async()=>{
+  await fixture(async({fetch,preview,attempt})=>{
+    fetch.mockResolvedValueOnce({entries:[],message:'Which event?',summaryChoices:['A','B'].map(id=>({...entry,source:{type:'private-event',id},title:'Identical'}))});
+    await ask('tell me about it');
+    fetch.mockResolvedValueOnce({entries:[],message:'Here is the event.',summary:{...entry,title:'Identical'}});
+    await click('Read Identical (A)');
+    expect(fetch.mock.calls[1][1].body).toEqual({summarySelection:{eventId:'A'}});
+    expect(preview).not.toHaveBeenCalled();expect(attempt).not.toHaveBeenCalled();
+  });
+});

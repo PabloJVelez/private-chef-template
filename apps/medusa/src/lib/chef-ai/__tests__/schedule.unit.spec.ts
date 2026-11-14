@@ -16,11 +16,9 @@ const args = (
   endDate: string | null = null,
 ) => ({ period, startDate, endDate, timeZone: zone });
 const selection = (input = args()) =>
-  jest
-    .fn()
-    .mockResolvedValue({
-      calls: [{ name: "get_schedule", arguments: JSON.stringify(input) }],
-    });
+  jest.fn().mockResolvedValue({
+    calls: [{ name: "get_schedule", arguments: JSON.stringify(input) }],
+  });
 const read = jest.fn(async (range) => ({
   range,
   complete: true,
@@ -150,7 +148,7 @@ describe("tool and answer boundary", () => {
             now,
           )
         ).message,
-      ).toContain("Ask for a schedule");
+      ).toContain("I can help with your schedule");
     }
     expect(read).not.toHaveBeenCalled();
   });

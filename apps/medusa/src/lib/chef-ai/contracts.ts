@@ -10,6 +10,8 @@ import type { CalendarEntry, TimeInterval } from "../chef-workspace/contracts";
 import type { periods } from "./schedule";
 
 export type ScheduleAnswer = {
+  summary?: import("./assistant-read").EventSummary;
+  summaryChoices?: import("./assistant-read").EventSummary[];
   presentation?:
     | "answer"
     | "list"

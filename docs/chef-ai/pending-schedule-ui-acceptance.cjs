@@ -54,7 +54,7 @@ const server = http.createServer((req, res) => {
     if (url.pathname.startsWith('/admin/chef-events/schedule-edit/')) {
       const action = url.pathname.split('/').at(-1), body = req.postDataJSON(); writes.push({ action, body });
       if (action === 'preview' && conversational) return writeMode === 'policy' ? json({ message: 'That arrival time is no longer available. Please choose another time.' }, 422) : json({ ...preview(body.eventId), current: { ...local('11:00'), date: '2026-11-30', instant: '2026-11-30T17:00:00.000Z' }, proposed: { ...local('11:00'), date: body.date || '2026-11-30', time: body.time || '11:00', instant: `${body.date || '2026-11-30'}T${body.time === '14:00' ? '20' : '17'}:00:00.000Z` } });
-      if (action === 'preview') return writeMode === 'off' ? json({ message: 'unavailable' }, 403) : writeMode === 'policy' ? json({ message: 'ineligible' }, 422) : json(preview(body.eventId));
+      if (action === 'preview') return writeMode === 'off' ? json({ message: 'unavailable' }, 403) : writeMode === 'policy' ? json({ message: 'ineligible' }, 422) : json({ ...preview(body.eventId), proposed: { ...local(body.time || '10:00'), date: body.date || '2026-11-09' } });
       assert.deepEqual(body, { reference: 'fixture-signed-reference' });
       if (writeMode === 'lost' && action === 'confirm') { liveTime = '11:00'; return route.abort('failed'); }
       if (writeMode === 'unknown') return json({ outcome: 'unknown', operationId: op }, 202);
@@ -99,7 +99,11 @@ const server = http.createServer((req, res) => {
   const edit = page.getByRole('form', { name: 'Change event date and time' });
   const button = name => dialog.getByRole('button', { name, exact: true });
   const quick = () => button("What's on my schedule this week?").click();
-  async function ready() { await quick(); await change(0); await edit.getByLabel('Local time (optional)').fill('11:00'); await button('Preview').click(); await button('Confirm change').waitFor(); }
+  async function checked() {
+    await page.waitForTimeout(550);
+    await dialog.getByText('Checking availability…', {exact:true}).waitFor({state:'hidden'});
+  }
+  async function ready() { await quick(); await change(0); await edit.getByLabel('Local time (optional)').fill('11:00'); await checked(); await button('Confirm change').waitFor(); }
   async function bounds() {
     const box = await dialog.boundingBox(), viewport = page.viewportSize();
     assert(box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width && box.y + box.height <= viewport.height);
@@ -130,18 +134,18 @@ const server = http.createServer((req, res) => {
     assert((await dialog.innerText()).includes('not reserved'));
     assert(!await page.getByText('fixture-signed-reference', { exact: false }).count());
     await screenshot('preview-dark-desktop');
-    // Keyboard submit in the editor only previews, never confirms.
+    // Keyboard submit in the editor never previews or confirms.
     await edit.getByLabel('Local time (optional)').focus(); await page.keyboard.press('Enter');
     await button('Confirm change').waitFor(); assert.equal(writes.filter(x => x.action === 'confirm').length, 0);
     await edit.getByLabel('Local time (optional)').fill('12:00');
     assert.equal(await button('Confirm change').count(), 0);
-    await change(1); assert.equal(writes.length, 2);
-    await edit.getByLabel('Date (optional)').fill('2026-11-10'); await button('Preview').click();
+    await change(1); assert.equal(writes.length, 1);
+    await edit.getByLabel('Date (optional)').fill('2026-11-10'); await checked();
     await button('Confirm change').waitFor();
     assert.deepEqual(writes.at(-1), { action: 'preview', body: { eventId: 'synthetic-1', date: '2026-11-10' } });
     await page.keyboard.press('Escape'); assert.equal(await edit.count(), 0); assert(await dialog.isVisible());
     await page.keyboard.press('Escape'); assert.equal(await dialog.count(), 0);
-    await open(); await change(0); await edit.getByLabel('Local time (optional)').fill('11:00'); await button('Preview').click();
+    await open(); await change(0); await edit.getByLabel('Local time (optional)').fill('11:00'); await checked();
     await button('Confirm change').evaluate(el => { el.click(); el.click(); });
     await dialog.getByText('Live event now · pending', { exact: true }).waitFor();
     assert.equal(writes.filter(x => x.action === 'confirm').length, 1);
@@ -196,8 +200,8 @@ const server = http.createServer((req, res) => {
       await dialog.getByText(text, { exact: true }).waitFor(); await button('Done').click();
     }
     for (const mode of ['off', 'policy']) {
-      writeMode = mode; await fresh(); await quick(); await change(0); await edit.getByLabel('Local time (optional)').fill('11:00'); await button('Preview').click();
-      await dialog.getByRole('alert').waitFor(); assert.equal(await button('Confirm change').count(), 0);
+      writeMode = mode; await fresh(); await quick(); await change(0); await edit.getByLabel('Local time (optional)').fill('11:00'); await checked();
+      await dialog.getByRole('status').filter({hasText: mode === 'off' ? 'Schedule changes are unavailable' : 'ineligible'}).waitFor(); assert.equal(await button('Confirm change').count(), 0);
       if (mode === 'off') assert((await dialog.innerText()).includes('Schedule changes are unavailable'));
     }
     writeMode = 'saved'; await fresh(); await ready();
@@ -206,7 +210,7 @@ const server = http.createServer((req, res) => {
       window.fixtureStorageSetItem = Storage.prototype.setItem;
       Storage.prototype.setItem = function(key, value) { if (this === sessionStorage) throw new Error('fixture quota'); return window.fixtureStorageSetItem.call(this, key, value); };
     });
-    await button('Confirm change').click(); await dialog.getByRole('alert').waitFor();
+    await button('Confirm change').click(); await dialog.getByRole('status').filter({hasText: 'No change was sent'}).waitFor();
     assert((await dialog.innerText()).includes('No change was sent'));
     assert.equal(writes.filter(x => x.action === 'confirm').length, confirmsBeforeStorageFailure);
     await page.evaluate(() => { Storage.prototype.setItem = window.fixtureStorageSetItem; });
@@ -245,7 +249,7 @@ const server = http.createServer((req, res) => {
     // Backend refusal retains exactly the requested Sunday, without inventing Monday.
     chatReply = soleAnswer; await fresh(); await quick(); await button('Change date/time').waitFor();
     writeMode = 'policy'; chatReply = proposal; await ask('Move it to the 29th');
-    await dialog.getByRole('alert').waitFor();
+    await dialog.getByRole('status').filter({hasText: 'no longer available'}).waitFor();
     assert((await dialog.innerText()).includes('no longer available'));
     assert.equal(await edit.getByLabel('Date (optional)').inputValue(), '2026-11-29');
     assert.equal(await button('Confirm change').count(), 0);
@@ -327,7 +331,7 @@ const server = http.createServer((req, res) => {
     }
     // Rejected 2 PM keeps only the proposed time in the same editable panel.
     await fresh(); writeMode = 'policy'; chatReply = timeProposal;
-    await ask('Can you update the event I have on the 30th to 2pm?'); await dialog.getByRole('alert').waitFor();
+    await ask('Can you update the event I have on the 30th to 2pm?'); await dialog.getByRole('status').filter({hasText: 'no longer available'}).waitFor();
     assert.equal(await edit.getByLabel('Local time (optional)').inputValue(), '14:00');
     assert.equal(await button('Confirm change').count(), 0);
     await screenshot('owner-policy-refusal-mobile');

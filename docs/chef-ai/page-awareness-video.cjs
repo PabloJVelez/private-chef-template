@@ -98,7 +98,7 @@ const server = http.createServer((req,res)=>{
   await label('Explicitly editing A while on B remains allowed');
   const earlier=dialog.getByRole('button',{name:/Show .* earlier messages/});if(await earlier.count())await earlier.click();
   await dialog.getByRole('button',{name:'Change date/time',exact:true}).first().click();
-  await dialog.getByLabel('Local time (optional)').fill('15:00');await button('Preview').click();await button('Confirm change').waitFor();
+  await dialog.getByLabel('Local time (optional)').fill('15:00');await button('Confirm change').waitFor();
   assert.equal(writes.at(-1).body.eventId,'event-A');assert((await dialog.getByLabel('Verified editing target').innerText()).includes('Editing: QA ScheduleEdit'));await pause();
   await page.getByRole('link',{name:'Menus',exact:true}).first().click();await page.waitForURL('**/app/menus');
   await label('Menus page: the same assistant still answers schedule questions');await open();await ask('What do I have on November 30?');

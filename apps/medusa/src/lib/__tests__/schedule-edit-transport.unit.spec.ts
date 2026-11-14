@@ -221,3 +221,45 @@ it("a preview policy refusal preserves the bounded server explanation without gu
     transport.preview({ eventId: "event", date: "2026-11-29" }, () => true),
   ).rejects.toMatchObject({ kind: "policy", message });
 });
+
+it.each([
+  "slot_unavailable",
+  "event_ineligible",
+  "timezone_mismatch",
+  "availability_unconfigured",
+  "experience_inactive",
+  "invalid_local_time",
+  "preview_unavailable",
+])(
+  "preserves allowlisted preview rejection %s independently of HTTP 422",
+  async (code) => {
+    const { transport } = setup(422, {
+      code,
+      message: "Public policy explanation",
+    });
+    await expect(
+      transport.preview({ eventId: "event", time: "12:00" }, () => true),
+    ).rejects.toMatchObject({ status: 422, rejection: { code } });
+    await expect(
+      transport.attempt("recover", "ref", () => true),
+    ).rejects.toMatchObject({ rejection: undefined });
+  },
+);
+it("does not promote invented codes or signed operation fields into a preview rejection", async () => {
+  const { transport } = setup(422, {
+    code: "booked_by_customer",
+    message: "Public",
+    reference: "secret",
+  });
+  await expect(
+    transport.preview({ eventId: "event", time: "12:00" }, () => true),
+  ).rejects.toMatchObject({ rejection: undefined });
+});
+
+it("429 is an explicit manual retry state, never an automatic retry", async () => {
+  const { transport, fetch } = setup(429, { message: "untrusted body" });
+  await expect(
+    transport.preview({ eventId: "event", time: "12:00" }, () => true),
+  ).rejects.toMatchObject({ kind: "rate_limit", status: 429 });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
