@@ -2,6 +2,10 @@
 
 This follow-up stays on PR #38, branch `feat/sous-chef-pending-time-edit-ui-v1`, stacked on PR #37. The managed worktree and origin were clean at `fb1db79b9ba651d23f215b66d6f82662db225d1f` before changes. External navigation commits `b33d8a6` and `fb1db79` are preserved. No merge, deployment, production flag/secret or shared database changes.
 
+Tested implementation commit: **`59c8aaf435d8cfc4715bf620608271bed15b0272`**. The following documentation-only commit records the exact SHA and hosted evidence check; executable code and recorded assets are unchanged.
+
+**[Watch/download the actual UI recording (WebM, 25.72 seconds)](https://github.com/PabloJVelez/private-chef-template/raw/59c8aaf435d8cfc4715bf620608271bed15b0272/docs/chef-ai/pending-ui-evidence/page-awareness.webm)** — repository access required. The GitHub-hosted file was retrieved through the authenticated GitHub API and matched the committed recording byte-for-byte: **1,594,264 bytes**, SHA-256 `3827b76e763804c3c06768128a34240e3e9b511be1d14ee197f1dbecc6ceda9b`. Chromium decoded it at **1280×900**, advanced during playback and sought to **23.72 seconds** with no media error. This is a committed downloadable/playable artifact, not a claim of GitHub-native attachment upload or an anonymously public URL.
+
 ## Targeting and presentation
 
 The globally mounted assistant reads `useMatches()` and a namespaced `handle.sousChef` descriptor. Existing Medusa labels, permissions and breadcrumbs stay intact. Private Event and Menu detail routes provide typed descriptors; Menu has **no AI write capability**. Unknown pages are generic. Only Medusa's one generated unannotated empty leaf may inherit a descriptor; other descendants terminate it. Future same-path unsupported surfaces must explicitly set `sousChef: null`. No page DTO, DOM text, unsaved form field, contact details or arbitrary URL enters the hint. Both the actual installed Medusa 2.22.6 generator and a real data router with a custom basename are tested; built Admin uses `/app`.
@@ -17,7 +21,7 @@ Schedule reads have a small typed presentation contract. A deterministic compose
 ## Evidence and limits
 
 - RED: the pre-change resolver test returned `event-A` for page B plus fresh A context. See [recorded failure](pending-ui-evidence/page-awareness-red.txt). GREEN: resolver, rendered data-router, actual SDK/Medusa HTTP and built-Admin fixtures now require explicit choice.
-- **39 unit suites / 443 tests passed**, plus the final rendered checks after presentation formatting. Includes the installed Medusa generator, custom basename/empty leaf/unsupported descendants/Menu descriptor, hostile title escaping, requested-vs-appointment time, stale focus and verified preview identity mismatch.
+- **39 unit suites / 443 tests passed**, plus **46 final rendered checks** after presentation formatting. Includes the installed Medusa generator, custom basename/empty leaf/unsupported descendants/Menu descriptor, hostile title escaping, requested-vs-appointment time, stale focus and verified preview identity mismatch.
 - **60 real Medusa HTTP/PostgreSQL cases passed**, including provider-wrapper → route → installed SDK → shared UI state → dedicated preview and signed-reference event/revision agreement for both A and B choices. The model network boundary is mocked.
 - **5 persistent Redis/process recovery cases passed**, including all nine unchanged generic-workflow HTTP 403 scenarios. Related workspace/booking/scheduling wrappers and availability constraints also passed. Test-only containers were removed.
 - Medusa/backend/Admin and storefront typechecks and production builds passed; `git diff --check` passed. Admin lint reports the existing 176 warnings, zero errors.
