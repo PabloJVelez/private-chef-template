@@ -1,15 +1,19 @@
 # BTS-11 — Sous Chef
 
-**Sous Chef** is the user-facing assistant name. V1 is a read-only schedule assistant; the launcher is **Ask Sous Chef**. Earlier evidence screenshots retain the branding present when captured.
+**Sous Chef** is the user-facing assistant name. V1 is a read-only schedule assistant; the launcher is **Ask Sous Chef**. Earlier evidence screenshots retain the branding present when captured. BTS-21 now adds [conversational proposals and an explicit pending-event date/time action](pending-schedule-ui.md) beside these schedule answers.
 
 A floating, non-modal Admin dialog answers bounded schedule questions using the existing
-`readCalendar` service. The only model-selected tool is `get_schedule`. The server renders
-facts from the returned contract; it never displays model-authored factual prose. No second
-model call, write tool, request search, event-details tool, Booking module or memory store.
+`readCalendar` service. One model call selects either `get_schedule` or the bounded
+`propose_pending_event_date_time_edit` intent; neither can execute a write. The server renders
+facts from domain records; it never displays model-authored factual prose. Exact event selection
+and date resolution belong to the application, outside model context. Date-described targets
+use a bounded single-day lookup; a five-minute typed draft preserves proposed fields through
+clarification without sending prior text to the provider. Only the existing signed
+preview and explicit **Confirm change** button can save. No second model executor or memory store.
 
 Scope: [BTS-11](https://arborthreads.com/threads/thr_a4864934-79cc-460d-8730-e31e050125fa/chef-admin-ai-assistant-v1-scope-and-design-handoff),
 [Nov 12 proposal](https://arborthreads.com/threads/thr_a4864934-79cc-460d-8730-e31e050125fa#c-con_e34dd9825aa9b1387c91a5cdde2508ab22971b72a724a43634ea76eeb46ec20d).
-The supplied newer read-only scope governs this implementation. No Arbor connector was
+Those links describe the original read-only increment; the BTS-21 handoff governs the new action UI. No Arbor connector was
 available in the implementation session; no claim of reading or posting private Arbor comments.
 
 ## Identity boundary and configuration
@@ -17,25 +21,26 @@ available in the implementation session; no claim of reading or posting private 
 The merged calendar service has **site-wide data**. `chef_event` has no chef-owner column,
 and Availability uses the `chef-default` singleton. There is no safe per-chef predicate to
 invent. Consequently this feature is disabled unless an operator explicitly attests a
-dedicated single-chef/site database and allowlists its authorized Admin users:
+dedicated single-chef/site database. Exactly one active Medusa store is required:
 
 ```dotenv
 CHEF_AI_SCOPE=single_site
-CHEF_AI_ADMIN_USER_IDS=user_actual_medusa_admin_id
 CHEF_AI_PROVIDER=openai
 CHEF_AI_MODEL=gpt-4.1-mini
 CHEF_AI_OPENAI_API_KEY=<server-only provider key>
 ```
 
-Do not enable this on a shared database with separate chef tenants. A user ID list is an
-explicit grant to read the **whole site's** existing workspace calendar, not tenant
-filtering or an inferred chef role. At most 20 IDs. Missing attestation/identity denies
-access before model or calendar calls. `/admin/chef-ai/chat` uses Medusa's real Admin
-route loader plus explicit `authenticate('user', ['session', 'bearer'])`, preserving MFA
-handling. Anonymous, customer and API-key actors are denied. The route additionally
-checks the allowlist and retrieves the current user, so a deleted user's token is denied.
-Existing sidebar and RBAC behavior is unchanged; this extra grant is stricter than the
-workspace endpoints and must only be given to users authorized to see the site's data.
+Do not enable this on a shared database with separate chef tenants. All authenticated
+Medusa Admin accounts on this dedicated store can use Sous Chef. The obsolete
+`CHEF_AI_ADMIN_USER_IDS` setting has no effect and should be removed. Missing attestation,
+zero/multiple stores, unavailable store configuration, or a deleted current account fail closed.
+`/admin/chef-ai/chat` uses Medusa's real Admin route loader plus explicit
+`authenticate('user', ['session', 'bearer'])`, preserving MFA handling. Anonymous, customer
+and API-key actors are denied. Existing sidebar and RBAC behavior is unchanged.
+
+The [pending-event action UI](pending-schedule-ui.md) adds explicit preview/confirmation
+after a manual form entry or a conversational proposal. The model never confirms or writes. `CHEF_AI_SCHEDULE_WRITE_ENABLED=true` separately opts
+in to these endpoints, including recovery; it defaults OFF. No per-chef roles or capability API.
 
 Save a valid IANA timezone in **Settings → Availability**. The endpoint reads only `id`
 and `timezone` from the existing singleton. No fallback to server UTC, event-model default,
@@ -49,8 +54,8 @@ Missing key/unsupported provider returns a safe 503 configuration state.
 
 ## Bounded factual behavior
 
-- A single OpenAI Chat Completions call selects a named relative period or explicit local
-  dates. `strict: true`, closed schema, no parallel calls. Server validation remains
+- A single OpenAI Chat Completions call selects a schedule period or a typed pending-event
+  edit intent (or clarification). `strict: true`, closed schema, no parallel calls. Server validation remains
   authoritative even if the model violates its schema or prompt.
 - Relative periods: today, tomorrow, this/next week, this/next weekend. Weeks start Monday;
   weekends are Saturday and Sunday of that week (including the current Saturday on Sunday).
@@ -79,11 +84,11 @@ hallucinated summaries and keeps returned customer names/event text out of model
 The model sees only the **current question**, the timezone, local date and fixed
 instructions/schema. Visible history stays in React memory for the chef’s reference; it
 is not model context. Older clients may still send up to four bounded `previousQuestions`,
-but the provider ignores them. Each question must name its own date or period; references
-like “that same day” need clarification. Previous assistant responses and tool results are
-never sent to the model. The response exposes only the validated `period` enum alongside
-its existing resolved `range` and `timeZone` for safe selection diagnostics. Prompt injection can at most select another bounded schedule read within
-the caller's granted site scope; it cannot gain another tool or write capability.
+but the provider ignores them. Each independent schedule read must name its own date or period. Edit clarification can
+continue a bounded typed unfinished task; no raw history is used for that continuation. Previous assistant responses and tool results are
+never sent to the model. Read responses expose the validated `period`, `range` and `timeZone`. Edit responses may carry
+a typed draft, exact-ID candidates or a proposed date/time for the existing preview path.
+Prompt injection cannot gain a confirm tool or write capability.
 
 ## UI lifecycle and global mount evidence
 

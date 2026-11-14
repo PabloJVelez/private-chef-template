@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "screenshots": "/tmp/pr38-fix-evidence/browser",
+  "previewRequests": 32,
+  "confirmRequests": 5,
+  "recoverRequests": 2,
+  "unknownRoutes": [],
+  "browserErrors": []
+}

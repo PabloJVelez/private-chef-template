@@ -1,0 +1,170 @@
+PASS integration-tests/http/schedule-edit.spec.ts (24.036 s)
+  ● Console
+
+    console.info
+      (node:1334930) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+      (Use `node --trace-warnings ...` to show where the warning was created)
+      PASS integration-tests/schedule-edit/cases.spec.ts (7.748 s)
+        ✓ preview is read-only, no customer data; save changes only two time fields and updated_at on the exact ID (229 ms)
+        ✓ supports date/time-only {"date":"2030-03-11"} (153 ms)
+        ✓ supports date/time-only {"time":"12:00"} (137 ms)
+        ✓ no-op has a durable no-change outcome, no event mutation and no dispatch (121 ms)
+        ✓ refuses invalid/past/gap/off-slot/extra fields {"date":"2030-03-10","time":"02:30"} (70 ms)
+        ✓ refuses invalid/past/gap/off-slot/extra fields {"date":"2030-02-30"} (52 ms)
+        ✓ refuses invalid/past/gap/off-slot/extra fields {"date":"2020-01-01"} (82 ms)
+        ✓ refuses invalid/past/gap/off-slot/extra fields {"time":"25:00"} (75 ms)
+        ✓ refuses invalid/past/gap/off-slot/extra fields {"time":"11:01"} (109 ms)
+        ✓ refuses invalid/past/gap/off-slot/extra fields {"time":"11:00","status":"confirmed"} (60 ms)
+        ✓ refuses invalid/past/gap/off-slot/extra fields {} (60 ms)
+        ✓ refuses a DST fold (60 ms)
+        ✓ revalidates missing policy after preview without event revision changing (105 ms)
+        ✓ revalidates inactive policy after preview without event revision changing (87 ms)
+        ✓ revalidates timezone policy after preview without event revision changing (138 ms)
+        ✓ revalidates unconfigured policy after preview without event revision changing (91 ms)
+        ✓ revalidates lead-time policy after preview without event revision changing (87 ms)
+        ✓ refuses missing experience and invalid event timezone with no defaults (62 ms)
+        ✓ refuses unavailable slots and unexpected owned reservations without releasing either (168 ms)
+        ✓ bindAcceptance before token/updated_at changes invalidates a preview; cleaned abort enables a fresh preview (157 ms)
+        ✓ serializes against an acceptance bind holding the event row lock (94 ms)
+        ✓ refuses cancel after preview (90 ms)
+        ✓ refuses edit after preview (88 ms)
+        ✓ refuses claim after preview (79 ms)
+        ✓ refuses finalize after preview (88 ms)
+        ✓ double clicks share original result, changed input/actor is denied, and later edits never get overwritten (140 ms)
+        ✓ Google emit failure never rolls back a save and is never dispatched twice (133 ms)
+        ✓ expired unused reference and missing history return unknown, recovery never writes (77 ms)
+        ✓ denies scope at preview, confirm and recover before event access (81 ms)
+        ✓ denies opt-in at preview, confirm and recover before event access (77 ms)
+        ✓ denies multiple-stores at preview, confirm and recover before event access (90 ms)
+        ✓ denies missing-store at preview, confirm and recover before event access (77 ms)
+        ✓ denies deleted-user at preview, confirm and recover before event access (85 ms)
+        ✓ denies customer at preview, confirm and recover before event access (86 ms)
+        ✓ HTTP rejects changed actor, tampered reference, and extra fields (94 ms)
+        ✓ rechecks claim between availability validation and the atomic command (121 ms)
+        ✓ rechecks finalize between availability validation and the atomic command (148 ms)
+        ✓ rechecks cancel between availability validation and the atomic command (97 ms)
+        ✓ Google busy read failure falls back to internal availability and never claims Google is free (124 ms)
+        ✓ a mutation that keeps updated_at unchanged still invalidates the full revision (77 ms)
+        ✓ elapsed lead time is checked again at confirm (107 ms)
+        ✓ loads the real HTTP routes and middleware: auth, body limit, read-only preview and recovery contract (176 ms)
+        ✓ Admin B outside the obsolete allowlist can read and prepare its own preview but cannot use A’s reference over real HTTP (111 ms)
+        ✓ actual provider/HTTP + installed SDK + shared UI state proposes Nov 29 without confirming; Sunday open=true (118 ms)
+        ✓ actual provider/HTTP + installed SDK + shared UI state proposes Nov 29 without confirming; Sunday open=false (106 ms)
+        ✓ two identical-looking events including pending require exact selection without a second model executor (92 ms)
+        ✓ two identical-looking events including confirmed require exact selection without a second model executor (91 ms)
+        ✓ HTTP rejects forged/oversized candidate context, detects stale event dates, and exposes no confirm tool (76 ms)
+        ✓ conversational DST-gap proposal reaches the dedicated preview and is refused without writing (76 ms)
+        ✓ three exact owner prompts work through real chat/provider/SDK/preview with a retained typed 2 PM task, zero writes (172 ms)
+        ✓ date lookup counts both same-day records including pending; explicit choice re-fetches current revision (122 ms)
+        ✓ date lookup counts both same-day records including confirmed; explicit choice re-fetches current revision (140 ms)
+        ✓ date lookup has no-match and preview policy refusal without replacing the proposed time (145 ms)
+
+      Test Suites: 1 passed, 1 total
+      Tests:       53 passed, 53 total
+      Snapshots:   0 total
+      Time:        7.786 s, estimated 9 s
+      Ran all test suites.
+      Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+      at Object.info (integration-tests/http/schedule-edit.spec.ts:48:11)
+
+    console.info
+      durable commit/checkpoint-loss evidence {
+        operationId: '27ddb1b9-41d6-40e5-a745-c78559da3c62',
+        recovered: {
+          outcome: {
+            date: '2030-03-09',
+            time: '11:00',
+            eventId: 'deb1a546-5318-4f8c-ae02-bcec1af8788f',
+            instant: '2030-03-09T11:00:00.000Z',
+            outcome: 'saved',
+            timezone: 'UTC',
+            operationId: '27ddb1b9-41d6-40e5-a745-c78559da3c62',
+            committedRevision: 'db50a920ff74e2ab40d5376107e40c38'
+          },
+          googleSync: 'requested',
+          historical: true,
+          reserved: false
+        },
+        laterTime: '12:00'
+      }
+
+      at Object.info (integration-tests/http/schedule-edit.spec.ts:197:13)
+
+PASS integration-tests/http/chef-workspace.spec.ts (9.061 s)
+  ● Console
+
+    console.info
+      (node:1335763) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+      (Use `node --trace-warnings ...` to show where the warning was created)
+      PASS integration-tests/workspace/read-cases.spec.ts (8.395 s)
+        Workspace reads through Medusa modules, PostgreSQL and authenticated HTTP
+          ✓ rejects anonymous and customer reads and validates bounds before access (86 ms)
+          ✓ includes crossing intervals, excludes touching ends, preserves display/appointment/protection distinctions (166 ms)
+          ✓ paginates tied timestamps beyond 1000 without gaps and returns the whole bounded calendar (440 ms)
+          ✓ reports oversized ranges as incomplete, never a silently truncated first page (1179 ms)
+          ✓ returns an empty complete range and propagates real database timeout failures (5061 ms)
+
+      Test Suites: 1 passed, 1 total
+      Tests:       5 passed, 5 total
+      Snapshots:   0 total
+      Time:        8.445 s, estimated 9 s
+      Ran all test suites within paths "/home/openclaw/.t3/worktrees/private-chef-template/feat-sous-chef-pending-time-edit-ui-v1/apps/medusa/integration-tests/workspace/read-cases.spec.ts".
+      Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+      at Object.info (integration-tests/http/chef-workspace.spec.ts:18:11)
+
+PASS integration-tests/http/booking-scheduling.spec.ts (7.959 s)
+  ● Console
+
+    console.info
+      (node:1335874) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+      (Use `node --trace-warnings ...` to show where the warning was created)
+      PASS integration-tests/booking/scheduling-cases.spec.ts (7.298 s)
+        Scheduling with native Medusa modules and PostgreSQL
+          ✓ propagates a real PostgreSQL read timeout instead of reporting free time (5058 ms)
+          ✓ stale cancellation cleanup cannot release a newer attempt on a reopened request (126 ms)
+          ✓ resolves cancellation of an unclaimed attempt before allowing a new attempt on a reopened request (73 ms)
+          ✓ binds an attempt to actor, event and input and rejects stale finalization (96 ms)
+          ✓ keeps an interrupted cleanup addressable and blocks a new attempt until release is verified (73 ms)
+
+      Test Suites: 1 passed, 1 total
+      Tests:       5 passed, 5 total
+      Snapshots:   0 total
+      Time:        7.335 s
+      Ran all test suites within paths "/home/openclaw/.t3/worktrees/private-chef-template/feat-sous-chef-pending-time-edit-ui-v1/apps/medusa/integration-tests/booking/scheduling-cases.spec.ts".
+      Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+      at Object.info (integration-tests/http/booking-scheduling.spec.ts:25:11)
+
+PASS integration-tests/http/scheduling-domain.spec.ts
+  ● Console
+
+    console.info
+      (node:1335927) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+      (Use `node --trace-warnings ...` to show where the warning was created)
+      PASS integration-tests/scheduling/domain-cases.spec.ts
+        Scheduling native module contract
+          ✓ allows only one concurrent overlapping acquire and permits adjacency (55 ms)
+          ✓ preserves ownership and exact retry semantics (52 ms)
+          ✓ selects reservations starting before the window and excludes half-open adjacency (26 ms)
+          ✓ rolls back through a real module-local Medusa transaction context (26 ms)
+          ✓ rejects incomplete overlap reads and never returns a false free window (395 ms)
+
+      Test Suites: 1 passed, 1 total
+      Tests:       5 passed, 5 total
+      Snapshots:   0 total
+      Time:        1.541 s
+      Ran all test suites within paths "/home/openclaw/.t3/worktrees/private-chef-template/feat-sous-chef-pending-time-edit-ui-v1/apps/medusa/integration-tests/scheduling/domain-cases.spec.ts".
+      Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+      at Object.info (integration-tests/http/scheduling-domain.spec.ts:25:11)
+
+PASS integration-tests/http/availability-concurrency.spec.ts
+
+Test Suites: 5 passed, 5 total
+Tests:       15 passed, 15 total
+Snapshots:   0 total
+Time:        44.23 s
+Ran all test suites within paths "integration-tests/http/schedule-edit.spec.ts", "integration-tests/http/chef-workspace.spec.ts", "integration-tests/http/booking-scheduling.spec.ts", "integration-tests/http/scheduling-domain.spec.ts", "integration-tests/http/availability-concurrency.spec.ts".
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

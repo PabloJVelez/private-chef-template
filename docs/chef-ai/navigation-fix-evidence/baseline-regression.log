@@ -1,0 +1,98 @@
+(node:1335962) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+  console.error
+    Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+      150 |   const transport = { backend: "https://backend.fixture", preview, attempt };
+      151 |   const render = async () => {
+    > 152 |     await act(async () =>
+          |              ^
+      153 |       root.render(
+      154 |         React.createElement(
+      155 |           QueryClientProvider,
+
+      at printWarning (../../../../home/openclaw/.t3/worktrees/private-chef-template/feat-sous-chef-pending-time-edit-ui-v1/apps/medusa/node_modules/react-dom/cjs/react-dom-test-utils.development.js:71:30)
+      at error (../../../../home/openclaw/.t3/worktrees/private-chef-template/feat-sous-chef-pending-time-edit-ui-v1/apps/medusa/node_modules/react-dom/cjs/react-dom-test-utils.development.js:45:7)
+      at actWithWarning (../../../../home/openclaw/.t3/worktrees/private-chef-template/feat-sous-chef-pending-time-edit-ui-v1/apps/medusa/node_modules/react-dom/cjs/react-dom-test-utils.development.js:1736:7)
+      at render (src/lib/__tests__/pr38-fix-regression.unit.spec.ts:152:14)
+      at render (src/lib/__tests__/pr38-fix-regression.unit.spec.ts:185:11)
+      at Object.fixture (src/lib/__tests__/pr38-fix-regression.unit.spec.ts:202:9)
+
+FAIL src/lib/__tests__/pr38-fix-regression.unit.spec.ts
+  ✓ distinct same-looking cards use source ids; unsupported statuses have no control and form opening makes no preview (213 ms)
+  ✓ explicit confirm once invalidates chef-events prefix and labels historical cards without repainting later live values (88 ms)
+  ✓ saved remains saved when current view refetch fails (64 ms)
+  ✓ response lost, empty-chat remount and explicit recover use the exact original reference (75 ms)
+  ✓ duplicate appearances of the same event share an unresolved operation (88 ms)
+  ✓ query-cache logout during preview cannot resurrect data after protected-route remount (62 ms)
+  ✓ query-cache logout during confirm cannot resurrect data after protected-route remount (70 ms)
+  ✓ query-cache logout during recover cannot resurrect data after protected-route remount (74 ms)
+  ✓ Escape cancels only the inline edit first and returns focus to its event control (58 ms)
+  ✓ a chat access/config refusal preserves an unresolved schedule attempt (64 ms)
+  ✓ a chat read already in flight remains visible but historical when a save completes (89 ms)
+  ✓ current-read refresh preserves the bounded chat result limit after a save (58 ms)
+  ✓ natural move it to the 29th starts the shared date-only preview without manual form opening or confirmation (56 ms)
+  ✓ two visually identical cards, including a confirmed one, retain the proposal until an exact source-id choice (49 ms)
+  ✓ explicit current selection takes precedence over a multi-event previous answer (50 ms)
+  ✓ late model response is discarded after manual (40 ms)
+  ✓ late model response is discarded after event (38 ms)
+  ✓ late model response is discarded after close (49 ms)
+  ✓ late model response is discarded after navigation (47 ms)
+  ✓ late model response is discarded after identity (33 ms)
+  ✕ navigation preserves history but discards event A context (late read: false) (61 ms)
+  ✓ navigation preserves history but discards event A context (late read: true) (69 ms)
+  ✓ navigation retains an unresolved attempted write for explicit recovery (62 ms)
+  ✓ a prior sole-event context is not reused after an intervening empty answer/question (35 ms)
+  ✓ a prior sole-event context is not reused after an intervening incomplete answer/question (32 ms)
+  ✓ a prior sole-event context is not reused after an intervening unrelated answer/question (33 ms)
+  ✓ a prior sole-event context is not reused after an intervening failed answer/question (30 ms)
+  ✓ refresh/remount and historical results cannot implicitly reselect a previous event (32 ms)
+  ✓ preview refusal keeps the proposed form available without guessing an alternate slot (46 ms)
+  ✓ historical cards cannot be reused as implicit conversational context after a save (68 ms)
+  ✓ the three owner prompts retain 2 PM only for clarification and prepare time-only previews, never confirmation (64 ms)
+  ✓ unfinished task cannot resurrect after cancel (25 ms)
+  ✓ unfinished task cannot resurrect after read (27 ms)
+  ✓ unfinished task cannot resurrect after identity (38 ms)
+  ✓ unfinished task cannot resurrect after remount (62 ms)
+  ✓ desktop expand toggle is accessible; composer starts compact and Escape cancels unfinished task first (23 ms)
+  ✓ clean preview omits timezone, UTC, sync and provider instructions while retaining explicit confirmation (45 ms)
+  ✓ outside focus dismisses the nonmodal chat and cancels an unused preview (54 ms)
+
+  ● navigation preserves history but discards event A context (late read: false)
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 9
+
+      Object {
+    +   "context": Object {
+    +     "candidates": Array [
+    +       Object {
+    +         "id": "immutable-0",
+    +         "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    +       },
+    +     ],
+    +     "observedAt": 1794618221711,
+    +   },
+        "message": "Move it to the 29th",
+      }
+
+      664 |       fetch.mockResolvedValueOnce({ entries: [], message: "Which event?" });
+      665 |       await ask("Move it to the 29th");
+    > 666 |       expect(fetch.mock.calls.at(-1)[1].body).toEqual({
+          |                                               ^
+      667 |         message: "Move it to the 29th",
+      668 |       });
+      669 |       expect(preview).not.toHaveBeenCalled();
+
+      at toEqual (src/lib/__tests__/pr38-fix-regression.unit.spec.ts:666:47)
+      at fixture (src/lib/__tests__/pr38-fix-regression.unit.spec.ts:187:5)
+      at src/lib/__tests__/pr38-fix-regression.unit.spec.ts:639:5
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 37 passed, 38 total
+Snapshots:   0 total
+Time:        3.075 s
+Ran all test suites within paths "src/lib/__tests__/pr38-fix-regression.unit.spec.ts".
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

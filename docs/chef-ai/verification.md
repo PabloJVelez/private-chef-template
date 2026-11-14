@@ -97,8 +97,7 @@ export SENTRY_DSN= CHEF_AI_SCOPE=single_site
 corepack yarn workspace medusa medusa db:migrate
 corepack yarn workspace medusa medusa user --email bts11@example.invalid --password FixtureBts11Only123
 corepack yarn workspace medusa medusa exec ./integration-tests/chef-ai/seed.ts
-export CHEF_AI_ADMIN_USER_IDS=$(docker exec bts11-postgres psql -U postgres -d bts11_admin \
-  -Atc "select id from public.user where email='bts11@example.invalid'")
+# Sous Chef now requires exactly one store; every authenticated Admin account can read.
 export CHEF_AI_OPENAI_API_KEY=fixture-not-a-real-key
 export NODE_OPTIONS="--require $PWD/docs/chef-ai/fixture-provider.cjs"
 cd apps/medusa/.medusa/server

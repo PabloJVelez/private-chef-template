@@ -1,0 +1,168 @@
+# BTS-21 pending-event date/time UI
+
+Latest follow-up: [automatic draft checks, typed refusals, greeting/help, page summaries and video evidence](automatic-preview.md). [Page awareness and prior video evidence](page-awareness.md) remain in place; older verification below is historical context.
+
+This increment adds one explicit action to the existing nonmodal Sous Chef chat: a pending Private Event can be previewed and then confirmed for a date and/or local arrival-time change. One bounded model call may select a schedule read or propose a pending-event date/time edit; it cannot confirm or write. Opening the chat, sending a question, clicking a suggestion, opening the edit form, and conversational “yes” never mutate an event.
+
+Stack: `main` ← [#36](https://github.com/PabloJVelez/private-chef-template/pull/36) ← [#37](https://github.com/PabloJVelez/private-chef-template/pull/37) ← this increment. Verified clean managed branch `feat/sous-chef-pending-time-edit-ui-v1` started at remote backend head `10e2276972ff2fe5bf45c2bd5196d18e047902b0`. The parent stayed at that head during implementation. Review only; no merge, deployment, production flag, production data, or secret changes.
+
+## Dedicated one-store configuration
+
+- Use a dedicated single-chef/store database and explicitly attest `CHEF_AI_SCOPE=single_site`. Exactly one active Medusa store must be returned by the Store module; zero, multiple, or unavailable stores fail closed. The schema has no chef/store ownership column, so it cannot safely separate shared tenants.
+- All existing, authenticated Medusa Admin accounts may read and prepare their own edits. Remove `CHEF_AI_ADMIN_USER_IDS`; it is obsolete and ignored. Medusa session/bearer authentication, current-account retrieval, MFA handling, and signed actor binding remain. Customer/anonymous/API-key callers are not granted access.
+- Writes, preview, and recovery additionally require `CHEF_AI_SCHEDULE_WRITE_ENABLED=true`; the default is OFF. Keep the existing strong Admin JWT signing secret (at least 32 characters). Do not put credentials in browser variables.
+- Save a valid IANA timezone in Settings → Availability. Event timezone/legacy-arrival consistency, experience eligibility, lead time, slot availability, pending status, acceptance concurrency, and reservation checks remain server-authoritative.
+- Existing model settings and privacy/rate/cost caps remain unchanged. There are three fixed model schemas: `get_schedule`, `propose_pending_event_date_time_edit`, and non-effectful `assistant_read`. Anchored greeting/help/current-page summary questions bypass the provider after authentication, input validation and request limiting. There is no capability endpoint, per-chef role system, or action registry.
+
+The exact workflow-specific HTTP denial in `src/api/middlewares.ts` and the nine-scenario regression in `integration-tests/schedule-edit/execution-boundary.ts` are unchanged. Generic workflow run/step endpoints cannot bypass the signed reference flow.
+
+## UI and transport behavior
+
+Current schedule replies show each event once: its status/date/time sentence, live event link and a single **Change date/time** action when pending. The redundant Details disclosure that repeated the same event card and queried date window has been removed. Use the event link for additional information.
+
+Only `source.type=private-event` / `status=pending` entries offer **Change date/time**, directly below their schedule summary. Selection uses immutable `source.id`; presentation IDs, names, and estimated calendar intervals never form command input. Repeated appearances share one attempted operation per event. Pending status alone does not imply eligibility.
+
+The initially blank form omits an untouched date or time. A valid manual date/time edit automatically checks the dedicated read-only preview route after 500 ms with `{eventId,date?,time?}`; unchanged input is deduplicated. There is no permanent Preview button. A small **Recheck availability** action handles expiry, refusal or explicit retry. The before/after view formats server-returned instants in the saved IANA zone and shows a local confirmation deadline. Timezone names, UTC instants, Google sync messages and the provider privacy notice are omitted from chat presentation; underlying validation and privacy safeguards are unchanged. Changing the form, selecting another event, cancelling, navigation, or identity change invalidates unused UI preview state and suppresses late responses. The server has no revoke endpoint: discarded references cannot be used by this UI and still expire server-side. Escape cancels an inline edit first; keyboard submission does not check or confirm. **Confirm change** is a separate button.
+
+The narrow transport receives the dashboard's actual `backendUrl`, configured auth type, and SDK token getter through the existing mount. Session requests include credentials; bearer requests use the current token, with an auth-generation check after token lookup. CORS is preserved. It calls only `/admin/chef-events/schedule-edit/{preview,confirm,recover}` and validates response shape/status/operation identity. No global SDK patch. Installed SDK 2.22.6 really discards the structured 409 receipt into `FetchError('Conflict')`; the regression invokes that installed implementation before verifying this adapter retains it for confirm **and** recover.
+
+200 saved/no_change, 409 recorded rejection, 202 unknown, 400/404/422 policy, 401/403 access, 503 configuration, malformed bodies, and network failures have distinct handling. Access/configuration refusals say **Schedule changes are unavailable**. A 20-second transport timeout means an unknown outcome after an attempted confirm, never proof of rollback. AbortController cancellation cannot undo a server mutation.
+
+A receipt proves a historical outcome. It never overwrites query data or an event card with the receipt's old time. The UI invalidates the real `['chef-events']` prefix, reads the live detail record, and refreshes the latest calendar window through the existing workspace read without another model call. Earlier matching source-ID cards, including reads in flight during a save, are marked historical. A saved 11:00 receipt can coexist with a live 12:00 event. A failed live refetch leaves the result **SAVED**, with current view unavailable.
+
+Pending time is **not reserved**. Google availability is advisory. `googleSync=requested` means dispatch acknowledgement, not synchronization. This command sends no customer notification and edits no status, price, menu, customer, or confirmed/cancelled/completed event.
+
+## Conversational proposals (PR #38 follow-up)
+
+After a sole current pending Nov 30, 2026, 11:00 AM card, **“Can you move it to the 29th?”** resolves to a **Nov 29 date-only proposal**, preserving the saved arrival time. It populates the existing form and invokes the same `/schedule-edit/preview` transport/state runner as manual entry. The server before/after card still requires the **Confirm change** button. “Yes”, “confirm”, model prose, suggestions, and model tool output cannot execute confirmation. A Sunday refusal comes from actual backend availability; it leaves Nov 29 populated for editing and never invents Monday as an alternative.
+
+The single existing provider call receives only the latest question, saved business zone, local today, and three fixed strict schemas. No IDs, cards, customer records, earlier questions/answers, revisions, or signed references are passed as model context. Unknown, multiple, malformed or executable tool output is rejected. Date-described targets use the bounded lookup below; names and other descriptions still require explicit selection. The model cannot choose record IDs or perform fuzzy matching. This uses the existing provider, not a second executor. Schema design follows the [official function-calling guidance](https://developers.openai.com/api/docs/guides/function-calling): closed objects, required nullable fields, strict mode, and parallel calls disabled.
+
+Separately, the application may send at most 20 unique exact source IDs with server snapshot revisions and an observation timestamp. These hints are untrusted and never authorize a change. The chat route re-fetches the selected event and validates its current revision, pending status, requested instant, and saved zone. A bare ordinal anchors to that authoritative event month/year; tomorrow is business-local **today + 1**, including month/year rollover. Explicit month/year takes precedence; impossible dates do not roll over, and “at 7” asks for AM/PM. Untouched date/time stays omitted. The preview still decides DST validity, experience, lead time, availability and acceptance eligibility.
+
+Anaphoric “it” uses a current explicit selection, else only the immediately preceding complete, nonhistorical single-event answer. All entries count: one pending plus one confirmed is ambiguous. The app retains bounded intent for **Choose this event**, showing distinct immutable source IDs; that choice uses the same chat route without another model call. Empty/incomplete/failed/historical answers, an intervening question, refresh and identity change cannot resurrect an older referent. Independent schedule questions still select their period using only the latest question. Calendar refetches cannot inherit stale edit revisions from previous answers.
+
+Auth/backend and editor generations suppress late proposals after manual input, event selection, cancellation, navigation, logout, or a newer prompt. A changed event revision requires refresh/review, including a change between intent resolution and preview. An unresolved attempt for the event takes precedence over any new proposal. The existing confirmation persistence, receipt validation, recovery and historical labeling remain in charge.
+
+## Date lookup, unfinished tasks and compact chat (third run)
+
+The three owner prompts now use the same existing provider/preview path:
+
+1. **“can you update the time to 2pm?”** retains typed `time: "14:00"` and asks **“Which event should I move to 2 PM?”** when no current exact target exists.
+2. **“this is for the event on the 30th”** supplies a target-date descriptor. The server combines it with the unfinished typed time and looks up that day's recorded events. A sole pending Nov 30, 2026, 11 AM CST fixture previews **Nov 30 at 14:00 CST / 20:00 UTC**, omitting the untouched date in the preview request.
+3. **“Can you update the event I have on the 30th to 2pm?”** performs the same lookup and time-only preview independently, including from an empty chat. None of these messages sends confirm.
+
+The strict provider schema separates `targetDate` (event **ON** the date) from `date` (proposed new date, **TO**) and marks relevant clarification fragments with `continuation`. Only the latest message reaches the model. The application combines typed fields only for an explicit continuation with a valid unfinished task; a new independent task or schedule read clears the old draft. Existing v1 application intent shapes remain accepted; the provider's strict schema requires all new fields. No raw history, customer data, event IDs, references or task object are supplied to the provider.
+
+Lookup uses the existing authenticated `readCalendar` through the chat route, for **one business-local day**, within one year, with at most 20 candidates and no partial result. It matches the recorded requested arrival day, not estimated display time. All statuses count before eligibility. One match is re-fetched and revision/status/zone checked; multiple matches offer compact exact-ID choices, including pending + confirmed; zero matches says which resolved date had no event. The normal dedicated preview still owns availability, lead time, experience, DST and acceptance rules. A refused 2 PM proposal stays filled in the form.
+
+Bare target **“the 30th”** uses the month/year from fresh re-fetched selected/current event context when that context identifies one month; conflicting months ask for month/year. With no event context, it uses the **current business-local month/year**, never the browser timezone or an unsigned calendar navigation month. It never rolls a nonexistent day into another month. Explicit month/year wins; omitted year uses the current business year, and relative target “tomorrow” uses local today + 1. The preview displays the fully resolved date for review. For reproducible November 2026 tests, use the supplied disposable fixture clock; on later dates, state **November 30, 2026** explicitly (and observe backend future/lead-time policy).
+
+The unfinished task is versioned, typed and limited to **five minutes** without renewal through clarification. It lives only in application memory, separate from sessionStorage attempted-write references. Cancel, manual selection/input, navigation, remount, identity/backend change, expiry or an unrelated question invalidates it. Captured generations and expiry suppress late replies; an uncertain attempted operation still blocks a new proposal for its event. A draft is never evidence of a save and never auto-recovers or confirms.
+
+The nonmodal shell keeps the normal 490px width and adds an accessible **expand/collapse icon** control up to 660px on desktop. Mobile uses nearly the full viewport at 320px and 390px. The single-row composer grows with text and shrinks after send. Older messages beyond the last three can be shown explicitly, while active task/preview and recovery remain visible independently. Collapsed event cards retain title, local time, status, links and the prominent edit control; intervals stay in Details. Repeated footer/per-card advisories are removed, with only the unreserved-slot/no-notification advisory retained in the edit preview. A compact 48px chef-hat/sparkle icon with an accessible “Ask Sous Chef” tooltip replaces the wide launcher, inset at bottom right. Clicking outside dismisses the nonmodal chat and invalidates unused editor/task context without cancelling attempted writes. Escape cancels the unfinished task or editor first, then closes chat.
+
+## Attempt recovery and privacy
+
+Before dispatching confirm, the UI synchronously writes and reads back a versioned same-tab `sessionStorage` item scoped by normalized backend URL + authenticated actor + event ID. It contains only the exact signed reference, operation/event/actor/backend identifiers, attempted timestamp, and manual recovery count. Storage failure prevents the write. References are never added to chat turns, model messages, URLs, localStorage, logs, or Sentry. sessionStorage is readable by same-origin scripts; it is **not an XSS vault**. Server authentication and signature checks remain authoritative.
+
+An attempted reference survives panel close, route navigation, history trimming, and same-tab refresh. After refresh/remount, empty chat displays a collapsed **Check previous change** row for genuinely unresolved attempts. Expanding it exposes **Recover outcome**; event/outcome details do not reopen automatically. Nothing auto-confirms, auto-recovers, or polls. Recover is an explicit POST and can dispatch the existing attempt's pending Google sync. It never replays a changed operation. Unknown/network/403/503 recovery keeps the original reference; it does not enable another edit for the event. Three manual recoveries per attempt are permitted across refresh; persistent uncertainty requires operator reconciliation, with the tab kept open.
+
+A validated terminal receipt (saved, no_change or rejected) immediately clears its stored reference, before live-view refresh. The result remains in memory for presentation until **Done**. A page refresh before Done no longer resurrects a successful save as unknown. A failure refreshing the current event still leaves the receipt saved. If storage becomes inaccessible during cleanup, an old reference may require explicit recovery later. References left by the older UI cannot safely be assumed successful: expand **Check previous change** and explicitly recover once to resolve them. Explicit logout/account change clears actionable state and references, and synchronous generations suppress late preview/confirm/recover results across remount. Recovery is **not guaranteed after logout, tab closure, browser storage deletion, or another device**. A transient chat configuration refusal does not discard an unresolved write. Do not manually delete an unresolved item to retry a write; reconcile the live event and backend durable receipt first.
+
+## Disposable owner acceptance
+
+1. Use an isolated database with exactly one store, a pending unclaimed disposable event, a consistent requested date/time and saved zone matching Availability, and an active experience with an available future slot. Configure normal Admin authentication and the server-side model settings or local fixture provider. Enable the write flag only in this disposable instance.
+2. Sign in as Admin B (no allowlist setup). Ask for the event's date range. Confirm normal quick suggestions/read behavior, event links, nonmodal navigation, light/dark layout, and mobile scrolling.
+3. With the disposable November 2026 clock, send the three exact prompts above in order. Verify the first retains 14:00, the second previews Nov 30 at 14:00, and the third also works from an empty chat. Check zero confirm calls. Test duplicate same-day events, no match, nonpending status, different context months, expired drafts, and an intervening schedule question.
+4. First read a sole Nov 30, 2026 pending fixture at 11:00 AM. Type **“Can you move it to the 29th?”** without clicking edit. Verify `{eventId: exact source.id, date: "2026-11-29"}` reaches preview with **no time** and **no confirm** request. Inspect before/after 11:00 AM in the saved zone. Type “yes” and “confirm”: neither saves. Test Sunday open and closed fixture settings; closed shows the backend refusal with Nov 29 still editable. Test two same-looking records, including pending + confirmed: choose by displayed source ID before preview.
+5. Check the chef-hat launcher tooltip, desktop expand/collapse icons, mobile layout and outside-click dismissal. Select **Change date/time** on the intended card. Verify no preview request occurs yet. Enter only a date, then only a time, and inspect that the other field is omitted. Check before/after local dates/times; verify UTC, timezone labels and Google messages are absent from the chat. Change the input and verify the old confirmation disappears. Let an unused preview expire and re-preview.
+6. Click **Confirm change** once. Verify only that pending event's requested date/time changes, old chat cards are historical, the calendar/detail refresh, and chat shows a concise saved result without Google sync messages. Refresh before Done and verify no unknown/recovery row returns for this resolved operation. Verify no customer notification. Test an ineligible pending card and writes OFF; the dedicated route refuses neutrally.
+7. With the mocked built-Admin fixture below, simulate a committed save with a lost response, refresh to empty chat, then explicitly recover the original reference. Compare historical 11:00 with live 12:00. Test saved-then-refetch failure, 409 rejection, no_change, access refusal on recovery, unavailable sessionStorage, repeated clicks, and logout/identity switch during pending requests. Never simulate these faults on production.
+8. Keep production writes OFF and stop at review. No existing PR should be merged or retargeted by these steps.
+
+## Verification
+
+The conversational follow-up used Node **26.13.1** / Yarn **4.5.0**, with no dependency, lockfile or migration changes. The third run continues from verified clean PR #38 head `92d4263c7add81c3ec822bd8153089ae590d1297` on the same managed branch. Tested implementation commit: **`d11acc63bd4088ef4d6eee7fe9dc2e982696cd2e`**. The following documentation-only commit records this SHA; executable source is unchanged.
+
+| Check | Result |
+| --- | --- |
+| Medusa unit/component/transport suite | **35 suites / 407 tests passed**, including previous security/recovery/SDK receipt-loss coverage |
+| Schedule PostgreSQL / real Medusa HTTP | **53 cases passed**, exercising the actual chat route/provider, installed SDK and shared UI state; the three owner prompts, retained 2 PM intent, date-target lookup/ambiguity/policy refusal, plus previous Sunday/DST/context/actor isolation cases |
+| Redis persistent workflow / process restart | **5 cases passed**, including unchanged **nine generic-route denial scenarios**, signed controls, response/checkpoint loss beyond expiry and dispatch-acknowledgement loss |
+| Related integration wrappers | Workspace, booking-scheduling and scheduling-domain wrappers passed (**5 cases each**); availability PostgreSQL constraints **6 passed** |
+| Medusa typecheck + backend/Admin production build | Passed; build lint reported **0 errors / 176 existing repository warnings** |
+| Storefront typecheck + production build | Passed |
+| Built Admin Chromium acceptance | Passed: light/dark normal/expanded desktop and 390/320px mobile; all three owner prompts, retained typed task, compact composer, time-only preview, focus/Escape, date-only proposal, exact-ID choices, refusal retains form, stale reply discarded, text never confirms; all existing manual/recovery/409/storage cases retained |
+| Browser fixture requests | **32 previews, 5 explicit confirmations, 2 explicit recoveries; 0 browser errors / 0 unmocked routes**. Conversational scenarios sent **0 confirms** |
+| `git diff --check` | Passed |
+
+The T3 preview browser could not launch: “This host is missing libraries T3's browser needs (libatk-1.0.so.0, libatk-bridge-2.0.so.0, libXcomposite.so.1, libXdamage.so.1, libXfixes.so.3, libXrandr.so.2, libasound.so.2, libatspi.so.0).” Acceptance used the available Playwright Chromium and existing unpacked libraries. No host packages were installed. No native T3-browser success is claimed.
+
+Third-run screenshots: [expanded desktop with retained 2 PM proposal](pending-ui-evidence/owner-preview-dark-desktop.png), [light mobile preview](pending-ui-evidence/owner-preview-light-mobile.png), [320px unfinished task](pending-ui-evidence/owner-clarification-dark-mobile.png). These contain synthetic events only.
+
+Exact commands from this managed worktree (test ports below belong to disposable containers created for this run, **not** a reusable application configuration):
+
+```bash
+export PATH=/tmp/bts21-node26/node-v26.13.1-linux-x64/bin:$PATH
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa typecheck
+MEDUSA_DISABLE_TELEMETRY=true node .yarn/releases/yarn-4.5.0.cjs workspace medusa build
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa test:unit
+node .yarn/releases/yarn-4.5.0.cjs workspace storefront typecheck
+node .yarn/releases/yarn-4.5.0.cjs workspace storefront build
+
+docker run -d --name bts21-third-pg -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=booking_test_third -p 127.0.0.1::5432 postgres:16
+docker run -d --name bts21-third-redis -p 127.0.0.1::6379 redis:7
+# Assigned loopback ports: PostgreSQL 32789, Redis 32790.
+cd apps/medusa
+BOOKING_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:32789/booking_test_third BOOKING_TEST_REDIS_URL=redis://127.0.0.1:32790 AVAILABILITY_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:32789/booking_test_third node ../../.yarn/releases/yarn-4.5.0.cjs test:integration:http --runTestsByPath integration-tests/http/schedule-edit.spec.ts integration-tests/http/chef-workspace.spec.ts integration-tests/http/booking-scheduling.spec.ts integration-tests/http/scheduling-domain.spec.ts integration-tests/http/availability-concurrency.spec.ts
+# Final schedule/security recheck after context-month refinement:
+BOOKING_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:32789/booking_test_third BOOKING_TEST_REDIS_URL=redis://127.0.0.1:32790 node ../../.yarn/releases/yarn-4.5.0.cjs test:integration:http --runTestsByPath integration-tests/http/schedule-edit.spec.ts
+cd ../..
+LD_LIBRARY_PATH=/tmp/bts-browser-libs/root/usr/lib/x86_64-linux-gnu NODE_PATH=/home/openclaw/projects/bts/node_modules BTS21_UI_EVIDENCE_DIR=/tmp/bts21-third-browser-evidence node docs/chef-ai/pending-schedule-ui-acceptance.cjs
+git diff --check
+```
+
+The database tests create random `booking_test_*` databases and remove only their fixtures. The outer schedule wrapper has six Jest tests: one executes the 53-case PostgreSQL/HTTP suite; the other five exercise persistent execution, including the alternate-route guard. HTTP tests use real Medusa authentication/middleware with fixture current-user/store services. Browser APIs are intercepted synthetic responses over built Admin assets; they are not a live paid-provider or production acceptance test. No live model, Google, customer email, production database, deployment, or hosted CI success is claimed. Private Arbor was not read or posted; the owner's reproduced final handoff/review supplied the scope.
+
+## Chat polish and resolved-attempt cleanup (owner follow-up)
+
+Tested implementation: **`3b213b7b013ae5edc977a8f2c71fcc18f93abaa3`**, continuing from clean remote `7040b26fd6a023be663cb90de06fe206940ac0be` on the same managed branch. PR #38 remains stacked on #37; no backend guard, workflow, authentication, model selection, dependency, migration or production setting changed.
+
+The refresh bug was that terminal receipts were shown in memory but their attempted references stayed in sessionStorage until **Done**. Reload discarded the receipt and restored the reference as unknown. A validated terminal receipt now removes that reference synchronously before live-view refresh, while leaving the result visible in memory. Unknown/lost-response attempts still retain their exact reference and one-operation guard; restored details start collapsed. Old references created before this fix require one explicit recovery to determine their outcome, not an automatic save or recovery.
+
+Chat presentation now omits UTC, timezone names, Google sync notices and the provider privacy notice. Dates/times still format in the saved event zone. Desktop expand/collapse use labeled icons; outside interaction dismisses chat and invalidates unused proposals. The bottom-right launcher is a 48px round chef-hat/sparkle icon with tooltip and accessible name, reducing its footprint without modifying the dashboard shell.
+
+Validation on Node **26.13.1** / Yarn **4.5.0**:
+
+- Full **35 unit suites / 413 tests passed**. Final display-deadline adjustment: **3 targeted suites / 81 tests passed**. New coverage includes saved/no_change/rejected refresh before Done and before live read completes, recovered-reference cleanup with failed live read, collapsed uncertainty, outside dismissal, icon accessibility and removed technical copy.
+- All five real HTTP/DB integration wrappers passed: **53 schedule cases**, **5 persistent Redis/process cases including all nine generic-workflow denial scenarios**, workspace/booking/scheduling cases and availability constraints. Disposable `bts21-polish-pg` and `bts21-polish-redis` containers were removed after testing.
+- Medusa and storefront typechecks/builds passed. Admin build lint: **0 errors / 176 existing warnings**. `git diff --check` passed.
+- Built Admin acceptance passed with intercepted synthetic APIs: light/dark desktop, expanded layout, 390px/320px mobile, all three owner prompts, explicit-only confirmation, refresh before Done, collapsed recovery, outside click, 48px round launcher/tooltip, storage failure and 409 receipts. **32 previews / 5 explicit confirmations / 2 recoveries; zero browser errors / unmocked routes**. No live model, Google or customer email calls.
+
+Screenshots: [launcher](pending-ui-evidence/polish-launcher-dark-desktop.png), [welcome](pending-ui-evidence/polish-welcome-dark-desktop.png), [local-time mobile preview](pending-ui-evidence/polish-preview-light-mobile.png), [collapsed recovery](pending-ui-evidence/polish-recovery-dark-mobile.png). Synthetic records only. Acceptance used the existing Playwright/library workaround described above; no new host-browser success is claimed.
+
+Commands from the repository root unless noted:
+
+```bash
+export PATH=/tmp/bts21-node26/node-v26.13.1-linux-x64/bin:$PATH
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa test:unit
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa test:unit --runTestsByPath src/lib/__tests__/schedule-edit-ui.unit.spec.ts src/lib/__tests__/chef-chat-ui.unit.spec.ts src/lib/__tests__/schedule-edit-state.unit.spec.ts
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa typecheck
+MEDUSA_DISABLE_TELEMETRY=true node .yarn/releases/yarn-4.5.0.cjs workspace medusa build
+node .yarn/releases/yarn-4.5.0.cjs workspace storefront typecheck
+node .yarn/releases/yarn-4.5.0.cjs workspace storefront build
+# Disposable fixture containers assigned loopback ports 32791 and 32792 for this run only.
+docker run -d --name bts21-polish-pg -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=booking_test_polish -p 127.0.0.1::5432 postgres:16
+docker run -d --name bts21-polish-redis -p 127.0.0.1::6379 redis:7
+cd apps/medusa
+BOOKING_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:32791/booking_test_polish BOOKING_TEST_REDIS_URL=redis://127.0.0.1:32792 AVAILABILITY_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:32791/booking_test_polish node ../../.yarn/releases/yarn-4.5.0.cjs test:integration:http --runTestsByPath integration-tests/http/schedule-edit.spec.ts integration-tests/http/chef-workspace.spec.ts integration-tests/http/booking-scheduling.spec.ts integration-tests/http/scheduling-domain.spec.ts integration-tests/http/availability-concurrency.spec.ts
+cd ../..
+LD_LIBRARY_PATH=/tmp/bts-browser-libs/root/usr/lib/x86_64-linux-gnu NODE_PATH=/home/openclaw/projects/bts/node_modules BTS21_UI_EVIDENCE_DIR=/tmp/bts21-polish-browser-evidence node docs/chef-ai/pending-schedule-ui-acceptance.cjs
+git diff --check
+docker rm -f bts21-polish-pg bts21-polish-redis
+```
+
+## Arbor-ready handoff
+
+PR #38 now retains unfinished typed edits through clarification, performs bounded target-date lookup and provides a more spacious, compact chat. The three owner prompts prepare Nov 30 at 14:00 in the isolated CST fixture with no confirms. It supports natural-language pending-event date/time proposals through one fixed structured intent, exact current-event context and the existing authoritative preview. The model never confirms; typing yes/confirm never writes. It retains pending-event action cards, explicit actor-bound preview/confirmation, validated historical 409 receipt transport, and same-tab attempted-operation recovery. One-store access now grants existing authenticated Admin accounts without an allowlist, and fails closed for ambiguous stores. The workflow-specific alternate-route guard remains byte-for-byte unchanged. The UI preserves unknown outcomes, distinguishes saved from current-view refresh failure, marks historical schedule snapshots, and never treats Google dispatch as synchronization. Review the stacked UI PR before any merge or enabling writes; this work does not authorize deployment or production writes.

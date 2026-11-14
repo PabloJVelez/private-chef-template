@@ -1,3 +1,4 @@
+import type { SousChefRouteDescriptor } from "../../../../lib/chef-ai/page-context";
 import { RESOLVED_POLICY_MESSAGES, UNRESOLVED_POLICY_MESSAGES, INVALID_TICKET_DETAILS, RESOLVED_INVALID_TICKET_DETAILS, UNRESOLVED_INVALID_TICKET_DETAILS, ACCEPTANCE_RECOVERY_REQUIRED } from '../../../../lib/acceptance-messages';
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Container, Heading, toast, Button, FocusModal, Textarea, Label, Checkbox, Input, Text } from "@medusajs/ui"
@@ -637,6 +638,7 @@ export const config = defineRouteConfig({
 })
 
 export const handle = {
+  sousChef: { surface: "chef-events", view: "detail", resource: { kind: "private-event", idParam: "id" } } satisfies SousChefRouteDescriptor,
   breadcrumb: (match: UIMatch<unknown>) => <ChefEventDetailBreadcrumb {...match} />,
 }
 

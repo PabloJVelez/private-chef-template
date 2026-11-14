@@ -1,3 +1,14 @@
+import { assistantReadSchema, type AssistantRead } from "./assistant-read";
+import { validTimeZone } from "./schedule";
+import { pageHintSchema } from "./page-context";
+import { composeSchedule } from "./presentation";
+import {
+  editContextSchema,
+  editTaskSchema,
+  editIntentSchema,
+  type EditContext,
+  type EditIntent,
+} from "./edit-intent";
 import { z } from "@medusajs/framework/zod";
 import type { CalendarResult } from "../chef-workspace/contracts";
 import type { ChatInput, ScheduleAnswer } from "./contracts";
@@ -6,7 +17,10 @@ import { resolveScheduleRange, scheduleArgs } from "./schedule";
 
 export const chatInput = z
   .object({
+    page: pageHintSchema.optional(),
     message: z.string().trim().min(1).max(1000),
+    context: editContextSchema.optional(),
+    task: editTaskSchema.optional(),
     previousQuestions: z
       .array(z.string().trim().min(1).max(1000))
       .max(4)
@@ -14,7 +28,8 @@ export const chatInput = z
   })
   .strict();
 const clarification =
-  "Ask about recorded events for a day, week, weekend, or a date range of up to 31 days. I can only read schedule facts; I cannot change records or decide availability.";
+  "I can help with your schedule, this event, or a pending date/time change. What would you like to check?";
+export class MissingBusinessTimezone extends Error {}
 
 export async function answerSchedule(
   input: ChatInput,
@@ -22,16 +37,80 @@ export async function answerSchedule(
   select: SelectSchedule,
   read: (range: { start: string; end: string }) => Promise<CalendarResult>,
   now = new Date(),
+  propose?: (
+    intent: EditIntent,
+    context?: EditContext,
+  ) => Promise<ScheduleAnswer>,
+  assistant?: (kind: AssistantRead) => Promise<ScheduleAnswer>,
 ): Promise<ScheduleAnswer> {
-  const { calls } = await select(chatInput.parse(input), timeZone, now);
+  const parsed = chatInput.parse(input);
+  const { calls } = await select({ message: parsed.message }, timeZone, now);
   if (!calls.length) return { message: clarification, entries: [] };
   // Reject the entire batch before any read, including duplicate/replayed calls.
   if (
     calls.length !== 1 ||
-    calls[0].name !== "get_schedule" ||
+    ![
+      "get_schedule",
+      "propose_pending_event_date_time_edit",
+      "assistant_read",
+    ].includes(calls[0].name) ||
     calls[0].arguments.length > 1000
   )
     throw new Error("Invalid model tool call");
+  if (calls[0].name === "assistant_read") {
+    const { kind } = assistantReadSchema.parse(JSON.parse(calls[0].arguments));
+    return assistant
+      ? assistant(kind)
+      : { message: clarification, entries: [] };
+  }
+  if (!validTimeZone(timeZone)) throw new MissingBusinessTimezone();
+  if (calls[0].name === "propose_pending_event_date_time_edit") {
+    let intent = editIntentSchema.parse(JSON.parse(calls[0].arguments));
+    let context = parsed.context;
+    const continuing = intent.continuation === true;
+    if (continuing) {
+      const task = parsed.task;
+      if (
+        !task ||
+        task.expiresAt <= now.getTime() ||
+        task.expiresAt > now.getTime() + 300_000
+      )
+        return {
+          entries: [],
+          message:
+            "No unfinished change to continue. Tell me the event date and new date or time.",
+        };
+      intent = editIntentSchema.parse({
+        ...task.intent,
+        ...intent,
+        target: intent.targetDate ? "date" : task.intent.target,
+        targetDate: intent.targetDate ?? task.intent.targetDate,
+        date:
+          intent.clarification === "date"
+            ? null
+            : (intent.date ?? task.intent.date),
+        time:
+          intent.clarification === "time"
+            ? null
+            : (intent.time ?? task.intent.time),
+        continuation: false,
+      });
+      context = parsed.context ?? task.context;
+    }
+    if (!propose) return { message: clarification, entries: [] };
+    const answer = await propose(intent, context);
+    if (
+      continuing &&
+      answer.editTask &&
+      parsed.task &&
+      parsed.task.expiresAt > now.getTime()
+    )
+      answer.editTask.expiresAt = Math.min(
+        answer.editTask.expiresAt,
+        parsed.task.expiresAt,
+      );
+    return answer;
+  }
   let range: { start: string; end: string };
   let period: ScheduleAnswer["period"];
   try {
@@ -78,14 +157,29 @@ export async function answerSchedule(
       timeZone: entry.timeZone,
     };
   });
-  return {
+  return composeSchedule({
     message: entries.length
-      ? `${entries.length} recorded event${entries.length === 1 ? "" : "s"} overlap this window. All statuses are included. These records do not determine availability.`
-      : "No matching recorded events in this window. This does not mean you are free or available.",
+      ? `${entries.length} recorded event${entries.length === 1 ? "" : "s"}.`
+      : "No recorded events in this window; availability is not checked.",
     timeZone,
     period,
     range,
     complete: true,
     entries,
-  };
+  });
 }
+
+export const proposalSelectionInput = z
+  .object({
+    page: pageHintSchema.optional(),
+    selection: z
+      .object({
+        intent: editIntentSchema,
+        context: editContextSchema.refine(
+          (context) => !!context.selectedId,
+          "Choose an exact event.",
+        ),
+      })
+      .strict(),
+  })
+  .strict();
