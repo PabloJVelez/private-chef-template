@@ -39,3 +39,22 @@ button.chef-chat-launcher {
   height: 48px;
   border-radius: 50%;
 }
+
+/* Sender is conveyed by alignment and shape as well as theme-aware color. */
+.chef-chat-message {
+  width: fit-content;
+  min-width: 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: 1rem;
+  overflow-wrap: anywhere;
+}
+.chef-chat-message-user {
+  max-width: 85%;
+  margin-left: auto;
+  border-bottom-right-radius: 0.25rem;
+}
+.chef-chat-message-assistant {
+  max-width: 92%;
+  margin-right: auto;
+  border-bottom-left-radius: 0.25rem;
+}

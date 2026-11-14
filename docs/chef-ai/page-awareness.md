@@ -67,3 +67,22 @@ docker rm -f bts21-page-pg bts21-page-redis
 ```
 
 Arbor-ready handoff: P0 now resolves page and conversational targets independently and asks before conflicting previews; P1 presents grounded prose without another model call. The reviewed navigation fix remains intact. PR #38 includes real UI video, isolated security/DB evidence and reviewer steps. Keep the existing stack open and unmerged; no production deployment or enablement is authorized by this work.
+
+## Message bubble follow-up
+
+User messages now appear in blue bubbles aligned right; Sous Chef replies, errors and loading states appear in neutral bubbles aligned left. Rounded corners indicate the sender side, and screen-reader sender labels remain explicit. The active edit/recovery panel stays by the composer. No backend or confirmation behavior changed.
+
+[Updated built-Admin video](pending-ui-evidence/chat-bubbles.webm?raw=true), [desktop dark screenshot](pending-ui-evidence/chat-bubbles-desktop.png) and [mobile light screenshot](pending-ui-evidence/chat-bubbles-mobile.png) show synthetic fixtures with mocked model responses. The earlier video/screenshots remain available above for comparison. The exact tested commit is recorded in PR #38.
+
+Validation for this presentation change (Node 26.13.1 / Yarn 4.5.0):
+
+```bash
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa test:unit --runTestsByPath src/lib/__tests__/chef-chat-ui.unit.spec.ts src/lib/__tests__/chef-page-ui.unit.spec.ts src/lib/__tests__/schedule-edit-ui.unit.spec.ts
+node .yarn/releases/yarn-4.5.0.cjs workspace medusa typecheck
+MEDUSA_DISABLE_TELEMETRY=true node .yarn/releases/yarn-4.5.0.cjs workspace medusa build
+LD_LIBRARY_PATH=/tmp/bts-browser-libs/root/usr/lib/x86_64-linux-gnu NODE_PATH=/home/openclaw/projects/bts/node_modules BTS21_UI_EVIDENCE_DIR=/tmp/bts21-bubbles-browser-evidence node docs/chef-ai/pending-schedule-ui-acceptance.cjs
+LD_LIBRARY_PATH=/tmp/bts-browser-libs/root/usr/lib/x86_64-linux-gnu NODE_PATH=/home/openclaw/projects/bts/node_modules BTS21_PAGE_EVIDENCE_DIR=/tmp/bts21-bubbles-video-evidence node docs/chef-ai/page-awareness-video.cjs
+git diff --check
+```
+
+The focused suites passed **53 tests**; Medusa typecheck and production build passed. The browser suite additionally checks bubble alignment and overflow in light/dark desktop and 320/390px mobile layouts. The recording exercises grounded replies, target conflict clarification and manual previews, with **2 previews and zero confirmations/recoveries**. No live model, Google or email was used. The full backend/database and storefront gates above belong to the preceding implementation and were not rerun for this styling-only change.

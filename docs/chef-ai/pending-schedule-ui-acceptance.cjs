@@ -105,6 +105,14 @@ const server = http.createServer((req, res) => {
     assert(box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width && box.y + box.height <= viewport.height);
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth));
+    for (const bubble of await dialog.locator('.chef-chat-message:visible').all()) {
+      assert(await bubble.evaluate(el => {
+        const box = el.getBoundingClientRect(), parent = el.parentElement.getBoundingClientRect();
+        const rightAligned = el.classList.contains('chef-chat-message-user');
+        return el.scrollWidth <= el.clientWidth + 1 &&
+          Math.abs(rightAligned ? box.right - parent.right : box.left - parent.left) < 2;
+      }), 'Message bubbles fit and align with their sender side');
+    }
   }
   async function screenshot(name) { const focus = (await button('Confirm change').count()) ? button('Confirm change') : button('Done'); if (await focus.count()) await focus.scrollIntoViewIfNeeded(); await bounds(); await page.screenshot({ path: path.join(out, name + '.png') }); }
   async function fresh() { await page.reload(); await open(); }
@@ -259,7 +267,7 @@ const server = http.createServer((req, res) => {
     // Late model reply after manual selection/cancel may not reopen the editor.
     chatReply = soleAnswer; await fresh(); await quick(); await button('Change date/time').waitFor();
     mode = 'hold'; chatReply = proposal; await ask('Move it to the 29th');
-    await dialog.getByText('Checking your request…', { exact: true }).waitFor();
+    await dialog.getByRole('status').filter({ hasText: 'Checking your request…' }).waitFor();
     await change(0); await button('Cancel edit').click();
     const beforeLate = writes.length; release(); mode = 'events';
     await dialog.getByText(/That proposal was discarded/).waitFor();

@@ -926,34 +926,43 @@ export function ChefChat({
                 ref={i === turns.length - 1 ? latestTurn : undefined}
                 className="space-y-3"
               >
-                <p className="bg-ui-bg-subtle ml-6 whitespace-pre-wrap break-words rounded-lg px-3 py-2.5">
+                <p className="chef-chat-message chef-chat-message-user bg-ui-bg-interactive text-ui-fg-on-color whitespace-pre-wrap">
                   <span className="sr-only">You: </span>
                   {turn.question}
                 </p>
-                {turn.answer && (
-                  <Answer
-                    answer={turn.answer}
-                    historicalIds={turn.historicalIds}
-                    currentContext={
-                      i === turns.length - 1 && !turn.historicalIds?.length
-                        ? focus.current?.context
-                        : undefined
-                    }
-                    close={() => {
-                      scheduleEdits.close();
-                      setOpen(false);
-                    }}
-                  />
-                )}
-                {turn.error && (
-                  <p role="alert" className="text-ui-fg-error">
-                    {turn.error}
-                  </p>
+                {(turn.answer || turn.error) && (
+                  <div className="chef-chat-message chef-chat-message-assistant bg-ui-bg-subtle border-ui-border-base border">
+                    <span className="sr-only">Sous Chef: </span>
+                    {turn.answer && (
+                      <Answer
+                        answer={turn.answer}
+                        historicalIds={turn.historicalIds}
+                        currentContext={
+                          i === turns.length - 1 && !turn.historicalIds?.length
+                            ? focus.current?.context
+                            : undefined
+                        }
+                        close={() => {
+                          scheduleEdits.close();
+                          setOpen(false);
+                        }}
+                      />
+                    )}
+                    {turn.error && (
+                      <p role="alert" className="text-ui-fg-error">
+                        {turn.error}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             ))}
             {loading && (
-              <p role="status" className="text-ui-fg-subtle">
+              <p
+                role="status"
+                className="chef-chat-message chef-chat-message-assistant bg-ui-bg-subtle border-ui-border-base text-ui-fg-subtle border"
+              >
+                <span className="sr-only">Sous Chef: </span>
                 Checking your request…
               </p>
             )}

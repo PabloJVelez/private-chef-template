@@ -74,7 +74,7 @@ const server = http.createServer((req,res)=>{
  const pause=()=>page.waitForTimeout(1600);
  async function label(text){await page.evaluate(text=>{let e=document.getElementById('fixture-recording-label');if(!e){e=document.createElement('div');e.id='fixture-recording-label';e.style.cssText='position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:9999;background:#153e36;color:white;border:1px solid #58b49d;border-radius:6px;padding:7px 14px;font:12px system-ui;pointer-events:none;max-width:80vw';document.body.append(e);}e.textContent='SYNTHETIC FIXTURE · MODEL MOCKED · NO SAVES — '+text;},text);}
  async function open(){await page.getByRole('button',{name:'Ask Sous Chef',exact:true}).click();}
- async function ask(text){await dialog.getByRole('textbox',{name:'Schedule question'}).pressSequentially(text,{delay:42});await button('Send').click();await dialog.getByText('Checking your request…',{exact:true}).waitFor({state:'hidden'});await pause();}
+ async function ask(text){await dialog.getByRole('textbox',{name:'Schedule question'}).pressSequentially(text,{delay:42});await button('Send').click();await dialog.getByRole('status').filter({hasText:'Checking your request…'}).waitFor({state:'hidden'});await pause();}
  try {
   await page.goto(base+'/app/chef-events/event-B');await page.getByRole('heading',{name:'Edit Chef Event - QA RejectionK',exact:true}).waitFor();
   await label('Event B is open; ask about A');await open();await button('Expand Sous Chef').click();
