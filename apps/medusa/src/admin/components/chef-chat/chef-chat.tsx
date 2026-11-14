@@ -286,20 +286,6 @@ function Answer({
                       Change date/time
                     </Button>
                   )}
-                <details className="text-xs text-ui-fg-subtle">
-                  <summary className="cursor-pointer">Details</summary>
-                  <Answer
-                    chooseSummary={chooseSummary}
-                    answer={{
-                      ...answer,
-                      entries: [event],
-                      presentation: undefined,
-                    }}
-                    close={close}
-                    historicalIds={historicalIds}
-                    currentContext={currentContext}
-                  />
-                </details>
               </div>
             );
           })}

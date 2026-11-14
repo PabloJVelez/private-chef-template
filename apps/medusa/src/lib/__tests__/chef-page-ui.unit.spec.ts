@@ -206,7 +206,9 @@ it.each(["B", "A"])(
       expect(log.querySelector("a")?.getAttribute("href")).toBe(
         "/custom-admin/chef-events/A",
       );
-      expect(log.querySelector("details")?.open).toBe(false);
+      expect(log.querySelector("details")).toBeNull();
+      expect(log.querySelector("article")).toBeNull();
+      expect(log.querySelectorAll('[data-schedule-event="A"]')).toHaveLength(1);
       fetch.mockResolvedValueOnce({
         entries: [],
         presentation: "clarification",
