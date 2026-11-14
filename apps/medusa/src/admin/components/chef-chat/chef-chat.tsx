@@ -376,10 +376,21 @@ export function ChefChat({
   useEffect(() => {
     if (session.owner !== userId) setSession({ owner: userId, turns: [] });
   }, [session.owner, userId, setSession]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     setOpen(false);
+    setChoice(undefined);
+    // Navigation ends conversational targeting, not visible history or attempted
+    // write recovery. close() also invalidates tickets held by late responses.
     scheduleEdits.close();
-  }, [location.key]);
+    setSession((s) => ({
+      ...s,
+      turns: s.turns.map((turn) =>
+        turn.answer?.editContext
+          ? { ...turn, answer: { ...turn.answer, editContext: undefined } }
+          : turn,
+      ),
+    }));
+  }, [location.key, setSession]);
   useEffect(
     () => () => {
       controller.current?.abort();

@@ -265,6 +265,22 @@ const server = http.createServer((req, res) => {
     await dialog.getByText(/That proposal was discarded/).waitFor();
     assert.equal(writes.length, beforeLate); assert.equal(await edit.count(), 0);
     assert.equal(writes.filter(x => x.action === 'confirm').length, confirmsBeforeConversation);
+    // Navigation keeps visible history but must not carry event A into a new request.
+    await page.setViewportSize({ width: 1532, height: 1024 });
+    chatReply = soleAnswer; await fresh(); await quick(); await button('Change date/time').waitFor();
+    const beforeNavigation = writes.length;
+    await page.getByRole('link', { name: 'Menus', exact: true }).first().click();
+    await page.waitForURL('**/app/menus');
+    await open();
+    assert.equal(await dialog.locator('article').count(), 1);
+    chatReply = body => {
+      assert.deepEqual(body, { message: 'Move it to the 29th' });
+      return { entries: [], message: 'Which event should I move?' };
+    };
+    await ask('Move it to the 29th');
+    await dialog.getByText('Which event should I move?', { exact: true }).waitFor();
+    assert.equal(writes.length, beforeNavigation);
+    await screenshot('navigation-cleared-context');
     // Third-run owner prompts: unfinished 2 PM task -> date target clarification -> independent lookup.
     const timeProposal = { entries: [], message: 'Review this change before confirming.', editProposal: { eventId: 'synthetic-0', expectedRevision: 'a'.repeat(32), time: '14:00' } };
     for (const theme of ['dark', 'light']) {

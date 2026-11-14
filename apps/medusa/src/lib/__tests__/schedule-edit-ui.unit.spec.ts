@@ -6,7 +6,7 @@ jest.mock("../../admin/components/chef-chat/chef-chat.css", () => ({}));
 import React from "react";
 import { act } from "react-dom/test-utils";
 import { createRoot } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { Link, MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   ChefChat,
@@ -160,6 +160,11 @@ async function fixture(
             React.createElement(
               ChefChatSession,
               null,
+              React.createElement(
+                Link,
+                { to: "/chef-events/immutable-1" },
+                "Open event B",
+              ),
               React.createElement(ChefChat, {
                 userId: "A",
                 client: { fetch },
@@ -628,6 +633,64 @@ it.each(["manual", "event", "close", "navigation", "identity"])(
     });
   },
 );
+it.each([false, true])(
+  "navigation preserves history but discards event A context (late read: %s)",
+  async (late) => {
+    await fixture(async ({ fetch, preview, attempt }) => {
+      fetch.mockResolvedValueOnce(conversationalAnswer());
+      await click("What's on my schedule today?");
+      let resolve!: (value: unknown) => void;
+      if (late) {
+        fetch.mockImplementationOnce(
+          () =>
+            new Promise((done) => {
+              resolve = done;
+            }),
+        );
+        await ask("Read my schedule again");
+      }
+      await act(async () => {
+        (
+          document.querySelector(
+            'a[href="/chef-events/immutable-1"]',
+          ) as HTMLAnchorElement
+        ).click();
+      });
+      if (late) await act(async () => resolve(conversationalAnswer()));
+      await click("Ask Sous Chef");
+      expect(document.querySelector('[role="log"]')!.textContent).toContain(
+        "Identical event",
+      );
+      fetch.mockResolvedValueOnce({ entries: [], message: "Which event?" });
+      await ask("Move it to the 29th");
+      expect(fetch.mock.calls.at(-1)[1].body).toEqual({
+        message: "Move it to the 29th",
+      });
+      expect(preview).not.toHaveBeenCalled();
+      expect(attempt).not.toHaveBeenCalled();
+      expect(document.body.textContent).toContain("Which event?");
+    });
+  },
+);
+it("navigation retains an unresolved attempted write for explicit recovery", async () => {
+  await fixture(async ({ attempt }) => {
+    await ready();
+    attempt.mockRejectedValueOnce(new Error("Lost response"));
+    await click("Confirm change");
+    const stored = JSON.stringify(sessionStorage);
+    const attempts = scheduleEdits.snapshot().attempts;
+    await act(async () => {
+      (
+        document.querySelector(
+          'a[href="/chef-events/immutable-1"]',
+        ) as HTMLAnchorElement
+      ).click();
+    });
+    expect(scheduleEdits.snapshot().attempts).toEqual(attempts);
+    expect(JSON.stringify(sessionStorage)).toBe(stored);
+    expect(attempt).toHaveBeenCalledTimes(1);
+  });
+});
 it.each(["empty", "incomplete", "unrelated", "failed"])(
   "a prior sole-event context is not reused after an intervening %s answer/question",
   async (kind) => {
