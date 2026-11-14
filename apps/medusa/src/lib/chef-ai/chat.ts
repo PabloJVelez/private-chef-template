@@ -1,3 +1,5 @@
+import { pageHintSchema } from "./page-context";
+import { composeSchedule } from "./presentation";
 import {
   editContextSchema,
   editTaskSchema,
@@ -13,6 +15,7 @@ import { resolveScheduleRange, scheduleArgs } from "./schedule";
 
 export const chatInput = z
   .object({
+    page: pageHintSchema.optional(),
     message: z.string().trim().min(1).max(1000),
     context: editContextSchema.optional(),
     task: editTaskSchema.optional(),
@@ -141,7 +144,7 @@ export async function answerSchedule(
       timeZone: entry.timeZone,
     };
   });
-  return {
+  return composeSchedule({
     message: entries.length
       ? `${entries.length} recorded event${entries.length === 1 ? "" : "s"}.`
       : "No recorded events in this window; availability is not checked.",
@@ -150,11 +153,12 @@ export async function answerSchedule(
     range,
     complete: true,
     entries,
-  };
+  });
 }
 
 export const proposalSelectionInput = z
   .object({
+    page: pageHintSchema.optional(),
     selection: z
       .object({
         intent: editIntentSchema,

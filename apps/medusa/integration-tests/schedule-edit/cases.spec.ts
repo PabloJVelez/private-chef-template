@@ -204,13 +204,14 @@ beforeEach(async () => {
   await chef.createChefEvents(eventInput('unselected'));
 });
 
-it('preview is read-only, no customer data; save changes only two time fields and updated_at on the exact ID', async () => {
+it('preview is read-only, verified target name but no contact data; save changes only two time fields and updated_at on the exact ID', async () => {
   const before = await row(),
     other = await chef.retrieveChefEvent('unselected');
   const p = await preview({ date: '2030-03-11', time: '11:00' });
   expect(await row()).toEqual(before);
   expect((await db.query('select * from chef_event_schedule_edit')).rows).toEqual([]);
-  expect(JSON.stringify(p)).not.toMatch(/Private|private@example/);
+  expect(p.target).toMatchObject({ id: "event", title: "Private Guest", revision: p.expectedRevision });
+  expect(JSON.stringify({ ...p, reference: undefined })).not.toMatch(/private@example|Private address|Private notes/);
   expect(p.current).toEqual({
     date: '2030-03-09',
     time: '10:00',
@@ -987,4 +988,53 @@ it('date lookup has no-match and preview policy refusal without replacing the pr
   expect(state.snapshot().selection?.preview).toBeUndefined();
   expect(state.snapshot().selection?.message).toContain('no longer available');
   expect((await db.query('select * from chef_event_schedule_edit')).rows).toHaveLength(0);
+});
+
+it.each(['event', 'unselected'])('page B + fresh chat A requires verified choice; chosen %s preview/signature agree', async (chosen) => {
+  const f = await conversationalFixture('page-conflict-' + chosen);
+  await chef.updateChefEvents({ id: 'event', firstName: 'QA', lastName: 'ScheduleEdit' });
+  await chef.updateChefEvents({ id: 'unselected', firstName: 'QA', lastName: 'RejectionK', requestedDate: new Date('2026-11-27T15:00:00Z'), requestedTime: '10:00' });
+  const currentA = await chef.readScheduleEditEvent('event');
+  const context = { candidates: [{ id: 'event', revision: currentA.revision }], observedAt: Date.now() };
+  const page = { version: 1, surface: 'chef-events', view: 'detail', resource: { kind: 'private-event', id: 'unselected' } };
+  const snapshot = jest.spyOn(chef, 'readScheduleEditEvent');
+  modelCall.mockResolvedValueOnce(modelTool('propose_pending_event_date_time_edit', { ...moveTo29, date: { kind: 'day_of_month', day: 26 } }));
+  const answer = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', { method: 'POST', body: { message: 'Can you move THIS event to the 26th?', context, page } });
+  expect(answer.editProposal).toBeUndefined();
+  expect(answer.message).toBe('The event open on this page, or the event we just discussed?');
+  expect(answer.editClarification?.targets?.map(t => [t.id, t.title])).toEqual([['unselected', 'QA RejectionK'], ['event', 'QA ScheduleEdit']]);
+  expect(snapshot).toHaveBeenCalledWith('event');expect(snapshot).toHaveBeenCalledWith('unselected');
+  const transport = createScheduleTransport({ backendUrl: f.backendUrl, authType: 'jwt', getToken: () => f.sdk.getToken() });
+  const previewCalls = jest.spyOn(transport, 'preview'), confirmCalls = jest.spyOn(transport, 'attempt');
+  const state = new ScheduleEditState(() => ({}) as Storage); state.bind(f.actor, transport);
+  expect(previewCalls).not.toHaveBeenCalled();expect(confirmCalls).not.toHaveBeenCalled();
+  const choice = answer.editClarification!;
+  const selected = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', { method: 'POST', body: { page, selection: { intent: choice.intent, context: { ...choice.context, selectedId: chosen } } } });
+  expect(selected.editProposal?.eventId).toBe(chosen);
+  await state.propose(selected.editProposal!, state.beginProposal().current);
+  const prepared = state.snapshot().selection!.preview!;
+  expect(prepared.target.id).toBe(chosen);
+  expect(prepared.target.revision).toBe(prepared.expectedRevision);
+  expect(verifyReference(prepared.reference, f.actor, secret)).toMatchObject({ eventId: chosen, expectedRevision: prepared.target.revision });
+  expect(confirmCalls).not.toHaveBeenCalled();
+  expect((await row()).requestedTime).toBe('11:00');
+  const modelPayload = modelCall.mock.calls.at(-1)[0];
+  expect(modelPayload.messages.slice(1)).toEqual([{ role: 'user', content: 'Can you move THIS event to the 26th?' }]);
+  expect(JSON.stringify(modelPayload)).not.toContain('QA ScheduleEdit');expect(JSON.stringify(modelPayload)).not.toContain('unselected');
+  snapshot.mockRestore();
+});
+it.each(['confirmed', 'cancelled', 'deleted', 'missing'])('page-only %s never substitutes chat A over real HTTP', async (status) => {
+  const f = await conversationalFixture('page-policy-' + status, status === 'confirmed' ? 'confirmed' : undefined);
+  if (status !== 'missing' && status !== 'confirmed') await db.query('update chef_event set status=$1, deleted_at=$2 where id=$3', [status === 'deleted' ? 'pending' : status, status === 'deleted' ? new Date() : null, 'unselected']);
+  modelCall.mockResolvedValueOnce(modelTool('propose_pending_event_date_time_edit', moveTo29));
+  const answer = await f.sdk.fetch<ScheduleAnswer>('/admin/chef-ai/chat', { method: 'POST', body: { message: 'Move this event to the 29th', page: { version: 1, surface: 'chef-events', view: 'detail', resource: { kind: 'private-event', id: status === 'missing' ? 'missing' : 'unselected' } } } });
+  expect(answer.editProposal).toBeUndefined();expect(answer.editClarification).toBeUndefined();
+});
+it('real chat validates incompatible page hints before provider calls and composes pending arrival prose', async () => {
+  const f = await conversationalFixture('page-schema');
+  expect(f.answer.presentation).toBe('answer');
+  expect(f.answer.message).toContain('November 30, 2026 at 11:00 AM');
+  const calls = modelCall.mock.calls.length;
+  await expect(f.sdk.fetch('/admin/chef-ai/chat', { method: 'POST', body: { message: 'Move it', page: { version: 1, surface: 'menus', view: 'detail', resource: { kind: 'private-event', id: 'event' } } } })).rejects.toMatchObject({ status: 400 });
+  expect(modelCall).toHaveBeenCalledTimes(calls);
 });

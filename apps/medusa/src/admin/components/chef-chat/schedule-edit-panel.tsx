@@ -288,6 +288,25 @@ export function ScheduleEditPanel({
               className="border-ui-border-base border-t pt-3 space-y-3 outline-none"
               aria-label="Schedule change preview"
             >
+              <div className="space-y-1" aria-label="Verified editing target">
+                <p className="font-medium">
+                  Editing:{" "}
+                  <Link
+                    className="text-ui-fg-interactive underline"
+                    to={`/chef-events/${encodeURIComponent(selection.preview.target.id)}`}
+                    onClick={closeChat}
+                  >
+                    {selection.preview.target.title}
+                  </Link>
+                </p>
+                <LocalTime value={selection.preview.current} />
+                <p className="text-xs text-ui-fg-muted">
+                  Event ·{" "}
+                  <span title={selection.preview.target.id}>
+                    {selection.preview.target.id.slice(-8)}
+                  </span>
+                </p>
+              </div>
               <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 text-xs">
                 <div>
                   <p className="font-medium mb-1">Before</p>

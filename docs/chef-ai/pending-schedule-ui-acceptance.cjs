@@ -42,7 +42,7 @@ const server = http.createServer((req, res) => {
   const writes = [];
   const op = '00000000-0000-4000-8000-000000000001';
   const local = time => ({ date: '2026-11-09', time, timezone: zone, instant: `2026-11-09T${time === '10:00' ? '16' : time === '11:00' ? '17' : '18'}:00:00.000Z` });
-  const preview = id => ({ reference: 'fixture-signed-reference', operationId: op, eventId: id, expectedRevision: 'a'.repeat(32), expiresAt: new Date(Date.now() + 300000).toISOString(), current: local('10:00'), proposed: local('11:00'), reserved: false, googleAvailability: 'advisory' });
+  const preview = id => ({ target: { id, title: 'Family supper', status: 'pending', revision: 'a'.repeat(32) }, reference: 'fixture-signed-reference', operationId: op, eventId: id, expectedRevision: 'a'.repeat(32), expiresAt: new Date(Date.now() + 300000).toISOString(), current: local('10:00'), proposed: local('11:00'), reserved: false, googleAvailability: 'advisory' });
   const receipt = outcome => ({ outcome: { ...local('11:00'), operationId: op, eventId: 'synthetic-0', outcome, committedRevision: outcome === 'rejected' ? null : 'b'.repeat(32) }, historical: true, reserved: false, googleSync: outcome === 'saved' ? 'requested' : 'not_requested' });
   page.on('pageerror', e => errors.push(e.message));
   await page.addInitScript(() => { if (!localStorage.getItem('medusa_admin_theme')) localStorage.setItem('medusa_admin_theme', 'dark'); });

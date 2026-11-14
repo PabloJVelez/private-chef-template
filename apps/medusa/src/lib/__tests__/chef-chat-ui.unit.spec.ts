@@ -6,12 +6,20 @@ jest.mock("../../admin/components/chef-chat/chef-chat.css", () => ({}));
 import React from "react";
 import { act } from "react-dom/test-utils";
 import { createRoot } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   ChefChat,
   ChefChatSession,
 } from "../../admin/components/chef-chat/chef-chat";
+
+(globalThis as any).Request = require("node-fetch").Request;
+function DataTestRouter({ children }: React.PropsWithChildren) {
+  const [router] = React.useState(() =>
+    createMemoryRouter([{ path: "*", element: children }]),
+  );
+  return React.createElement(RouterProvider, { router });
+}
 
 it("posts only each latest question while retaining the three questions and distinct answers in the dialog", async () => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -41,7 +49,7 @@ it("posts only each latest question while retaining the three questions and dist
           QueryClientProvider,
           { client: queryClient },
           React.createElement(
-            MemoryRouter,
+            DataTestRouter,
             null,
             React.createElement(
               ChefChatSession,
@@ -144,7 +152,7 @@ async function withChat(fetch: jest.Mock, test: () => Promise<void>) {
           QueryClientProvider,
           { client: queryClient },
           React.createElement(
-            MemoryRouter,
+            DataTestRouter,
             null,
             React.createElement(
               ChefChatSession,

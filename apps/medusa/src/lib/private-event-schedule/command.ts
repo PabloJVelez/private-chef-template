@@ -109,6 +109,7 @@ export async function previewScheduleEdit(
     eventId: event.id,
     expectedRevision: event.revision,
     expiresAt: new Date(value.expiresAt).toISOString(),
+    target: { id: event.id, title: event.title || "Untitled", status: "pending" as const, revision: event.revision },
     current,
     proposed: { date, time, timezone: current.timezone, instant },
     reserved: false,

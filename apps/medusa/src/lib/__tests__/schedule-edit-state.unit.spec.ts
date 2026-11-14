@@ -18,6 +18,12 @@ const p = (): SchedulePreview => ({
   operationId,
   eventId: "event",
   expectedRevision: "a".repeat(32),
+  target: {
+    id: "event",
+    title: "Fixture event",
+    status: "pending",
+    revision: "a".repeat(32),
+  },
   expiresAt: new Date(Date.now() + 300000).toISOString(),
   current: local,
   proposed: local,
@@ -286,7 +292,11 @@ it.each(["manual", "event", "close", "actor", "backend", "newer"])(
   },
 );
 it("conversational proposal uses the shared runner, and a revision change before preview prevents confirmation", async () => {
-  preview.mockResolvedValueOnce({ ...p(), expectedRevision: "b".repeat(32) });
+  preview.mockResolvedValueOnce({
+    ...p(),
+    expectedRevision: "b".repeat(32),
+    target: { ...p().target, revision: "b".repeat(32) },
+  });
   const ticket = state.beginProposal();
   await state.propose(
     { eventId: "event", expectedRevision: "a".repeat(32), date: "2026-11-29" },
@@ -420,3 +430,20 @@ it("terminal recovery also removes the reference without Done even when live ref
   refreshed.bind("A", transport);
   expect(refreshed.snapshot().attempts).toEqual({});
 });
+it.each(["id", "revision"])(
+  "a preview whose verified target %s disagrees cannot be confirmed",
+  async (field) => {
+    const prepared = p();
+    preview.mockResolvedValueOnce({
+      ...prepared,
+      target: {
+        ...prepared.target,
+        [field]: field === "id" ? "other-event" : "c".repeat(32),
+      },
+    });
+    await ready();
+    expect(state.snapshot().selection?.preview).toBeUndefined();
+    await state.confirm(onReceipt);
+    expect(attempt).not.toHaveBeenCalled();
+  },
+);

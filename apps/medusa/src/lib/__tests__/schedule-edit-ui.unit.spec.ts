@@ -6,7 +6,7 @@ jest.mock("../../admin/components/chef-chat/chef-chat.css", () => ({}));
 import React from "react";
 import { act } from "react-dom/test-utils";
 import { createRoot } from "react-dom/client";
-import { Link, MemoryRouter } from "react-router-dom";
+import { Link, createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   ChefChat,
@@ -18,6 +18,14 @@ import type {
   SchedulePreview,
   ScheduleReceipt,
 } from "../../admin/components/chef-chat/schedule-edit-transport";
+(globalThis as any).Request = require("node-fetch").Request;
+function DataTestRouter({ children }: React.PropsWithChildren) {
+  const [router] = React.useState(() =>
+    createMemoryRouter([{ path: "*", element: children }]),
+  );
+  return React.createElement(RouterProvider, { router });
+}
+
 const op = "00000000-0000-4000-8000-000000000001";
 const local = {
   date: "2030-03-09",
@@ -30,6 +38,12 @@ const previewFor = (eventId = "immutable-0"): SchedulePreview => ({
   operationId: op,
   eventId,
   expectedRevision: "a".repeat(32),
+  target: {
+    id: eventId,
+    title: "Fixture event",
+    status: "pending",
+    revision: "a".repeat(32),
+  },
   expiresAt: new Date(Date.now() + 300000).toISOString(),
   current: { ...local, time: "10:00", instant: "2030-03-09T15:00:00.000Z" },
   proposed: local,
@@ -155,7 +169,7 @@ async function fixture(
           QueryClientProvider,
           { client: qc },
           React.createElement(
-            MemoryRouter,
+            DataTestRouter,
             null,
             React.createElement(
               ChefChatSession,

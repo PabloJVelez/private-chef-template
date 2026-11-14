@@ -25,12 +25,15 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useMatches } from "react-router-dom";
 import type { Client } from "@medusajs/js-sdk";
 import type { ScheduleAnswer } from "../../../lib/chef-ai/contracts";
 import type { TimeInterval } from "../../../lib/chef-workspace/contracts";
 
 import { type LiveSchedule, scheduleEdits } from "./schedule-edit-state";
+import { pageHintFromMatches } from "./page-context";
+import { eventSentence } from "../../../lib/chef-ai/presentation";
+import type { VerifiedEventTarget } from "../../../lib/chef-ai/page-context";
 import { SousChefIcon } from "./sous-chef-icon";
 import { ScheduleEditPanel } from "./schedule-edit-panel";
 import type {
@@ -174,6 +177,80 @@ function Answer({
   answer: ScheduleAnswer;
   close: () => void;
 }) {
+  if (answer.presentation && answer.entries.length) {
+    return (
+      <div className="space-y-3">
+        {answer.entries.length > 1 && <p>{answer.message}</p>}
+        <div
+          className="space-y-3"
+          role={answer.entries.length > 1 ? "list" : undefined}
+        >
+          {answer.entries.map((event) => {
+            const words = eventSentence(event);
+            const historical = historicalIds.includes(event.source.id);
+            return (
+              <div
+                key={event.id}
+                role={answer.entries.length > 1 ? "listitem" : undefined}
+                className="space-y-2"
+              >
+                <p>
+                  {historical ? "Earlier snapshot: " : ""}
+                  {answer.entries.length > 1
+                    ? words.before.replace(/^You have (one|a) /, "")
+                    : words.before}
+                  <Link
+                    className="text-ui-fg-interactive underline"
+                    to={`/chef-events/${encodeURIComponent(event.source.id)}`}
+                    onClick={close}
+                  >
+                    {event.title}
+                  </Link>
+                  {words.after}
+                </p>
+                {historical && (
+                  <p className="text-xs text-ui-fg-muted">
+                    Historical schedule snapshot — open the live event for its
+                    current time.
+                  </p>
+                )}
+                {event.source.type === "private-event" &&
+                  event.status === "pending" && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="small"
+                      data-schedule-event={event.source.id}
+                      onClick={() =>
+                        scheduleEdits.select(
+                          event.source.id,
+                          historical ? undefined : currentContext,
+                        )
+                      }
+                    >
+                      Change date/time
+                    </Button>
+                  )}
+                <details className="text-xs text-ui-fg-subtle">
+                  <summary className="cursor-pointer">Details</summary>
+                  <Answer
+                    answer={{
+                      ...answer,
+                      entries: [event],
+                      presentation: undefined,
+                    }}
+                    close={close}
+                    historicalIds={historicalIds}
+                    currentContext={currentContext}
+                  />
+                </details>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
   const zone = answer.timeZone;
   const windowLabel =
     answer.range && zone
@@ -364,14 +441,25 @@ export function ChefChat({
     intent: EditIntent;
     context: EditContext;
     cards: CalendarEntry[];
+    targets?: VerifiedEventTarget[];
     current: () => boolean;
   }>();
+  // Targeting has its own lifetime. Visible turns are presentation snapshots only.
+  const focus = useRef<{
+    context: EditContext;
+    cards: CalendarEntry[];
+    current: () => boolean;
+  }>();
+  if (session.owner !== userId) focus.current = undefined;
   const controller = useRef<AbortController>();
   const sending = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const tail = useRef<HTMLDivElement>(null);
   const latestTurn = useRef<HTMLDivElement>(null);
   const location = useLocation();
+  const page = pageHintFromMatches(useMatches());
+  const navigation = useRef(location.key);
+  navigation.current = location.key;
   const turns = session.owner === userId ? session.turns : [];
   useEffect(() => {
     if (session.owner !== userId) setSession({ owner: userId, turns: [] });
@@ -379,6 +467,7 @@ export function ChefChat({
   useLayoutEffect(() => {
     setOpen(false);
     setChoice(undefined);
+    focus.current = undefined;
     // Navigation ends conversational targeting, not visible history or attempted
     // write recovery. close() also invalidates tickets held by late responses.
     scheduleEdits.close();
@@ -390,7 +479,7 @@ export function ChefChat({
           : turn,
       ),
     }));
-  }, [location.key, setSession]);
+  }, [location.key, userId, scheduleTransport?.backend, setSession]);
   useEffect(
     () => () => {
       controller.current?.abort();
@@ -422,19 +511,17 @@ export function ChefChat({
       return;
     // State alone cannot guard two clicks before React commits the busy render.
     sending.current = true;
-    const last = turns.at(-1);
-    const fresh =
-      last?.answer?.complete && !last.historicalIds?.length
-        ? last.answer
-        : undefined;
+    const fresh = focus.current?.current() ? focus.current : undefined;
+    focus.current = undefined; // Every new question consumes focus, even if it fails.
     const ticket = scheduleEdits.beginProposal();
-    const context = selection?.context ?? ticket.context ?? fresh?.editContext;
-    const cards = choice?.cards ?? fresh?.entries ?? [];
+    const context = selection?.context ?? ticket.context ?? fresh?.context;
+    const cards = choice?.cards ?? fresh?.cards ?? [];
     setChoice(undefined);
     input.current?.focus();
     const pending: Turn = { question };
     const next = [...turns.slice(-11), pending];
     const epoch = generation.current;
+    const navigationKey = location.key;
     const readStarted = historyRevision.current;
     setSession({ owner: userId, turns: next });
     setDraft("");
@@ -446,14 +533,16 @@ export function ChefChat({
         method: "POST",
         signal: controller.current.signal,
         body: selection
-          ? { selection }
+          ? { selection, ...(page.surface !== "generic" ? { page } : {}) }
           : {
               message: question,
+              ...(page.surface !== "generic" ? { page } : {}),
               ...(context ? { context } : {}),
               ...(ticket.task ? { task: ticket.task } : {}),
             },
       });
-      if (epoch !== generation.current) return;
+      if (epoch !== generation.current || navigationKey !== navigation.current)
+        return;
       if (!ticket.current()) {
         answer =
           answer.editProposal || answer.editClarification || answer.editTask
@@ -471,6 +560,17 @@ export function ChefChat({
           current: ticket.current,
         });
       }
+      if (
+        answer.complete &&
+        answer.editContext &&
+        ticket.current() &&
+        historyRevision.current === readStarted
+      )
+        focus.current = {
+          context: answer.editContext,
+          cards: answer.entries,
+          current: ticket.current,
+        };
       scheduleEdits.retainTask(answer.editTask, ticket.current);
       if (epoch === generation.current)
         setSession((s) => ({
@@ -481,6 +581,7 @@ export function ChefChat({
                   question,
                   answer: {
                     ...answer,
+                    editContext: undefined,
                     editTask: undefined,
                     editClarification: undefined,
                   },
@@ -515,7 +616,11 @@ export function ChefChat({
           }));
       }
     } catch (error) {
-      if (controller.current.signal.aborted || epoch !== generation.current)
+      if (
+        controller.current.signal.aborted ||
+        epoch !== generation.current ||
+        navigationKey !== navigation.current
+      )
         return;
       const status = (error as { status?: number }).status;
       if (status === 401 || status === 403) {
@@ -561,6 +666,7 @@ export function ChefChat({
   async function onReceipt(receipt: ScheduleReceipt, current: () => boolean) {
     const id = receipt.outcome.eventId;
     if (!current()) return;
+    focus.current = undefined;
     changed.current.set(id, ++historyRevision.current);
     setSession((s) => ({
       ...s,
@@ -646,7 +752,10 @@ export function ChefChat({
       open={open}
       onOpenChange={(value) => {
         setOpen(value);
-        if (!value) scheduleEdits.close();
+        if (!value) {
+          focus.current = undefined;
+          scheduleEdits.close();
+        }
       }}
       modal={false}
     >
@@ -827,7 +936,7 @@ export function ChefChat({
                     historicalIds={turn.historicalIds}
                     currentContext={
                       i === turns.length - 1 && !turn.historicalIds?.length
-                        ? turn.answer.editContext
+                        ? focus.current?.context
                         : undefined
                     }
                     close={() => {
@@ -884,6 +993,16 @@ export function ChefChat({
                       className="space-y-2"
                     >
                       {choice.context.candidates.map((candidate) => {
+                        const shortId = choice.context.candidates.some(
+                          (other) =>
+                            other.id !== candidate.id &&
+                            other.id.slice(-8) === candidate.id.slice(-8),
+                        )
+                          ? candidate.id
+                          : candidate.id.slice(-8);
+                        const verified = choice.targets?.find(
+                          (target) => target.id === candidate.id,
+                        );
                         const card = choice.cards.find(
                           (card) => card.source.id === candidate.id,
                         );
@@ -893,11 +1012,28 @@ export function ChefChat({
                             className="border-ui-border-base rounded-lg border p-2 space-y-1"
                           >
                             <p>
-                              {card?.title ?? "Event"} ·{" "}
-                              {card?.status ?? "Review required"}
+                              {verified?.title ?? card?.title ?? "Event"} ·{" "}
+                              {verified?.status ??
+                                card?.status ??
+                                "Review required"}
                             </p>
+                            {verified && (
+                              <p className="text-xs">
+                                {new Intl.DateTimeFormat(undefined, {
+                                  timeZone: verified.timezone,
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                }).format(new Date(verified.instant))}
+                              </p>
+                            )}
                             <p className="text-ui-fg-muted text-xs break-all">
-                              Event ID: {candidate.id}
+                              Event ID:{" "}
+                              <span title={candidate.id}>
+                                {verified ? shortId : candidate.id}
+                              </span>
                             </p>
                             <Button
                               type="button"
@@ -905,6 +1041,11 @@ export function ChefChat({
                               variant="secondary"
                               disabled={loading}
                               data-proposal-candidate={candidate.id}
+                              aria-label={
+                                verified
+                                  ? `Choose ${verified.title} (${candidate.id})`
+                                  : undefined
+                              }
                               onClick={() => {
                                 if (choice.current())
                                   void send(

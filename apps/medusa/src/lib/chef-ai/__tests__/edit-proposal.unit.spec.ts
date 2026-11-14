@@ -126,9 +126,15 @@ it("counts every candidate including confirmed before eligibility and retains ex
       { id: "confirmed", revision: "b".repeat(32) },
     ],
   };
+  const original = await read();
+  read.mockImplementation(async (id) =>
+    id === "confirmed"
+      ? { ...original, id, status: "confirmed", revision: "b".repeat(32) }
+      : original,
+  );
   const result = await resolveEditProposal(scope, intent, both, zone, now);
   expect(result.editProposal).toBeUndefined();
-  expect(result.editClarification).toEqual({ intent, context: both });
+  expect(result.editClarification).toMatchObject({ intent, context: both });
   expect(
     (
       await resolveEditProposal(

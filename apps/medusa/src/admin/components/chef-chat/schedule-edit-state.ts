@@ -255,6 +255,12 @@ export class ScheduleEditState {
       );
       if (current()) {
         if (
+          preview.eventId !== s.eventId ||
+          preview.target?.id !== s.eventId ||
+          preview.target.revision !== preview.expectedRevision
+        )
+          throw new ScheduleTransportError("malformed");
+        if (
           s.expectedRevision &&
           preview.expectedRevision !== s.expectedRevision
         ) {

@@ -1,3 +1,9 @@
+import {
+  pageHintSchema,
+  type PageHint,
+  type VerifiedEventTarget,
+} from "./page-context";
+import type { ScheduleSnapshot } from "../../modules/chef-event/schedule-edit";
 import { DateTime } from "luxon";
 import type { MedusaContainer } from "@medusajs/framework/types";
 import type ChefEventModuleService from "../../modules/chef-event/service";
@@ -16,7 +22,18 @@ import {
 
 const service = (scope: MedusaContainer) =>
   scope.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
-const message = (message: string): ScheduleAnswer => ({ message, entries: [] });
+const message = (message: string): ScheduleAnswer => ({
+  presentation: "unavailable",
+  message,
+  entries: [],
+});
+const target = (event: ScheduleSnapshot): VerifiedEventTarget => ({
+  id: event.id,
+  title: event.title || "Untitled",
+  status: event.status,
+  revision: event.revision,
+  ...localSchedule(event),
+});
 /** Snapshot revisions come from the server, and must describe the SAME rows as the displayed read. */
 export async function attachEditContext(
   scope: MedusaContainer,
@@ -63,11 +80,14 @@ export async function resolveEditProposal(
   explicitSelection = false,
   lookup: (range: TimeInterval) => Promise<CalendarResult> = (range) =>
     readCalendar(scope, range),
+  rawPage?: PageHint,
 ): Promise<ScheduleAnswer> {
+  const page = rawPage ? pageHintSchema.parse(rawPage) : undefined;
   let intent = editIntentSchema.parse(rawIntent);
   let context = rawContext ? editContextSchema.parse(rawContext) : undefined;
   const unfinished = (text: string): ScheduleAnswer => ({
     ...message(text),
+    presentation: "clarification",
     editTask: {
       version: 1,
       intent,
@@ -75,6 +95,80 @@ export async function resolveEditProposal(
       expiresAt: now.getTime() + 300_000,
     },
   });
+  // A page resource is an untrusted hint. Validate it before considering chat
+  // targets; missing/deleted/inaccessible page data must never fall back to A.
+  if (
+    !explicitSelection &&
+    intent.target === "context" &&
+    page?.surface === "chef-events"
+  ) {
+    let opened: ScheduleSnapshot;
+    try {
+      opened = await service(scope).readScheduleEditEvent(page.resource.id);
+      if (
+        opened.id !== page.resource.id ||
+        localSchedule(opened).timezone !== zone
+      )
+        throw new Error();
+    } catch {
+      return message(
+        "The event open on this page could not be verified. Refresh the page before choosing a change.",
+      );
+    }
+    const recent =
+      context &&
+      now.getTime() - context.observedAt <= 300_000 &&
+      context.observedAt <= now.getTime() + 5000;
+    // A past selectedId is not a new explicit choice. Count every fresh candidate.
+    const competing = recent
+      ? context!.candidates.filter((c) => c.id !== opened.id)
+      : [];
+    if (competing.length) {
+      if (competing.length >= MAX_EDIT_CANDIDATES)
+        return message("Select the event from a narrower schedule first.");
+      const verified: VerifiedEventTarget[] = [target(opened)];
+      try {
+        for (const candidate of competing) {
+          const current = await service(scope).readScheduleEditEvent(
+            candidate.id,
+          );
+          if (
+            current.id !== candidate.id ||
+            current.revision !== candidate.revision
+          )
+            throw new Error();
+          verified.push(target(current));
+        }
+      } catch {
+        return message(
+          "The discussed event changed or is unavailable. Refresh the schedule before choosing.",
+        );
+      }
+      context = {
+        candidates: verified.map((t) => ({ id: t.id, revision: t.revision })),
+        observedAt: now.getTime(),
+      };
+      return {
+        ...unfinished(
+          "The event open on this page, or the event we just discussed?",
+        ),
+        editClarification: { intent, context, targets: verified },
+      };
+    }
+    if (
+      recent &&
+      context!.candidates.some(
+        (c) => c.id === opened.id && c.revision !== opened.revision,
+      )
+    )
+      return message(
+        "This event changed. Refresh and review its current date/time.",
+      );
+    context = {
+      candidates: [{ id: opened.id, revision: opened.revision }],
+      observedAt: now.getTime(),
+    };
+  }
   if (intent.clarification === "time")
     return unfinished("What arrival time? Include AM/PM.");
   if (intent.clarification === "date")
@@ -206,11 +300,23 @@ export async function resolveEditProposal(
       ? context.selectedId ||
         (context.candidates.length === 1 ? context.candidates[0].id : undefined)
       : undefined;
-  if (!id)
+  if (!id) {
+    const targets: VerifiedEventTarget[] = [];
+    try {
+      for (const candidate of context.candidates) {
+        const event = await service(scope).readScheduleEditEvent(candidate.id);
+        if (event.id !== candidate.id || event.revision !== candidate.revision)
+          throw new Error();
+        targets.push(target(event));
+      }
+    } catch {
+      return message("The schedule changed. Refresh before choosing an event.");
+    }
     return {
       ...unfinished("Which event? Choose below."),
-      editClarification: { intent, context },
+      editClarification: { intent, context, targets },
     };
+  }
   const candidate = context.candidates.find((c) => c.id === id)!;
   let current;
   try {
@@ -251,6 +357,7 @@ export async function resolveEditProposal(
   }
   return {
     ...message("Review this change before confirming."),
+    presentation: "proposal",
     editProposal: {
       eventId: id,
       expectedRevision: current.revision,

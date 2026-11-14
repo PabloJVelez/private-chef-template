@@ -1,3 +1,4 @@
+import type { SousChefRouteDescriptor } from "../../../../lib/chef-ai/page-context";
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Container, Heading, Button, toast } from "@medusajs/ui"
 import { useAdminDuplicateMenuMutation, useAdminRetrieveMenu, useAdminUpdateMenuMutation } from "../../../hooks/menus"
@@ -115,6 +116,7 @@ const MenuDetailBreadcrumb = (props: UIMatch<unknown>) => {
 }
 
 export const handle = {
+  sousChef: { surface: "menus", view: "detail", resource: { kind: "menu", idParam: "id" } } satisfies SousChefRouteDescriptor,
   breadcrumb: (match: UIMatch<unknown>) => <MenuDetailBreadcrumb {...match} />,
 }
 

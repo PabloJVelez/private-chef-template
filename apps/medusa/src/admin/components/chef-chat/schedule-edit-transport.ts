@@ -15,17 +15,28 @@ const local = z.object({
   }),
   instant,
 });
-const previewSchema = z.object({
-  reference: z.string().min(1).max(4096),
-  operationId: z.string().uuid(),
-  eventId: id,
-  expectedRevision: z.string().regex(/^[a-f0-9]{32}$/),
-  expiresAt: instant,
-  current: local,
-  proposed: local,
-  reserved: z.literal(false),
-  googleAvailability: z.literal("advisory"),
-});
+const previewSchema = z
+  .object({
+    target: z.object({
+      id,
+      title: z.string().min(1).max(160),
+      status: z.literal("pending"),
+      revision: z.string().regex(/^[a-f0-9]{32}$/),
+    }),
+    reference: z.string().min(1).max(4096),
+    operationId: z.string().uuid(),
+    eventId: id,
+    expectedRevision: z.string().regex(/^[a-f0-9]{32}$/),
+    expiresAt: instant,
+    current: local,
+    proposed: local,
+    reserved: z.literal(false),
+    googleAvailability: z.literal("advisory"),
+  })
+  .refine(
+    (p) =>
+      p.target.id === p.eventId && p.target.revision === p.expectedRevision,
+  );
 const receiptSchema = z
   .object({
     outcome: local.extend({

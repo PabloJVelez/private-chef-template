@@ -13,6 +13,7 @@ export type ScheduleEditInput = {
   expiresAt: number;
 };
 export type ScheduleSnapshot = {
+  title?: string;
   id: string;
   status: string;
   revision: string;
@@ -44,6 +45,7 @@ export async function scheduleSnapshot(manager: EntityManager, id: string): Prom
   const [row] = await manager.execute(
     `select e.id, e.status, ${revision} as revision, e."requestedDate", e."requestedTime",
     e."timeZone", e.experience_type_id,
+    left(coalesce(nullif(trim(concat_ws(' ', e."firstName", e."lastName")), ''), 'Untitled'), 160) as title,
     (e.status = 'pending' and e."acceptanceToken" is null and e."productId" is null
       and e."occupiedStart" is null and e."occupiedEnd" is null and e."availabilitySnapshot" is null
       and not exists (select 1 from scheduling_reservation r where r.owner_id = e.id

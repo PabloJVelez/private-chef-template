@@ -185,6 +185,12 @@ it("validates preview event identity and saved IANA zone", async () => {
     operationId,
     eventId: "event",
     expectedRevision: "a".repeat(32),
+    target: {
+      id: "event",
+      title: "Fixture event",
+      status: "pending",
+      revision: "a".repeat(32),
+    },
     expiresAt: "2030-03-01T00:05:00.000Z",
     current: local,
     proposed: local,

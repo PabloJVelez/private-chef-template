@@ -1,5 +1,7 @@
 # BTS-21 pending-event date/time UI
 
+Latest follow-up: [generic page awareness, conflict resolution, grounded replies and video evidence](page-awareness.md). This supersedes card-by-default presentation; prior verification below remains historical context.
+
 This increment adds one explicit action to the existing nonmodal Sous Chef chat: a pending Private Event can be previewed and then confirmed for a date and/or local arrival-time change. One bounded model call may select a schedule read or propose a pending-event date/time edit; it cannot confirm or write. Opening the chat, sending a question, clicking a suggestion, opening the edit form, and conversational “yes” never mutate an event.
 
 Stack: `main` ← [#36](https://github.com/PabloJVelez/private-chef-template/pull/36) ← [#37](https://github.com/PabloJVelez/private-chef-template/pull/37) ← this increment. Verified clean managed branch `feat/sous-chef-pending-time-edit-ui-v1` started at remote backend head `10e2276972ff2fe5bf45c2bd5196d18e047902b0`. The parent stayed at that head during implementation. Review only; no merge, deployment, production flag, production data, or secret changes.
