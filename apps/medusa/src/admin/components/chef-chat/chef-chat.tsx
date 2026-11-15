@@ -1,4 +1,5 @@
 import "./chef-chat.css";
+import { formatProposedEdit } from "../../../lib/chef-ai/edit-intent-presentation";
 import {
   Badge,
   Button,
@@ -1020,16 +1021,21 @@ export function ChefChat({
                   aria-label="Active schedule task"
                   className="border-ui-border-base bg-ui-bg-subtle rounded-lg border p-3 space-y-2"
                 >
-                  {editState.task && (
+                  {(editState.task || choice?.current()) && (
                     <div
                       className="flex items-center justify-between gap-2 text-xs"
                       aria-label="Unfinished schedule change"
                     >
                       <span>
-                        {editState.task.intent.time
-                          ? `Proposed arrival ${editState.task.intent.time}`
-                          : "Date/time change"}{" "}
-                        · awaiting details
+                        {formatProposedEdit(
+                          choice?.current()
+                            ? choice.intent
+                            : editState.task!.intent,
+                        )}
+                        {" · "}
+                        {choice?.current()
+                          ? "Choose an event"
+                          : "Awaiting details"}
                       </span>
                       <Button
                         type="button"

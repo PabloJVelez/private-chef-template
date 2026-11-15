@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "fixture": true,
+  "liveModel": false,
+  "previewRequests": 4,
+  "confirmRequests": 0,
+  "recoverRequests": 0,
+  "browserErrors": [],
+  "unmockedRoutes": []
+}

@@ -1270,3 +1270,162 @@ it("HTTP greeting/help and page B summary remain authenticated, limited, provide
   await post({ message: "hello" });
   expect((await post({ message: "hello" })).status).toBe(429);
 });
+
+it.each([false, true])(
+  "day29 survives page B/chat A exact selection over HTTP; Sunday explicitly open=%s",
+  async (open) => {
+    const f = await conversationalFixture("day29-" + open);
+    await chef.updateChefEvents({
+      id: "event",
+      firstName: "QA",
+      lastName: "ScheduleEdit",
+      requestedDate: new Date("2026-11-30T20:00:00Z"),
+      requestedTime: "14:00",
+      timeZone: "America/Chicago",
+    });
+    await chef.updateChefEvents({
+      id: "unselected",
+      firstName: "QA",
+      lastName: "RejectionK",
+      requestedDate: new Date("2026-11-27T16:00:00Z"),
+      requestedTime: "10:00",
+      timeZone: "America/Chicago",
+    });
+    await fixture.container
+      .resolve<any>("availability")
+      .updateAvailabilitySettings({
+        id: "chef-default",
+        timezone: "America/Chicago",
+        weekly: Object.fromEntries(
+          [1, 2, 3, 4, 5, 6, 7].map((day) => [
+            day,
+            day === 7 && !open ? [] : [{ start: "00:00", end: "23:59" }],
+          ]),
+        ),
+      });
+    const before = await row();
+    modelCall.mockResolvedValueOnce(
+      modelTool("get_schedule", {
+        period: "dates",
+        startDate: "2026-11-30",
+        endDate: "2026-12-01",
+        timeZone: "America/Chicago",
+      }),
+    );
+    const discussed = await f.sdk.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
+      method: "POST",
+      body: { message: "What pending event do I have on November 30?" },
+    });
+    expect(discussed.entries[0].requestedTime?.start).toBe(
+      "2026-11-30T20:00:00.000Z",
+    );
+    const page = {
+      version: 1,
+      surface: "chef-events",
+      view: "detail",
+      resource: { kind: "private-event", id: "unselected" },
+    };
+    const typed = {
+      target: "context",
+      targetDate: null,
+      date: { kind: "day_of_month", day: 29 },
+      time: null,
+      continuation: false,
+      clarification: "none",
+    };
+    modelCall.mockResolvedValueOnce(
+      modelTool("propose_pending_event_date_time_edit", typed),
+    );
+    const answer = await f.sdk.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
+      method: "POST",
+      body: {
+        message: "Can you move it to the 29th?",
+        context: discussed.editContext,
+        page,
+      },
+    });
+    expect(answer.editTask?.intent).toEqual(typed);
+    expect(answer.editClarification?.intent).toEqual(typed);
+    expect(answer.editProposal).toBeUndefined();
+    const responses: Array<{ status: number; body: any }> = [];
+    const transport = createScheduleTransport({
+      backendUrl: f.backendUrl,
+      authType: "jwt",
+      getToken: () => f.sdk.getToken(),
+      fetch: async (...args) => {
+        const result = await fetch(...args);
+        responses.push({
+          status: result.status,
+          body: await result.clone().json(),
+        });
+        return result;
+      },
+    });
+    const previewCalls = jest.spyOn(transport, "preview"),
+      attempts = jest.spyOn(transport, "attempt");
+    const state = new ScheduleEditState(() => ({}) as Storage);
+    state.bind(f.actor, transport);
+    expect(previewCalls).not.toHaveBeenCalled();
+    expect(attempts).not.toHaveBeenCalled();
+    const selected = await f.sdk.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
+      method: "POST",
+      body: {
+        page,
+        selection: {
+          intent: answer.editClarification!.intent,
+          context: {
+            ...answer.editClarification!.context,
+            selectedId: "event",
+          },
+        },
+      },
+    });
+    expect(selected.editProposal).toMatchObject({
+      eventId: "event",
+      date: "2026-11-29",
+    });
+    expect(selected.editProposal!.time).toBeUndefined();
+    await state.propose(selected.editProposal!, state.beginProposal().current);
+    expect(previewCalls.mock.calls[0][0]).toEqual({
+      eventId: "event",
+      date: "2026-11-29",
+    });
+    expect(state.snapshot().selection?.date).toBe("2026-11-29");
+    if (!open) {
+      expect(responses[0]).toMatchObject({
+        status: 422,
+        body: {
+          code: "slot_unavailable",
+          proposal: {
+            eventId: "event",
+            date: "2026-11-29",
+            time: "14:00",
+            title: "QA ScheduleEdit",
+          },
+        },
+      });
+      expect(responses[0].body.reference).toBeUndefined();
+      expect(responses[0].body.operationId).toBeUndefined();
+      expect(state.snapshot().selection?.preview).toBeUndefined();
+    } else {
+      expect(responses[0].status).toBe(200);
+      const prepared = state.snapshot().selection!.preview!;
+      expect(prepared.current.time).toBe("14:00");
+      expect(prepared.proposed.time).toBe("14:00");
+      expect(prepared.target.id).toBe("event");
+      expect(
+        verifyReference(prepared.reference, f.actor, secret),
+      ).toMatchObject({ eventId: "event", date: "2026-11-29", time: "14:00" });
+    }
+    expect(attempts).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+    expect(await row()).toEqual(before);
+    expect(
+      (await db.query("select * from chef_event_schedule_edit")).rows,
+    ).toHaveLength(0);
+    expect(modelCall.mock.calls.at(-1)[0].messages.slice(1)).toEqual([
+      { role: "user", content: "Can you move it to the 29th?" },
+    ]);
+    state.clearIdentity();
+  },
+);

@@ -304,3 +304,35 @@ it("single date lookup resolves target ambiguity even when the model cannot know
     (await resolve({ ...target, clarification: "target" })).editProposal?.time,
   ).toBe("14:00");
 });
+
+it.each(["date", "time"] as const)(
+  "explicit %s clarification clears only that proposed field during continuation",
+  async (field) => {
+    const task: EditTask = {
+      version: 1,
+      intent: { ...base, date: { kind: "day_of_month", day: 29 } },
+      expiresAt: now.getTime() + 300000,
+    };
+    const propose = jest
+      .fn()
+      .mockResolvedValue({ entries: [], message: "clarification" });
+    await answerSchedule(
+      { message: field === "date" ? "which date did I mean?" : "at 7", task },
+      zone,
+      call({
+        ...base,
+        date: null,
+        time: null,
+        clarification: field,
+        continuation: true,
+      }),
+      jest.fn(),
+      now,
+      propose,
+    );
+    expect(propose.mock.calls[0][0]).toMatchObject({
+      date: field === "date" ? null : task.intent.date,
+      time: field === "time" ? null : task.intent.time,
+    });
+  },
+);

@@ -1,6 +1,8 @@
 # BTS-21 pending-event date/time UI
 
-Latest follow-up: [automatic draft checks, typed refusals, greeting/help, page summaries and video evidence](automatic-preview.md). [Page awareness and prior video evidence](page-awareness.md) remain in place; older verification below is historical context.
+Latest diagnostic: [proposed-date visibility, controlled boundary tests, local tracing and video](intent-choice-diagnostic.md). The historical live-model extraction/loss remains unproven; live acceptance is still required.
+
+Prior follow-up: [automatic draft checks, typed refusals, greeting/help, page summaries and video evidence](automatic-preview.md). [Page awareness and prior video evidence](page-awareness.md) remain in place; older verification below is historical context.
 
 This increment adds one explicit action to the existing nonmodal Sous Chef chat: a pending Private Event can be previewed and then confirmed for a date and/or local arrival-time change. One bounded model call may select a schedule read or propose a pending-event date/time edit; it cannot confirm or write. Opening the chat, sending a question, clicking a suggestion, opening the edit form, and conversational “yes” never mutate an event.
 
