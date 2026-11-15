@@ -1,5 +1,7 @@
 # Time-only classifier diagnostics — no parsing fix or paid run
 
+Historical run #13 evidence. For the subsequent prompt-only experiment and correctly isolated future Phase B modes, see [time-fragment-experiment.md](time-fragment-experiment.md). Do not reuse exploratory Phase A as candidate acceptance.
+
 This patch changes only local diagnostic scripts, offline tests and documentation. Application/provider source, prompts, tool schemas, selected model, scheduling policies, preview/confirm/recovery and production settings remain unchanged from `20b33b5ec200b2b6de4886438156631d9b397033`. Existing PR #38 videos remain valid historical UI evidence; no new UI/video is needed.
 
 The owner reports candidate **47/50 exact**, below the preregistered **≥48/50** gate. Three time-only misses were labeled `invalid_contract` by the old harness. That label cannot reveal which boundary failed. This patch **does not identify their historical cause, repair time parsing, or pass the release gate**. The owner's live evidence is separate from the entirely offline checks performed here.

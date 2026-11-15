@@ -12,6 +12,7 @@ import {
   ChefChat,
   ChefChatSession,
 } from "../../admin/components/chef-chat/chef-chat";
+import { ScheduleTransportError } from "../../admin/components/chef-chat/schedule-edit-transport";
 import { scheduleEdits } from "../../admin/components/chef-chat/schedule-edit-state";
 import {
   answerSchedule,
@@ -390,7 +391,7 @@ it("different candidate months stay ordinal until the chosen event is re-fetched
   );
 });
 it("later time-only continuation keeps day29 through choice without sending history to classifier", async () => {
-  await fixture(async ({ select, preview }: any) => {
+  await fixture(async ({ select, preview, attempt }: any) => {
     await ask("Can you move it to the 29th?");
     select.mockResolvedValueOnce({
       calls: [
@@ -405,14 +406,16 @@ it("later time-only continuation keeps day29 through choice without sending hist
         },
       ],
     });
-    await ask("at 5 PM");
-    expect(select.mock.calls.at(-1)[0]).toEqual({ message: "at 5 PM" });
+    await ask("At 5 PM.");
+    expect(select.mock.calls.at(-1)[0]).toEqual({ message: "At 5 PM." });
+    expect(preview).not.toHaveBeenCalled();
     await click("Choose QA ScheduleEdit (A)");
     expect(preview.mock.calls[0][0]).toEqual({
       eventId: "A",
       date: "2026-11-29",
       time: "17:00",
     });
+    expect(attempt).not.toHaveBeenCalled();
   });
 });
 
@@ -515,7 +518,12 @@ it("local correlation is opt-in and strips prompt/IDs/names/refs/URLs/raw except
   );
 });
 
-it.each(["failed continuation", "provider error"])(
+it.each([
+  "failed continuation",
+  "provider error",
+  "fragment no tool",
+  "fragment absent task",
+])(
   "new turn revokes ready B synchronously, including %s; explicit recheck is required",
   async (failure) => {
     await fixture(async ({ select, preview, attempt }: any) => {
@@ -536,7 +544,11 @@ it.each(["failed continuation", "provider error"])(
           reject = no;
         }),
       );
-      await ask("This is for the event on the 30th");
+      await ask(
+        failure.startsWith("fragment")
+          ? "At 5 PM."
+          : "This is for the event on the 30th",
+      );
       // The classifier has not completed. Neither the rendered nor direct path can write.
       expect(document.body.textContent).not.toContain("Confirm change");
       expect(scheduleEdits.snapshot().selection?.preview).toBeUndefined();
@@ -549,6 +561,7 @@ it.each(["failed continuation", "provider error"])(
       await act(async () => {
         if (failure === "provider error")
           reject(new Error("synthetic provider failure"));
+        else if (failure === "fragment no tool") resolve({ calls: [] });
         else
           resolve({
             calls: [
@@ -556,9 +569,14 @@ it.each(["failed continuation", "provider error"])(
                 name: "propose_pending_event_date_time_edit",
                 arguments: JSON.stringify({
                   ...correct,
-                  target: "date",
-                  targetDate: { kind: "day_of_month", day: 30 },
+                  target:
+                    failure === "fragment absent task" ? "context" : "date",
+                  targetDate:
+                    failure === "fragment absent task"
+                      ? null
+                      : { kind: "day_of_month", day: 30 },
                   date: null,
+                  time: failure === "fragment absent task" ? "17:00" : null,
                   continuation: true,
                 }),
               },
@@ -615,5 +633,111 @@ it.each([
       });
       expect(attempt).not.toHaveBeenCalled();
     }, output as EditIntent);
+  },
+);
+
+// Controlled classifier replays test application behavior, not live extraction accuracy.
+it("ambiguous fragment clears the old time through exact A choice, without preview or Confirm", async () => {
+  await fixture(
+    async ({ select, preview, attempt }: any) => {
+      await ask("Move it to the 29th at 2 PM");
+      expect(scheduleEdits.snapshot().task?.intent.time).toBe("14:00");
+      select.mockResolvedValueOnce({
+        calls: [
+          {
+            name: "propose_pending_event_date_time_edit",
+            arguments: JSON.stringify({
+              ...correct,
+              date: null,
+              time: null,
+              clarification: "time",
+              continuation: true,
+            }),
+          },
+        ],
+      });
+      await ask("at 7");
+      expect(scheduleEdits.snapshot().task?.intent.time).toBeNull();
+      expect(scheduleEdits.snapshot().task?.intent.date).toEqual(correct.date);
+      await click("Choose QA ScheduleEdit (A)");
+      expect(document.body.textContent).toContain("AM/PM");
+      expect(document.body.textContent).not.toContain("Confirm change");
+      expect(preview).not.toHaveBeenCalled();
+      expect(attempt).not.toHaveBeenCalled();
+    },
+    { ...correct, time: "14:00" },
+  );
+});
+
+it.each([false, true])(
+  "fresh exact B fragment uses read-only preview, including policy refusal=%s",
+  async (refused) => {
+    await fixture(async ({ select, preview, attempt }: any) => {
+      await act(async () => {
+        const ticket = scheduleEdits.beginProposal();
+        scheduleEdits.retainTask(
+          {
+            version: 1,
+            intent: { ...correct, time: "14:00" },
+            context: {
+              candidates: [{ id: "B", revision }],
+              selectedId: "B",
+              observedAt: Date.now(),
+            },
+            expiresAt: Date.now() + 60000,
+          },
+          ticket.current,
+        );
+      });
+      select.mockResolvedValueOnce({
+        calls: [
+          {
+            name: "propose_pending_event_date_time_edit",
+            arguments: JSON.stringify({
+              ...correct,
+              date: null,
+              time: "17:00",
+              continuation: true,
+            }),
+          },
+        ],
+      });
+      if (refused)
+        preview.mockRejectedValueOnce(
+          new ScheduleTransportError("policy", 422, "Unavailable", {
+            code: "slot_unavailable",
+            message: "Unavailable",
+            proposal: {
+              eventId: "B",
+              title: "QA RejectionK",
+              revision,
+              date: "2026-11-29",
+              time: "17:00",
+              timezone: zone,
+            },
+          }),
+        );
+      await ask("At 5 PM.");
+      expect(preview).toHaveBeenCalledTimes(1);
+      expect(preview.mock.calls[0][0]).toEqual({
+        eventId: "B",
+        date: "2026-11-29",
+        time: "17:00",
+      });
+      expect(scheduleEdits.snapshot().selection).toMatchObject({
+        eventId: "B",
+        date: "2026-11-29",
+        time: "17:00",
+      });
+      if (refused) {
+        expect(scheduleEdits.snapshot().selection?.preview).toBeUndefined();
+        expect(document.body.textContent).toContain("isn't available");
+        expect(document.body.textContent).not.toContain("Confirm change");
+      } else {
+        expect(document.body.textContent).toContain("Confirm change");
+        expect(scheduleEdits.snapshot().selection?.preview?.eventId).toBe("B");
+      }
+      expect(attempt).not.toHaveBeenCalled();
+    });
   },
 );

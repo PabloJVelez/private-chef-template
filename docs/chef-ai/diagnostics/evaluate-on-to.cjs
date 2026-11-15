@@ -27,103 +27,12 @@ async function main() {
     .trim();
   const zone = "America/Chicago",
     now = "2026-11-15T12:00:00.000Z";
-  const day = (day) => ({ kind: "day_of_month", day }),
-    iso = (value) => ({ kind: "iso", value });
-  const base = {
-    target: "context",
-    targetDate: null,
-    date: day(29),
-    time: null,
-    clarification: "none",
-    continuation: false,
-  };
-  const cases = [
-    ["move-to", "Can you move it to the 29th?", base, 10],
-    ["change-to", "Can you change the date to the 29th?", base, 10],
-    [
-      "on-to",
-      "Move the event on the 30th to the 29th.",
-      { ...base, target: "date", targetDate: day(30) },
-      3,
-    ],
-    [
-      "on-time",
-      "Change the time of the event on the 29th to 2 PM.",
-      {
-        ...base,
-        target: "date",
-        targetDate: day(29),
-        date: null,
-        time: "14:00",
-      },
-      3,
-    ],
-    [
-      "tomorrow",
-      "Move it to tomorrow.",
-      { ...base, date: { kind: "relative_day", offset: 1 } },
-      3,
-    ],
-    [
-      "explicit",
-      "Move the event on November 30 2026 to December 1 2026.",
-      {
-        ...base,
-        target: "date",
-        targetDate: iso("2026-11-30"),
-        date: iso("2026-12-01"),
-      },
-      3,
-    ],
-    [
-      "time",
-      "Change its arrival time to 5 PM.",
-      { ...base, date: null, time: "17:00" },
-      3,
-    ],
-    [
-      "target-fragment",
-      "This is for the event on the 30th.",
-      {
-        ...base,
-        target: "date",
-        targetDate: day(30),
-        date: null,
-        continuation: true,
-      },
-      3,
-    ],
-    [
-      "time-fragment",
-      "At 5 PM.",
-      { ...base, date: null, time: "17:00", continuation: true },
-      3,
-    ],
-    [
-      "month",
-      "Move it to December 1.",
-      { ...base, date: { kind: "month_day", month: 12, day: 1, year: null } },
-      3,
-    ],
-    [
-      "month-time",
-      "Change the event on November 30 to 2 PM.",
-      {
-        ...base,
-        target: "date",
-        targetDate: { kind: "month_day", month: 11, day: 30, year: null },
-        date: null,
-        time: "14:00",
-      },
-      3,
-    ],
-    [
-      "date-time",
-      "Move it to the 29th at 2 PM.",
-      { ...base, time: "14:00" },
-      3,
-    ],
-  ];
+  const { cases, day } = require("./on-to-corpus.cjs");
+  const {
+    sourceAt,
+    loadProvider,
+    PROMPT_BASELINE,
+  } = require("./provider-arms.cjs");
   const phaseFlag = process.argv.find((a) => a.startsWith("--phase="));
   const phase = phaseFlag ? phaseFlag.slice(8) : "ab";
   if (!["ab", "time-diagnostic"].includes(phase))
@@ -174,7 +83,7 @@ async function main() {
           "assistant-read.ts",
         ].map((file) =>
           createHash("sha256")
-            .update(fs.readFileSync(path.join(app, "src/lib/chef-ai", file)))
+            .update(sourceAt(PROMPT_BASELINE, file))
             .digest("hex"),
         ),
       }),
@@ -182,9 +91,11 @@ async function main() {
     .digest("hex");
   const plan = {
     baseline,
+    providerBaseline: PROMPT_BASELINE,
+    comparison: "legacy_tool_schema",
     head,
     phase,
-    candidateBaseline: phaseA ? candidateBaseline : head,
+    candidateBaseline: phaseA ? candidateBaseline : PROMPT_BASELINE,
     configHash,
     model: ["gpt-4.1-mini", "gpt-5.4-mini"].includes(effectiveModel)
       ? effectiveModel
@@ -245,6 +156,15 @@ async function main() {
       .trim()
   )
     throw new Error("Use a clean exact candidate commit for paired evaluation");
+  if (
+    paid &&
+    (process.argv.find((a) => a.startsWith("--candidate-sha="))?.slice(16) !==
+      head ||
+      cp
+        .execFileSync("git", ["branch", "--show-current"], { encoding: "utf8" })
+        .trim() !== "feat/sous-chef-pending-time-edit-ui-v1")
+  )
+    throw new Error("Exact checkout SHA and existing PR branch required");
   if (phaseA && paid)
     cp.execFileSync(
       "git",
@@ -265,26 +185,11 @@ async function main() {
     transpileOnly: true,
   });
   const editFile = path.join(app, "src/lib/chef-ai/edit-intent.ts");
-  const edit = req(editFile),
-    candidate = edit.editIntentTool;
-  const ts = req("typescript");
+  const edit = req(editFile);
   const source = cp.execFileSync(
     "git",
     ["show", baseline + ":apps/medusa/src/lib/chef-ai/edit-intent.ts"],
     { encoding: "utf8" },
-  );
-  const prior = new Module(editFile + ".baseline.cjs", module);
-  prior.filename = editFile + ".baseline.cjs";
-  prior.paths = Module._nodeModulePaths(path.dirname(editFile));
-  prior._compile(
-    ts.transpileModule(source, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-        esModuleInterop: true,
-      },
-    }).outputText,
-    prior.filename,
   );
   // Self-test never constructs the actual network client; it exercises baseline loading,
   // paired request budgets, strict parsing/guard and report scoring with controlled outputs.
@@ -346,21 +251,17 @@ async function main() {
         };
       return originalLoad.call(this, name, ...rest);
     };
-  const providerFile = path.join(app, "src/lib/chef-ai/provider.ts");
   const providers = {};
   try {
-    for (const [arm, tool] of [
-      ["baseline", prior.exports.editIntentTool],
-      ["candidate", candidate],
-    ]) {
-      // SWC exports are read-only getters: isolate each provider import's tool module.
-      // Restore the cache before importing application validation below.
-      require.cache[editFile].exports = { ...edit, editIntentTool: tool };
-      delete require.cache[providerFile];
-      providers[arm] = req(providerFile).selectSchedule;
-    }
+    const Client = req("openai");
+    const pinnedProvider = sourceAt(PROMPT_BASELINE, "provider.ts");
+    providers.baseline = loadProvider(pinnedProvider, source, Client);
+    providers.candidate = loadProvider(
+      pinnedProvider,
+      sourceAt(PROMPT_BASELINE, "edit-intent.ts"),
+      Client,
+    );
   } finally {
-    require.cache[editFile].exports = edit;
     Module._load = originalLoad;
   }
   const { answerSchedule } = req(path.join(app, "src/lib/chef-ai/chat.ts"));

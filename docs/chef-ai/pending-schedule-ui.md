@@ -1,6 +1,8 @@
 # BTS-21 pending-event date/time UI
 
-Latest diagnostics-only follow-up: [time-only failure taxonomy, honest app-check scoring and owner-controlled Phase A](diagnostics/time-only-observability.md). Runtime behavior is unchanged; the owner-reported 47/50 release gate remains failed. No paid calls were made or authorized by this patch.
+Latest follow-up: [bare-time fragment prompt experiment, isolated Phase B harness and future owner-controlled acceptance](diagnostics/time-fragment-experiment.md). Only the approved provider instruction changes at runtime. No paid calls ran; live acceptance remains pending and historical 47/50 remains failed.
+
+Prior diagnostics-only follow-up: [time-only failure taxonomy, honest app-check scoring and owner-controlled Phase A](diagnostics/time-only-observability.md). Runtime behavior is unchanged; the owner-reported 47/50 release gate remains failed. No paid calls were made or authorized by this patch.
 
 Prior follow-up: [new-turn confirmation safety, ON/TO semantics, evaluation and video](confirmation-and-date-semantics.md). Every new question now cancels any unused preview; explicitly recheck before confirming. Contradictory date semantics receive clarification and manual correction, never automatic remapping. Real-model accuracy evaluation is outstanding.
 

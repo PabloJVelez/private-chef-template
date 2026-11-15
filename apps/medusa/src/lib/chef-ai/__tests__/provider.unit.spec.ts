@@ -284,3 +284,39 @@ it("the actual provider exposes only the fixed strict tools and never sends cand
   expect(create).toHaveBeenCalledTimes(1);
   expect(result.calls).toHaveLength(1);
 });
+
+it("states the standalone fragment rule without forcing tools or sending task/page/history", async () => {
+  create.mockResolvedValue({
+    choices: [{ finish_reason: "stop", message: { tool_calls: [] } }],
+  });
+  await selectSchedule(
+    {
+      message: "At 5 PM.",
+      previousQuestions: ["PRIVATE_HISTORY"],
+      page: {
+        version: 1,
+        surface: "chef-events",
+        view: "detail",
+        resource: { kind: "private-event", id: "PRIVATE_PAGE" },
+      },
+    } as any,
+    "America/Chicago",
+    new Date("2026-11-15T12:00:00Z"),
+  );
+  const request = create.mock.calls[0][0];
+  expect(request.messages[0].content).toContain(
+    "A standalone time clarification fragment",
+  );
+  expect(request.messages[0].content).toContain(
+    "the application alone checks whether a fresh task exists",
+  );
+  expect(request.messages[0].content).toContain(
+    "standalone ambiguous time fragment",
+  );
+  expect(request.tool_choice).toBe("auto");
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(request.messages.slice(1)).toEqual([
+    { role: "user", content: "At 5 PM." },
+  ]);
+  expect(JSON.stringify(request)).not.toContain("PRIVATE_");
+});
