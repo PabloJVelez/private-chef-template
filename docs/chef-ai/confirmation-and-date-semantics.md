@@ -1,5 +1,7 @@
 # New-turn confirmation cancellation and ON/TO semantics
 
+Diagnostic follow-up: [time-only observability and separately approved phase budgets](diagnostics/time-only-observability.md). The owner subsequently measured 47/50 overall, below the gate. The procedures below are historical; use the latest diagnostic report contract and obtain separate spending approval before any live phase. No runtime parsing change is implied.
+
 Follow-up to the changes-requested review at `13410980bc70eccfed494fc49acb3d94794987c3`. Same branch and PR #38, stacked on unchanged PR #37. No new endpoint, migration, executor, provider round trip or permission system.
 
 ## Confirmation safety

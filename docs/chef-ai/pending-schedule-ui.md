@@ -1,6 +1,8 @@
 # BTS-21 pending-event date/time UI
 
-Latest follow-up: [new-turn confirmation safety, ON/TO semantics, evaluation and video](confirmation-and-date-semantics.md). Every new question now cancels any unused preview; explicitly recheck before confirming. Contradictory date semantics receive clarification and manual correction, never automatic remapping. Real-model accuracy evaluation is outstanding.
+Latest diagnostics-only follow-up: [time-only failure taxonomy, honest app-check scoring and owner-controlled Phase A](diagnostics/time-only-observability.md). Runtime behavior is unchanged; the owner-reported 47/50 release gate remains failed. No paid calls were made or authorized by this patch.
+
+Prior follow-up: [new-turn confirmation safety, ON/TO semantics, evaluation and video](confirmation-and-date-semantics.md). Every new question now cancels any unused preview; explicitly recheck before confirming. Contradictory date semantics receive clarification and manual correction, never automatic remapping. Real-model accuracy evaluation is outstanding.
 
 Prior diagnostic: [proposed-date visibility, controlled boundary tests, local tracing and video](intent-choice-diagnostic.md). The historical live-model extraction/loss remains unproven; live acceptance is still required.
 
