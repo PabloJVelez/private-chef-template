@@ -64,6 +64,8 @@ Harness verification here: dry-run plus `--self-test --out=/tmp/bts21-on-to-self
 
 ## Tests and commands
 
+Tested implementation/media commit: `383a8039647148a6d748340f09914b95b24e7633`. The following documentation-only commit records hosted verification. [Playable repository-hosted video](https://github.com/PabloJVelez/private-chef-template/raw/383a8039647148a6d748340f09914b95b24e7633/docs/chef-ai/pending-ui-evidence/sous-chef-confirm-safety.webm) requires private-repository access. Authenticated GitHub download returned HTTP 200 and byte-identical content (7,212,825 bytes); Chromium played and sought through the downloaded 128.24-second video. [Verification record](pending-ui-evidence/confirm-safety-hosted-verification.json). Final disposable PostgreSQL/Redis containers were removed after testing.
+
 Node 26.13.1 / Yarn 4.5.0. Full unit/component/transport suite: **43 suites / 551 tests passed**. Real schedule HTTP/PostgreSQL: **73 cases passed**. Persistent Redis/process suite: **5 passed**, including **all 9 generic-workflow denial scenarios**, concurrent signed confirmation and recovery beyond preview expiry. Related workspace/booking/scheduling/availability wrappers passed. Both applications' typechecks and production builds passed; `git diff --check` passed.
 
 Existing built-Admin browser checks passed: original UI **31 previews / 5 explicit mocked confirms / 2 explicit mocked recoveries**; page awareness **2 previews / 0 confirms**; greeting/help/summary/noon→manual5PM **10 previews / 0 confirms**. All zero errors/unmocked routes. Only explicit fixture buttons produced those older-suite mutations; the new video sends none.
