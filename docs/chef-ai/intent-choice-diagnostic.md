@@ -47,6 +47,8 @@ For live acceptance on **disposable local events only**: open B, ask “What pen
 
 ## Verification
 
+Tested implementation commit: `dd379477e1c1a9c2bb7b1fc22a676838ad4913eb`. The subsequent documentation-only commit records this SHA and hosted retrieval. [Playable GitHub video](https://github.com/PabloJVelez/private-chef-template/raw/dd379477e1c1a9c2bb7b1fc22a676838ad4913eb/docs/chef-ai/pending-ui-evidence/sous-chef-intent-choice.webm) requires access to this private repository. Authenticated GitHub retrieval returned HTTP 200 and byte-identical content; Chromium played and sought through that downloaded copy.
+
 Node 26.13.1 / Yarn 4.5.0. Full 42 unit/component/transport suites: **533 passed**. Real integration: **69 schedule HTTP/PostgreSQL cases**, **5 persistent Redis/process cases** including all **9 generic-workflow route denials**, related workspace/booking/scheduling suites and availability constraints passed (15 outer wrapper tests). Both Medusa/backend/Admin and storefront typechecks and production builds passed. No live paid model, Google/email dispatch, shared database access, deployment or flag enablement.
 
 Commands from repository root (ephemeral ports below are test fixtures, not application settings):
