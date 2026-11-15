@@ -51,16 +51,14 @@ beforeEach(() => {
   jest.useFakeTimers();
   sessionStorage.clear();
   state = new ScheduleEditState();
-  preview = jest
-    .fn()
-    .mockImplementation(async (input) => ({
-      ...p(),
-      proposed: {
-        ...p().proposed,
-        ...(input.date ? { date: input.date } : {}),
-        ...(input.time ? { time: input.time } : {}),
-      },
-    }));
+  preview = jest.fn().mockImplementation(async (input) => ({
+    ...p(),
+    proposed: {
+      ...p().proposed,
+      ...(input.date ? { date: input.date } : {}),
+      ...(input.time ? { time: input.time } : {}),
+    },
+  }));
   attempt = jest.fn().mockResolvedValue(receipt);
   transport = { backend: "https://backend.invalid", preview, attempt };
   onReceipt = jest.fn().mockResolvedValue(undefined);
@@ -618,3 +616,55 @@ it.each([
     expect(state.snapshot().selection?.preview).toBeUndefined();
   },
 );
+
+it("new turn cancels unused ready preview and debounce; only explicit recheck restores readiness", async () => {
+  await ready();
+  state.beginProposal();
+  expect(state.snapshot().selection).toMatchObject({
+    phase: "cancelled",
+    time: "11:00",
+  });
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  await state.confirm(onReceipt);
+  await state.preview();
+  jest.advanceTimersByTime(1000);
+  expect(preview).toHaveBeenCalledTimes(1);
+  expect(attempt).not.toHaveBeenCalled();
+  await state.preview(true);
+  expect(state.snapshot().selection?.preview).toBeDefined();
+  state.edit("time", "12:00");
+  state.beginProposal();
+  jest.advanceTimersByTime(1000);
+  expect(preview).toHaveBeenCalledTimes(2);
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+});
+it("new turn cannot resurrect a late preview and preserves an already dispatched exact attempt", async () => {
+  const late = deferred<SchedulePreview>();
+  preview.mockReturnValueOnce(late.promise);
+  state.select("event");
+  state.edit("time", "11:00");
+  const pending = state.preview();
+  state.beginProposal();
+  late.resolve(p());
+  await pending;
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  await state.preview(true);
+  const lost = deferred<any>();
+  attempt.mockReturnValueOnce(lost.promise);
+  const saving = state.confirm(onReceipt);
+  const stored = sessionStorage.getItem(sessionStorage.key(0)!);
+  state.beginProposal();
+  state.close();
+  expect(sessionStorage.getItem(sessionStorage.key(0)!)).toBe(stored);
+  expect(state.snapshot().attempts.event.reference).toBe(
+    "exact-original-reference",
+  );
+  lost.resolve({ outcome: "unknown", operationId, eventId: "event" });
+  await saving;
+  state.beginProposal();
+  await state.confirm(onReceipt);
+  expect(attempt).toHaveBeenCalledTimes(1);
+  expect(state.snapshot().attempts.event.reference).toBe(
+    "exact-original-reference",
+  );
+});

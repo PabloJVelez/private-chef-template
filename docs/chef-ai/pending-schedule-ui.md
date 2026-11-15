@@ -1,6 +1,8 @@
 # BTS-21 pending-event date/time UI
 
-Latest diagnostic: [proposed-date visibility, controlled boundary tests, local tracing and video](intent-choice-diagnostic.md). The historical live-model extraction/loss remains unproven; live acceptance is still required.
+Latest follow-up: [new-turn confirmation safety, ON/TO semantics, evaluation and video](confirmation-and-date-semantics.md). Every new question now cancels any unused preview; explicitly recheck before confirming. Contradictory date semantics receive clarification and manual correction, never automatic remapping. Real-model accuracy evaluation is outstanding.
+
+Prior diagnostic: [proposed-date visibility, controlled boundary tests, local tracing and video](intent-choice-diagnostic.md). The historical live-model extraction/loss remains unproven; live acceptance is still required.
 
 Prior follow-up: [automatic draft checks, typed refusals, greeting/help, page summaries and video evidence](automatic-preview.md). [Page awareness and prior video evidence](page-awareness.md) remain in place; older verification below is historical context.
 

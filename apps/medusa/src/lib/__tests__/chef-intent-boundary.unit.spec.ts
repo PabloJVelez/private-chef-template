@@ -216,6 +216,7 @@ async function fixture(
         ...current,
         date: input.date || current.date,
         time: input.time || current.time,
+        instant: `${input.date || current.date}T${Number((input.time || current.time).slice(0, 2)) + 6}:00:00.000Z`,
       },
       reserved: false as const,
       googleAvailability: "advisory" as const,
@@ -353,7 +354,7 @@ it.each(["A", "B"])(
     );
   },
 );
-it.each([missing, misplaced])(
+it.each([missing])(
   "schema-valid missing proposal %j is visible and cannot create a preview",
   async (output) => {
     await fixture(async ({ preview, attempt, trace }: any) => {
@@ -418,7 +419,6 @@ it("later time-only continuation keeps day29 through choice without sending hist
 it.each([
   [correct, "Proposed date: 29th"],
   [missing, "New date/time not captured"],
-  [misplaced, "New date/time not captured"],
 ] as const)(
   "active task honestly renders preserved versus absent proposed date",
   async (output, label) => {
@@ -514,3 +514,106 @@ it("local correlation is opt-in and strips prompt/IDs/names/refs/URLs/raw except
     "Unsupported boundary",
   );
 });
+
+it.each(["failed continuation", "provider error"])(
+  "new turn revokes ready B synchronously, including %s; explicit recheck is required",
+  async (failure) => {
+    await fixture(async ({ select, preview, attempt }: any) => {
+      await act(async () => {
+        await scheduleEdits.propose(
+          { eventId: "B", expectedRevision: revision, time: "14:00" },
+          scheduleEdits.beginProposal().current,
+        );
+      });
+      const oldConfirm = [...document.querySelectorAll("button")].find(
+        (b) => b.textContent === "Confirm change",
+      )!;
+      expect(oldConfirm).toBeDefined();
+      let resolve!: (value: any) => void, reject!: (error: Error) => void;
+      select.mockReturnValueOnce(
+        new Promise((yes, no) => {
+          resolve = yes;
+          reject = no;
+        }),
+      );
+      await ask("This is for the event on the 30th");
+      // The classifier has not completed. Neither the rendered nor direct path can write.
+      expect(document.body.textContent).not.toContain("Confirm change");
+      expect(scheduleEdits.snapshot().selection?.preview).toBeUndefined();
+      await act(async () => {
+        oldConfirm.click();
+        await scheduleEdits.confirm(jest.fn());
+        await scheduleEdits.confirm(jest.fn());
+      });
+      expect(attempt).not.toHaveBeenCalled();
+      await act(async () => {
+        if (failure === "provider error")
+          reject(new Error("synthetic provider failure"));
+        else
+          resolve({
+            calls: [
+              {
+                name: "propose_pending_event_date_time_edit",
+                arguments: JSON.stringify({
+                  ...correct,
+                  target: "date",
+                  targetDate: { kind: "day_of_month", day: 30 },
+                  date: null,
+                  continuation: true,
+                }),
+              },
+            ],
+          });
+      });
+      expect(document.body.textContent).not.toContain("Confirm change");
+      expect(scheduleEdits.snapshot().selection).toMatchObject({
+        eventId: "B",
+        time: "14:00",
+        phase: "cancelled",
+      });
+      expect(preview).toHaveBeenCalledTimes(1);
+      await scheduleEdits.preview(); // No implicit recheck of the cancelled draft.
+      expect(preview).toHaveBeenCalledTimes(1);
+      await click("Recheck availability");
+      expect(preview).toHaveBeenCalledTimes(2);
+      expect(document.body.textContent).toContain("Confirm change");
+      expect(attempt).not.toHaveBeenCalled();
+    });
+  },
+);
+
+it.each([
+  misplaced,
+  { ...correct, targetDate: { kind: "day_of_month", day: 29 } },
+  { ...misplaced, target: "clarify" },
+])(
+  "contradictory ON/TO output never resolves a target; exact manual correction works",
+  async (output) => {
+    await fixture(async ({ preview, attempt, snapshot }: any) => {
+      snapshot.mockClear();
+      await ask("Can you move it to the 29th?");
+      expect(document.body.textContent).toContain("date to move the event TO");
+      expect(document.body.textContent).toContain("find (ON)");
+      expect(
+        document.querySelector('[aria-label="Unfinished schedule change"]'),
+      ).toBeNull();
+      expect(document.querySelector("[data-proposal-candidate]")).toBeNull();
+      expect(preview).not.toHaveBeenCalled();
+      expect(attempt).not.toHaveBeenCalled();
+      expect(snapshot).not.toHaveBeenCalled();
+      // Deliberate exact A action from its prior grounded read; no model call or remapping.
+      await click("Change date/time");
+      expect(scheduleEdits.snapshot().selection?.eventId).toBe("A");
+      expect(preview).not.toHaveBeenCalled();
+      await act(async () => {
+        scheduleEdits.edit("date", "2026-11-29");
+        await scheduleEdits.preview();
+      });
+      expect(preview.mock.calls[0][0]).toEqual({
+        eventId: "A",
+        date: "2026-11-29",
+      });
+      expect(attempt).not.toHaveBeenCalled();
+    }, output as EditIntent);
+  },
+);

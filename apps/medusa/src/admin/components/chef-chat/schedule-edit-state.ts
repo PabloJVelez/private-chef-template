@@ -45,6 +45,7 @@ type Selection = {
     | "ready"
     | "refused"
     | "check_failed"
+    | "cancelled"
     | "expired";
   context?: EditContext;
   expectedRevision?: string;
@@ -257,20 +258,27 @@ export class ScheduleEditState {
       this.state.task && this.state.task.expiresAt > Date.now()
         ? this.state.task
         : refusedTask;
-    this.publish({ task: undefined });
     const epoch = this.generation,
       request = this.invalidatePreview();
-    if (this.state.selection)
-      this.publish({
-        selection: {
-          ...this.state.selection,
-          context: undefined,
-          busy: false,
-          phase: this.state.selection.busy
-            ? "editing"
-            : this.state.selection.phase,
-        },
-      });
+    this.publish({
+      task: undefined,
+      ...(selection
+        ? {
+            selection: {
+              ...selection,
+              context: undefined,
+              busy: false,
+              // Every new chat turn supersedes unused consent, even an info query.
+              // Keep the draft, but neither a late response nor a timer may re-arm it.
+              // Durable attempted references live separately in attempts/storage.
+              preview: undefined,
+              phase: "cancelled" as const,
+              message:
+                "Previous preview cancelled while checking your new request. Recheck this draft deliberately to continue.",
+            },
+          }
+        : {}),
+    });
     return {
       context,
       task,
@@ -379,7 +387,10 @@ export class ScheduleEditState {
       s.busy ||
       this.state.attempts[s.eventId] ||
       !validDraft(s) ||
-      (!recheck && ["ready", "refused", "check_failed"].includes(s.phase || ""))
+      (!recheck &&
+        ["ready", "refused", "check_failed", "cancelled"].includes(
+          s.phase || "",
+        ))
     )
       return;
     const epoch = this.generation,

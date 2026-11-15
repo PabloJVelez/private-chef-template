@@ -280,7 +280,7 @@ export function ScheduleEditPanel({
                   ? "Ready to confirm"
                   : "Enter a date or time to check availability.")}
           </p>
-          {["expired", "check_failed", "refused"].includes(
+          {["expired", "check_failed", "refused", "cancelled"].includes(
             selection.phase || "",
           ) && (
             <Button

@@ -1429,3 +1429,124 @@ it.each([false, true])(
     state.clearIdentity();
   },
 );
+
+it.each(["context-only", "both", "clarify"])(
+  "HTTP semantic contradiction %s clarifies without preview, reference, or workflow",
+  async (variant) => {
+    const f = await conversationalFixture("semantic-" + variant);
+    const intent = {
+      target: variant === "clarify" ? "clarify" : "context",
+      targetDate: { kind: "day_of_month", day: 29 },
+      date: variant === "both" ? { kind: "day_of_month", day: 29 } : null,
+      time: null,
+      continuation: false,
+      clarification: "none",
+    };
+    modelCall.mockResolvedValueOnce(
+      modelTool("propose_pending_event_date_time_edit", intent),
+    );
+    const before = await row();
+    const answer = await f.sdk.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
+      method: "POST",
+      body: {
+        message: "Can you move it to the 29th?",
+        context: f.answer.editContext,
+        page: {
+          version: 1,
+          surface: "chef-events",
+          view: "detail",
+          resource: { kind: "private-event", id: "unselected" },
+        },
+      },
+    });
+    expect(answer).toMatchObject({
+      presentation: "clarification",
+      entries: [],
+    });
+    expect(answer.message).toContain("TO");
+    expect(answer.message).toContain("ON");
+    expect(answer.editProposal).toBeUndefined();
+    expect(answer.editTask).toBeUndefined();
+    expect(answer.editClarification).toBeUndefined();
+    expect((answer as any).reference).toBeUndefined();
+    expect(await row()).toEqual(before);
+    expect(emit).not.toHaveBeenCalled();
+    expect(
+      (await db.query("select * from chef_event_schedule_edit")).rows,
+    ).toHaveLength(0);
+  },
+);
+it("HTTP failed retarget cannot dispatch prior unused B preview via shared state", async () => {
+  const f = await conversationalFixture("retarget-safety");
+  await chef.updateChefEvents({
+    id: "event",
+    firstName: "QA",
+    lastName: "ScheduleEdit",
+    requestedDate: new Date("2026-11-30T20:00:00Z"),
+    requestedTime: "14:00",
+    timeZone: "America/Chicago",
+  });
+  await chef.updateChefEvents({
+    id: "unselected",
+    firstName: "QA",
+    lastName: "RejectionK",
+    requestedDate: new Date("2026-11-27T16:00:00Z"),
+    requestedTime: "10:00",
+    timeZone: "America/Chicago",
+  });
+  await fixture.container
+    .resolve<any>("availability")
+    .updateAvailabilitySettings({
+      id: "chef-default",
+      timezone: "America/Chicago",
+    });
+  const transport = createScheduleTransport({
+    backendUrl: f.backendUrl,
+    authType: "jwt",
+    getToken: () => f.sdk.getToken(),
+  });
+  const attempts = jest.spyOn(transport, "attempt"),
+    previews = jest.spyOn(transport, "preview");
+  const state = new ScheduleEditState(() => ({}) as Storage);
+  state.bind(f.actor, transport);
+  state.select("unselected");
+  state.edit("time", "14:00");
+  await state.preview();
+  expect(state.snapshot().selection?.preview?.eventId).toBe("unselected");
+  const before = await row();
+  const ticket = state.beginProposal();
+  expect(state.snapshot().selection?.preview).toBeUndefined();
+  await state.confirm(jest.fn());
+  modelCall.mockResolvedValueOnce(
+    modelTool("propose_pending_event_date_time_edit", {
+      target: "date",
+      targetDate: { kind: "day_of_month", day: 30 },
+      date: null,
+      time: null,
+      continuation: true,
+      clarification: "none",
+    }),
+  );
+  const answer = await f.sdk.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
+    method: "POST",
+    body: {
+      message: "This is for the event on the 30th",
+      ...(ticket.task ? { task: ticket.task } : {}),
+    },
+  });
+  expect(answer.message).toContain("No unfinished change");
+  state.retainTask(answer.editTask, ticket.current);
+  await state.confirm(jest.fn());
+  await state.preview();
+  expect(attempts).not.toHaveBeenCalled();
+  expect(previews).toHaveBeenCalledTimes(1);
+  await state.preview(true);
+  expect(previews).toHaveBeenCalledTimes(2);
+  expect(state.snapshot().selection?.preview?.eventId).toBe("unselected");
+  expect(await row()).toEqual(before);
+  expect(emit).not.toHaveBeenCalled();
+  expect(
+    (await db.query("select * from chef_event_schedule_edit")).rows,
+  ).toHaveLength(0);
+  state.clearIdentity();
+});

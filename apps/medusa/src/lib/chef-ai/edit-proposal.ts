@@ -1,3 +1,4 @@
+import { clarifyEditMeaning } from "./edit-semantics";
 import {
   pageHintSchema,
   type PageHint,
@@ -84,6 +85,8 @@ export async function resolveEditProposal(
 ): Promise<ScheduleAnswer> {
   const page = rawPage ? pageHintSchema.parse(rawPage) : undefined;
   let intent = editIntentSchema.parse(rawIntent);
+  const ambiguous = clarifyEditMeaning(intent);
+  if (ambiguous) return ambiguous;
   let context = rawContext ? editContextSchema.parse(rawContext) : undefined;
   const unfinished = (text: string): ScheduleAnswer => ({
     ...message(text),

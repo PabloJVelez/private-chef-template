@@ -149,9 +149,22 @@ export function editIntentTool() {
         "Propose only a pending event date and/or local arrival time. Never executes an edit. No IDs or selection by names. Use context for anaphoric/selected event, date plus targetDate for event ON a date, clarify for other descriptions. targetDate identifies the event; date is the proposed NEW date (TO). Preserve date expression semantics; never decide availability or suggest an alternate date.",
       strict: true,
       parameters: object({
-        target: { type: "string", enum: ["context", "clarify", "date"] },
-        targetDate: dateSchema,
-        date: dateSchema,
+        target: {
+          type: "string",
+          enum: ["context", "clarify", "date"],
+          description:
+            "Which event: context for it/this event, date for an EXISTING ON date, clarify for other descriptions. For context or clarify, targetDate must be null. Never choose IDs.",
+        },
+        targetDate: {
+          ...dateSchema,
+          description:
+            "EXISTING ON date identifying WHICH event, only when target=date; otherwise null. Never the NEW desired date. 'event ON 30th move TO 29th': target=date, targetDate=day30, date=day29. 'event ON29 change time TO2PM': target=date, targetDate=day29, date=null, time=14:00. 'this is for event ON30': target=date, targetDate=day30, date=null, continuation=true (application requires a fresh task).",
+        },
+        date: {
+          ...dateSchema,
+          description:
+            "NEW TO date requested for the change; retain it even while the event identity is unresolved. Null only if no NEW date was specified or it is genuinely ambiguous. 'move it TO29th' and 'change date TO29th': target=context, targetDate=null, date=day_of_month29. 'move it TO tomorrow': target=context, targetDate=null, date=relative_day offset1. Never put a requested NEW date in targetDate; preserve omitted month/year.",
+        },
         continuation: {
           type: "boolean",
           description:

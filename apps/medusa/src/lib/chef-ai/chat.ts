@@ -1,3 +1,4 @@
+import { clarifyEditMeaning } from "./edit-semantics";
 import { assistantReadSchema, type AssistantRead } from "./assistant-read";
 import { validTimeZone } from "./schedule";
 import { pageHintSchema } from "./page-context";
@@ -66,6 +67,8 @@ export async function answerSchedule(
   if (!validTimeZone(timeZone)) throw new MissingBusinessTimezone();
   if (calls[0].name === "propose_pending_event_date_time_edit") {
     let intent = editIntentSchema.parse(JSON.parse(calls[0].arguments));
+    const ambiguous = clarifyEditMeaning(intent);
+    if (ambiguous) return ambiguous;
     let context = parsed.context;
     const continuing = intent.continuation === true;
     if (continuing) {
@@ -97,6 +100,8 @@ export async function answerSchedule(
       });
       context = parsed.context ?? task.context;
     }
+    const mergedAmbiguity = clarifyEditMeaning(intent);
+    if (mergedAmbiguity) return mergedAmbiguity;
     if (!propose) return { message: clarification, entries: [] };
     const answer = await propose(intent, context);
     if (

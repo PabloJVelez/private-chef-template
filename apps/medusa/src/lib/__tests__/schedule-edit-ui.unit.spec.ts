@@ -438,8 +438,15 @@ it("a chat access/config refusal preserves an unresolved schedule attempt", asyn
   });
 });
 it("a chat read already in flight remains visible but historical when a save completes", async () => {
-  await fixture(async ({ fetch }) => {
+  await fixture(async ({ fetch, attempt }) => {
     await ready();
+    let finishSave!: (v: unknown) => void;
+    attempt.mockReturnValueOnce(
+      new Promise((done) => {
+        finishSave = done;
+      }),
+    );
+    await click("Confirm change"); // Already dispatched before the new turn.
     let resolve!: (v: unknown) => void;
     fetch.mockImplementationOnce(
       () =>
@@ -456,7 +463,8 @@ it("a chat read already in flight remains visible but historical when a save com
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await click("Send");
-    await click("Confirm change");
+    expect(buttons("Confirm change")).toHaveLength(0);
+    await act(async () => finishSave(result));
     await act(async () => resolve(answer));
     const log = document.querySelector('[role="log"]')!;
     expect(log.textContent).toContain("concurrent question");
