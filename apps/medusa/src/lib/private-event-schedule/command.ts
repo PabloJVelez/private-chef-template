@@ -100,13 +100,10 @@ async function validatePolicy(
       "Choose an active catalog experience before editing this legacy request.",
       "experience_inactive",
     );
-  const reservations = await container
+  const hasActiveReservation = await container
     .resolve<SchedulingModuleService>(SCHEDULING_MODULE)
-    .listReservations(
-      { owner_id: event.id, state: ["held", "confirmed"] },
-      { take: 1 },
-    );
-  if (reservations.length)
+    .hasActiveReservationForOwner(event.id);
+  if (hasActiveReservation)
     refuse(
       "This request has protected Scheduling time. Reconcile it before editing; no reservation was released.",
     );

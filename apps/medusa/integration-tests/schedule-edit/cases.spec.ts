@@ -330,6 +330,53 @@ it('refuses unavailable slots and unexpected owned reservations without releasin
   await expect(preview()).rejects.toThrow();
   expect((await scheduling.retrieveReservation('owned')).state).toBe('held');
 });
+it.each(['held', 'confirmed', 'released', 'deleted', 'other-owner'])(
+  'Scheduling owns active-reservation policy for %s rows',
+  async (state) => {
+    const cmd = await input();
+    const owner = { id: 'owned', ownerId: state === 'other-owner' ? 'other' : 'event', attemptId: 'orphan' };
+    await scheduling.acquire({ ...owner, start: '2030-03-12T10:00Z', end: '2030-03-12T11:00Z' });
+    if (state === 'confirmed') await scheduling.confirm(owner);
+    if (state === 'released') await scheduling.release(owner);
+    if (state === 'deleted') await scheduling.softDeleteReservations('owned');
+    const active = state === 'held' || state === 'confirmed';
+    expect(await scheduling.hasActiveReservationForOwner('event')).toBe(active);
+    // The domain snapshot knows only Chef Event data, even for an orphan reservation.
+    expect((await chef.readScheduleEditEvent('event')).eligible).toBe(true);
+    const lookup = jest.spyOn(scheduling, 'hasActiveReservationForOwner');
+    if (active) await expect(preview()).rejects.toThrow('protected Scheduling time');
+    else await expect(preview()).resolves.toHaveProperty('reference');
+    expect(await confirmScheduleEdit(fixture.container, cmd)).toMatchObject({
+      outcome: { outcome: active ? 'rejected' : 'saved' },
+    });
+    expect(lookup).toHaveBeenCalledTimes(2);
+    expect(lookup).toHaveBeenCalledWith('event');
+    if (active) {
+      expect((await row()).requestedTime).toBe('10:00');
+      expect((await scheduling.retrieveReservation('owned')).state).toBe(state);
+      expect(emit).not.toHaveBeenCalled();
+    }
+  },
+);
+it('Scheduling read failure cannot authorize an edit or record a terminal rejection', async () => {
+  const cmd = await input();
+  const before = await row();
+  jest.spyOn(scheduling, 'hasActiveReservationForOwner').mockRejectedValue(new Error('read unavailable'));
+  await expect(preview()).rejects.toThrow('read unavailable');
+  await expect(confirmScheduleEdit(fixture.container, cmd)).rejects.toThrow('read unavailable');
+  expect(await row()).toEqual(before);
+  expect((await db.query('select * from chef_event_schedule_edit')).rows).toEqual([]);
+  expect(emit).not.toHaveBeenCalled();
+});
+it('acceptance starting after a successful edit observes the committed schedule', async () => {
+  const cmd = await input();
+  expect(await confirmScheduleEdit(fixture.container, cmd)).toMatchObject({ outcome: { outcome: 'saved' } });
+  const attempt = await chef.bindAcceptance({ eventId: 'event', actorId: 'admin', body: {} });
+  const event = await chef.retrieveChefEvent('event');
+  expect(event.acceptanceExecution).toBe(attempt.id);
+  expect(new Date(event.requestedDate).toISOString()).toBe(cmd.instant);
+  expect(event.requestedTime).toBe(cmd.time);
+});
 it('bindAcceptance before token/updated_at changes invalidates a preview; cleaned abort enables a fresh preview', async () => {
   const cmd = await input(),
     before = await row();
@@ -482,7 +529,7 @@ it('HTTP rejects changed actor, tampered reference, and extra fields', async () 
   expect((await request('confirm', { reference: p.reference, time: '12:00' })).code).toBe(400);
 });
 
-it.each(['claim', 'finalize', 'cancel'])(
+it.each(['bind', 'claim', 'reserve', 'finalize', 'cancel'])(
   'rechecks %s between availability validation and the atomic command',
   async (kind) => {
     const cmd = await input();
@@ -495,6 +542,7 @@ it.each(['claim', 'finalize', 'cancel'])(
           actorId: 'admin',
           body: {},
         });
+        if (kind === 'bind') return original(...args);
         const e = await chef.retrieveChefEvent('event');
         await chef.claimAcceptance({
           id: 'event',
@@ -504,6 +552,8 @@ it.each(['claim', 'finalize', 'cancel'])(
           end: '2030-03-09T16:00Z',
           snapshot: { duration_minutes: 60, timezone: e.timeZone },
         });
+        if (kind === 'reserve')
+          await scheduling.acquire({ id: a.id, ownerId: 'event', attemptId: a.id, start: '2030-03-09T15:00Z', end: '2030-03-09T16:00Z' });
         if (kind === 'finalize')
           await chef.finalizeAcceptance({
             id: 'event',

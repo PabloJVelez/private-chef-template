@@ -22,6 +22,15 @@ function interval(start: string, end: string) {
 
 /** Internal write owner. Private Events authorizes commands; no public mutation route. */
 class SchedulingModuleService extends MedusaService({ Reservation }) {
+  /** Consistency check, not a reservation or cross-module concurrency lock. */
+  async hasActiveReservationForOwner(ownerId: string): Promise<boolean> {
+    const reservations = await this.listReservations(
+      { owner_id: ownerId, state: ['held', 'confirmed'] },
+      { select: ['id'], take: 1 },
+    );
+    return reservations.length > 0;
+  }
+
   @InjectManager()
   async acquire(input: Acquire, @MedusaContext() context: Context<EntityManager> = {}) {
     return this.acquire_(input, context);
