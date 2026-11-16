@@ -1,0 +1,29 @@
+  console.info
+    (node:1152927) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    PASS integration-tests/workspace/read-cases.spec.ts (8.996 s)
+      Workspace reads through Medusa modules, PostgreSQL and authenticated HTTP
+        ✓ rejects anonymous and customer reads and validates bounds before access (86 ms)
+        ✓ includes crossing intervals, excludes touching ends, preserves display/appointment/protection distinctions (191 ms)
+        ✓ paginates tied timestamps beyond 1000 without gaps and returns the whole bounded calendar (619 ms)
+        ✓ reports oversized ranges as incomplete, never a silently truncated first page (1426 ms)
+        ✓ returns an empty complete range and propagates real database timeout failures (5061 ms)
+
+    Test Suites: 1 passed, 1 total
+    Tests:       5 passed, 5 total
+    Snapshots:   0 total
+    Time:        9.055 s
+    Ran all test suites within paths "/home/openclaw/.t3/worktrees/private-chef-template/feat-chef-admin-ai-schedule-chat-v1/apps/medusa/integration-tests/workspace/read-cases.spec.ts".
+    Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+      at Object.info (integration-tests/http/chef-workspace.spec.ts:18:11)
+
+PASS integration-tests/http/chef-workspace.spec.ts (9.741 s)
+  ✓ runs workspace reads and auth against real Medusa modules in an isolated process (9656 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        9.778 s
+Ran all test suites within paths "integration-tests/http/chef-workspace.spec.ts".
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

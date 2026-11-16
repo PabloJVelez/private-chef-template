@@ -1,0 +1,57 @@
+{
+  "starting_head": "12bd03f6fdc820ac93ceafa4a016d2cd9ab0cb0d",
+  "node": "26.13.1",
+  "yarn": "4.5.0",
+  "live_model_calls": false,
+  "diagnosis_limit": "Confirmed replay of historical user questions; no captured original live tool arguments, so causal anchoring and live resolution require owner retest.",
+  "checks": [
+    {
+      "command": "corepack yarn workspace medusa test:unit --runTestsByPath src/lib/chef-ai/__tests__/provider.unit.spec.ts",
+      "exit_code": 1,
+      "notes": "Before fix: three new isolation/privacy tests fail, three old tests pass"
+    },
+    {
+      "command": "corepack yarn workspace medusa test:unit",
+      "exit_code": 0,
+      "notes": "After fix: 30 suites / 266 tests; includes the real React dialog in jsdom"
+    },
+    {
+      "command": "corepack yarn workspace medusa typecheck",
+      "exit_code": 0,
+      "notes": "Passed"
+    },
+    {
+      "command": "corepack yarn workspace storefront typecheck",
+      "exit_code": 0,
+      "notes": "Passed"
+    },
+    {
+      "command": "corepack yarn workspace medusa build",
+      "exit_code": 0,
+      "notes": "Backend and production Admin; build lint reports 0 errors / 170 warnings"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "notes": "Passed"
+    },
+    {
+      "command": "git diff 12bd03f -- apps/medusa/src/lib/chef-workspace apps/medusa/src/lib/chef-ai/schedule.ts apps/medusa/src/lib/chef-ai/access.ts apps/medusa/src/api/admin/chef-ai/chat/route.ts apps/medusa/src/api/middlewares.ts yarn.lock",
+      "exit_code": 0,
+      "notes": "Empty diff: reader, resolver, auth/rate controls, endpoint, middleware and dependencies unchanged"
+    }
+  ],
+  "tested_source_sha256": {
+    "apps/medusa/src/lib/chef-ai/provider.ts": "8fd1b66585b1be6c7e06befd46352aeeff618a4b21efdbebf51e5c1d8df79f0e",
+    "apps/medusa/src/lib/chef-ai/chat.ts": "560f93de1202f276272f4824201d0fb40bd3d13cc8c93a17c6e0570f88886503",
+    "apps/medusa/src/lib/chef-ai/contracts.ts": "4836b4ff359879ff93a3df4169dc9f235126b9ad4f3215984a71c8cb6613a363",
+    "apps/medusa/src/admin/components/chef-chat/chef-chat.tsx": "a59834dc7089872daaeb033549c07cad6c2a329703abb695142d2c9c983f749d",
+    "apps/medusa/src/lib/chef-ai/__tests__/provider.unit.spec.ts": "7f3e48cf250a96de55ce9f80f601d317216c62d40dda917ccf4a60163bc72d4f",
+    "apps/medusa/src/lib/__tests__/chef-chat-ui.unit.spec.ts": "a965b083f1de794dda62f6c32afc6d8290754ae24f91ac66306520cb00205e18"
+  },
+  "evidence_sha256": {
+    "build.log": "967fae0a65d29c84768da7c505aef2017c7a0e49dc1485aefd5e02bd4c091a48",
+    "regression-before.log": "db8e52288e08cc9123101a129e805b625df18d73a24814185e1fc1ebf3de568f",
+    "unit.log": "d420bff741f57ad4748c0c05ec4d831516a7dd76656ad54a2c7a2e18d82d3dd2"
+  }
+}

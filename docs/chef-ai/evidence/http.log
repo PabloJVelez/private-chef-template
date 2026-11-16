@@ -1,0 +1,1 @@
+PASS real Medusa auth: anonymous/customer/API-key denied; unauthorized Admin denied; valid user allowed; strict body schema; malformed JSON privacy; 12kb cap; no-store; minimal fields.
