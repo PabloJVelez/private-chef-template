@@ -381,7 +381,7 @@ const server = http.createServer((req, res) => {
     await button("Send").click();
     await dialog
       .getByRole("status")
-      .filter({ hasText: "Checking your request…" })
+      .filter({ hasText: "Sous Chef is typing" })
       .waitFor({ state: "hidden" });
     await pause();
   }

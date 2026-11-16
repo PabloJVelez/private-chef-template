@@ -248,7 +248,7 @@ it.each(promptQuestions)(
       );
       expect(button("Send").disabled).toBe(true);
       expect(document.querySelector('[role="status"]')!.textContent).toContain(
-        "Checking",
+        "Sous Chef is typing",
       );
       expect(document.activeElement).toBe(document.querySelector("textarea"));
       await act(async () => resolve(emptyAnswer));
@@ -412,4 +412,95 @@ it("keeps Shift+Enter and composition as input, sends on Enter, and permits retr
       }),
     );
   });
+});
+
+it.each(["greeting", "help"])(
+  "paces an instant %s reply and shows accessible typing dots",
+  async (replyKind) => {
+    jest.useFakeTimers();
+    const fetch = jest
+      .fn()
+      .mockResolvedValue({ replyKind, message: "A brief reply", entries: [] });
+    try {
+      await withChat(fetch, async () => {
+        await draft(
+          replyKind === "greeting" ? "Hello" : "What can you help me with?",
+        );
+        await act(async () => button("Send").click());
+        expect(
+          document.querySelectorAll(".chef-chat-typing > span"),
+        ).toHaveLength(3);
+        expect(
+          document.querySelector('[role="status"]')?.getAttribute("aria-label"),
+        ).toBe("Sous Chef is typing");
+        expect(document.body.textContent).not.toContain("A brief reply");
+        await act(async () => jest.advanceTimersByTime(799));
+        expect(document.body.textContent).not.toContain("A brief reply");
+        await act(async () => jest.advanceTimersByTime(1));
+        expect(document.body.textContent).toContain("A brief reply");
+        expect(document.querySelector(".chef-chat-typing")).toBeNull();
+        expect(fetch).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  },
+);
+
+it("does not add a delay to an already slow conversational reply", async () => {
+  jest.useFakeTimers();
+  let resolve!: (value: unknown) => void;
+  const fetch = jest.fn(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  try {
+    await withChat(fetch, async () => {
+      await draft("Hello");
+      await act(async () => button("Send").click());
+      await act(async () => jest.advanceTimersByTime(1000));
+      await act(async () =>
+        resolve({
+          replyKind: "greeting",
+          message: "Slow greeting",
+          entries: [],
+        }),
+      );
+      expect(document.body.textContent).toContain("Slow greeting");
+      expect(document.querySelector(".chef-chat-typing")).toBeNull();
+    });
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it("cancels the reply pause when chat unmounts", async () => {
+  jest.useFakeTimers();
+  const timers = jest.spyOn(globalThis, "setTimeout");
+  const cleared = jest.spyOn(globalThis, "clearTimeout");
+  const fetch = jest
+    .fn()
+    .mockResolvedValue({
+      replyKind: "greeting",
+      message: "Cancelled greeting",
+      entries: [],
+    });
+  try {
+    await withChat(fetch, async () => {
+      await draft("Hello");
+      await act(async () => button("Send").click());
+      expect(document.body.textContent).not.toContain("Cancelled greeting");
+    });
+    const pause = timers.mock.calls.findIndex(([, delay]) => delay === 800);
+    expect(pause).toBeGreaterThanOrEqual(0);
+    expect(cleared).toHaveBeenCalledWith(timers.mock.results[pause].value);
+    await act(async () => jest.advanceTimersByTime(800));
+    expect(document.body.textContent).not.toContain("Cancelled greeting");
+  } finally {
+    timers.mockRestore();
+    cleared.mockRestore();
+    jest.useRealTimers();
+  }
 });

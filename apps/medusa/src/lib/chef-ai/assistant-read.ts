@@ -62,7 +62,11 @@ export function basicReadIntent(message: string): AssistantRead | undefined {
     return "page_event";
   return undefined;
 }
-const answer = (message: string): ScheduleAnswer => ({
+const answer = (
+  message: string,
+  replyKind?: ScheduleAnswer["replyKind"],
+): ScheduleAnswer => ({
+  ...(replyKind ? { replyKind } : {}),
   presentation: "answer",
   message,
   entries: [],
@@ -73,10 +77,12 @@ export async function assistantRead(
   input: Pick<ChatInput, "page" | "context">,
   explicitId?: string,
 ): Promise<ScheduleAnswer> {
-  if (kind === "greeting") return answer("Hey Chef! What can I help you with?");
+  if (kind === "greeting")
+    return answer("Hey Chef! What can I help you with?", "greeting");
   if (kind === "help")
     return answer(
       "I can show your schedule, explain the event open on this page, and help change a pending event’s date or time. You review the change and use Confirm change to save it.",
+      "help",
     );
   const chef = scope.resolve<ChefEventModuleService>(CHEF_EVENT_MODULE);
   const read = async (id: string) => {

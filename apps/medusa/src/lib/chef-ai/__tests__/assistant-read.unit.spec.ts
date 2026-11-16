@@ -44,6 +44,8 @@ it("greeting and capability help never touch event services", async () => {
   expect((await assistantRead(scope, "help", {})).message).toContain(
     "Confirm change",
   );
+  expect((await assistantRead(scope, "greeting", {})).replyKind).toBe("greeting");
+  expect((await assistantRead(scope, "help", {})).replyKind).toBe("help");
   expect(retrieveChefEvent).not.toHaveBeenCalled();
 });
 it.each(["pending", "confirmed", "cancelled", "completed"])(
