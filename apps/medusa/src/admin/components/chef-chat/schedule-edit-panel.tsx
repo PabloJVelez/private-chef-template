@@ -1,3 +1,4 @@
+import { scrollChatTarget } from "./chat-scroll";
 import { Button, Input } from "@medusajs/ui";
 import {
   useEffect,
@@ -75,8 +76,8 @@ export function ScheduleEditPanel({
           "[data-attempt-event]",
         ) || []),
       ].find((el) => el.dataset.attemptEvent === selection.eventId);
-      (target || first.current)?.focus();
-      (target || formRef.current)?.scrollIntoView({ block: "nearest" });
+      (target || first.current)?.focus({ preventScroll: true });
+      scrollChatTarget(target || first.current || formRef.current);
     }
   }, [selection?.eventId]);
   useEffect(() => {
