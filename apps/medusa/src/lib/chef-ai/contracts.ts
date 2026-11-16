@@ -10,6 +10,8 @@ import type { CalendarEntry, TimeInterval } from "../chef-workspace/contracts";
 import type { periods } from "./schedule";
 
 export type ScheduleAnswer = {
+  /** Presentation-only pacing for short conversational replies. */
+  replyKind?: "greeting" | "help";
   summary?: import("./assistant-read").EventSummary;
   summaryChoices?: import("./assistant-read").EventSummary[];
   presentation?:

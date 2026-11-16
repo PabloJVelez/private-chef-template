@@ -27,7 +27,7 @@ fs.mkdirSync(out, { recursive: true });
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     assert(await page.getByRole('button', { name: 'Send', exact: true }).isDisabled());
     const result = await response;
-    await page.getByText('Checking your request…', { exact: true }).waitFor({ state: 'hidden' });
+    await page.getByText('Sous Chef is typing', { exact: true }).waitFor({ state: 'hidden' });
     return { status: result.status(), body: await result.json() };
   };
   try {

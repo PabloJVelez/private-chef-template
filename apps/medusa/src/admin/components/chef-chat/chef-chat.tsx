@@ -572,6 +572,8 @@ export function ChefChat({
     if (input.current) input.current.style.height = "auto";
     setLoading(true);
     controller.current = new AbortController();
+    const signal = controller.current.signal;
+    const startedAt = performance.now();
     try {
       let answer = await client.fetch<ScheduleAnswer>("/admin/chef-ai/chat", {
         method: "POST",
@@ -587,7 +589,25 @@ export function ChefChat({
                 ...(ticket.task ? { task: ticket.task } : {}),
               },
       });
-      if (epoch !== generation.current || navigationKey !== navigation.current)
+      if (answer.replyKind === "greeting" || answer.replyKind === "help") {
+        const remaining = 800 - (performance.now() - startedAt);
+        if (remaining > 0 && !signal.aborted) {
+          await new Promise<void>((resolve) => {
+            const finish = () => {
+              clearTimeout(timer);
+              signal.removeEventListener("abort", finish);
+              resolve();
+            };
+            const timer = setTimeout(finish, remaining);
+            signal.addEventListener("abort", finish, { once: true });
+          });
+        }
+      }
+      if (
+        signal.aborted ||
+        epoch !== generation.current ||
+        navigationKey !== navigation.current
+      )
         return;
       if (!ticket.current()) {
         answer =
@@ -1009,10 +1029,15 @@ export function ChefChat({
             {loading && (
               <p
                 role="status"
+                aria-label="Sous Chef is typing"
                 className="chef-chat-message chef-chat-message-assistant bg-ui-bg-subtle border-ui-border-base text-ui-fg-subtle border"
               >
-                <span className="sr-only">Sous Chef: </span>
-                Checking your request…
+                <span className="sr-only">Sous Chef is typing</span>
+                <span className="chef-chat-typing" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
               </p>
             )}
             <div className="mt-auto space-y-2">
@@ -1184,7 +1209,7 @@ export function ChefChat({
                 disabled={!draft.trim() || loading}
                 aria-label="Send"
               >
-                {loading ? "Checking…" : "Send"}
+                Send
               </Button>
             </div>
           </form>

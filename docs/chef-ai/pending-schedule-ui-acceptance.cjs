@@ -271,7 +271,7 @@ const server = http.createServer((req, res) => {
     // Late model reply after manual selection/cancel may not reopen the editor.
     chatReply = soleAnswer; await fresh(); await quick(); await button('Change date/time').waitFor();
     mode = 'hold'; chatReply = proposal; await ask('Move it to the 29th');
-    await dialog.getByRole('status').filter({ hasText: 'Checking your request…' }).waitFor();
+    await dialog.getByRole('status').filter({ hasText: 'Sous Chef is typing' }).waitFor();
     await change(0); await button('Cancel edit').click();
     const beforeLate = writes.length; release(); mode = 'events';
     await dialog.getByText(/That proposal was discarded/).waitFor();
