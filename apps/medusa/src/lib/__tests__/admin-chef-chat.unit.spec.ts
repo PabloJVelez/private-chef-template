@@ -19,7 +19,7 @@ it("mounts alongside the protected outlet and under shared query/theme providers
       .slice(source.indexOf("export const ProtectedRoute"))
       .replace(
         "<Outlet />",
-        "<Outlet /><ChefChat key={user.id} userId={user.id} client={sdk.client} />",
+        "<Outlet /><ChefChat key={user.id} userId={user.id} client={sdk.client} scheduleTransport={scheduleTransport} />",
       ),
   );
   const providers = base + "/providers/providers.tsx";

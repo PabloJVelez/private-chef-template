@@ -20,7 +20,6 @@ async function main() {
   if (!new URL(database).pathname.startsWith('/booking_test_'))
     throw new Error('Task-owned database required');
   process.env.CHEF_AI_SCOPE = 'single_site';
-  process.env.CHEF_AI_ADMIN_USER_IDS = 'admin';
   process.env.CHEF_AI_SCHEDULE_WRITE_ENABLED = 'true';
   Settings.now = () => Date.parse('2030-02-01T00:00:00Z');
   const container = createMedusaContainer();
@@ -56,6 +55,7 @@ async function main() {
   for (const [key, value] of Object.entries(app.modules)) container.register(key, asValue(value));
   const secret = 'isolated-test-signing-secret-32-characters';
   container.register('configModule', asValue({ projectConfig: { http: { jwtSecret: secret } } }));
+  container.register(Modules.STORE, asValue({ listStores: async () => [{ id: 'fixture-store' }] }));
   container.register(Modules.USER, asValue({ retrieveUser: async () => ({ id: 'admin' }) }));
   container.register(
     Modules.EVENT_BUS,

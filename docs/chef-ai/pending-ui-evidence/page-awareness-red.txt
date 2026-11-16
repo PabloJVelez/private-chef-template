@@ -1,0 +1,22 @@
+FAIL src/lib/chef-ai/__tests__/page-target.unit.spec.ts
+  ● RED/GREEN: page B plus a fresh single answer A must clarify before any proposal
+
+    expect(received).toBeUndefined()
+
+    Received: {"date": "2026-11-26", "eventId": "event-A", "expectedRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+
+      10 |   const read = jest.fn(async (id) => id === b.id ? b : a);
+      11 |   const answer = await (resolveEditProposal as any)({ resolve: () => ({ readScheduleEditEvent: read }) }, intent, context, zone, now, false, undefined, page);
+    > 12 |   expect(answer.editProposal).toBeUndefined();
+         |                               ^
+      13 |   expect(answer.message).toBe("The event open on this page, or the event we just discussed?");
+      14 |   expect(answer.editClarification.context.candidates.map((c: any) => c.id)).toEqual([b.id, a.id]);
+      15 |   expect(read).toHaveBeenCalledWith(b.id);
+
+      at Object.toBeUndefined (src/lib/chef-ai/__tests__/page-target.unit.spec.ts:12:31)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        0.771 s
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

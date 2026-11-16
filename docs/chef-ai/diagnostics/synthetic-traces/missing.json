@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "correlationId": "00000000-0000-4000-8000-000000000001",
+  "boundaries": [
+    {
+      "step": 1,
+      "stage": "classifier",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": null,
+        "time": null,
+        "clarification": "target",
+        "continuation": false
+      }
+    },
+    {
+      "step": 2,
+      "stage": "merged",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": null,
+        "time": null,
+        "clarification": "target",
+        "continuation": false
+      }
+    },
+    {
+      "step": 3,
+      "stage": "resolver",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": null,
+        "time": null,
+        "clarification": "target",
+        "continuation": false
+      },
+      "selected": null
+    },
+    {
+      "step": 4,
+      "stage": "response",
+      "task": {
+        "target": "context",
+        "targetDate": null,
+        "date": null,
+        "time": null,
+        "clarification": "target",
+        "continuation": false
+      },
+      "choice": {
+        "target": "context",
+        "targetDate": null,
+        "date": null,
+        "time": null,
+        "clarification": "target",
+        "continuation": false
+      },
+      "proposal": null
+    },
+    {
+      "step": 5,
+      "stage": "client-selection",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": null,
+        "time": null,
+        "clarification": "target",
+        "continuation": false
+      },
+      "selected": "A"
+    },
+    {
+      "step": 6,
+      "stage": "resolver",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": null,
+        "time": null,
+        "clarification": "target",
+        "continuation": false
+      },
+      "selected": "A"
+    },
+    {
+      "step": 7,
+      "stage": "response",
+      "task": {
+        "target": "context",
+        "targetDate": null,
+        "date": null,
+        "time": null,
+        "clarification": "target",
+        "continuation": false
+      },
+      "choice": null,
+      "proposal": null
+    }
+  ]
+}

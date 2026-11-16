@@ -13,12 +13,15 @@ export type ScheduleEditInput = {
   expiresAt: number;
 };
 export type ScheduleSnapshot = {
+  title?: string;
   id: string;
+  status: string;
   revision: string;
   requestedDate: Date | string;
   requestedTime: string;
   timeZone: string;
   experience_type_id: string | null;
+  /** Chef Event lifecycle eligibility only; orchestration checks Scheduling separately. */
   eligible: boolean;
 };
 export type ScheduleEditOutcome = {
@@ -41,12 +44,11 @@ export type ScheduleEditReceipt = {
 const revision = `md5(to_jsonb(e)::text || ':' || e.xmin::text)`;
 export async function scheduleSnapshot(manager: EntityManager, id: string): Promise<ScheduleSnapshot> {
   const [row] = await manager.execute(
-    `select e.id, ${revision} as revision, e."requestedDate", e."requestedTime",
+    `select e.id, e.status, ${revision} as revision, e."requestedDate", e."requestedTime",
     e."timeZone", e.experience_type_id,
+    left(coalesce(nullif(trim(concat_ws(' ', e."firstName", e."lastName")), ''), 'Untitled'), 160) as title,
     (e.status = 'pending' and e."acceptanceToken" is null and e."productId" is null
       and e."occupiedStart" is null and e."occupiedEnd" is null and e."availabilitySnapshot" is null
-      and not exists (select 1 from scheduling_reservation r where r.owner_id = e.id
-        and r.deleted_at is null and r.state in ('held','confirmed'))
       and (e."acceptanceExecution" is null or exists (
         select 1 from chef_event_acceptance_attempt a where a.id = e."acceptanceExecution" and a.event_id = e.id
         and a.deleted_at is null and a.state = 'aborted' and a.cleanup_completed_at is not null))) as eligible
@@ -82,6 +84,9 @@ export async function commitScheduleEdit(
   rejection?: string,
 ): Promise<ScheduleEditReceipt> {
   // Same lock as bindAcceptance/cancelEvent; claim/finalize UPDATEs also acquire it.
+  // Acceptance binds/claims this event before Scheduling acquires a reservation.
+  // Rechecking this module's lifecycle + revision under the lock closes the race
+  // after orchestration's Scheduling check, without reading another module's table.
   await manager.execute('select id from chef_event where id = ? for update', [input.eventId]);
   const prior = await scheduleReceipt(manager, input);
   if (prior) return prior;

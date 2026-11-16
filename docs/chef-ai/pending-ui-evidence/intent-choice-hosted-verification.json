@@ -1,0 +1,18 @@
+{
+  "retrieval": {
+    "commit": "dd379477e1c1a9c2bb7b1fc22a676838ad4913eb",
+    "httpStatus": 200,
+    "bytes": 2660028,
+    "sha256": "ee719e6a5c56e76c76f472476f6357ed94b3d5b3ce94adf1d95d38d38548c7ab",
+    "byteIdentical": true
+  },
+  "playback": {
+    "duration": 50.76,
+    "progress": 0.800673,
+    "seekedTime": 48.760312,
+    "width": 1280,
+    "height": 900,
+    "error": null,
+    "bytes": 2660028
+  }
+}

@@ -2,15 +2,24 @@
  * @jest-environment jsdom
  * @jest-environment-options {"customExportConditions":["node","node-addons"]}
  */
+jest.mock("../../admin/components/chef-chat/chef-chat.css", () => ({}));
 import React from "react";
 import { act } from "react-dom/test-utils";
 import { createRoot } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   ChefChat,
   ChefChatSession,
 } from "../../admin/components/chef-chat/chef-chat";
+
+(globalThis as any).Request = require("node-fetch").Request;
+function DataTestRouter({ children }: React.PropsWithChildren) {
+  const [router] = React.useState(() =>
+    createMemoryRouter([{ path: "*", element: children }]),
+  );
+  return React.createElement(RouterProvider, { router });
+}
 
 it("posts only each latest question while retaining the three questions and distinct answers in the dialog", async () => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -40,7 +49,7 @@ it("posts only each latest question while retaining the three questions and dist
           QueryClientProvider,
           { client: queryClient },
           React.createElement(
-            MemoryRouter,
+            DataTestRouter,
             null,
             React.createElement(
               ChefChatSession,
@@ -143,7 +152,7 @@ async function withChat(fetch: jest.Mock, test: () => Promise<void>) {
           QueryClientProvider,
           { client: queryClient },
           React.createElement(
-            MemoryRouter,
+            DataTestRouter,
             null,
             React.createElement(
               ChefChatSession,
@@ -204,15 +213,14 @@ it.each(promptQuestions)(
         }),
     );
     await withChat(fetch, async () => {
-      expect(document.body.textContent).toContain(
-        "What can I help you with?",
-      );
-      expect(button("Ask Sous Chef").textContent).toContain("Ask Sous Chef");
+      expect(document.body.textContent).toContain("What can I help you with?");
+      expect(button("Ask Sous Chef").querySelector("svg")).not.toBeNull();
+      expect(button("Ask Sous Chef").textContent).toBe("");
       expect(document.querySelector('[role="dialog"]')!.textContent).toContain(
-        "Read-only schedule assistant",
+        "Schedule assistant",
       );
       expect(document.querySelector("textarea")!.placeholder).toBe(
-        "Ask Sous Chef about your schedule...",
+        "Ask about events or propose a change…",
       );
       expect(promptQuestions.map((q) => button(q).disabled)).toEqual([
         false,
@@ -240,14 +248,14 @@ it.each(promptQuestions)(
       );
       expect(button("Send").disabled).toBe(true);
       expect(document.querySelector('[role="status"]')!.textContent).toContain(
-        "Reading",
+        "Checking",
       );
       expect(document.activeElement).toBe(document.querySelector("textarea"));
       await act(async () => resolve(emptyAnswer));
       expect(document.body.textContent).toContain(
         "does not mean you are free or available",
       );
-      expect(document.body.textContent).toContain(
+      expect(document.body.textContent).not.toContain(
         "Recorded events don’t establish availability.",
       );
       expect(document.querySelector('[role="status"]')).toBeNull();
@@ -301,14 +309,12 @@ it("keeps distinct requests, all statuses, exact intervals and direct links, wit
           ? [{ ...protection, state: "confirmed" }]
           : [],
   }));
-  const fetch = jest
-    .fn()
-    .mockResolvedValue({
-      ...emptyAnswer,
-      entries,
-      message:
-        "Five recorded events. These records do not determine availability.",
-    });
+  const fetch = jest.fn().mockResolvedValue({
+    ...emptyAnswer,
+    entries,
+    message:
+      "Five recorded events. These records do not determine availability.",
+  });
   await withChat(fetch, async () => {
     await act(async () => button(promptQuestions[0]).click());
     const cards = [...document.querySelectorAll("article")];
@@ -343,7 +349,7 @@ it("keeps distinct requests, all statuses, exact intervals and direct links, wit
       expect(details.textContent).toContain("3:00 PM");
       expect(details.textContent).toContain("4:00 PM");
       expect(details.textContent).toContain("plated_dinner");
-      expect(details.textContent).toContain("America/Chicago");
+      expect(details.textContent).not.toContain("America/Chicago");
       if (!entries[index].appointmentTime)
         expect(details.textContent).toContain("No appointment recorded");
       if (!entries[index].protectedTime.length)

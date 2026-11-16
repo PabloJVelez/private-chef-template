@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "correlationId": "00000000-0000-4000-8000-000000000001",
+  "boundaries": [
+    {
+      "step": 1,
+      "stage": "classifier",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": {
+          "kind": "day_of_month",
+          "day": 29
+        },
+        "time": null,
+        "clarification": "none",
+        "continuation": false
+      }
+    },
+    {
+      "step": 2,
+      "stage": "merged",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": {
+          "kind": "day_of_month",
+          "day": 29
+        },
+        "time": null,
+        "clarification": "none",
+        "continuation": false
+      }
+    },
+    {
+      "step": 3,
+      "stage": "resolver",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": {
+          "kind": "day_of_month",
+          "day": 29
+        },
+        "time": null,
+        "clarification": "none",
+        "continuation": false
+      },
+      "selected": null
+    },
+    {
+      "step": 4,
+      "stage": "response",
+      "task": {
+        "target": "context",
+        "targetDate": null,
+        "date": {
+          "kind": "day_of_month",
+          "day": 29
+        },
+        "time": null,
+        "clarification": "none",
+        "continuation": false
+      },
+      "choice": {
+        "target": "context",
+        "targetDate": null,
+        "date": {
+          "kind": "day_of_month",
+          "day": 29
+        },
+        "time": null,
+        "clarification": "none",
+        "continuation": false
+      },
+      "proposal": null
+    },
+    {
+      "step": 5,
+      "stage": "client-selection",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": {
+          "kind": "day_of_month",
+          "day": 29
+        },
+        "time": null,
+        "clarification": "none",
+        "continuation": false
+      },
+      "selected": "B"
+    },
+    {
+      "step": 6,
+      "stage": "resolver",
+      "intent": {
+        "target": "context",
+        "targetDate": null,
+        "date": {
+          "kind": "day_of_month",
+          "day": 29
+        },
+        "time": null,
+        "clarification": "none",
+        "continuation": false
+      },
+      "selected": "B"
+    },
+    {
+      "step": 7,
+      "stage": "response",
+      "task": null,
+      "choice": null,
+      "proposal": {
+        "target": "B",
+        "date": {
+          "kind": "iso",
+          "value": "2026-11-29"
+        }
+      }
+    },
+    {
+      "step": 8,
+      "stage": "preview-request",
+      "proposal": {
+        "target": "B",
+        "date": {
+          "kind": "iso",
+          "value": "2026-11-29"
+        }
+      }
+    },
+    {
+      "step": 9,
+      "stage": "preview-outcome",
+      "status": 200,
+      "code": null
+    }
+  ]
+}

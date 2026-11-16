@@ -1,0 +1,41 @@
+{
+  "implementationSha": "b33d8a6518f6cdb4bf04f5113642c0cff508b6f2",
+  "baselineSha": "cf9336d799addbdb2b6139a4996708afb22fd294",
+  "node": "26.13.1",
+  "yarn": "4.5.0",
+  "unitTests": 416,
+  "unitSuites": 35,
+  "integrationWrappers": 5,
+  "integrationWrapperTests": 15,
+  "scheduleCases": 53,
+  "typechecks": [
+    "medusa",
+    "storefront"
+  ],
+  "builds": [
+    "medusa",
+    "storefront"
+  ],
+  "browser": {
+    "passed": true,
+    "syntheticAPIs": true,
+    "previews": 32,
+    "explicitConfirms": 5,
+    "recoveries": 2,
+    "errors": 0,
+    "unmockedRoutes": 0
+  },
+  "liveModel": "not run: no API credential available in local or Gateway environment",
+  "sha256": {
+    "baseline-regression.log": "a3f58cc8e34c8ed76aba8022fa6ffa79c35b0a42a96fbf52636d9c2dc10c9762",
+    "browser-rerun.log": "d98d262c70fa73c6202901f0828bc06c3eadeb79ae8ebedceb0a090084e9dcbe",
+    "integration-rerun.log": "20579b5ef424342a6e1e686490086e4509e92581cfad12546610c3bc70b55ec4",
+    "medusa-build.log": "8c98e89dace8cc2af11a8ae265f8ea7fde069f878c6159b39a3da4f3f1ac98e7",
+    "medusa-typecheck.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "navigation-cleared-context.png": "2ad6ed7f0989d610d2270d89c04b41838aba3723a7251c12ddc85efbb7b6348a",
+    "storefront-build.log": "de54fff4806d6f3323551c86faed1365ec54ba9e0340d59924283b265cced9aa",
+    "storefront-typecheck.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "targeted.log": "19d39aa1acb1f91b7ad17fdf9fa833764a2afca616425e8231f7e6cae768f59d",
+    "unit.log": "1c362257c9a1f94178432025111643770667af256ab372c9053a5c1d94ce68bd"
+  }
+}
