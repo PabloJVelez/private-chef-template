@@ -489,7 +489,7 @@ class Controller:
             with public_dns(hosts):
                 proof = acceptance(env, public=True)
             proof['dns_resolver'] = 'Cloudflare public DNS-over-HTTPS'
-            command(['node', str(ROOT / 'browser-acceptance.cjs'), str(self.envpath(number)), str(self.folder(number) / 'browser.json')], timeout=180)
+            command(['node', str(ROOT / 'browser-acceptance.cjs'), str(self.envpath(number)), str(self.folder(number) / 'browser.json')], timeout=180, env={**os.environ, 'NODE_USE_ENV_PROXY': '0'})
         except (OSError, ValueError, KeyError, RuntimeError) as error:
             if time.time() - entry['pending_since'] > 1200:
                 raise RuntimeError('Public readiness exceeded twenty-minute deadline') from error

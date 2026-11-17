@@ -19,7 +19,7 @@ const env = Object.fromEntries(fs.readFileSync(envPath, 'utf8').trim().split('\n
   }
   const browser = await chromium.launch({ headless: true,
     executablePath: process.env.PREVIEW_CHROMIUM_PATH,
-    args: ['--no-sandbox', '--host-resolver-rules=' + rules.join(', ')] });
+    args: ['--no-sandbox', '--no-proxy-server', '--host-resolver-rules=' + rules.join(', ')] });
   try {
     const results = [];
     for (const url of [env.STOREFRONT_URL + '/', env.STOREFRONT_URL + '/request', env.API_URL + '/app']) {
@@ -42,4 +42,11 @@ const env = Object.fromEntries(fs.readFileSync(envPath, 'utf8').trim().split('\n
     fs.writeFileSync(evidencePath, JSON.stringify(results, null, 2), { mode: 0o600 });
     console.log('Public browser and Admin login acceptance passed');
   } finally { await browser.close(); }
-})().catch(() => { console.error('Browser acceptance failed; inspect private runtime'); process.exitCode = 1; });
+})().catch(error => {
+  let detail = String(error.stack);
+  for (const key of ['PREVIEW_ADMIN_PASSWORD', 'POSTGRES_PASSWORD', 'JWT_SECRET', 'COOKIE_SECRET', 'MEDUSA_PUBLISHABLE_KEY'])
+    if (env[key]) detail = detail.split(env[key]).join('[redacted]');
+  fs.writeFileSync(evidencePath + '.error', detail, { mode: 0o600 });
+  console.error('Browser acceptance failed; private diagnostics saved');
+  process.exitCode = 1;
+});
