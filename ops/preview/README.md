@@ -23,6 +23,24 @@ Porkbun wildcard A record. The selected hostnames now serve this pilot; some
 resolvers may briefly cache the old parking record. Payments and automated PR
 lifecycle are not enabled. See local operator evidence for later deployment receipts.
 
+## Cloudflare cutover evidence (2026-11-17)
+
+The domain is active on Cloudflare Free. Valid public TLS, HTTP301 -> HTTPS,
+storefront/request browser rendering and authenticated Admin login passed.
+Public API CORS, four experience types, one persisted menu,20 available slots,
+and byte-identical fresh upload/download passed with the new flat hostnames.
+Browser smoke reported no page errors. A Cloudflare IP resolver override was
+used for checks while the NUC resolver cached Porkbun's old wildcard response;
+TLS validation remained enabled.
+
+The old preview-only SSH service is disabled/stopped and its Traefik route
+archived at `preview-staging/chef-preview-41-before-cloudflare.yaml`. API/auth,
+CORS, availability and upload checks passed again with that tunnel stopped.
+Production API and storefront remained200. Existing OpenClaw ingress was not
+changed. Old nested preview links are retired; use the new URLs. Old uploaded
+media URLs were not rewritten. Pilot env rollback copy is private at
+`~/.local/share/chef-previews/pilot-before-cloudflare.env`.
+
 ## Budget and isolation
 
 One stack is limited to 4096 MiB RAM with no additional swap allowance, 2 CPU
@@ -77,31 +95,59 @@ executor and gates startup on their logs. It saves private evidence under
 health, not completed feature acceptance. Errors stop the deployment without
 resetting its volumes. It does not create an automated deployment scheduler.
 
-Selected public naming: `pr-N.preview.chefeventhub.com` and
-`api-pr-N.preview.chefeventhub.com`. As of setup, authoritative DNS is Porkbun
-and no Chef EventHub zone exists in the available Cloudflare account. Owner selected Hetzner HTTPS proxy routing; no DNS migration.
+## Cloudflare ingress
 
-A dedicated `chef-preview-tunnel` SSH account allows only reverse forwards at
-`10.0.1.1:19100` and `10.0.1.1:13100`, with no shell sessions. The NUC's user
-service `chef-preview-tunnel.service` maintains the connection using a dedicated
-key. Existing root access and OpenClaw tunnel are unchanged. Route config is active at `/data/coolify/proxy/dynamic/chef-preview-41.yaml`;
-a source copy remains under `preview-staging/`. Public DNS was added by Pabs,
-and private pilot env URLs now use the HTTPS hosts.
+Selected naming is now `pr-N-preview.chefeventhub.com` and
+`api-pr-N-preview.chefeventhub.com`. These single-level names are covered by
+free Universal SSL. Nested `pr-N.preview...` names require different certificate
+coverage and are the legacy Hetzner route only.
 
-For future reconstruction, the DNS gate is A `*.preview` -> `5.78.148.212` at Porkbun, preserving other records.
-After authoritative DNS confirms both hostnames, update the private pilot env:
-API_URL=https://api-pr-41.preview.chefeventhub.com and
-STOREFRONT_URL=https://pr-41.preview.chefeventhub.com, then recreate app/proxy
-containers. Atomically install the staged route as
-`/data/coolify/proxy/dynamic/chef-preview-41.yaml`; Traefik watches this directory,
-so production proxy restart is unnecessary. Verify issued TLS, redirects, CORS,
-Admin login, storefront and uploaded media URL behavior. Old local upload URLs
-remain local unless replaced; use a fresh upload for public URL verification.
-Do not advertise the public pilot until this passes.
+Porkbun remains the registrar. Authoritative DNS has moved to Cloudflare Free;
+all 14 original records were preserved, including production A records, email
+MX/SPF/DKIM/DMARC, wildcard and existing ACME TXT records. The apex ALIAS became
+a DNS-only flattened CNAME to the same Porkbun target. Existing app records
+remain DNS-only; only the two new preview CNAMEs are proxied. No production
+hosting move occurred. HTTPS redirect is enabled for proxied traffic.
 
-Rollback ingress: move only this route out of `dynamic/` and stop the NUC's
-`chef-preview-tunnel.service`; application named volumes remain intact. No
-production application container or existing proxy file needs to change.
+A dedicated remotely managed `chef-previews-nuc` tunnel forwards the exact
+storefront/API hostnames to NUC loopback ports 13000/19000, with a fallback404.
+See `cloudflare-ingress.example.json`. Install the example user service after
+saving its token privately at `~/.config/cloudflared/chef-previews.token`
+(mode0600); never commit or log it. The existing OpenClaw tunnel is separate.
+The connector has an additional192MiB memory ceiling and25% CPU quota beyond
+the application stack's4GiB/2CPU ceilings.
+
+Cutover gate: verify the zone is active and Universal SSL serves valid TLS
+before changing application origins. Back up the private pilot env, then set:
+
+```text
+API_URL=https://api-pr-41-preview.chefeventhub.com
+STOREFRONT_URL=https://pr-41-preview.chefeventhub.com
+```
+
+Recreate only the pilot medusa/storefront/proxy services; keep data volumes,
+PostgreSQL and Redis intact. Verify Admin login in the browser, storefront and
+request rendering, CORS, availability, and fresh upload/download URLs. Cached
+Porkbun wildcard answers can temporarily return a parking redirect. Compare
+public/authoritative DNS and use a documented Cloudflare IP override for tests
+if needed; retain normal TLS verification. Public HTTPS is not complete until
+certificate issuance and these checks pass.
+
+### Legacy route and rollback
+
+`traefik-pr-41.yaml` describes the old Hetzner route. The forwarding-only account
+`chef-preview-tunnel` and NUC user service `chef-preview-tunnel.service` provide
+reverse forwards at10.0.1.1:19100/13100. The old public names and wildcard DNS
+are retained during migration. After the new route passes acceptance, disable
+the old NUC SSH tunnel and move only `/data/coolify/proxy/dynamic/chef-preview-41.yaml`
+out of Traefik's watched directory, preserving a rollback copy. Do not restart
+production Traefik or touch other routes or the existing OpenClaw tunnel.
+
+To roll back, restore the saved private env, recreate only pilot app/proxy
+containers, restore the legacy route, and restart the old SSH user service.
+No DNS rollback or volume reset is needed for the legacy DNS-only hostnames.
+Existing uploads retain their stored absolute URLs; new uploads use the current
+API origin. Preserve the old route if old media URLs still need to work.
 
 ## Controlled startup details
 
