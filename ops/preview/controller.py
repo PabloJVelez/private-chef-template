@@ -127,6 +127,11 @@ class GitHub:
         run = max(runs, key=lambda r: r['id'])
         if run['status'] != 'completed' or run['conclusion'] != 'success':
             return None
+        artifacts = self.pages(f'repos/{self.repo}/actions/runs/{run["id"]}/artifacts', 'artifacts')
+        for app in ('medusa', 'storefront'):
+            matches = [a for a in artifacts if a['name'] == f'preview-{app}-{sha}' and not a['expired']]
+            if len(matches) != 1:
+                return None
         return run
 
     def comment(self, number, message):
@@ -374,6 +379,8 @@ class Controller:
         self.compose(number, 'up', '-d', '--wait', 'postgres', 'redis')
         if entry.get('sha'):
             dump = self.folder(number) / 'before-update.sql'
+            if entry.get('previous_status') == 'failed' and dump.exists():
+                raise RuntimeError('Previous failed update requires DB recovery before another migration')
             with dump.open('wb') as out:
                 result = subprocess.run(['docker', 'compose', '--env-file', str(self.envpath(number)), '-f', str(ROOT / 'managed-compose.yaml'), 'exec', '-T', 'postgres', 'pg_dump', '-U', 'preview', 'preview'], stdout=out, stderr=subprocess.PIPE, timeout=120)
             dump.chmod(0o600)
@@ -482,6 +489,13 @@ class Controller:
             pr = self.github.pr(number)
             if pr['state'] == 'closed':
                 self.retire(number)
+            elif self.entries[number].get('status') == 'deploying':
+                env = load_env(self.envpath(number))
+                self.cf.route(number, env, remove=True)
+                self.compose(number, 'stop', 'proxy', 'medusa', 'storefront')
+                self.entries[number].update(status='failed', failed_sha=self.entries[number].get('attempt_sha'), error_type='InterruptedDeployment')
+                self.save()
+                self.github.comment(number, '**Preview interrupted** · Routing is withdrawn and data preserved. Operator recovery is required before retrying this head.')
             elif not trusted(pr, self.config['repo']):
                 env = load_env(self.envpath(number))
                 self.cf.route(number, env, remove=True)
@@ -524,6 +538,8 @@ class Controller:
                 self.allocate(number)
             try:
                 self.capacity_guard()
+                self.entries[number]['previous_status'] = self.entries[number]['status']
+                self.entries[number]['attempt_sha'] = sha
                 self.entries[number]['status'] = 'deploying'
                 self.save()
                 self.github.comment(number, f'**Preview deploying** · `{sha[:12]}`. Links appear after acceptance passes.')

@@ -214,3 +214,27 @@ class DeploymentOrdering(unittest.TestCase):
             ctl.compose.assert_not_called()
             self.assertTrue(ctl.envpath('1').exists())
             self.assertFalse(ctl.cf.route.call_args.kwargs.get('remove', False))
+
+class RecoveryAndBuildReceipts(unittest.TestCase):
+    def test_successful_workflow_with_skipped_build_is_not_deployable(self):
+        gh = c.GitHub(REPO)
+        gh.pages = Mock(side_effect=[[{'id': 1, 'head_sha': SHA, 'event': 'pull_request', 'status': 'completed', 'conclusion': 'success'}], []])
+        self.assertIsNone(gh.build(SHA))
+
+    def test_missing_or_expired_artifact_is_not_deployable(self):
+        gh = c.GitHub(REPO)
+        run = {'id': 1, 'head_sha': SHA, 'event': 'pull_request', 'status': 'completed', 'conclusion': 'success'}
+        artifacts = [{'name': f'preview-medusa-{SHA}', 'expired': False}, {'name': f'preview-storefront-{SHA}', 'expired': True}]
+        gh.pages = Mock(side_effect=[[run], artifacts])
+        self.assertIsNone(gh.build(SHA))
+
+    def test_interrupted_attempt_is_quarantined_not_replayed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2, 'enabled': True}, Path(temp))
+            ctl.allocate('1'); ctl.entries['1'].update(status='deploying', attempt_sha=SHA)
+            ctl.github = Mock(); ctl.github.pages.return_value = [pr(1)]; ctl.github.pr.return_value = pr(1)
+            ctl.compose = Mock(); ctl.deploy = Mock(); ctl.disk_guard = Mock()
+            with patch.object(c, 'Cloudflare', return_value=Mock()): ctl.reconcile(True)
+            ctl.deploy.assert_not_called()
+            self.assertEqual(ctl.entries['1']['status'], 'failed')
+            self.assertEqual(ctl.entries['1']['failed_sha'], SHA)
