@@ -1,0 +1,34 @@
+# Install into Coolify's watched dynamic directory only after DNS points here.
+http:
+  routers:
+    chef-preview-41-http:
+      entryPoints: [http]
+      rule: Host(`pr-41.preview.chefeventhub.com`) || Host(`api-pr-41.preview.chefeventhub.com`)
+      middlewares: [chef-preview-41-https]
+      service: chef-preview-41-store
+    chef-preview-41-store:
+      entryPoints: [https]
+      rule: Host(`pr-41.preview.chefeventhub.com`)
+      service: chef-preview-41-store
+      middlewares: [chef-preview-41-noindex]
+      tls: {certResolver: letsencrypt}
+    chef-preview-41-api:
+      entryPoints: [https]
+      rule: Host(`api-pr-41.preview.chefeventhub.com`)
+      service: chef-preview-41-api
+      middlewares: [chef-preview-41-noindex]
+      tls: {certResolver: letsencrypt}
+  middlewares:
+    chef-preview-41-https:
+      redirectScheme: {scheme: https, permanent: true}
+    chef-preview-41-noindex:
+      headers:
+        customResponseHeaders:
+          X-Robots-Tag: noindex, nofollow, noarchive
+  services:
+    chef-preview-41-store:
+      loadBalancer:
+        servers: [{url: 'http://10.0.1.1:13100'}]
+    chef-preview-41-api:
+      loadBalancer:
+        servers: [{url: 'http://10.0.1.1:19100'}]

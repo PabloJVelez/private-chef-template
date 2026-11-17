@@ -1,21 +1,27 @@
 # NUC preview pilot
 
-Status: manually operated pilot foundation, **not an automatic PR lifecycle**.
+Status: live manually operated PR 41 pilot, **not an automatic PR lifecycle**.
 Only trusted same-repository code. No self-hosted Actions runner or production
 credentials. Production Coolify applications are not modified.
 
 ## Verified pilot evidence (2026-11-17)
 
-GitHub-hosted build run `44007442289` built both application images at
-`26c69b0539273d92e39fd08c6f6fe51458f3ff22`. Fresh migrations and synthetic seed
+Initial GitHub-hosted build run `44007442289` built application images at
+`26c69b0539273d92e39fd08c6f6fe51458f3ff22`. A second deployment from successful
+run `44008793538` now runs `761770f111febab673d04892c3674f59cdb662f4` for both apps. Fresh migrations and synthetic seed
 completed. Admin login, four experiences, one menu, available slots, a synthetic
 request, rendered captured email and byte-identical upload/download passed.
 Application containers cannot reach an external HTTPS address (`ENETUNREACH`).
 Six focused tests pass (email capture, seed retry preservation, current-head guards).
 Local full-project typechecking used an existing checkout dependency tree and
 reported baseline/dependency-resolution errors; it is not claimed as passing.
-Public TLS/domain, browser acceptance, payments and automated PR lifecycle are
-not yet verified. See local operator evidence for later deployment receipts.
+Seed retry plus app-container recreation preserved edited pricing and uploads.
+The forwarding-only SSH tunnel to Hetzner is enabled and API/store HTTP probes
+pass from Hetzner. Browser storefront, request page and Admin login shell returned 200 without
+page errors. Public TLS, redirect and public upload/download passed after Pabs added the
+Porkbun wildcard A record. The selected hostnames now serve this pilot; some
+resolvers may briefly cache the old parking record. Payments and automated PR
+lifecycle are not enabled. See local operator evidence for later deployment receipts.
 
 ## Budget and isolation
 
@@ -73,9 +79,29 @@ resetting its volumes. It does not create an automated deployment scheduler.
 
 Selected public naming: `pr-N.preview.chefeventhub.com` and
 `api-pr-N.preview.chefeventhub.com`. As of setup, authoritative DNS is Porkbun
-and no Chef EventHub zone exists in the available Cloudflare account. Routing
-requires either a scoped HTTPS proxy through Hetzner or an owner-approved
-Cloudflare DNS migration. Do not change production DNS/tunnels implicitly.
+and no Chef EventHub zone exists in the available Cloudflare account. Owner selected Hetzner HTTPS proxy routing; no DNS migration.
+
+A dedicated `chef-preview-tunnel` SSH account allows only reverse forwards at
+`10.0.1.1:19100` and `10.0.1.1:13100`, with no shell sessions. The NUC's user
+service `chef-preview-tunnel.service` maintains the connection using a dedicated
+key. Existing root access and OpenClaw tunnel are unchanged. Route config is active at `/data/coolify/proxy/dynamic/chef-preview-41.yaml`;
+a source copy remains under `preview-staging/`. Public DNS was added by Pabs,
+and private pilot env URLs now use the HTTPS hosts.
+
+For future reconstruction, the DNS gate is A `*.preview` -> `5.78.148.212` at Porkbun, preserving other records.
+After authoritative DNS confirms both hostnames, update the private pilot env:
+API_URL=https://api-pr-41.preview.chefeventhub.com and
+STOREFRONT_URL=https://pr-41.preview.chefeventhub.com, then recreate app/proxy
+containers. Atomically install the staged route as
+`/data/coolify/proxy/dynamic/chef-preview-41.yaml`; Traefik watches this directory,
+so production proxy restart is unnecessary. Verify issued TLS, redirects, CORS,
+Admin login, storefront and uploaded media URL behavior. Old local upload URLs
+remain local unless replaced; use a fresh upload for public URL verification.
+Do not advertise the public pilot until this passes.
+
+Rollback ingress: move only this route out of `dynamic/` and stop the NUC's
+`chef-preview-tunnel.service`; application named volumes remain intact. No
+production application container or existing proxy file needs to change.
 
 ## Controlled startup details
 
