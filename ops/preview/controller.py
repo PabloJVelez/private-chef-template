@@ -415,6 +415,9 @@ class Controller:
     def deploy(self, number, sha, run):
         env = load_env(self.envpath(number))
         entry = self.entries[number]
+        # Only recorded immutable app IDs can become rollback/prune candidates.
+        # A fresh env contains placeholders, and the adopted pilot used tags.
+        previous_images = entry.get('candidate_images', []) if entry.get('previous_status') == 'awaiting_public' else entry.get('images', [])
         images = self.import_images(number, sha, run)
         entry['pending_images'] = list(images.values())
         self.save()
@@ -474,7 +477,7 @@ class Controller:
         self.current(number, sha)
         entry.update(status='awaiting_public', candidate_sha=sha, candidate_run=run['id'],
                      candidate_images=list(images.values()), pending_since=time.time(),
-                     previous_images=[load_env(self.folder(number) / 'previous.env')[k] for k in ('MEDUSA_IMAGE', 'STOREFRONT_IMAGE')])
+                     previous_images=list(previous_images))
         self.save()
         self.cf.route(number, env)
         self.finalize(number)
@@ -511,6 +514,8 @@ class Controller:
     def prune_images(self, candidates):
         referenced = {image for e in self.entries.values() for key in ('images', 'rollback_images', 'pending_images') for image in e.get(key, [])}
         for image in candidates:
+            if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
+                continue  # Never turn an env placeholder/tag into a deletion target.
             if image not in referenced:
                 subprocess.run(['docker', 'image', 'rm', image], capture_output=True)
 

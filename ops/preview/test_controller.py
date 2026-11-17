@@ -283,3 +283,13 @@ class PublicResume(unittest.TestCase):
             ctl.disk_guard = Mock(); ctl.finalize = Mock(return_value=True); ctl.deploy = Mock()
             with patch.object(c, 'Cloudflare', return_value=Mock()): ctl.reconcile(True)
             ctl.finalize.assert_called_once_with('1'); ctl.deploy.assert_not_called()
+
+class ImageOwnership(unittest.TestCase):
+    def test_prune_never_deletes_placeholders_or_arbitrary_tags(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2}, Path(temp))
+            own_id = 'sha256:' + 'a'*64
+            with patch.object(c.subprocess, 'run') as run:
+                ctl.prune_images(['uninitialized', 'unrelated:latest', own_id])
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0], ['docker', 'image', 'rm', own_id])
