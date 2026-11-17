@@ -32,6 +32,45 @@
         max(0.5rem, env(safe-area-inset-bottom))
     );
   }
+  /* Safari landscape can leave less than 150px above the keyboard. Share
+     one control row instead of stacking a header and growing composer. The
+     conversation remains the only scrolling region; Close stays reachable. */
+  .chef-chat-panel[data-short-viewport] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 52px;
+    grid-template-rows: minmax(0, 1fr) 53px;
+  }
+  .chef-chat-panel[data-short-viewport] .chef-chat-log {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding: 0 0.5rem;
+  }
+  .chef-chat-panel[data-short-viewport] .chef-chat-header {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 4px;
+    border-bottom: 0;
+    border-top: 1px solid var(--border-base);
+  }
+  /* Retain the dialog's accessible title and description. */
+  .chef-chat-panel[data-short-viewport] .chef-chat-header > div:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .chef-chat-panel[data-short-viewport] .chef-chat-composer {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+    padding: 4px;
+  }
+  .chef-chat-panel[data-short-viewport] textarea {
+    height: 44px !important;
+    max-height: 44px;
+    overflow-y: auto;
+  }
   .chef-chat-panel button,
   .chef-chat-panel summary {
     min-height: 44px;

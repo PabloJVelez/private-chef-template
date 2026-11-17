@@ -542,7 +542,18 @@ it("tracks the visual viewport only while open and leaves pinch zoom alone", asy
       expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
         "300px",
       );
+      expect(panel.hasAttribute("data-short-viewport")).toBe(false);
+      viewport.scale = 1;
+      await act(async () => viewport.dispatchEvent(new Event("resize")));
+      expect(panel.hasAttribute("data-short-viewport")).toBe(true);
+      viewport.height = 0;
+      await act(async () => viewport.dispatchEvent(new Event("resize")));
+      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe("150px");
+      viewport.height = 500;
+      await act(async () => viewport.dispatchEvent(new Event("resize")));
+      expect(panel.hasAttribute("data-short-viewport")).toBe(false);
       await act(async () => button("Close Sous Chef").click());
+      expect(panel.hasAttribute("data-short-viewport")).toBe(false);
       viewport.scale = 1;
       await act(async () => {
         viewport.dispatchEvent(new Event("resize"));

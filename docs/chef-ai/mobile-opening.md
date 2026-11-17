@@ -12,7 +12,7 @@ Source/built-Admin findings:
 
 - Opening unconditionally focused the textarea; quick-action sends also focused it. This can summon a touch keyboard. The new behavior focuses Close on touch-capable systems (`any-pointer: coarse`), including reopen; direct typing remains available. Mouse/keyboard-only systems retain textarea autofocus.
 - Welcome cards used a device-width breakpoint and verbose hints. Cards now use two shrinkable `minmax(0, 1fr)` columns, with compact padding and hidden redundant hints at phone widths/short heights. Accessible full-question names remain. Header text can shrink while its controls retain their width.
-- The built Admin already includes `width=device-width, initial-scale=1`. Radix portals the panel to body, outside transformed Admin ancestors. No viewport meta, global zoom, or body scrolling changes were made.
+- The built Admin already includes `width=device-width, initial-scale=1`. Radix portals the panel to body, outside transformed Admin ancestors. No viewport meta or global zoom changes were made. The subsequent `e949138` follow-up added a mobile-only fixed-body scroll lock, preserving inline styles and document scroll on close/unmount and desktop-breakpoint exit.
 - The exact right-edge failure was **not reproduced in Chromium**. The relative enlargement between the owner's images is consistent with a zoom/viewport difference, but the screenshots do not expose `visualViewport.scale`, offsets, or timing; they do not prove an autozoom cause. Removing unsolicited focus eliminates one plausible trigger. Horizontal containment and wrapping are checked separately.
 - The existing visual-viewport height/offset subscription and log-owned scrolling remain. Touch tablets up to 1024px now use the same viewport-bounded layout and 44px controls/16px inputs, so keyboard changes are not limited to phone-width CSS queries. Desktop mouse layout is preserved.
 
@@ -62,3 +62,38 @@ Bumblesous: please review the focused layout/focus change and test on the owner'
 Native Safari keyboard animation/panning, predictive/accessory bars, retained zoom, safe-area changes, text autosizing, native date/time pickers and touch momentum remain unverified. The viewport handler intentionally ignores `scale !== 1` to preserve user pinch zoom; this change does not force-reset an already zoomed page. Delayed or transient Safari viewport events remain a real acceptance risk. Chromium mobile emulation and both keyboard models do not establish native Safari or Android correctness.
 
 Keep the PR open/unmerged. No deployment or production flag/data changes are authorized by this validation. The owner-device failure remains an acceptance blocker, not a hypothetical non-blocking caveat.
+
+
+## Landscape keyboard follow-up (2026-11-17)
+
+The owner supplied a new physical-iPhone failure: landscape is readable before focus,
+but opening the keyboard collapses/clips the chat. This supersedes the earlier
+partial “looks better” feedback; native-device acceptance is still blocked.
+
+The previous browser model clamped the empty-chat visible height to at least 230px.
+It therefore missed landscape browser chrome plus keyboard/accessory bars leaving
+much less space, especially with a multiline draft. The extended regression failed
+against the prior built Admin because controls fell outside the visual viewport.
+This reproduces a short-height layout defect, not Safari's exact event sequence.
+
+Below 240px of visual viewport height, the mobile panel now uses a shared composer/
+Close row and a separately scrollable conversation above it. The decorative header
+is visually clipped while its accessible title/description remain. The draft is
+retained and scrolls within a 44px textarea instead of consuming the remaining
+height. Normal layout returns when the keyboard closes. Zero-height transient
+viewport events are ignored, and pinch zoom retains the existing behavior.
+
+Regression coverage includes 667px and 844px landscape widths, 180/120/90px visual
+heights, nonzero visual offsets, multiline drafts, both themes, 44px control bounds,
+non-overlap and a positive conversation scroll region. These are injected Chromium
+visual-viewport models, **not physical Safari or Android acceptance**. Re-test the
+owner's exact landscape focus/type/dismiss/rotate sequence on the updated preview
+before resolving the issue. Production and scheduling behavior remain unchanged.
+
+Validation for this follow-up: both workspace typechecks and production builds
+passed; all 154 focused chat/schedule tests passed. The built-Admin touch harness
+passed 18 viewport/theme cases plus 12 short-landscape checks, with no page errors
+or unmocked API routes. Local evidence: `/tmp/pr43-landscape-after/result.json`;
+prior-build regression failure: `/tmp/pr43-landscape-before.log`. These checks
+cover the application changes in the commit carrying this section, not a new
+physical-device result.

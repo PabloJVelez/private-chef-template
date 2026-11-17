@@ -102,12 +102,12 @@ const server = http.createServer((req, res) => {
       const rect = node => { const r = node.getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom}; };
       const log = el.querySelector('.chef-chat-log');
       return { panel: rect(el), close: rect(el.querySelector('[aria-label="Close Sous Chef"]')),
-        send: rect(el.querySelector('[aria-label="Send"]')), font: getComputedStyle(el.querySelector('textarea')).fontSize,
+        input: rect(el.querySelector("textarea")), log: rect(log), send: rect(el.querySelector('[aria-label="Send"]')), font: getComputedStyle(el.querySelector('textarea')).fontSize,
         active: document.activeElement?.tagName, innerWidth, scale: visualViewport.scale, welcome: el.querySelector('.chef-chat-log > div') ? rect(el.querySelector('.chef-chat-log > div')) : null, logWidth: log.clientWidth, logScrollWidth: log.scrollWidth, viewport: {height:visualViewport.height,top:visualViewport.offsetTop} };
     });
   }
   try {
-    for (const [width,height] of (touch ? [[320,568],[360,640],[375,667],[390,844],[430,932],[667,320],[768,1024],[1024,768]] : [[390,844],[1440,900]])) {
+    for (const [width,height] of (touch ? [[320,568],[360,640],[375,667],[390,844],[430,932],[667,320],[844,390],[768,1024],[1024,768]] : [[390,844],[1440,900]])) {
       for (const theme of ['light','dark']) {
         await page.setViewportSize({width,height});
         await page.goto(base + '/app');
@@ -143,6 +143,23 @@ const server = http.createServer((req, res) => {
             }, visibleHeight);
             await page.screenshot({path:path.join(out,'opening-keyboard-model-390-dark.png')});
             await page.locator('#opening-keyboard-label').evaluate(el => el.remove());
+          }
+          if (width === 667 || width === 844) {
+            for (const shortHeight of [180, 120, 90]) {
+              await dialog.getByRole('textbox', {name:'Schedule question',exact:true}).fill('Landscape draft\nwith several\nlines retained');
+              await page.evaluate(h => window.simulateKeyboard(h, 24), shortHeight);
+              await page.waitForTimeout(50);
+              const short = await metrics();
+              for (const control of [short.input, short.send, short.close]) {
+                assert(control.y >= 24 && control.bottom <= shortHeight + 24, 'Short-landscape controls inside visible viewport');
+                assert(control.height >= 44, 'Short-landscape controls retain touch target');
+              }
+              assert(short.log.height > 0 && short.log.bottom <= short.input.y, 'Conversation retains separate scroll area');
+              assert(short.send.x + short.send.width <= short.close.x, 'Send and Close do not overlap');
+              await page.screenshot({path:path.join(out,`landscape-keyboard-${width}-${shortHeight}-${theme}.png`)});
+              results.push({width,height,theme,shortHeight,short});
+            }
+            await dialog.getByRole('textbox', {name:'Schedule question',exact:true}).fill('');
           }
           await page.evaluate(() => window.simulateKeyboard(null));
           await button('Close Sous Chef').click();
