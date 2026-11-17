@@ -256,7 +256,7 @@ def public_dns(hosts):
         socket.getaddrinfo = original
 
 
-def acceptance(env, public=False):
+def acceptance(env, public=False, write_request=False):
     """Actual API behavior plus rendered pages; does not claim browser proof."""
     base = env['API_URL'] if public else 'http://127.0.0.1:' + env['API_PORT']
     store = env['STOREFRONT_URL'] if public else 'http://127.0.0.1:' + env['STOREFRONT_PORT']
@@ -275,6 +275,17 @@ def acceptance(env, public=False):
     slots = call('/store/availability?date=' + day + '&experience_id=' + experiences[0]['id'])
     if not isinstance(slots.get('slots'), list):
         raise RuntimeError('Availability acceptance failed')
+    if write_request:
+        if not slots['slots']:
+            raise RuntimeError('No synthetic request slot available')
+        slot = slots['slots'][0]
+        call('/store/chef-events', {'slotStart': slot['start'], 'requestedDate': day,
+            'requestedTime': slot['time'], 'partySize': 4, 'eventType': experiences[0]['name'],
+            'experience_type_id': experiences[0]['id'], 'templateProductId': 'menu_preview',
+            'locationType': 'customer_location', 'locationAddress': '123 Synthetic Preview Lane',
+            'firstName': 'Preview', 'lastName': 'Check', 'email': 'guest@example.invalid',
+            'phone': '+15125550100', 'specialRequirements': 'Synthetic test only',
+            'notes': 'Automated preview readiness check. Not a real booking.'})
     for url, marker in [(store + '/', b'<html'), (store + '/request', b'<html'), (base + '/app', b'<html')]:
         body, headers = http(url)
         if marker not in body.lower() or 'noindex' not in headers.get('x-robots-tag', ''):
@@ -288,7 +299,7 @@ def acceptance(env, public=False):
         url = json.loads(uploaded)['files'][0]['url']
         if not url.startswith(base + '/static/') or http(url)[0] != image:
             raise RuntimeError('Public upload acceptance failed')
-    return {'admin_auth': True, 'cors': True, 'seed': True, 'availability': True, 'rendered_pages': True, 'public_upload': public}
+    return {'admin_auth': True, 'cors': True, 'seed': True, 'availability': True, 'rendered_pages': True, 'public_upload': public, 'synthetic_request': write_request}
 
 
 def docker_bytes(value):
@@ -446,7 +457,16 @@ class Controller:
                 time.sleep(2)
         else:
             raise RuntimeError('API/storefront startup timed out')
-        acceptance(env)
+        count_script = 'console.log(require("fs").readdirSync("preview-emails").filter(n => n.endsWith(".json") && n !== "bootstrap.json").length)'
+        before_mail = int(self.compose(number, 'exec', '-T', 'medusa', 'node', '-e', count_script).strip())
+        acceptance(env, write_request=True)
+        for _ in range(15):
+            after_mail = int(self.compose(number, 'exec', '-T', 'medusa', 'node', '-e', count_script).strip())
+            if after_mail > before_mail:
+                break
+            time.sleep(1)
+        else:
+            raise RuntimeError('Synthetic request email was not captured')
         self.current(number, sha)
         self.cf.route(number, env)
         # Keep retrying public checks across normal DNS/tunnel propagation, but
@@ -465,7 +485,7 @@ class Controller:
         else:
             raise RuntimeError('Public acceptance/DNS still pending') from last
         command(['node', str(ROOT / 'browser-acceptance.cjs'), str(self.envpath(number)), str(self.folder(number) / 'browser.json')], timeout=180)
-        proof['browser_admin_login'] = True
+        proof.update(browser_admin_login=True, synthetic_request=True, captured_email=True)
         self.current(number, sha)
         obsolete = entry.get('rollback_images', [])
         entry['rollback_images'] = entry.get('images', [])

@@ -197,6 +197,8 @@ class DeploymentOrdering(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2}, Path(temp))
             ctl.allocate('1'); ctl.cf = Mock(); ctl.github = Mock(); ctl.compose = Mock()
+            counts = iter(['1', '2'])
+            ctl.compose.side_effect = lambda *args, **kwargs: next(counts) if 'exec' in args else ''
             ctl.import_images = Mock(return_value={'medusa': 'sha256:a', 'storefront': 'sha256:b'})
             ctl.current = Mock(side_effect=[None, None, None, None, RuntimeError('superseded')])
             c.write_json(ctl.folder('1') / 'bootstrap.json', {'publishable_key': 'pk_test'})
