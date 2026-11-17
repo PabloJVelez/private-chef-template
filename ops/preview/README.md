@@ -49,7 +49,10 @@ immutable digests and read-only pull credentials are the next production path.
 2. Run one `docker compose ... --profile app run --rm medusa
    /app/apps/medusa/node_modules/.bin/medusa db:migrate` executor.
    Inspect every module result; a final success/health status alone is insufficient.
-3. Implement and validate additive preview seed before repeat deployments.
+3. Run `medusa exec ./src/scripts/preview-seed.js`. It creates USD commerce
+   defaults, synthetic experience/menu pricing, demo Chicago hours and a private
+   Admin account, preserving existing records/passwords. It writes the publishable
+   key into `preview-emails/bootstrap.json`. Verify two consecutive runs.
    Existing `init.ts` is NOT idempotent. Do not run it on each deployment.
 4. Create a preview-only Admin with a generated password, and configure the
    resulting publishable key in the private env file. Never publish credentials.
@@ -77,7 +80,7 @@ explicitly retiring this preview and all of its synthetic data.
 
 ## Remaining lifecycle work
 
-Additive seed and its retry tests; guarded exact-head deployment; image digest
+Live seed retry/preservation acceptance; guarded exact-head deployment; image digest
 verification; aggregate pool caps, storage admission and host/LAN isolation;
 preview routing/access; readiness-gated single PR comment; close cleanup and
 nightly orphan reconciliation from trusted default-branch code. Fail closed

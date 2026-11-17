@@ -53,6 +53,7 @@ services:
       NODE_ENV: production
       PORT: '9000'
       PREVIEW_MODE: 'true'
+      PREVIEW_ADMIN_PASSWORD: ${PREVIEW_ADMIN_PASSWORD:?required}
       DATABASE_URL: postgresql://preview:${POSTGRES_PASSWORD}@postgres:5432/preview
       REDIS_URL: redis://redis:6379
       MEDUSA_WORKER_MODE: shared

@@ -13,6 +13,7 @@ if not path.is_absolute():
 path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
 values = {
     'PREVIEW_ID': 'pilot',
+    'PREVIEW_ADMIN_PASSWORD': secrets.token_hex(24),
     'POSTGRES_PASSWORD': secrets.token_hex(24),
     'JWT_SECRET': secrets.token_hex(32),
     'COOKIE_SECRET': secrets.token_hex(32),
