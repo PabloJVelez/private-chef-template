@@ -499,6 +499,7 @@ export function ChefChat({
   const sending = useRef(false);
   const [panel, setPanel] = useState<HTMLDivElement | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const tail = useRef<HTMLDivElement>(null);
   const latestTurn = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -594,7 +595,8 @@ export function ChefChat({
     const context = selection?.context ?? ticket.context ?? fresh?.context;
     const cards = choice?.cards ?? fresh?.cards ?? [];
     setChoice(undefined);
-    input.current?.focus({ preventScroll: true });
+    if (!window.matchMedia("(any-pointer: coarse)").matches)
+      input.current?.focus({ preventScroll: true });
     const pending: Turn = { question };
     const next = [...turns.slice(-11), pending];
     const epoch = generation.current;
@@ -909,12 +911,17 @@ export function ChefChat({
           }}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
-            input.current?.focus({ preventScroll: true });
+            // Touch opening is for reading first. Focusing a non-input keeps
+            // the dialog accessible without asking Safari to open/pan a keyboard.
+            const target = window.matchMedia("(any-pointer: coarse)").matches
+              ? closeButton.current
+              : input.current;
+            target?.focus({ preventScroll: true });
           }}
           className={`chef-chat-panel ${expanded ? "chef-chat-expanded" : ""} bg-ui-bg-base border-ui-border-base text-ui-fg-base shadow-elevation-modal fixed z-50 flex flex-col overflow-hidden rounded-xl border`}
         >
-          <div className="border-ui-border-base flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
-            <div className="flex items-center gap-3">
+          <div className="chef-chat-header border-ui-border-base flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
+            <div className="flex min-w-0 items-center gap-3">
               <span
                 className="bg-ui-bg-subtle text-ui-fg-subtle shadow-borders-base flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                 aria-hidden="true"
@@ -930,7 +937,7 @@ export function ChefChat({
                 </Dialog.Description>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <IconButton
                 type="button"
                 variant="transparent"
@@ -954,6 +961,7 @@ export function ChefChat({
                   size="small"
                   variant="transparent"
                   aria-label="Close Sous Chef"
+                  ref={closeButton}
                 >
                   <XMark />
                 </IconButton>
@@ -968,7 +976,7 @@ export function ChefChat({
             className="chef-chat-log min-h-0 flex-1 flex flex-col gap-3 overflow-y-auto overscroll-contain break-words px-4 py-3 text-sm"
           >
             {!turns.length && (
-              <div className="space-y-5 py-2">
+              <div className="chef-chat-welcome">
                 <div className="space-y-2">
                   <h2 className="text-ui-fg-base text-lg font-medium">
                     What can I help you with?
@@ -979,7 +987,7 @@ export function ChefChat({
                   </p>
                 </div>
                 <div
-                  className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2"
+                  className="chef-chat-suggestions"
                   aria-label="Suggested schedule questions"
                 >
                   {suggestions.map(({ label, hint, question }) => (
@@ -999,7 +1007,7 @@ export function ChefChat({
                         <span className="text-ui-fg-base block text-sm font-medium">
                           {label}
                         </span>
-                        <span className="text-ui-fg-subtle mt-1 block text-xs leading-relaxed">
+                        <span className="chef-chat-suggestion-hint text-ui-fg-subtle mt-1 block text-xs leading-relaxed">
                           {hint}
                         </span>
                       </span>

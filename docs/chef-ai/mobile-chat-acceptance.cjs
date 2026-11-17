@@ -34,7 +34,8 @@ const server = http.createServer((req, res) => {
 (async () => {
   await new Promise(resolve => server.listen(9022, '127.0.0.1', resolve));
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1532, height: 1024 } });
+  const touch = process.env.MOBILE_POINTER !== 'mouse';
+  const page = await browser.newPage({ viewport: { width: 1532, height: 1024 }, hasTouch: touch, isMobile: touch });
   const errors = [], unknown = [], requests = [];
   const liveTime = '10:00';
   const writes = [];
@@ -82,11 +83,14 @@ const server = http.createServer((req, res) => {
   // Overlay-keyboard model: layout viewport stays unchanged while visual viewport
   // shrinks/pans. This is a deterministic DOM simulation, NOT a native keyboard.
   await page.addInitScript(() => {
+    const native = window.visualViewport;
     const viewport = new EventTarget();
-    Object.assign(viewport, { height: innerHeight, offsetTop: 0, scale: 1 });
+    let simulated;
+    for (const key of ['height', 'offsetTop', 'scale']) Object.defineProperty(viewport, key, {get: () => simulated?.[key] ?? native[key]});
+    for (const type of ['resize', 'scroll']) native.addEventListener(type, () => viewport.dispatchEvent(new Event(type)));
     Object.defineProperty(window, 'visualViewport', { value: viewport });
     window.simulateKeyboard = (height, offsetTop = 0) => {
-      Object.assign(viewport, { height, offsetTop });
+      simulated = height === null ? undefined : {height, offsetTop, scale: 1};
       viewport.dispatchEvent(new Event('resize'));
       viewport.dispatchEvent(new Event('scroll'));
     };
@@ -99,16 +103,61 @@ const server = http.createServer((req, res) => {
       const log = el.querySelector('.chef-chat-log');
       return { panel: rect(el), close: rect(el.querySelector('[aria-label="Close Sous Chef"]')),
         send: rect(el.querySelector('[aria-label="Send"]')), font: getComputedStyle(el.querySelector('textarea')).fontSize,
-        logWidth: log.clientWidth, logScrollWidth: log.scrollWidth, viewport: {height:visualViewport.height,top:visualViewport.offsetTop} };
+        active: document.activeElement?.tagName, innerWidth, scale: visualViewport.scale, welcome: el.querySelector('.chef-chat-log > div') ? rect(el.querySelector('.chef-chat-log > div')) : null, logWidth: log.clientWidth, logScrollWidth: log.scrollWidth, viewport: {height:visualViewport.height,top:visualViewport.offsetTop} };
     });
   }
   try {
-    for (const [width,height] of [[320,568],[375,667],[390,844],[430,932],[667,320],[1440,900]]) {
+    for (const [width,height] of (touch ? [[320,568],[360,640],[375,667],[390,844],[430,932],[667,320],[768,1024],[1024,768]] : [[390,844],[1440,900]])) {
       for (const theme of ['light','dark']) {
         await page.setViewportSize({width,height});
         await page.goto(base + '/app');
         await page.evaluate(t => {document.documentElement.classList.remove('light','dark');document.documentElement.classList.add(t);},theme);
         await page.getByRole('button',{name:'Ask Sous Chef',exact:true}).click();
+        const opening = await metrics();
+        console.log(JSON.stringify({width,height,theme,opening}));
+        await page.screenshot({path:path.join(out,`opening-${width}-${theme}.png`)});
+        if (!baseline) {
+          assert.equal(opening.active, touch ? 'BUTTON' : 'TEXTAREA', 'Opening focus follows input capability');
+          assert(opening.panel.x >= 0 && opening.panel.x + opening.panel.width <= width, 'Opening fits horizontally');
+          assert(opening.logScrollWidth <= opening.logWidth + 1, 'Welcome fits horizontally');
+          assert(opening.send.bottom <= height && opening.close.y >= 0 && opening.close.x + opening.close.width <= width, 'Opening controls visible');
+          if (width <= 640) assert(opening.welcome.height <= 250, 'Compact phone welcome');
+        }
+        let openingKeyboard;
+        if (touch && width <= 1024) {
+          await dialog.getByRole('textbox', {name:'Schedule question',exact:true}).focus();
+          const visibleHeight = Math.min(400, Math.max(230, height - 320));
+          await page.evaluate(h => window.simulateKeyboard(h, 12), visibleHeight);
+          await page.waitForTimeout(50);
+          openingKeyboard = await metrics();
+          if (!baseline && (width <= 640 || touch || height <= 480)) {
+            assert(openingKeyboard.send.bottom <= visibleHeight + 12, 'Empty composer above modeled keyboard');
+            assert(openingKeyboard.close.y >= 12, 'Empty Close above modeled keyboard');
+          }
+          if (width === 390 && theme === 'dark') {
+            await page.evaluate(h => {
+              const label = document.createElement('div'); label.id = 'opening-keyboard-label';
+              label.textContent = 'SIMULATED KEYBOARD — no real device';
+              label.style.cssText = `position:fixed;top:${h+12}px;bottom:0;left:0;right:0;z-index:9999;background:#cbd5e1;color:#0f172a;padding:16px;font:14px sans-serif`;
+              document.body.append(label);
+            }, visibleHeight);
+            await page.screenshot({path:path.join(out,'opening-keyboard-model-390-dark.png')});
+            await page.locator('#opening-keyboard-label').evaluate(el => el.remove());
+          }
+          await page.evaluate(() => window.simulateKeyboard(null));
+          await button('Close Sous Chef').click();
+          await page.getByRole('button',{name:'Ask Sous Chef',exact:true}).click();
+          if (!baseline && touch) assert.notEqual((await metrics()).active, 'TEXTAREA', 'Reopen without keyboard');
+          // Android-like layout viewport resize and rotation, without a viewport shim.
+          await page.setViewportSize({width, height: visibleHeight});
+          await page.waitForTimeout(50);
+          if (!baseline) assert((await metrics()).send.bottom <= visibleHeight, 'Layout resize keeps Send visible');
+          await page.setViewportSize({width: height, height: width});
+          await page.waitForTimeout(50);
+          const rotated = await metrics();
+          if (!baseline) assert(rotated.panel.x >= 0 && rotated.panel.x + rotated.panel.width <= height && rotated.send.bottom <= width, 'Rotation fits');
+          await page.setViewportSize({width,height});
+        }
         // Give the actual Admin main scroller a deterministic tall synthetic page.
         await page.locator('main').evaluate(el => { const spacer=document.createElement('div');spacer.style.cssText='height:2000px;flex-shrink:0';spacer.setAttribute('aria-hidden','true');el.append(spacer);el.scrollTop=100; });
         await button("What's on my schedule this week?").click();
@@ -165,15 +214,15 @@ const server = http.createServer((req, res) => {
             await button('Send').click({trial:true});
             await button('Close Sous Chef').click({trial:true});
           }
-          await page.evaluate(() => {document.getElementById('keyboard-simulation').remove();window.simulateKeyboard(innerHeight);});
+          await page.evaluate(() => {document.getElementById('keyboard-simulation').remove();window.simulateKeyboard(null);});
         }
-        results.push({width,height,theme,closed,afterTurn,keyboard,backgroundScrollContainers:underlying.length});
+        results.push({width,height,theme,opening,openingKeyboard,closed,afterTurn,keyboard,backgroundScrollContainers:underlying.length});
         await button('Close Sous Chef').click();
       }
     }
     assert.deepEqual(errors,[]);
     assert.deepEqual(unknown,[]);
-    fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({baseline,emulation:true,results,errors,unknown},null,2));
+    fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({baseline,touch,emulation:true,results,errors,unknown},null,2));
     console.log(JSON.stringify({baseline,cases:results.length,errors,unknown}));
   } finally { await browser.close(); await new Promise(resolve=>server.close(resolve)); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

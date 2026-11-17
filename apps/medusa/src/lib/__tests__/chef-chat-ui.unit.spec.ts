@@ -556,3 +556,44 @@ it("tracks the visual viewport only while open and leaves pinch zoom alone", asy
     else Reflect.deleteProperty(window, "visualViewport");
   }
 });
+
+it.each([false, true])(
+  "opens and reopens with accessible focus (coarse pointer: %s)",
+  async (coarse) => {
+    const original = window.matchMedia;
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: query === "(any-pointer: coarse)" && coarse,
+      media: query,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    }));
+    try {
+      await withChat(jest.fn().mockResolvedValue(emptyAnswer), async () => {
+        const target = () =>
+          coarse
+            ? button("Close Sous Chef")
+            : document.querySelector("textarea");
+        expect(document.activeElement).toBe(target());
+        await act(async () => button("Close Sous Chef").click());
+        // Radix restores trigger focus in its deferred unmount cleanup.
+        await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+        expect(document.activeElement).toBe(button("Ask Sous Chef"));
+        await act(async () => button("Ask Sous Chef").click());
+        expect(document.activeElement).toBe(target());
+        await act(async () => button(promptQuestions[0]).click());
+        if (coarse)
+          expect(document.activeElement).not.toBe(
+            document.querySelector("textarea"),
+          );
+        else
+          expect(document.activeElement).toBe(
+            document.querySelector("textarea"),
+          );
+      });
+    } finally {
+      window.matchMedia = original;
+    }
+  },
+);
