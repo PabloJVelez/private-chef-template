@@ -1,8 +1,25 @@
 # NUC preview pilot
 
-Status: live manually operated PR 41 pilot, **not an automatic PR lifecycle**.
-Only trusted same-repository code. No self-hosted Actions runner or production
-credentials. Production Coolify applications are not modified.
+Status: **automatic previews for trusted, non-draft, same-repository PRs**.
+The reviewed lifecycle controller is on main. See [CONTROLLER.md](CONTROLLER.md)
+for the current operator boundary, deployment, queueing, cleanup and recovery.
+
+Open or update a qualifying PR. GitHub builds its exact head; the NUC reconciler
+checks every five minutes and maintains one PR status/link comment after public
+acceptance passes. Two environments may run; additional successfully built PRs
+queue. Merge/close retires that PR's synthetic resources. Older branches must
+incorporate the preview-mode/seed changes from main and produce a new build.
+Forks and drafts do not deploy automatically.
+
+No production credentials/data or self-hosted Actions runner are used. Build
+workers are on GitHub; preview apps/data are on the NUC; Cloudflare handles
+preview HTTPS ingress. Disk thresholds are stop/admission watermarks, not hard
+filesystem quotas. Docker isolation is not a VM-grade security boundary.
+
+**Historical pilot below:** PR41 was retired by the controller after merge.
+Its old links and manual scripts are historical recovery references, not the
+active deployment path. Do not run `deploy-pilot.py` alongside the managed
+controller or recreate the retired pilot against its stale env file.
 
 ## Verified pilot evidence (2026-11-17)
 
@@ -184,11 +201,12 @@ reinitialize data. Reuse the previous compatible image and take a database
 snapshot before schema-changing deployments. Do not run `down -v` unless
 explicitly retiring this preview and all of its synthetic data.
 
-## Remaining lifecycle work
+## Remaining limits
 
-Live seed retry/preservation acceptance; guarded exact-head deployment; image digest
-verification; aggregate pool caps, storage admission and host/LAN isolation;
-preview routing/access; readiness-gated single PR comment; close cleanup and
-nightly orphan reconciliation from trusted default-branch code. Fail closed
-when GitHub state cannot be verified. Do not advertise a URL as ready until
-app acceptance has passed.
+The managed controller now implements multi-PR admission, exact-head deployment,
+acceptance-gated links, updates, close cleanup and missed-close reconciliation.
+The historic pilot instructions above do not describe its current state.
+
+Filesystem hard quotas, VM-grade untrusted-code isolation, richer fixtures,
+real test-payment/Calendar/AI integrations and incremental image-registry delivery
+remain future work. Synthetic preview email is captured locally, never sent.
