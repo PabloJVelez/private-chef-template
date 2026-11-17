@@ -388,7 +388,7 @@ class PreviewAI(unittest.TestCase):
         self.ctl.allocate('1'); self.ctl.compose = Mock()
         self.path = self.root / 'preview-ai.env'
         c.save_env(self.path, {'CHEF_AI_SCOPE': 'single_site', 'CHEF_AI_PROVIDER': 'openai',
-            'CHEF_AI_MODEL': 'gpt-4.1-mini', 'CHEF_AI_OPENAI_API_KEY': 'unit-only',
+            'CHEF_AI_MODEL': 'gpt-5.4-mini', 'CHEF_AI_OPENAI_API_KEY': 'unit-only',
             'CHEF_AI_SCHEDULE_WRITE_ENABLED': 'true'})
         self.ctl.config['ai_env_file'] = str(self.path)
 

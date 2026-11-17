@@ -135,7 +135,7 @@ standard account. Rerunning the bootstrap restores the requested password.
 
 Set operator config `ai_env_file` to an absolute mode0600 env file outside Git.
 Only these keys are accepted: CHEF_AI_SCOPE=single_site, CHEF_AI_PROVIDER=openai,
-CHEF_AI_MODEL (default app model: gpt-4.1-mini), CHEF_AI_OPENAI_API_KEY and
+CHEF_AI_MODEL (preview default: gpt-5.4-mini), CHEF_AI_OPENAI_API_KEY and
 CHEF_AI_SCHEDULE_WRITE_ENABLED=true/false. Use a dedicated preview project key.
 Compose injects this file only into Medusa, never the storefront/build workflow.
 Do not print rendered Compose configuration: it includes the key.
