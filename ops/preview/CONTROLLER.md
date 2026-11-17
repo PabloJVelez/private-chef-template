@@ -23,7 +23,7 @@ the NUC. Image builds run on GitHub-hosted workers without deployment secrets.
   Failed migrations stay stopped with data intact. No automatic down-migration.
 - Require normal public DNS/TLS, API auth/CORS/seed/availability/rendered pages,
   fresh public upload/download and real browser/Admin login before links appear.
-  No DNS overrides in the controller. One operator-authored PR comment is updated.
+  Checks resolve through live Cloudflare public DNS-over-HTTPS, with normal hostname TLS verification; no hardcoded edge IPs. Browser mappings come from those live DNS answers. Home/ISP DNS caches may still differ. One operator-authored PR comment is updated.
 - Closed/merged PRs are individually rechecked, exact tunnel/DNS routes removed,
   Compose stopped with that PR's synthetic volumes removed, and its comment
   retired. Never sweep global Docker volumes/images or arbitrary DNS records.

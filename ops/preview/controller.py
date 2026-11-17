@@ -11,6 +11,9 @@ import base64
 import datetime as dt
 import fcntl
 import hashlib
+import ipaddress
+import socket
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -224,6 +227,35 @@ def http(url, data=None, headers=None):
         return response.read(), response.headers
 
 
+def public_addresses(host):
+    # Resolve through an actual public recursive resolver, not a pinned edge IP.
+    # This makes monitoring independent of home-router delegation caches.
+    url = 'https://cloudflare-dns.com/dns-query?' + urllib.parse.urlencode({'name': host, 'type': 'A'})
+    body, _ = http(url, headers={'Accept': 'application/dns-json'})
+    answer = json.loads(body)
+    if answer.get('Status') != 0:
+        raise RuntimeError('Public DNS lookup failed')
+    addresses = [a['data'] for a in answer.get('Answer', []) if a['type'] == 1]
+    if not addresses or not all(ipaddress.ip_address(a).is_global for a in addresses):
+        raise RuntimeError('Preview DNS must resolve to public addresses')
+    return addresses
+
+
+@contextmanager
+def public_dns(hosts):
+    addresses = {host: public_addresses(host) for host in hosts}
+    original = socket.getaddrinfo
+    def lookup(host, *args, **kwargs):
+        if host in addresses:
+            return [record for address in addresses[host] for record in original(address, *args, **kwargs)]
+        return original(host, *args, **kwargs)
+    socket.getaddrinfo = lookup
+    try:
+        yield addresses
+    finally:
+        socket.getaddrinfo = original
+
+
 def acceptance(env, public=False):
     """Actual API behavior plus rendered pages; does not claim browser proof."""
     base = env['API_URL'] if public else 'http://127.0.0.1:' + env['API_PORT']
@@ -418,11 +450,14 @@ class Controller:
         self.current(number, sha)
         self.cf.route(number, env)
         # Keep retrying public checks across normal DNS/tunnel propagation, but
-        # never use a resolver override to declare a public preview ready.
+        # use live public recursive DNS, not hardcoded IP overrides.
         last = None
         for _ in range(10):
             try:
-                proof = acceptance(env, public=True)
+                hosts = [urllib.parse.urlparse(env[k]).hostname for k in ('API_URL', 'STOREFRONT_URL')]
+                with public_dns(hosts):
+                    proof = acceptance(env, public=True)
+                proof['dns_resolver'] = 'Cloudflare public DNS-over-HTTPS'
                 break
             except (OSError, ValueError, KeyError, RuntimeError) as e:
                 last = e

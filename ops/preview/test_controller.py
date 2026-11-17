@@ -200,7 +200,7 @@ class DeploymentOrdering(unittest.TestCase):
             ctl.import_images = Mock(return_value={'medusa': 'sha256:a', 'storefront': 'sha256:b'})
             ctl.current = Mock(side_effect=[None, None, None, None, RuntimeError('superseded')])
             c.write_json(ctl.folder('1') / 'bootstrap.json', {'publishable_key': 'pk_test'})
-            with patch.object(c, 'command', return_value=''), patch.object(c.subprocess, 'run', return_value=Mock(returncode=0, stdout='', stderr='')), patch.object(c, 'http', return_value=(b'', {})), patch.object(c, 'acceptance', return_value={'ok': True}):
+            with patch.object(c, 'command', return_value=''), patch.object(c.subprocess, 'run', return_value=Mock(returncode=0, stdout='', stderr='')), patch.object(c, 'http', return_value=(b'', {})), patch.object(c, 'acceptance', return_value={'ok': True}), patch.object(c, 'public_addresses', return_value=['1.1.1.1']):
                 with self.assertRaises(RuntimeError): ctl.deploy('1', SHA, {'id': 1})
             self.assertNotEqual(ctl.entries['1']['status'], 'ready')
             ctl.github.comment.assert_not_called()
@@ -238,3 +238,16 @@ class RecoveryAndBuildReceipts(unittest.TestCase):
             ctl.deploy.assert_not_called()
             self.assertEqual(ctl.entries['1']['status'], 'failed')
             self.assertEqual(ctl.entries['1']['failed_sha'], SHA)
+
+class PublicDns(unittest.TestCase):
+    def test_private_or_missing_dns_answers_are_rejected(self):
+        for answer in [{'Status': 3}, {'Status': 0, 'Answer': [{'type': 1, 'data': '127.0.0.1'}]}]:
+            with patch.object(c, 'http', return_value=(json.dumps(answer).encode(), {})):
+                with self.assertRaises(RuntimeError): c.public_addresses('pr-1-preview.example.com')
+
+    def test_resolver_is_restored_after_failure(self):
+        original = c.socket.getaddrinfo
+        with patch.object(c, 'public_addresses', return_value=['1.1.1.1']):
+            with self.assertRaises(RuntimeError):
+                with c.public_dns(['pr-1-preview.example.com']): raise RuntimeError('probe failed')
+        self.assertIs(c.socket.getaddrinfo, original)

@@ -6,9 +6,20 @@ const env = Object.fromEntries(fs.readFileSync(envPath, 'utf8').trim().split('\n
   const at = line.indexOf('='); return [line.slice(0, at), line.slice(at + 1)];
 }));
 (async () => {
+  // Live public DNS queries, not fixed IP overrides; normal hostname TLS checks.
+  const rules = [];
+  for (const origin of [env.API_URL, env.STOREFRONT_URL]) {
+    const host = new URL(origin).hostname;
+    if (host === 'localhost' || host === '127.0.0.1') continue; // Local integration fixture only.
+    const response = await fetch('https://cloudflare-dns.com/dns-query?type=A&name=' + encodeURIComponent(host), { headers: { Accept: 'application/dns-json' } });
+    const dns = await response.json();
+    const address = dns.Answer?.find(answer => answer.type === 1)?.data;
+    if (dns.Status !== 0 || !address || !/^[0-9.]+$/.test(address)) throw new Error('Public DNS lookup failed');
+    rules.push('MAP ' + host + ' ' + address);
+  }
   const browser = await chromium.launch({ headless: true,
     executablePath: process.env.PREVIEW_CHROMIUM_PATH,
-    args: ['--no-sandbox'] });
+    args: ['--no-sandbox', '--host-resolver-rules=' + rules.join(', ')] });
   try {
     const results = [];
     for (const url of [env.STOREFRONT_URL + '/', env.STOREFRONT_URL + '/request', env.API_URL + '/app']) {
