@@ -76,7 +76,6 @@ services:
     volumes:
       - uploads:/app/apps/medusa/.medusa/server/static
       - emails:/app/apps/medusa/.medusa/server/preview-emails
-    ports: ['127.0.0.1:${API_PORT:?required}:9000']
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -86,7 +85,7 @@ services:
     profiles: [app]
     mem_limit: 512m
     memswap_limit: 512m
-    cpus: 0.4
+    cpus: 0.3
     environment:
       NODE_ENV: production
       PORT: '3000'
@@ -95,8 +94,27 @@ services:
       STOREFRONT_URL: ${STOREFRONT_URL}
       MEDUSA_PUBLISHABLE_KEY: ${MEDUSA_PUBLISHABLE_KEY:-}
       NODE_OPTIONS: --max-old-space-size=320
-    ports: ['127.0.0.1:${STOREFRONT_PORT:?required}:3000']
+  proxy:
+    <<: *runtime
+    image: nginx:1.28-alpine
+    profiles: [app]
+    user: '101:101'
+    read_only: true
+    entrypoint: [nginx, -g, 'daemon off;']
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.1
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=32m,uid=101,gid=101,mode=0700
+    volumes: ['./nginx.conf:/etc/nginx/nginx.conf:ro']
+    networks: [preview, ingress]
+    ports:
+      - '127.0.0.1:${API_PORT:?required}:9000'
+      - '127.0.0.1:${STOREFRONT_PORT:?required}:3000'
+    depends_on: [medusa, storefront]
 networks:
+  ingress:
   preview:
     internal: true
 volumes:

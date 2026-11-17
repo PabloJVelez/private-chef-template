@@ -42,7 +42,7 @@ export default async function seed({ container }: ExecArgs) {
     await menu.createMenus({ id: 'menu_preview', name: 'Preview Seasonal Dinner', status: 'active' });
   for (const experience of await experiences.listExperienceTypes({})) {
     if (!(await menu.listMenuExperiencePrices({ menu_id: 'menu_preview', experience_type_id: experience.id })).length)
-      await menu.createMenuExperiencePrices({ menu_id: 'menu_preview', experience_type_id: experience.id, price_per_person: 125 });
+      await menu.createMenuExperiencePrices({ menu_id: 'menu_preview', experience_type_id: experience.id, price_per_person: 12500 });
   }
   const availability = container.resolve<AvailabilityService>('availability');
   if (!(await availability.listAvailabilitySettings({ id: 'chef-default' })).length)
