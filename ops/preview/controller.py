@@ -179,7 +179,7 @@ class Cloudflare:
     def hosts(self, number):
         return [f'pr-{int(number)}-preview.{self.config["domain"]}', f'api-pr-{int(number)}-preview.{self.config["domain"]}']
 
-    def route(self, number, env, remove=False):
+    def route(self, number, env, remove=False, delete_dns=False):
         hosts = self.hosts(number)
         target = self.config['tunnel_id'] + '.cfargotunnel.com'
         base = f'/zones/{self.config["zone_id"]}/dns_records'
@@ -212,10 +212,10 @@ class Cloudflare:
             records = self.api(base + '?name=' + host)
             if any(r['type'] != 'CNAME' or r['content'] != target or not r['proxied'] for r in records):
                 raise RuntimeError('Existing DNS record conflicts with controller ownership')
-            if remove:
+            if remove and delete_dns:
                 for record in records:
                     self.api(base + '/' + record['id'], method='DELETE')
-            elif not records:
+            elif not remove and not records:
                 self.api(base, {'type': 'CNAME', 'name': host, 'content': target, 'proxied': True, 'ttl': 1})
 
 
@@ -472,33 +472,41 @@ class Controller:
         else:
             raise RuntimeError('Synthetic request email was not captured')
         self.current(number, sha)
+        entry.update(status='awaiting_public', candidate_sha=sha, candidate_run=run['id'],
+                     candidate_images=list(images.values()), pending_since=time.time(),
+                     previous_images=[load_env(self.folder(number) / 'previous.env')[k] for k in ('MEDUSA_IMAGE', 'STOREFRONT_IMAGE')])
+        self.save()
         self.cf.route(number, env)
-        # Keep retrying public checks across normal DNS/tunnel propagation, but
-        # use live public recursive DNS, not hardcoded IP overrides.
-        last = None
-        for _ in range(10):
-            try:
-                hosts = [urllib.parse.urlparse(env[k]).hostname for k in ('API_URL', 'STOREFRONT_URL')]
-                with public_dns(hosts):
-                    proof = acceptance(env, public=True)
-                proof['dns_resolver'] = 'Cloudflare public DNS-over-HTTPS'
-                break
-            except (OSError, ValueError, KeyError, RuntimeError) as e:
-                last = e
-                time.sleep(15)
-        else:
-            raise RuntimeError('Public acceptance/DNS still pending') from last
-        command(['node', str(ROOT / 'browser-acceptance.cjs'), str(self.envpath(number)), str(self.folder(number) / 'browser.json')], timeout=180)
+        self.finalize(number)
+
+    def finalize(self, number):
+        entry = self.entries[number]
+        sha = entry['candidate_sha']
+        self.current(number, sha)
+        env = load_env(self.envpath(number))
+        try:
+            hosts = [urllib.parse.urlparse(env[k]).hostname for k in ('API_URL', 'STOREFRONT_URL')]
+            with public_dns(hosts):
+                proof = acceptance(env, public=True)
+            proof['dns_resolver'] = 'Cloudflare public DNS-over-HTTPS'
+            command(['node', str(ROOT / 'browser-acceptance.cjs'), str(self.envpath(number)), str(self.folder(number) / 'browser.json')], timeout=180)
+        except (OSError, ValueError, KeyError, RuntimeError) as error:
+            if time.time() - entry['pending_since'] > 1200:
+                raise RuntimeError('Public readiness exceeded twenty-minute deadline') from error
+            atomic(self.folder(number) / 'public-check-error.txt', type(error).__name__ + ': ' + str(error))
+            self.github.comment(number, f'**Preview checks pending** · `{sha[:12]}`. Apps are initialized; public DNS/TLS/browser acceptance has not passed yet. No migration replay is needed.')
+            return False
         proof.update(browser_admin_login=True, synthetic_request=True, captured_email=True)
         self.current(number, sha)
         obsolete = entry.get('rollback_images', [])
-        entry['rollback_images'] = entry.get('images', [])
+        entry['rollback_images'] = entry['previous_images']
         entry.pop('pending_images', None)
-        entry.update(status='ready', sha=sha, run=run['id'], images=list(images.values()), acceptance=proof, updated_at=time.time())
+        entry.update(status='ready', sha=sha, run=entry['candidate_run'], images=entry['candidate_images'], acceptance=proof, updated_at=time.time())
         entry.pop('failed_sha', None)
         self.save()
         self.publish(number, sha, env)
         self.prune_images(obsolete)
+        return True
 
     def prune_images(self, candidates):
         referenced = {image for e in self.entries.values() for key in ('images', 'rollback_images', 'pending_images') for image in e.get(key, [])}
@@ -517,7 +525,7 @@ class Controller:
         if pr['state'] != 'closed':
             raise RuntimeError('Refusing retirement of an open PR')
         env = load_env(self.envpath(number))
-        self.cf.route(number, env, remove=True)
+        self.cf.route(number, env, remove=True, delete_dns=True)
         if self.github.pr(number)['state'] != 'closed':
             self.cf.route(number, env)
             raise RuntimeError('PR reopened during retirement; data preserved')
@@ -532,6 +540,16 @@ class Controller:
         self.save()
         # Keep a bounded audit record, not old passwords or DB snapshots.
         shutil.rmtree(self.folder(number))
+
+    def fail(self, number, sha, error):
+        # Never publish tokens, subprocess output or application payloads.
+        entry = self.entries[number]
+        entry.update(status='failed', failed_sha=sha, error_type=type(error).__name__)
+        self.save()
+        atomic(self.folder(number) / 'controller-error.txt', str(error))
+        self.cf.route(number, load_env(self.envpath(number)), remove=True)
+        self.compose(number, 'stop', 'proxy', 'medusa', 'storefront')
+        self.github.comment(number, f'**Preview failed** · `{sha[:12]}`. Public routing is withdrawn; data is preserved. Operator diagnostics are private.')
 
     def reconcile(self, apply=False):
         prs = self.github.pages(f'repos/{self.config["repo"]}/pulls?state=open')
@@ -587,6 +605,12 @@ class Controller:
                 env = load_env(self.envpath(number))
                 self.publish(number, sha, env)
                 continue
+            if entry.get('status') == 'awaiting_public' and entry.get('candidate_sha') == sha:
+                try:
+                    self.finalize(number)
+                except Exception as error:
+                    self.fail(number, sha, error)
+                continue
             if entry.get('failed_sha') == sha:
                 continue  # No endless retries of bad migrations; explicit retry required.
             run = builds[number]
@@ -604,16 +628,7 @@ class Controller:
                 self.github.comment(number, f'**Preview deploying** · `{sha[:12]}`. Links appear after acceptance passes.')
                 self.deploy(number, sha, run)
             except Exception as e:
-                # No tokens, subprocess output, or application errors in public status.
-                entry = self.entries[number]
-                entry.update(status='failed', failed_sha=sha, error_type=type(e).__name__)
-                self.save()
-                atomic(self.folder(number) / 'controller-error.txt', str(e))
-                # An acceptance failure may have opened a route; withdraw it.
-                self.cf.route(number, load_env(self.envpath(number)), remove=True)
-                self.compose(number, 'stop', 'proxy', 'medusa', 'storefront')
-                self.github.comment(number, f'**Preview failed** · `{sha[:12]}`. Public routing is withdrawn; data is preserved. Operator diagnostics are private.')
-                # Continue to other independent PRs only after withdrawal succeeded.
+                self.fail(number, sha, e)
         return {'selected': selected, 'queued': queued, 'statuses': {k: e['status'] for k, e in self.entries.items()}}
 
 

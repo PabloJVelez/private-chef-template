@@ -200,7 +200,7 @@ class DeploymentOrdering(unittest.TestCase):
             counts = iter(['1', '2'])
             ctl.compose.side_effect = lambda *args, **kwargs: next(counts) if 'exec' in args else ''
             ctl.import_images = Mock(return_value={'medusa': 'sha256:a', 'storefront': 'sha256:b'})
-            ctl.current = Mock(side_effect=[None, None, None, None, RuntimeError('superseded')])
+            ctl.current = Mock(side_effect=[None, None, None, None, None, RuntimeError('superseded')])
             c.write_json(ctl.folder('1') / 'bootstrap.json', {'publishable_key': 'pk_test'})
             with patch.object(c, 'command', return_value=''), patch.object(c.subprocess, 'run', return_value=Mock(returncode=0, stdout='', stderr='')), patch.object(c, 'http', return_value=(b'', {})), patch.object(c, 'acceptance', return_value={'ok': True}), patch.object(c, 'public_addresses', return_value=['1.1.1.1']):
                 with self.assertRaises(RuntimeError): ctl.deploy('1', SHA, {'id': 1})
@@ -262,3 +262,24 @@ class HealthTransport(unittest.TestCase):
         with patch.object(c.urllib.request, 'ProxyHandler') as handler, patch.object(c.urllib.request, 'build_opener', return_value=opener):
             self.assertEqual(c.http('http://127.0.0.1:19000/health')[0], b'ok')
         handler.assert_called_once_with({})
+
+class DnsContinuity(CloudflareRoutes):
+    def test_withdrawal_keeps_dns_until_actual_retirement(self):
+        cf = self.make()
+        for i, host in enumerate(cf.hosts('42')):
+            self.records[host] = [{'id': str(i), 'type': 'CNAME', 'content': 't.cfargotunnel.com', 'proxied': True}]
+        cf.route('42', {'API_PORT': '19100', 'STOREFRONT_PORT': '13100'}, remove=True)
+        self.assertFalse(any('/dns_records/' in p for p in self.writes))
+        cf.route('42', {'API_PORT': '19100', 'STOREFRONT_PORT': '13100'}, remove=True, delete_dns=True)
+        self.assertEqual(sum('/dns_records/' in p for p in self.writes), 2)
+
+class PublicResume(unittest.TestCase):
+    def test_public_pending_resumes_checks_without_redeploying_or_migrating(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2, 'enabled': True}, Path(temp))
+            ctl.allocate('1'); ctl.entries['1'].update(status='awaiting_public', candidate_sha=SHA)
+            ctl.github = Mock(); ctl.github.pages.return_value = [pr(1)]; ctl.github.pr.return_value = pr(1)
+            ctl.github.build.return_value = None
+            ctl.disk_guard = Mock(); ctl.finalize = Mock(return_value=True); ctl.deploy = Mock()
+            with patch.object(c, 'Cloudflare', return_value=Mock()): ctl.reconcile(True)
+            ctl.finalize.assert_called_once_with('1'); ctl.deploy.assert_not_called()
