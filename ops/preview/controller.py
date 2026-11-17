@@ -320,7 +320,7 @@ def acceptance(env, public=False, write_request=False):
         if headers.get('access-control-allow-origin') != env['STOREFRONT_URL']:
             raise RuntimeError('CORS acceptance failed')
         return json.loads(data)
-    token = call('/auth/user/emailpass', {'email': 'chef@example.invalid', 'password': env['PREVIEW_ADMIN_PASSWORD']})['token']
+    token = call('/auth/user/emailpass', {'email': 'chef@admin.com', 'password': 'test'})['token']
     experiences = call('/store/experience-types')['experience_types']
     if not experiences or not call('/store/menus')['menus']:
         raise RuntimeError('Preview seed acceptance failed')
@@ -411,6 +411,21 @@ class Controller:
         self.save()
         save_env(self.envpath(number), values)
 
+    def configure_admin(self, number, running=False):
+        # Trusted operator script, not PR code; no host mounts or DB-table writes.
+        mode = ['exec', '-T'] if running else ['run', '--rm', '--no-deps', '-T']
+        script = (ROOT / 'preview-admin.cjs').read_text()
+        args = ['docker', 'compose', '--env-file', str(self.envpath(number)),
+                '-f', str(ROOT / 'managed-compose.yaml'), '--profile', 'app',
+                *mode, 'medusa', 'sh', '-c',
+                'cat > ./preview-admin.cjs && /app/apps/medusa/node_modules/.bin/medusa exec ./preview-admin.cjs']
+        result = subprocess.run(args, input=script, capture_output=True, text=True, timeout=120)
+        atomic(self.folder(number) / 'admin-bootstrap.log', result.stdout + result.stderr)
+        if result.returncode or 'Standard preview Admin configured' not in result.stdout:
+            raise RuntimeError('Preview Admin bootstrap failed; private log retained')
+        self.entries[number]['admin_login_version'] = 1
+        self.save()
+
     def disk_guard(self):
         free = shutil.disk_usage(self.state).free
         usage = json.loads(command(['docker', 'system', 'df', '-v', '--format', '{{json .}}']))
@@ -496,6 +511,7 @@ class Controller:
             atomic(self.folder(number) / f'{name}.log', log)
             if result.returncode or re.search(r'\b(error|failed|failure)\b', log, re.I):
                 raise RuntimeError(f'{name} failed; private log retained')
+        self.configure_admin(number)
         self.compose(number, 'create', 'medusa')
         receipt = self.folder(number) / 'bootstrap.json'
         self.compose(number, 'cp', 'medusa:/app/apps/medusa/.medusa/server/preview-emails/bootstrap.json', str(receipt))
@@ -661,6 +677,8 @@ class Controller:
             self.current(number, sha)
             entry = self.entries.get(number, {})
             if entry.get('status') == 'ready' and entry.get('sha') == sha:
+                if entry.get('admin_login_version') != 1:
+                    self.configure_admin(number, running=True)
                 env = load_env(self.envpath(number))
                 self.publish(number, sha, env)
                 continue

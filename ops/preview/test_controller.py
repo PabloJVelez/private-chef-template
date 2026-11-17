@@ -145,7 +145,7 @@ class Reconciliation(unittest.TestCase):
         self.ctl.deploy.assert_called_once()
 
     def test_lost_ready_comment_is_retried_without_redeploying(self):
-        self.ctl.allocate('1'); self.ctl.entries['1'].update(status='ready', sha=SHA)
+        self.ctl.allocate('1'); self.ctl.entries['1'].update(status='ready', sha=SHA, admin_login_version=1)
         self.ctl.deploy = Mock()
         with patch.object(c, 'Cloudflare', return_value=Mock()): self.ctl.reconcile(True)
         self.ctl.deploy.assert_not_called()
@@ -371,7 +371,7 @@ class NativeDeployments(unittest.TestCase):
     def test_ready_publication_failure_does_not_stop_apps(self):
         with tempfile.TemporaryDirectory() as temp:
             ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2, 'enabled': True}, Path(temp))
-            ctl.allocate('1'); ctl.entries['1'].update(status='ready', sha=SHA)
+            ctl.allocate('1'); ctl.entries['1'].update(status='ready', sha=SHA, admin_login_version=1)
             ctl.github = Mock(); ctl.github.pages.return_value = [pr(1)]; ctl.github.pr.return_value = pr(1)
             ctl.github.deployment.side_effect = RuntimeError('GitHub unavailable')
             ctl.disk_guard = Mock(); ctl.fail = Mock(); ctl.deploy = Mock()

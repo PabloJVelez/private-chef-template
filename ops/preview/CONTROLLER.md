@@ -119,3 +119,14 @@ on the affected device (including IPv6 DNS, if configured), then reopen the orig
 preview URL, not the redirected parking URL. Do not disable TLS or hardcode edge
 addresses. Report public-DNS acceptance separately from affected-device access;
 a passing resolver-overridden browser check does not prove the user's DNS works.
+
+## Standard preview Admin login
+
+All managed previews use `chef@admin.com` / `test`, explicitly requested by the
+owner. `preview-admin.cjs` is an operator-owned bootstrap using Medusa's public
+user/auth services, guarded by PREVIEW_MODE=true. Include it in each installed
+controller release. It runs after data seeding and once for existing ready previews;
+older PR images are supported without a rebuild. Legacy seeded accounts are not
+deleted. Database passwords, JWT and cookie secrets remain random and private.
+This login policy never applies to production. Browser/API acceptance uses the
+standard account. Rerunning the bootstrap restores the requested password.
