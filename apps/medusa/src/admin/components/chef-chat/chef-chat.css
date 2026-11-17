@@ -71,6 +71,26 @@
     max-height: 44px;
     overflow-y: auto;
   }
+  /* Below 90px, preserve composition instead of a clipped conversation sliver.
+     Use the visual viewport itself: decorative margins/padding cannot compete
+     with the 44px touch row. Keep horizontal safe-area protection above. */
+  .chef-chat-panel[data-composer-only] {
+    top: var(--chef-chat-visible-top, 0px);
+    height: var(--chef-chat-visible-height, 100dvh);
+    border: 0;
+    border-radius: 0;
+    grid-template-rows: 44px;
+    align-content: center;
+  }
+  .chef-chat-panel[data-composer-only] .chef-chat-log {
+    display: none;
+  }
+  .chef-chat-panel[data-composer-only] .chef-chat-composer,
+  .chef-chat-panel[data-composer-only] .chef-chat-header {
+    grid-row: 1;
+    padding: 0;
+    border: 0;
+  }
   .chef-chat-panel button,
   .chef-chat-panel summary {
     min-height: 44px;

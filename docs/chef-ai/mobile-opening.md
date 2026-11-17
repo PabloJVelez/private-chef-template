@@ -97,3 +97,32 @@ or unmocked API routes. Local evidence: `/tmp/pr43-landscape-after/result.json`;
 prior-build regression failure: `/tmp/pr43-landscape-before.log`. These checks
 cover the application changes in the commit carrying this section, not a new
 physical-device result.
+
+## Extreme-height composer-only follow-up (2026-11-17)
+
+The owner's subsequent screen recording rejected the previous landscape fix.
+Local Admin-source testing reproduced a second clipping defect: at 60px visible
+height, the panel's outer spacing left only 44px for a fixed 53px control row;
+at 45px it left only 29px. The overflow-hidden panel clipped all three controls.
+This establishes a layout failure, not the exact native Safari viewport sequence.
+
+Below 90px visible height, mobile chat now prioritizes composition: the existing
+conversation is hidden (not cleared or unmounted), vertical decorative spacing is
+removed, and the input/Send/Close share a centered 44px row. Horizontal safe-area
+protection remains. The accessible dialog title and draft are retained, and the
+normal conversation layout returns when space increases. At less than 44px usable
+height, full-size touch controls cannot fit; no claim of support below that limit
+is made. Pinch zoom and transient zero-height handling are unchanged.
+
+The browser regression now includes 70/60/45px in both landscape widths and themes,
+checks controls against the panel's clipping bounds as well as viewport bounds,
+checks retained multiline drafts, and trial-clicks Send and Close. At extreme
+heights it requires the conversation to be hidden rather than a positive sliver.
+Component coverage checks mode entry, restoration, transient-zero handling and
+cleanup. Native iPhone acceptance remains pending; PR stays open and unmerged.
+
+Verification: both workspace typechecks/builds and all 154 focused tests passed.
+The built-Admin harness passed 42 touch cases (18 viewport/theme cases and 24
+short-height cases) plus four mouse cases, without page errors or unknown APIs.
+Local artifacts: `/tmp/pr43-composer-touch/result.json` and
+`/tmp/pr43-composer-mouse/result.json`. This remains simulated keyboard evidence.

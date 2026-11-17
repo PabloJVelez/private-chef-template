@@ -145,7 +145,7 @@ const server = http.createServer((req, res) => {
             await page.locator('#opening-keyboard-label').evaluate(el => el.remove());
           }
           if (width === 667 || width === 844) {
-            for (const shortHeight of [180, 120, 90]) {
+            for (const shortHeight of [180, 120, 90, 70, 60, 45]) {
               await dialog.getByRole('textbox', {name:'Schedule question',exact:true}).fill('Landscape draft\nwith several\nlines retained');
               await page.evaluate(h => window.simulateKeyboard(h, 24), shortHeight);
               await page.waitForTimeout(50);
@@ -153,8 +153,13 @@ const server = http.createServer((req, res) => {
               for (const control of [short.input, short.send, short.close]) {
                 assert(control.y >= 24 && control.bottom <= shortHeight + 24, 'Short-landscape controls inside visible viewport');
                 assert(control.height >= 44, 'Short-landscape controls retain touch target');
+                assert(control.y >= short.panel.y && control.bottom <= short.panel.bottom, 'Controls inside clipping panel');
               }
-              assert(short.log.height > 0 && short.log.bottom <= short.input.y, 'Conversation retains separate scroll area');
+              if (shortHeight < 90) assert.equal(short.log.height, 0, 'Extreme height prioritizes composition');
+              else assert(short.log.height > 0 && short.log.bottom <= short.input.y, 'Conversation retains separate scroll area');
+              assert.equal(await dialog.getByRole('textbox', {name:'Schedule question',exact:true}).inputValue(), 'Landscape draft\nwith several\nlines retained');
+              await button('Send').click({trial:true});
+              await button('Close Sous Chef').click({trial:true});
               assert(short.send.x + short.send.width <= short.close.x, 'Send and Close do not overlap');
               await page.screenshot({path:path.join(out,`landscape-keyboard-${width}-${shortHeight}-${theme}.png`)});
               results.push({width,height,theme,shortHeight,short});

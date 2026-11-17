@@ -604,6 +604,7 @@ export function ChefChat({
       // Leave pinch zoom to the browser rather than resizing the panel under it.
       if (viewport.scale !== 1 || viewport.height <= 0) return;
       element.toggleAttribute("data-short-viewport", viewport.height < 240);
+      element.toggleAttribute("data-composer-only", viewport.height < 90);
       element.style.setProperty(
         "--chef-chat-visible-height",
         `${viewport.height}px`,
@@ -620,6 +621,7 @@ export function ChefChat({
       viewport.removeEventListener("resize", update);
       viewport.removeEventListener("scroll", update);
       element.removeAttribute("data-short-viewport");
+      element.removeAttribute("data-composer-only");
       element.style.removeProperty("--chef-chat-visible-height");
       element.style.removeProperty("--chef-chat-visible-top");
     };
