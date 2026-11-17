@@ -550,6 +550,50 @@ export function ChefChat({
     );
   }, [turns, loading, open]);
 
+  // Keep Safari's focus-driven document scrolling separate from the chat's
+  // visual-viewport resize. Overflow alone does not lock the body on iOS.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const mobile = window.matchMedia(
+      "(max-width: 640px), (max-width: 960px) and (max-height: 480px), (any-pointer: coarse) and (max-width: 1024px)",
+    );
+    let unlock: (() => void) | undefined;
+    const update = () => {
+      if (!mobile.matches) {
+        unlock?.();
+        unlock = undefined;
+        return;
+      }
+      if (unlock) return;
+      const { scrollX, scrollY } = window;
+      const style = document.body.style;
+      const properties = ["position", "top", "left", "width", "overflow"];
+      const previous = properties.map((name) => ({
+        name,
+        value: style.getPropertyValue(name),
+        priority: style.getPropertyPriority(name),
+      }));
+      style.setProperty("position", "fixed");
+      style.setProperty("top", `${-scrollY}px`);
+      style.setProperty("left", `${-scrollX}px`);
+      style.setProperty("width", "100%");
+      style.setProperty("overflow", "hidden");
+      unlock = () => {
+        for (const { name, value, priority } of previous) {
+          if (value) style.setProperty(name, value, priority);
+          else style.removeProperty(name);
+        }
+        window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
+      };
+    };
+    update();
+    mobile.addEventListener("change", update);
+    return () => {
+      mobile.removeEventListener("change", update);
+      unlock?.();
+    };
+  }, [open]);
+
   // Mobile keyboards can resize only the visual viewport, leaving 100dvh
   // unchanged. Scope this subscription and its CSS variables to the open chat.
   useEffect(() => {

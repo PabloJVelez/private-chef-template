@@ -597,3 +597,58 @@ it.each([false, true])(
     }
   },
 );
+
+it.each(["close", "unmount"])(
+  "restores mobile page position and styles after %s",
+  async (end) => {
+    const matchMedia = window.matchMedia;
+    const scrollTo = jest
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => {});
+    const originalScrollY = window.scrollY;
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 240,
+    });
+    const originalStyle = document.body.style.cssText;
+    document.body.style.setProperty("overflow", "auto", "important");
+    document.body.style.color = "red";
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+    }));
+    try {
+      await withChat(jest.fn(), async () => {
+        expect(document.body.style.position).toBe("fixed");
+        expect(document.body.style.top).toBe("-240px");
+        expect(document.body.style.overflow).toBe("hidden");
+        if (end === "close")
+          await act(async () => button("Close Sous Chef").click());
+      });
+      expect(document.body.style.position).toBe("");
+      expect(document.body.style.top).toBe("");
+      expect(document.body.style.overflow).toBe("auto");
+      expect(document.body.style.getPropertyPriority("overflow")).toBe(
+        "important",
+      );
+      expect(document.body.style.color).toBe("red");
+      expect(scrollTo).toHaveBeenCalledWith({
+        left: 0,
+        top: 240,
+        behavior: "instant",
+      });
+    } finally {
+      window.matchMedia = matchMedia;
+      scrollTo.mockRestore();
+      Object.defineProperty(window, "scrollY", {
+        configurable: true,
+        value: originalScrollY,
+      });
+      document.body.style.cssText = originalStyle;
+    }
+  },
+);
