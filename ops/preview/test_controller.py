@@ -293,3 +293,89 @@ class ImageOwnership(unittest.TestCase):
                 ctl.prune_images(['uninitialized', 'unrelated:latest', own_id])
             self.assertEqual(run.call_count, 1)
             self.assertEqual(run.call_args.args[0], ['docker', 'image', 'rm', own_id])
+
+class NativeDeployments(unittest.TestCase):
+    def make(self):
+        gh = c.GitHub(REPO)
+        gh.login = 'operator'
+        gh.guard = Mock()
+        records, statuses, writes = [], {}, []
+        gh.pages = lambda path: [d for d in records if d['environment'] in path]
+        def api(path, payload=None, method=None):
+            if path.endswith('/deployments'):
+                d = dict(payload, id=len(records)+1, sha=payload['ref'], creator={'login': 'operator'})
+                records.append(d); writes.append((path, payload)); return d
+            deployment_id = int(path.split('/deployments/')[1].split('/')[0])
+            if payload is None:
+                return statuses.get(deployment_id, [])
+            statuses[deployment_id] = [dict(payload)]
+            writes.append((path, payload)); return payload
+        gh.api = Mock(side_effect=api)
+        return gh, records, statuses, writes
+
+    def test_two_surfaces_exact_sha_transient_no_auto_merge_or_ci_gate(self):
+        gh, records, statuses, writes = self.make()
+        urls = {'storefront': 'https://preview.example', 'admin': 'https://api.example/app'}
+        gh.deployment('1', SHA, 'success', urls)
+        self.assertEqual(len(records), 2)
+        for d in records:
+            self.assertEqual(d['ref'], SHA)
+            self.assertFalse(d['auto_merge']); self.assertFalse(d['production_environment'])
+            self.assertTrue(d['transient_environment']); self.assertEqual(d['required_contexts'], [])
+            self.assertEqual(statuses[d['id']][0]['environment_url'], urls[d['payload']['surface']])
+
+    def test_noop_repeat_and_lost_status_response_recover_without_duplicates(self):
+        gh, records, statuses, writes = self.make()
+        urls = {'storefront': 'https://preview.example', 'admin': 'https://api.example/app'}
+        gh.deployment('1', SHA, 'success', urls)
+        count = len(writes)
+        gh.deployment('1', SHA, 'success', urls)
+        self.assertEqual(len(writes), count)
+        statuses.pop(1)
+        gh.deployment('1', SHA, 'success', urls)
+        self.assertEqual(len(records), 2)
+        self.assertEqual(len(writes), count+1)
+
+    def test_new_head_inactivates_previous_head_without_touching_other_pr(self):
+        gh, records, statuses, writes = self.make()
+        gh.deployment('1', SHA, 'success')
+        gh.deployment('2', SHA, 'success')
+        gh.deployment('1', 'b'*40, 'in_progress')
+        self.assertEqual([statuses[i][0]['state'] for i in range(1, 7)],
+                         ['inactive', 'inactive', 'success', 'success', 'in_progress', 'in_progress'])
+
+    def test_retirement_inactivates_both_and_repeat_is_noop(self):
+        gh, records, statuses, writes = self.make()
+        gh.deployment('1', SHA, 'success')
+        gh.deactivate_previews('1')
+        self.assertTrue(all(v[0]['state'] == 'inactive' for v in statuses.values()))
+        count = len(writes)
+        gh.deactivate_previews('1')
+        self.assertEqual(len(writes), count)
+
+    def test_foreign_deployments_are_not_modified(self):
+        gh, records, statuses, writes = self.make()
+        gh.deployment('1', SHA, 'success')
+        records[0]['creator']['login'] = 'other'
+        records[1]['task'] = 'unrelated'
+        count = len(writes)
+        gh.deactivate_previews('1')
+        self.assertEqual(len(writes), count)
+
+    def test_stale_guard_prevents_success_publication(self):
+        gh, records, statuses, writes = self.make()
+        gh.guard.side_effect = [None, RuntimeError('superseded')]
+        with self.assertRaises(RuntimeError): gh.deployment('1', SHA, 'success')
+        self.assertEqual(statuses, {})
+
+    def test_ready_publication_failure_does_not_stop_apps(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2, 'enabled': True}, Path(temp))
+            ctl.allocate('1'); ctl.entries['1'].update(status='ready', sha=SHA)
+            ctl.github = Mock(); ctl.github.pages.return_value = [pr(1)]; ctl.github.pr.return_value = pr(1)
+            ctl.github.deployment.side_effect = RuntimeError('GitHub unavailable')
+            ctl.disk_guard = Mock(); ctl.fail = Mock(); ctl.deploy = Mock()
+            with patch.object(c, 'Cloudflare', return_value=Mock()):
+                with self.assertRaises(RuntimeError): ctl.reconcile(True)
+            ctl.fail.assert_not_called(); ctl.deploy.assert_not_called()
+            self.assertEqual(ctl.entries['1']['status'], 'ready')

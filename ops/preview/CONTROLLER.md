@@ -24,6 +24,14 @@ the NUC. Image builds run on GitHub-hosted workers without deployment secrets.
 - Require normal public DNS/TLS, API auth/CORS/seed/availability/rendered pages,
   fresh public upload/download and real browser/Admin login before links appear.
   Checks resolve through live Cloudflare public DNS-over-HTTPS, with normal hostname TLS verification; no hardcoded edge IPs. Browser mappings come from those live DNS answers. Home/ISP DNS caches may still differ. One operator-authored PR comment is updated.
+- Native GitHub deployments expose separate `pr-N-storefront` and `pr-N-admin`
+  environments in the PR Conversation deployment timeline and repository
+  Environments page. Each is transient/non-production and pins the exact head;
+  creation disables auto-merge and unrelated required-context gating. Success
+  URLs appear only after acceptance. Repeated runs recover existing operator-owned
+  receipts without duplicate deployments/statuses. Updates inactivate old heads;
+  retirement, suspension, interruption and failure inactivate owned receipts.
+  GitHub publication failures after acceptance retry without stopping the apps.
 - Closed/merged PRs are individually rechecked, exact tunnel/DNS routes removed,
   Compose stopped with that PR's synthetic volumes removed, and its comment
   retired. Never sweep global Docker volumes/images or arbitrary DNS records.
@@ -98,3 +106,16 @@ snapshot and compatible previous image together if rollback is needed; do not
 start the old app against an unknown partially migrated schema. Credentials
 can be read privately by the operator from `pr-N/preview.env`, never PR comments.
 On reopened PRs after cleanup, initialization creates a fresh synthetic dataset.
+
+## DNS migration troubleshooting
+
+If a preview redirects to `chefeventhub-com.l.ink`, that response is Porkbun
+parking, not the preview application. Compare the device/system resolver against
+`1.1.1.1`, `8.8.8.8`, Cloudflare authoritative nameservers and the `.com` registry
+referral. During the nameserver migration, the home AT&T resolver retained the
+old Porkbun delegation even while public resolvers and the registry were correct.
+A local cache flush alone did not fix that upstream answer. Use a current resolver
+on the affected device (including IPv6 DNS, if configured), then reopen the original
+preview URL, not the redirected parking URL. Do not disable TLS or hardcode edge
+addresses. Report public-DNS acceptance separately from affected-device access;
+a passing resolver-overridden browser check does not prove the user's DNS works.
