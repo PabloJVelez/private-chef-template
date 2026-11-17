@@ -503,80 +503,6 @@ it("cancels the reply pause when chat unmounts", async () => {
   }
 });
 
-it("tracks the visual viewport only while open and leaves pinch zoom alone", async () => {
-  const original = Object.getOwnPropertyDescriptor(window, "visualViewport");
-  const viewport = Object.assign(new EventTarget(), {
-    height: 500,
-    offsetTop: 12,
-    scale: 1,
-  });
-  Object.defineProperty(window, "visualViewport", {
-    configurable: true,
-    value: viewport,
-  });
-  try {
-    await withChat(jest.fn(), async () => {
-      const panel = document.querySelector<HTMLElement>(".chef-chat-panel")!;
-      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
-        "500px",
-      );
-      viewport.height = 300;
-      await act(async () => {
-        viewport.dispatchEvent(new Event("resize"));
-      });
-      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
-        "300px",
-      );
-      viewport.offsetTop = 30;
-      await act(async () => {
-        viewport.dispatchEvent(new Event("scroll"));
-      });
-      expect(panel.style.getPropertyValue("--chef-chat-visible-top")).toBe(
-        "30px",
-      );
-      viewport.scale = 2;
-      viewport.height = 150;
-      await act(async () => {
-        viewport.dispatchEvent(new Event("resize"));
-      });
-      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
-        "300px",
-      );
-      expect(panel.hasAttribute("data-short-viewport")).toBe(false);
-      viewport.scale = 1;
-      await act(async () => viewport.dispatchEvent(new Event("resize")));
-      expect(panel.hasAttribute("data-short-viewport")).toBe(true);
-      expect(panel.hasAttribute("data-composer-only")).toBe(false);
-      viewport.height = 60;
-      await act(async () => viewport.dispatchEvent(new Event("resize")));
-      expect(panel.hasAttribute("data-composer-only")).toBe(true);
-      viewport.height = 0;
-      await act(async () => viewport.dispatchEvent(new Event("resize")));
-      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe("60px");
-      viewport.height = 500;
-      await act(async () => viewport.dispatchEvent(new Event("resize")));
-      expect(panel.hasAttribute("data-short-viewport")).toBe(false);
-      expect(panel.hasAttribute("data-composer-only")).toBe(false);
-      viewport.height = 45;
-      await act(async () => viewport.dispatchEvent(new Event("resize")));
-      expect(panel.hasAttribute("data-composer-only")).toBe(true);
-      await act(async () => button("Close Sous Chef").click());
-      expect(panel.hasAttribute("data-short-viewport")).toBe(false);
-      expect(panel.hasAttribute("data-composer-only")).toBe(false);
-      viewport.scale = 1;
-      await act(async () => {
-        viewport.dispatchEvent(new Event("resize"));
-      });
-      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
-        "",
-      );
-    });
-  } finally {
-    if (original) Object.defineProperty(window, "visualViewport", original);
-    else Reflect.deleteProperty(window, "visualViewport");
-  }
-});
-
 it.each([false, true])(
   "opens and reopens with accessible focus (coarse pointer: %s)",
   async (coarse) => {
@@ -618,57 +544,61 @@ it.each([false, true])(
   },
 );
 
-it.each(["close", "unmount"])(
-  "restores mobile page position and styles after %s",
-  async (end) => {
-    const matchMedia = window.matchMedia;
-    const scrollTo = jest
-      .spyOn(window, "scrollTo")
-      .mockImplementation(() => {});
-    const originalScrollY = window.scrollY;
-    Object.defineProperty(window, "scrollY", {
-      configurable: true,
-      value: 240,
-    });
-    const originalStyle = document.body.style.cssText;
-    document.body.style.setProperty("overflow", "auto", "important");
-    document.body.style.color = "red";
-    window.matchMedia = jest.fn().mockImplementation((query) => ({
-      matches: true,
-      media: query,
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-    }));
-    try {
-      await withChat(jest.fn(), async () => {
-        expect(document.body.style.position).toBe("fixed");
-        expect(document.body.style.top).toBe("-240px");
-        expect(document.body.style.overflow).toBe("hidden");
-        if (end === "close")
-          await act(async () => button("Close Sous Chef").click());
-      });
-      expect(document.body.style.position).toBe("");
-      expect(document.body.style.top).toBe("");
-      expect(document.body.style.overflow).toBe("auto");
-      expect(document.body.style.getPropertyPriority("overflow")).toBe(
-        "important",
+it("uses a phone page with Back navigation, retains draft/history, and never locks the body", async () => {
+  const matchMedia = window.matchMedia;
+  const originalViewport = Object.getOwnPropertyDescriptor(
+    window,
+    "visualViewport",
+  );
+  const viewport = Object.assign(new EventTarget(), { height: 500, scale: 1 });
+  Object.defineProperty(window, "visualViewport", {
+    configurable: true,
+    value: viewport,
+  });
+  window.matchMedia = jest.fn().mockImplementation((query) => ({
+    matches: true,
+    media: query,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+  }));
+  const bodyStyle = document.body.style.cssText;
+  try {
+    await withChat(jest.fn().mockResolvedValue(emptyAnswer), async () => {
+      const page = document.querySelector<HTMLElement>("main.chef-chat-page")!;
+      expect(page).not.toBeNull();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(document.querySelector(".chef-chat-launcher")).toBeNull();
+      expect(document.activeElement).toBe(button("Back from Sous Chef"));
+      expect(document.body.style.cssText).toBe(bodyStyle);
+      await act(async () => button(promptQuestions[0]).click());
+      await draft("Keep this draft");
+      viewport.height = 260;
+      await act(async () => viewport.dispatchEvent(new Event("resize")));
+      expect(page.style.getPropertyValue("--chef-chat-page-height")).toBe(
+        "260px",
       );
-      expect(document.body.style.color).toBe("red");
-      expect(scrollTo).toHaveBeenCalledWith({
-        left: 0,
-        top: 240,
-        behavior: "instant",
-      });
-    } finally {
-      window.matchMedia = matchMedia;
-      scrollTo.mockRestore();
-      Object.defineProperty(window, "scrollY", {
-        configurable: true,
-        value: originalScrollY,
-      });
-      document.body.style.cssText = originalStyle;
-    }
-  },
-);
+      viewport.scale = 2;
+      viewport.height = 130;
+      await act(async () => viewport.dispatchEvent(new Event("resize")));
+      expect(page.style.getPropertyValue("--chef-chat-page-height")).toBe(
+        "260px",
+      );
+      await act(async () => button("Back from Sous Chef").click());
+      expect(document.querySelector("main.chef-chat-page")).toBeNull();
+      expect(page.style.getPropertyValue("--chef-chat-page-height")).toBe("");
+      await act(async () => button("Ask Sous Chef").click());
+      expect(document.querySelector("textarea")!.value).toBe("Keep this draft");
+      expect(document.querySelector('[role="log"]')!.textContent).toContain(
+        emptyAnswer.message,
+      );
+      expect(document.body.style.cssText).toBe(bodyStyle);
+    });
+  } finally {
+    window.matchMedia = matchMedia;
+    if (originalViewport)
+      Object.defineProperty(window, "visualViewport", originalViewport);
+    else Reflect.deleteProperty(window, "visualViewport");
+  }
+});

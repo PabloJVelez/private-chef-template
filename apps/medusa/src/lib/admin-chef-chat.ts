@@ -31,7 +31,7 @@ export function chefChatMount() {
       ) {
         anchor = "<Outlet />";
         replacement =
-          "<Outlet /><ChefChat key={user.id} userId={user.id} client={sdk.client} scheduleTransport={scheduleTransport} />";
+          "<ChefChat key={user.id} userId={user.id} client={sdk.client} scheduleTransport={scheduleTransport}><Outlet /></ChefChat>";
         imports = `import { ChefChat } from ${component}\nimport { sdk, backendUrl } from "../../../lib/client"\nimport { createScheduleTransport } from ${transport}\nconst scheduleTransport = createScheduleTransport({ backendUrl, authType: __AUTH_TYPE__ ?? "session", getToken: () => sdk.client.getToken() })\n`;
       } else return null;
       if (code.split(anchor).length !== 2)
