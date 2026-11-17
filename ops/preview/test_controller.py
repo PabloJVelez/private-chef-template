@@ -253,3 +253,12 @@ class PublicDns(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 with c.public_dns(['pr-1-preview.example.com']): raise RuntimeError('probe failed')
         self.assertIs(c.socket.getaddrinfo, original)
+
+class HealthTransport(unittest.TestCase):
+    def test_health_client_bypasses_credential_proxy_without_changing_management_client(self):
+        response = Mock(); response.__enter__ = Mock(return_value=response); response.__exit__ = Mock(return_value=False)
+        response.read.return_value = b'ok'; response.headers = {}
+        opener = Mock(); opener.open.return_value = response
+        with patch.object(c.urllib.request, 'ProxyHandler') as handler, patch.object(c.urllib.request, 'build_opener', return_value=opener):
+            self.assertEqual(c.http('http://127.0.0.1:19000/health')[0], b'ok')
+        handler.assert_called_once_with({})

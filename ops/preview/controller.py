@@ -223,7 +223,11 @@ def http(url, data=None, headers=None):
     h = {'User-Agent': 'Mozilla/5.0 (compatible; ChefPreviewHealthCheck/1.0)'}
     h.update(headers or {})
     req = urllib.request.Request(url, data=data, headers=h)
-    with urllib.request.urlopen(req, timeout=30) as response:
+    # Health traffic carries no protected Cloudflare credential. Bypass the
+    # Gateway's credential-injection proxy for loopback and live-DNS checks;
+    # Cloudflare.api deliberately retains the protected default proxy.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(req, timeout=30) as response:
         return response.read(), response.headers
 
 
