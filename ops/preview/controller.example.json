@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "repo": "PabloJVelez/private-chef-template",
+  "domain": "chefeventhub.com",
+  "state_dir": "~/.local/share/chef-preview-controller",
+  "max_environments": 2,
+  "min_free_gib": 30,
+  "max_pool_gib": 80,
+  "account_id": "REPLACE_WITH_ACCOUNT_ID",
+  "zone_id": "REPLACE_WITH_ZONE_ID",
+  "tunnel_id": "REPLACE_WITH_PREVIEW_TUNNEL_ID"
+}
