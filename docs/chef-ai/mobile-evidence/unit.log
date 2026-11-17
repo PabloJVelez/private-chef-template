@@ -1,0 +1,9 @@
+PASS src/lib/__tests__/chef-chat-ui.unit.spec.ts
+PASS src/lib/__tests__/schedule-edit-ui.unit.spec.ts (13.677 s)
+PASS src/lib/__tests__/schedule-edit-state.unit.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       114 passed, 114 total
+Snapshots:   0 total
+Time:        15.288 s, estimated 16 s
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

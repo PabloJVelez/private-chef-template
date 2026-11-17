@@ -480,13 +480,11 @@ it("cancels the reply pause when chat unmounts", async () => {
   jest.useFakeTimers();
   const timers = jest.spyOn(globalThis, "setTimeout");
   const cleared = jest.spyOn(globalThis, "clearTimeout");
-  const fetch = jest
-    .fn()
-    .mockResolvedValue({
-      replyKind: "greeting",
-      message: "Cancelled greeting",
-      entries: [],
-    });
+  const fetch = jest.fn().mockResolvedValue({
+    replyKind: "greeting",
+    message: "Cancelled greeting",
+    entries: [],
+  });
   try {
     await withChat(fetch, async () => {
       await draft("Hello");
@@ -502,5 +500,59 @@ it("cancels the reply pause when chat unmounts", async () => {
     timers.mockRestore();
     cleared.mockRestore();
     jest.useRealTimers();
+  }
+});
+
+it("tracks the visual viewport only while open and leaves pinch zoom alone", async () => {
+  const original = Object.getOwnPropertyDescriptor(window, "visualViewport");
+  const viewport = Object.assign(new EventTarget(), {
+    height: 500,
+    offsetTop: 12,
+    scale: 1,
+  });
+  Object.defineProperty(window, "visualViewport", {
+    configurable: true,
+    value: viewport,
+  });
+  try {
+    await withChat(jest.fn(), async () => {
+      const panel = document.querySelector<HTMLElement>(".chef-chat-panel")!;
+      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
+        "500px",
+      );
+      viewport.height = 300;
+      await act(async () => {
+        viewport.dispatchEvent(new Event("resize"));
+      });
+      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
+        "300px",
+      );
+      viewport.offsetTop = 30;
+      await act(async () => {
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      expect(panel.style.getPropertyValue("--chef-chat-visible-top")).toBe(
+        "30px",
+      );
+      viewport.scale = 2;
+      viewport.height = 150;
+      await act(async () => {
+        viewport.dispatchEvent(new Event("resize"));
+      });
+      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
+        "300px",
+      );
+      await act(async () => button("Close Sous Chef").click());
+      viewport.scale = 1;
+      await act(async () => {
+        viewport.dispatchEvent(new Event("resize"));
+      });
+      expect(panel.style.getPropertyValue("--chef-chat-visible-height")).toBe(
+        "",
+      );
+    });
+  } finally {
+    if (original) Object.defineProperty(window, "visualViewport", original);
+    else Reflect.deleteProperty(window, "visualViewport");
   }
 });

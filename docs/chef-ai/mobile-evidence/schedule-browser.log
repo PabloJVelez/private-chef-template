@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "screenshots": "/tmp/bts22-schedule-regression",
+  "previewRequests": 31,
+  "confirmRequests": 5,
+  "recoverRequests": 2,
+  "unknownRoutes": [],
+  "browserErrors": []
+}

@@ -1,4 +1,5 @@
 import "./chef-chat.css";
+import { scrollChatTarget } from "./chat-scroll";
 import { formatProposedEdit } from "../../../lib/chef-ai/edit-intent-presentation";
 import {
   Badge,
@@ -496,6 +497,7 @@ export function ChefChat({
   if (session.owner !== userId) focus.current = undefined;
   const controller = useRef<AbortController>();
   const sending = useRef(false);
+  const [panel, setPanel] = useState<HTMLDivElement | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const tail = useRef<HTMLDivElement>(null);
   const latestTurn = useRef<HTMLDivElement>(null);
@@ -541,9 +543,40 @@ export function ChefChat({
   useEffect(() => {
     if (!open || !turns.length) return;
     // Start a completed answer at its question/window, not its last event.
-    if (loading) tail.current?.scrollIntoView({ block: "nearest" });
-    else latestTurn.current?.scrollIntoView({ block: "start" });
+    scrollChatTarget(
+      loading ? tail.current : latestTurn.current,
+      loading ? "nearest" : "start",
+    );
   }, [turns, loading, open]);
+
+  // Mobile keyboards can resize only the visual viewport, leaving 100dvh
+  // unchanged. Scope this subscription and its CSS variables to the open chat.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const element = panel;
+    if (!open || !viewport || !element) return;
+    const update = () => {
+      // Leave pinch zoom to the browser rather than resizing the panel under it.
+      if (viewport.scale !== 1) return;
+      element.style.setProperty(
+        "--chef-chat-visible-height",
+        `${viewport.height}px`,
+      );
+      element.style.setProperty(
+        "--chef-chat-visible-top",
+        `${viewport.offsetTop}px`,
+      );
+    };
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+      element.style.removeProperty("--chef-chat-visible-height");
+      element.style.removeProperty("--chef-chat-visible-top");
+    };
+  }, [open, panel]);
 
   async function send(
     message = draft,
@@ -561,7 +594,7 @@ export function ChefChat({
     const context = selection?.context ?? ticket.context ?? fresh?.context;
     const cards = choice?.cards ?? fresh?.cards ?? [];
     setChoice(undefined);
-    input.current?.focus();
+    input.current?.focus({ preventScroll: true });
     const pending: Turn = { question };
     const next = [...turns.slice(-11), pending];
     const epoch = generation.current;
@@ -854,6 +887,7 @@ export function ChefChat({
       </span>
       <Dialog.Portal>
         <Dialog.Content
+          ref={setPanel}
           onEscapeKeyDown={(event) => {
             const selected = scheduleEdits.snapshot().selection;
             if (
@@ -864,7 +898,7 @@ export function ChefChat({
               return;
             event.preventDefault();
             scheduleEdits.close();
-            if (!selected) input.current?.focus();
+            if (!selected) input.current?.focus({ preventScroll: true });
             [
               ...document.querySelectorAll<HTMLButtonElement>(
                 "[data-schedule-event]",
@@ -875,7 +909,7 @@ export function ChefChat({
           }}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
-            input.current?.focus();
+            input.current?.focus({ preventScroll: true });
           }}
           className={`chef-chat-panel ${expanded ? "chef-chat-expanded" : ""} bg-ui-bg-base border-ui-border-base text-ui-fg-base shadow-elevation-modal fixed z-50 flex flex-col overflow-hidden rounded-xl border`}
         >
@@ -1068,7 +1102,7 @@ export function ChefChat({
                         variant="transparent"
                         onClick={() => {
                           scheduleEdits.close();
-                          input.current?.focus();
+                          input.current?.focus({ preventScroll: true });
                         }}
                       >
                         Cancel change
