@@ -1,0 +1,16 @@
+[Unit]
+Description=Cloudflare Tunnel for NUC chef previews
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/cloudflared tunnel run --token-file %h/.config/cloudflared/chef-previews.token
+Restart=always
+RestartSec=5
+MemoryMax=192M
+CPUQuota=25%
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

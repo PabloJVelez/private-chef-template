@@ -42,6 +42,8 @@ USER 1000
 
 WORKDIR /app/apps/medusa/.medusa/server
 
+RUN mkdir -p static preview-emails
+
 ENV PORT=80
 
 CMD ["sh", "-c", "/app/apps/medusa/node_modules/.bin/medusa db:migrate && /app/apps/medusa/node_modules/.bin/medusa start"]

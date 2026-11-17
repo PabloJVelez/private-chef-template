@@ -1,0 +1,17 @@
+{
+  "config": {
+    "ingress": [
+      {
+        "hostname": "pr-41-preview.chefeventhub.com",
+        "service": "http://127.0.0.1:13000"
+      },
+      {
+        "hostname": "api-pr-41-preview.chefeventhub.com",
+        "service": "http://127.0.0.1:19000"
+      },
+      {
+        "service": "http_status:404"
+      }
+    ]
+  }
+}

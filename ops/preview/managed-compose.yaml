@@ -1,0 +1,127 @@
+# Trusted, manually operated pilot. No Docker socket, host source or production secrets.
+name: chef-preview-${PREVIEW_ID:?required}
+x-runtime: &runtime
+  restart: unless-stopped
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  pids_limit: 256
+  logging:
+    driver: local
+    options: {max-size: 10m, max-file: '3'}
+  networks: [preview]
+services:
+  postgres:
+    <<: *runtime
+    image: postgres:17-alpine
+    # postgres entrypoint needs these to initialize its private named volume.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    mem_limit: 640m
+    memswap_limit: 640m
+    cpus: 0.4
+    environment:
+      POSTGRES_DB: preview
+      POSTGRES_USER: preview
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U preview -d preview']
+      interval: 5s
+      retries: 20
+  redis:
+    <<: *runtime
+    image: redis:7-alpine
+    user: redis
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.2
+    command: [redis-server, --appendonly, 'yes', --maxmemory, 160mb, --maxmemory-policy, noeviction]
+    volumes: [redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      retries: 20
+  medusa:
+    <<: *runtime
+    image: ${MEDUSA_IMAGE:?required}
+    profiles: [app]
+    mem_limit: 2560m
+    memswap_limit: 2560m
+    cpus: 1.0
+    # A single explicit migration job must succeed before starting this service.
+    command: [/app/apps/medusa/node_modules/.bin/medusa, start]
+    environment:
+      NODE_ENV: production
+      PORT: '9000'
+      PREVIEW_MODE: 'true'
+      PREVIEW_ADMIN_PASSWORD: ${PREVIEW_ADMIN_PASSWORD:?required}
+      DATABASE_URL: postgresql://preview:${POSTGRES_PASSWORD}@postgres:5432/preview
+      REDIS_URL: redis://redis:6379
+      MEDUSA_WORKER_MODE: shared
+      JWT_SECRET: ${JWT_SECRET:?required}
+      COOKIE_SECRET: ${COOKIE_SECRET:?required}
+      STORE_CORS: ${STOREFRONT_URL:?required}
+      ADMIN_CORS: ${API_URL:?required}
+      AUTH_CORS: ${STOREFRONT_URL},${API_URL}
+      ADMIN_BACKEND_URL: ${API_URL}
+      MEDUSA_ADMIN_URL: ${API_URL}/app
+      MEDUSA_BACKEND_URL: ${API_URL}
+      STOREFRONT_URL: ${STOREFRONT_URL}
+      FILE_PROVIDER: local
+      FILE_LOCAL_BACKEND_URL: ${API_URL}/static
+      PREVIEW_EMAIL_DIR: /app/apps/medusa/.medusa/server/preview-emails
+      RESEND_FROM_EMAIL: Preview Chef <chef@example.invalid>
+      # Deliberately invalid credential satisfies provider startup, cannot charge.
+      STRIPE_API_KEY: sk_test_preview_disabled
+      NODE_OPTIONS: --max-old-space-size=1792
+    volumes:
+      - uploads:/app/apps/medusa/.medusa/server/static
+      - emails:/app/apps/medusa/.medusa/server/preview-emails
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  storefront:
+    <<: *runtime
+    image: ${STOREFRONT_IMAGE:?required}
+    profiles: [app]
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.3
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      INTERNAL_MEDUSA_API_URL: http://medusa:9000
+      PUBLIC_MEDUSA_API_URL: ${API_URL}
+      STOREFRONT_URL: ${STOREFRONT_URL}
+      MEDUSA_PUBLISHABLE_KEY: ${MEDUSA_PUBLISHABLE_KEY:-}
+      NODE_OPTIONS: --max-old-space-size=320
+  proxy:
+    <<: *runtime
+    image: nginx:1.28-alpine
+    profiles: [app]
+    user: '101:101'
+    read_only: true
+    entrypoint: [nginx, -g, 'daemon off;']
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.1
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=32m,uid=101,gid=101,mode=0700
+    volumes: ['./nginx.conf:/etc/nginx/nginx.conf:ro']
+    networks: [preview, ingress]
+    ports:
+      - '127.0.0.1:${API_PORT:?required}:9000'
+      - '127.0.0.1:${STOREFRONT_PORT:?required}:3000'
+    depends_on: [medusa, storefront]
+networks:
+  ingress:
+  preview:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+      com.docker.network.bridge.name: ${PREVIEW_BRIDGE:?required}
+volumes:
+  postgres:
+  redis:
+  uploads:
+  emails:
