@@ -379,3 +379,45 @@ class NativeDeployments(unittest.TestCase):
                 with self.assertRaises(RuntimeError): ctl.reconcile(True)
             ctl.fail.assert_not_called(); ctl.deploy.assert_not_called()
             self.assertEqual(ctl.entries['1']['status'], 'ready')
+
+class PreviewAI(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2}, self.root)
+        self.ctl.allocate('1'); self.ctl.compose = Mock()
+        self.path = self.root / 'preview-ai.env'
+        c.save_env(self.path, {'CHEF_AI_SCOPE': 'single_site', 'CHEF_AI_PROVIDER': 'openai',
+            'CHEF_AI_MODEL': 'gpt-4.1-mini', 'CHEF_AI_OPENAI_API_KEY': 'unit-only',
+            'CHEF_AI_SCHEDULE_WRITE_ENABLED': 'true'})
+        self.ctl.config['ai_env_file'] = str(self.path)
+
+    def test_only_private_allowlisted_configuration_is_accepted(self):
+        self.path.chmod(0o644)
+        with self.assertRaises(RuntimeError): self.ctl.sync_ai('1')
+        self.path.chmod(0o600)
+        with self.path.open('a') as f: f.write('DATABASE_URL=wrong\n')
+        with self.assertRaises(RuntimeError): self.ctl.sync_ai('1')
+        self.ctl.compose.assert_not_called()
+
+    def test_new_preview_references_operator_file_without_copying_key(self):
+        self.ctl.sync_ai('1')
+        self.assertEqual(c.load_env(self.ctl.envpath('1'))['PREVIEW_AI_ENV_FILE'], str(self.path))
+        self.assertNotIn('unit-only', self.ctl.envpath('1').read_text())
+        self.ctl.compose.assert_not_called()
+
+    def test_existing_preview_refreshes_once_and_rotation_refreshes_again(self):
+        with patch.object(c, 'http', return_value=(b'ok', {})), patch.object(c, 'acceptance'):
+            self.ctl.sync_ai('1', recreate=True)
+            self.assertEqual(self.ctl.compose.call_count, 2)
+            self.assertEqual(self.ctl.compose.call_args.args[-1], 'proxy')
+            self.ctl.sync_ai('1', recreate=True)
+            self.assertEqual(self.ctl.compose.call_count, 2)
+            values=c.load_env(self.path); values['CHEF_AI_OPENAI_API_KEY']='rotated-unit-only'; c.save_env(self.path, values)
+            self.ctl.sync_ai('1', recreate=True)
+            self.assertEqual(self.ctl.compose.call_count, 4)
+
+    def test_failed_acceptance_does_not_record_successful_configuration(self):
+        with patch.object(c, 'http', return_value=(b'ok', {})), patch.object(c, 'acceptance', side_effect=RuntimeError('not ready')):
+            with self.assertRaises(RuntimeError): self.ctl.sync_ai('1', recreate=True)
+        self.assertNotIn('ai_config_digest', self.ctl.entries['1'])

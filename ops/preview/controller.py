@@ -426,6 +426,42 @@ class Controller:
         self.entries[number]['admin_login_version'] = 1
         self.save()
 
+    def sync_ai(self, number, recreate=False):
+        path = self.config.get('ai_env_file')
+        if not path:
+            return
+        source = Path(path).expanduser().resolve()
+        if not source.is_file() or source.stat().st_mode & 0o077:
+            raise RuntimeError('Preview AI configuration must be a private operator file')
+        values = load_env(source)
+        required = {'CHEF_AI_SCOPE', 'CHEF_AI_PROVIDER', 'CHEF_AI_MODEL',
+                    'CHEF_AI_OPENAI_API_KEY', 'CHEF_AI_SCHEDULE_WRITE_ENABLED'}
+        if set(values) != required or any(not v for v in values.values()):
+            raise RuntimeError('Preview AI configuration is incomplete or contains unapproved keys')
+        if values['CHEF_AI_SCOPE'] != 'single_site' or values['CHEF_AI_PROVIDER'] != 'openai':
+            raise RuntimeError('Unsupported preview AI scope/provider')
+        if values['CHEF_AI_SCHEDULE_WRITE_ENABLED'] not in ('true', 'false'):
+            raise RuntimeError('Invalid preview AI write setting')
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        env = load_env(self.envpath(number))
+        env['PREVIEW_AI_ENV_FILE'] = str(source)
+        save_env(self.envpath(number), env)
+        if recreate and self.entries[number].get('ai_config_digest') != digest:
+            # Apply routing and env-only changes without migrations or data reset.
+            self.compose(number, 'up', '-d', '--no-deps', '--force-recreate', 'medusa')
+            self.compose(number, 'up', '-d', '--no-deps', '--force-recreate', 'proxy')
+            for _ in range(60):
+                try:
+                    http('http://127.0.0.1:' + env['API_PORT'] + '/health')
+                    break
+                except (OSError, urllib.error.URLError):
+                    time.sleep(2)
+            else:
+                raise RuntimeError('Preview API startup after AI configuration timed out')
+            acceptance(env)
+            self.entries[number]['ai_config_digest'] = digest
+            self.save()
+
     def disk_guard(self):
         free = shutil.disk_usage(self.state).free
         usage = json.loads(command(['docker', 'system', 'df', '-v', '--format', '{{json .}}']))
@@ -680,6 +716,7 @@ class Controller:
                 if entry.get('admin_login_version') != 1:
                     self.configure_admin(number, running=True)
                 env = load_env(self.envpath(number))
+                self.sync_ai(number, recreate=True)
                 self.publish(number, sha, env)
                 continue
             if entry.get('status') == 'awaiting_public' and entry.get('candidate_sha') == sha:
@@ -699,6 +736,7 @@ class Controller:
             if not entry:
                 self.allocate(number)
             try:
+                self.sync_ai(number)
                 self.capacity_guard()
                 self.github.deployment(number, sha, 'in_progress')
                 self.entries[number]['previous_status'] = self.entries[number]['status']

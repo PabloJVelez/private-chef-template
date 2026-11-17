@@ -130,3 +130,27 @@ older PR images are supported without a rebuild. Legacy seeded accounts are not
 deleted. Database passwords, JWT and cookie secrets remain random and private.
 This login policy never applies to production. Browser/API acceptance uses the
 standard account. Rerunning the bootstrap restores the requested password.
+
+## Preview Sous Chef configuration
+
+Set operator config `ai_env_file` to an absolute mode0600 env file outside Git.
+Only these keys are accepted: CHEF_AI_SCOPE=single_site, CHEF_AI_PROVIDER=openai,
+CHEF_AI_MODEL (default app model: gpt-4.1-mini), CHEF_AI_OPENAI_API_KEY and
+CHEF_AI_SCHEDULE_WRITE_ENABLED=true/false. Use a dedicated preview project key.
+Compose injects this file only into Medusa, never the storefront/build workflow.
+Do not print rendered Compose configuration: it includes the key.
+
+The operator proxy aliases api.openai.com on the isolated app network. Nginx
+passes TLS only for that SNI to the fixed api.openai.com:443 upstream, resolved
+through public DNS. The SDK retains normal hostname/certificate checks and its
+hardcoded OpenAI URL. No arbitrary forward proxy, general app egress, new host
+port or LAN access is introduced. Install the updated nginx.conf and Compose
+file with the controller release. Other providers require a deliberate change.
+
+New deployments inherit the file before startup. Existing ready previews apply
+changes using a content digest and recreate Medusa then the proxy, preserving
+DB/uploads and skipping migrations. Successful API acceptance records the digest;
+a failed check leaves the change retryable. There is a brief API interruption
+when rotating configuration. The controller will not spend API credits every
+five minutes: validate an actual provider-backed chat when installing/rotating a
+key. A health200 or a greeting-only response is not proof of provider access.
