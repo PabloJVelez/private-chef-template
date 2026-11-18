@@ -380,8 +380,10 @@ class NativeDeployments(unittest.TestCase):
             ctl.github = Mock(); ctl.github.pages.return_value = [pr(1)]; ctl.github.pr.return_value = pr(1)
             ctl.github.deployment.side_effect = RuntimeError('GitHub unavailable')
             ctl.disk_guard = Mock(); ctl.fail = Mock(); ctl.deploy = Mock()
+            ctl.collect_garbage = Mock(return_value={})
             with patch.object(c, 'Cloudflare', return_value=Mock()):
-                with self.assertRaises(RuntimeError): ctl.reconcile(True)
+                with self.assertRaisesRegex(RuntimeError, 'GitHub unavailable'): ctl.reconcile(True)
+            ctl.github.deployment.assert_called_once()
             ctl.fail.assert_not_called(); ctl.deploy.assert_not_called()
             self.assertEqual(ctl.entries['1']['status'], 'ready')
 

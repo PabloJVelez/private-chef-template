@@ -162,6 +162,10 @@ It records exact import tags **before** Docker load, then immutable IDs immediat
 after each import. Interrupted loads can therefore be recovered on the next run.
 Current, pending, candidate and one rollback generation remain protected. Successful
 updates release older generations; failed migrations keep their recovery data.
+For failed attempts, collection releases pending images that never reached the
+current or previous env file, while preserving all current/candidate/rollback
+references. This also repairs accumulated partial-import state after restart,
+before disk admission checks; repeated failed heads cannot pin unused imports.
 
 Deletion failures remain journaled across process restarts and retry each cycle.
 No force deletion or global prune is used. Foreign tags and any container reference

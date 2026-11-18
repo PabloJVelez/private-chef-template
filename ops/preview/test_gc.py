@@ -129,3 +129,96 @@ class GarbageCollection(unittest.TestCase):
         self.assertIn(IMAGE, restored.gc['images'])
         self.assertIn(IMAGE, restored.entries['1']['pending_images'])
         self.assertFalse(list(self.root.glob('import-*')))
+
+    def test_repeated_partial_failures_are_collected_after_restart(self):
+        self.ctl.allocate('1')
+        inventory = {}
+        def run(args, **kwargs):
+            if args[:3] == ['gh', 'run', 'download']:
+                dest = Path(args[-1])
+                if dest.name == 'storefront':
+                    raise RuntimeError('second artifact unavailable')
+                dest.mkdir(parents=True)
+                (dest/'source-sha.txt').write_text(sha)
+                (dest/'medusa.tar.gz').write_bytes(b'image')
+                (dest/'medusa.sha256').write_text(c.hashlib.sha256(b'image').hexdigest())
+            elif args[:3] == ['docker', 'image', 'inspect']:
+                inventory[image] = {'RepoTags': ['chef-preview-medusa:' + sha]}
+                return json.dumps([{'Id': image, 'Config': {'Labels': {'org.opencontainers.image.revision': sha}}}])
+            elif args[:3] == ['docker', 'image', 'rm']:
+                for key, info in list(inventory.items()):
+                    if args[-1] == key or args[-1] in info['RepoTags']:
+                        del inventory[key]
+            return ''
+        for digit in ('b', 'c', 'd'):
+            sha, image = digit*40, 'sha256:' + digit*64
+            self.ctl.current = Mock(); self.ctl.capacity_guard = Mock()
+            self.ctl.cf = Mock(); self.ctl.github = Mock(); self.ctl.compose = Mock()
+            with patch.object(c, 'command', side_effect=run):
+                with self.assertRaises(RuntimeError) as error:
+                    self.ctl.deploy('1', sha, {'id': 7})
+                self.ctl.fail('1', sha, error.exception)
+            self.ctl = c.Controller(self.cfg, self.root)
+            self.ctl.image_inventory = lambda: dict(inventory)
+            with patch.object(c, 'command', side_effect=run):
+                report = self.ctl.collect_garbage()
+                self.assertEqual(self.ctl.collect_garbage()['status'], 'ok')
+            self.assertEqual(report['status'], 'ok')
+            self.assertEqual(inventory, {})
+            self.assertEqual(self.ctl.entries['1']['pending_images'], [])
+            self.assertEqual(self.ctl.gc['images'], {})
+
+    def test_failed_import_cleanup_preserves_env_and_other_recovery_references(self):
+        self.ctl.allocate('1')
+        ids = ['sha256:' + digit*64 for digit in 'abcdef']
+        current, previous, accepted, rollback, candidate, orphan = ids
+        env = c.load_env(self.ctl.envpath('1'))
+        env['MEDUSA_IMAGE'] = current
+        c.save_env(self.ctl.envpath('1'), env)
+        env['MEDUSA_IMAGE'] = previous
+        c.save_env(self.ctl.folder('1') / 'previous.env', env)
+        self.ctl.entries['1'].update(status='failed', pending_images=ids,
+            images=[accepted], rollback_images=[rollback], candidate_images=[candidate])
+        self.ctl.save()
+        self.ctl = c.Controller(self.cfg, self.root)
+        inventory = {image: {'RepoTags': []} for image in ids}
+        self.ctl.image_inventory = lambda: dict(inventory)
+        def run(args, **kwargs):
+            if args[:3] == ['docker', 'image', 'rm']:
+                self.assertEqual(args[-1], orphan)
+                del inventory[orphan]
+            return ''
+        with patch.object(c, 'command', side_effect=run):
+            self.ctl.collect_garbage()
+        self.assertEqual(set(inventory), set(ids[:-1]))
+        self.assertEqual(self.ctl.entries['1']['pending_images'], [current, previous])
+
+    def test_deploying_pending_images_are_not_released_by_gc_only(self):
+        self.ctl.allocate('1')
+        self.ctl.entries['1'].update(status='deploying', pending_images=[IMAGE])
+        with patch.object(c, 'command') as cmd:
+            self.ctl.collect_garbage()
+        cmd.assert_not_called()
+        self.assertEqual(self.ctl.entries['1']['pending_images'], [IMAGE])
+
+    def test_missing_failed_environment_does_not_release_pending_protection(self):
+        self.ctl.entries['1'] = {'status': 'failed', 'pending_images': [IMAGE]}
+        with patch.object(c, 'command') as cmd:
+            with self.assertRaises(FileNotFoundError):
+                self.ctl.collect_garbage()
+        cmd.assert_not_called()
+        self.assertEqual(self.ctl.entries['1']['pending_images'], [IMAGE])
+        self.assertIn(IMAGE, json.loads(self.ctl.gc_path.read_text())['images'])
+
+    def test_new_import_does_not_drop_failed_migration_recovery_images(self):
+        self.ctl.allocate('1')
+        recovery, imported = IMAGE, 'sha256:' + 'e'*64
+        self.ctl.entries['1'].update(status='deploying', pending_images=[recovery])
+        self.ctl.current = Mock()
+        self.ctl.import_images = Mock(return_value={'medusa': imported, 'storefront': imported})
+        self.ctl.cf = Mock()
+        self.ctl.cf.route.side_effect = RuntimeError('route withdrawal failed')
+        with self.assertRaises(RuntimeError):
+            self.ctl.deploy('1', 'e'*40, {'id': 7})
+        restored = c.Controller(self.cfg, self.root)
+        self.assertEqual(restored.entries['1']['pending_images'], [recovery, imported])

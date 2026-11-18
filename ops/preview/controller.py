@@ -530,7 +530,9 @@ class Controller:
         # A fresh env contains placeholders, and the adopted pilot used tags.
         previous_images = entry.get('candidate_images', []) if entry.get('previous_status') == 'awaiting_public' else entry.get('images', [])
         images = self.import_images(number, sha, run)
-        entry['pending_images'] = list(images.values())
+        # A previous failed migration may still need the images referenced by its
+        # current/previous env. Keep those until acceptance releases pending state.
+        entry['pending_images'] = list(dict.fromkeys(entry.get('pending_images', []) + list(images.values())))
         self.save()
         self.current(number, sha)
         # Withdraw links/routing during migrations. A failed migration must not
@@ -686,7 +688,20 @@ class Controller:
         for path in self.state.glob('import-*'):
             if path.is_dir() and not path.is_symlink():
                 shutil.rmtree(path)
-        for entry in self.entries.values():
+        for number, entry in self.entries.items():
+            if entry.get('status') == 'failed' and entry.get('pending_images'):
+                # No importer is running under this lock. Failed imports that never
+                # reached an env file are not migration recovery images. Journal
+                # before releasing protection, including legacy accumulated state.
+                self.track_images(entry['pending_images'])
+                recovery = load_env(self.envpath(number))
+                recovery_images = {recovery.get(k) for k in ('MEDUSA_IMAGE', 'STOREFRONT_IMAGE')}
+                previous = self.folder(number) / 'previous.env'
+                if previous.exists():
+                    recovery = load_env(previous)
+                    recovery_images.update(recovery.get(k) for k in ('MEDUSA_IMAGE', 'STOREFRONT_IMAGE'))
+                entry['pending_images'] = [image for image in entry['pending_images'] if image in recovery_images]
+                self.save()
             self.track_images(image for field in ('images', 'rollback_images', 'pending_images', 'candidate_images', 'previous_images') for image in entry.get(field, []))
         failures = self.prune_images()
         inventory = self.image_inventory()
