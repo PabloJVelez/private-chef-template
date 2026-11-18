@@ -71,3 +71,23 @@ class MultiRepo(unittest.TestCase):
     def test_namespace_validation(self):
         for value in ['../other', 'Upper', 'toolongnamespace', 'bad-']:
             with self.assertRaises(ValueError): c.namespace({'namespace':value})
+
+    def test_request_acceptance_uses_existing_intake_without_availability_claim(self):
+        self.ctl.allocate('18'); env=c.load_env(self.ctl.envpath('18'))
+        env['MEDUSA_PUBLISHABLE_KEY']='synthetic'
+        calls=[]
+        def http(url, data=None, headers=None):
+            calls.append((url, json.loads(data) if data else None))
+            response_headers={'access-control-allow-origin':env['STOREFRONT_URL'], 'x-robots-tag':'noindex'}
+            if url.endswith('/auth/user/emailpass'): body={'token':'synthetic'}
+            elif url.endswith('/store/experience-types'): body={'experience_types':[{'id':'exp','name':'Dinner'}]}
+            elif url.endswith('/store/menus'): body={'menus':[{'id':'menu_preview'}]}
+            elif url.endswith('/store/chef-events'): body={'chefEvent':{'id':'synthetic'}}
+            elif url.endswith(('/','/request','/app')): return b'<html>fixture</html>', response_headers
+            else: raise AssertionError(url)
+            return json.dumps(body).encode(),response_headers
+        with patch.object(c,'http',side_effect=http):
+            proof=c.acceptance(env,write_request=True)
+        self.assertFalse(proof['availability']); self.assertTrue(proof['synthetic_request'])
+        payload=next(data for url,data in calls if url.endswith('/store/chef-events'))
+        self.assertNotIn('slotStart',payload);self.assertEqual(payload['requestedTime'],'18:00')
