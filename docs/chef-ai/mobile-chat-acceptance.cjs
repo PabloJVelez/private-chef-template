@@ -1,6 +1,6 @@
 // Production Admin assets with browser-intercepted synthetic APIs. No Medusa server,
 // database, auth service or model calls. Run from the repository root after medusa build.
-const { chromium } = require('playwright');
+const { chromium } = require(process.env.PREVIEW_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -33,8 +33,9 @@ const server = http.createServer((req, res) => {
 });
 (async () => {
   await new Promise(resolve => server.listen(9022, '127.0.0.1', resolve));
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1532, height: 1024 } });
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.PREVIEW_CHROMIUM_PATH, args: ['--no-sandbox', '--no-proxy-server'] });
+  const touch = process.env.MOBILE_POINTER !== 'mouse';
+  const page = await browser.newPage({ viewport: { width: 1532, height: 1024 }, hasTouch: touch, isMobile: touch });
   const errors = [], unknown = [], requests = [];
   const liveTime = '10:00';
   const writes = [];
@@ -82,98 +83,117 @@ const server = http.createServer((req, res) => {
   // Overlay-keyboard model: layout viewport stays unchanged while visual viewport
   // shrinks/pans. This is a deterministic DOM simulation, NOT a native keyboard.
   await page.addInitScript(() => {
+    const native = window.visualViewport;
     const viewport = new EventTarget();
-    Object.assign(viewport, { height: innerHeight, offsetTop: 0, scale: 1 });
+    let simulated;
+    for (const key of ['height', 'offsetTop', 'scale']) Object.defineProperty(viewport, key, {get: () => simulated?.[key] ?? native[key]});
+    for (const type of ['resize', 'scroll']) native.addEventListener(type, () => viewport.dispatchEvent(new Event(type)));
     Object.defineProperty(window, 'visualViewport', { value: viewport });
+    // Model Safari panning independently of layout scroll. A requested outer
+    // scroll clears modeled pan; this tests our reaction, not Safari itself.
+    const nativeScrollTo = window.scrollTo.bind(window);
+    window.scrollTo = (...args) => {
+      nativeScrollTo(...args);
+      if (simulated && (typeof args[0] === 'object' ? args[0].top : args[1]) === 0) {
+        simulated.offsetTop = 0;
+        viewport.dispatchEvent(new Event('scroll'));
+      }
+    };
+    window.simulatePan = offsetTop => {
+      simulated = {height: viewport.height, scale: 1, offsetTop};
+      viewport.dispatchEvent(new Event('scroll'));
+    };
     window.simulateKeyboard = (height, offsetTop = 0) => {
-      Object.assign(viewport, { height, offsetTop });
+      simulated = height === null ? undefined : {height, offsetTop, scale: 1};
       viewport.dispatchEvent(new Event('resize'));
       viewport.dispatchEvent(new Event('scroll'));
     };
   });
-  const dialog = page.getByRole('dialog');
-  const button = name => dialog.getByRole('button', { name, exact: true });
-  async function metrics() {
-    return dialog.evaluate(el => {
-      const rect = node => { const r = node.getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom}; };
-      const log = el.querySelector('.chef-chat-log');
-      return { panel: rect(el), close: rect(el.querySelector('[aria-label="Close Sous Chef"]')),
-        send: rect(el.querySelector('[aria-label="Send"]')), font: getComputedStyle(el.querySelector('textarea')).fontSize,
-        logWidth: log.clientWidth, logScrollWidth: log.scrollWidth, viewport: {height:visualViewport.height,top:visualViewport.offsetTop} };
-    });
-  }
+
   try {
-    for (const [width,height] of [[320,568],[375,667],[390,844],[430,932],[667,320],[1440,900]]) {
+    for (const [width,height] of (touch ? [[320,568],[390,844],[430,932],[667,320],[844,390],[768,1024],[1024,768]] : [[1440,900]])) {
       for (const theme of ['light','dark']) {
+        const phone = width <= 640 || (touch && width <= 960 && height <= 500);
         await page.setViewportSize({width,height});
         await page.goto(base + '/app');
+        await page.waitForLoadState('networkidle');
+        const from = page.url();
         await page.evaluate(t => {document.documentElement.classList.remove('light','dark');document.documentElement.classList.add(t);},theme);
         await page.getByRole('button',{name:'Ask Sous Chef',exact:true}).click();
-        // Give the actual Admin main scroller a deterministic tall synthetic page.
-        await page.locator('main').evaluate(el => { const spacer=document.createElement('div');spacer.style.cssText='height:2000px;flex-shrink:0';spacer.setAttribute('aria-hidden','true');el.append(spacer);el.scrollTop=100; });
-        await button("What's on my schedule this week?").click();
-        await button('Change date/time').first().click();
-        await dialog.getByLabel('Local time (optional)').fill('11:00');
-        await button('Confirm change').waitFor();
-        await button('Confirm change').scrollIntoViewIfNeeded();
-        const closed = await metrics();
-        const date = await dialog.locator('input[type=date]').boundingBox();
-        const time = await dialog.locator('input[type=time]').boundingBox();
-        if (width === 320) assert(time.y >= date.y + date.height, '320px date/time stack');
-        if (width === 320 && theme === 'light') await page.screenshot({path:path.join(out,'preview-320-light.png')});
-        if (width === 1440 && theme === 'dark') await page.screenshot({path:path.join(out,'preview-desktop-dark.png')});
-        if (!baseline) {
-          assert(closed.logScrollWidth <= closed.logWidth + 1, 'Long preview stays within chat');
-          assert(closed.panel.y >= 0 && closed.panel.bottom <= height, 'Panel fits');
-          if (width <= 640 || height <= 480) {
-            assert(closed.close.height >= 44 && closed.close.width >= 44, 'Close touch target');
-            assert(closed.send.height >= 44, 'Send touch target');
-            assert.equal(closed.font, '16px', 'Avoid mobile input zoom');
-          }
-        }
-        // Existing long Admin surface: chat wheel gestures must not chain to it.
-        const underlying = await page.evaluate(() => [...document.querySelectorAll('*')].filter(el => !el.closest('.chef-chat-panel') && el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY)).map(el => ({el,top:el.scrollTop})).map(({el,top},i) => {el.dataset.mobileScrollProbe=String(i);return top;}));
-        assert(underlying.length > 0, 'Exercise a scrollable underlying Admin surface');
-        const log = dialog.locator('.chef-chat-log');
-        await log.evaluate(el => el.scrollTop = el.scrollHeight);
-        await log.hover(); await page.mouse.wheel(0,700); await page.waitForTimeout(150);
-        assert.deepEqual(await page.locator('[data-mobile-scroll-probe]').evaluateAll(els => els.map(el=>el.scrollTop)),underlying);
-        // Confirm remains a physical button; a new turn revokes the unused preview.
-        await dialog.getByRole('textbox', {name:'Schedule question',exact:true}).fill('What is on my schedule?');
-        await button('Send').click();
-        await button('Confirm change').waitFor({state:'hidden'});
-        assert.equal(writes.filter(x => x.action !== 'preview').length,0);
-        const afterTurn = await metrics();
-        if (!baseline) assert(afterTurn.close.y >= afterTurn.panel.y, 'Answer scroll keeps header reachable');
-        let keyboard;
-        if (width < 700) {
-          await dialog.getByRole('textbox',{name:'Schedule question',exact:true}).fill('Next question');
-          const visibleHeight = Math.max(210,height-300);
-          await page.evaluate(h => window.simulateKeyboard(h,12),visibleHeight);
+        const surface = phone ? page.getByRole('main', {name:'Sous Chef',exact:true}) : page.getByRole('dialog');
+        await surface.waitFor();
+        const close = surface.getByRole('button',{name:phone?'Back from Sous Chef':'Close Sous Chef',exact:true});
+        const input = surface.getByRole('textbox',{name:'Schedule question',exact:true});
+        if (phone) {
+          assert.equal(new URL(page.url()).pathname, '/app/sous-chef');
+          assert.equal(await page.getByRole('dialog').count(), 0);
+          assert.equal(await page.locator('.chef-chat-launcher').count(), 0);
+          assert.equal(await page.locator('body').evaluate(e=>e.style.position), '');
+          assert.equal(await surface.evaluate(e=>getComputedStyle(e).position), 'static');
+        } else assert.equal(page.url(),from);
+        await surface.getByRole('button',{name:"What's on my schedule today?",exact:true}).click();
+        await surface.getByText('Family supper',{exact:true}).first().waitFor();
+        await input.fill('A draft\nthat survives rotation');
+        if (phone) {
+          await input.focus();
+          await page.evaluate(() => window.simulateKeyboard(300, 240));
           await page.waitForTimeout(60);
-          keyboard = await metrics();
-          // Draw a clearly labeled occlusion area for the simulation evidence.
-          await page.evaluate(h => {
-            const key = document.createElement('div'); key.id='keyboard-simulation';
-            key.textContent='SIMULATED KEYBOARD — no real device';
-            Object.assign(key.style,{position:'fixed',top:(h+12)+'px',bottom:'0',left:'0',right:'0',zIndex:'9999',background:'#cbd5e1',color:'#0f172a',padding:'16px',font:'14px sans-serif'});document.body.append(key);
-          },visibleHeight);
-          if (width === 390 && theme === 'dark') await page.screenshot({path:path.join(out,'keyboard-model-390-dark.png')});
-          if (!baseline) {
-            assert(keyboard.send.bottom <= visibleHeight+12, 'Send above simulated keyboard');
-            assert(keyboard.close.y >= 12, 'Close within visual viewport');
-            await button('Send').click({trial:true});
-            await button('Close Sous Chef').click({trial:true});
+          const focusPan = await input.evaluate(el => ({bottom:el.getBoundingClientRect().bottom, height:visualViewport.height, top:visualViewport.offsetTop}));
+          assert(Math.abs(focusPan.height + focusPan.top - focusPan.bottom) <= 12, 'Focus pan leaves composer immediately above modeled keyboard');
+          // A later pan event without another resize must settle as well.
+          await page.evaluate(() => window.simulatePan(100));
+          await page.waitForTimeout(60);
+          assert.equal(await page.evaluate(() => visualViewport.offsetTop), 0, 'Late focus pan reconciled');
+
+          for (const visible of [300,220,180,120,60,45]) {
+            await page.evaluate(h=>window.simulateKeyboard(h), visible);
+            await page.waitForTimeout(30);
+            const geometry = await surface.evaluate(el=>{
+              const box=e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height,width:r.width};};
+              return {page:box(el),input:box(el.querySelector('textarea')),send:box(el.querySelector('[aria-label="Send"]')),log:box(el.querySelector('[role="log"]')),bodyPosition:document.body.style.position};
+            });
+            assert(geometry.input.height>=44 && geometry.send.height>=44);
+            assert(geometry.input.bottom<=geometry.page.bottom+1, 'Composer is not clipped by page');
+            assert(geometry.log.height>0, 'Conversation is never hidden by a special mode');
+            assert.equal(geometry.bodyPosition,'');
+            if(visible>=180) assert(geometry.send.bottom<=visible+1);
+            // Tiny models use natural document scrolling, not all controls at once.
+            await surface.getByRole('button',{name:'Send',exact:true}).click({trial:true});
+            results.push({width,height,theme,visible,geometry});
           }
-          await page.evaluate(() => {document.getElementById('keyboard-simulation').remove();window.simulateKeyboard(innerHeight);});
+          await page.evaluate(()=>window.simulateKeyboard(null));
+          await page.setViewportSize({width:height,height:width});
+          assert.equal(await input.inputValue(),'A draft\nthat survives rotation');
+          await page.setViewportSize({width,height});
         }
-        results.push({width,height,theme,closed,afterTurn,keyboard,backgroundScrollContainers:underlying.length});
-        await button('Close Sous Chef').click();
+        await page.screenshot({path:path.join(out,`page-${width}-${theme}.png`)});
+        await close.click();
+        assert.equal(page.url(),from);
+        if(phone) {
+          await page.goForward();
+          await surface.waitFor();
+          assert.equal(await input.inputValue(),'A draft\nthat survives rotation');
+          await page.goBack();
+          await page.getByRole('button',{name:'Ask Sous Chef',exact:true}).waitFor();
+        }
+        await page.getByRole('button',{name:'Ask Sous Chef',exact:true}).click();
+        assert.equal(await input.inputValue(),'A draft\nthat survives rotation');
+        assert((await surface.getByRole('log').innerText()).includes('Family supper'));
+        await close.click();
+        results.push({width,height,theme,phone,navigationAndDraft:true});
       }
     }
+    // Direct route and reload resolve without the dashboard shell or a dialog.
+    await page.setViewportSize({width:390,height:844});
+    await page.goto(base+'/app/sous-chef');
+    await page.getByRole('main',{name:'Sous Chef',exact:true}).waitFor();
+    await page.reload();
+    await page.getByRole('main',{name:'Sous Chef',exact:true}).waitFor();
+    await page.getByRole('button',{name:'Back from Sous Chef',exact:true}).click();
+    await page.getByRole('button',{name:'Ask Sous Chef',exact:true}).waitFor();
     assert.deepEqual(errors,[]);
     assert.deepEqual(unknown,[]);
-    fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({baseline,emulation:true,results,errors,unknown},null,2));
-    console.log(JSON.stringify({baseline,cases:results.length,errors,unknown}));
+    fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({touch,emulation:true,results,errors,unknown},null,2));
+    console.log(JSON.stringify({cases:results.length,errors,unknown}));
   } finally { await browser.close(); await new Promise(resolve=>server.close(resolve)); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

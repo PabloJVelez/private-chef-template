@@ -1,5 +1,6 @@
 import "./chef-chat.css";
 import { scrollChatTarget } from "./chat-scroll";
+import { syncChatPageViewport } from "./chat-page-viewport";
 import { formatProposedEdit } from "../../../lib/chef-ai/edit-intent-presentation";
 import {
   Badge,
@@ -10,6 +11,7 @@ import {
   TooltipProvider,
 } from "@medusajs/ui";
 import {
+  ArrowLeft,
   Calendar,
   CaretMaximizeDiagonal,
   CaretMinimizeDiagonal,
@@ -27,7 +29,7 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { Link, useLocation, useMatches } from "react-router-dom";
+import { Link, useLocation, useMatches, useNavigate } from "react-router-dom";
 import type { Client } from "@medusajs/js-sdk";
 import type { ScheduleAnswer } from "../../../lib/chef-ai/contracts";
 import type { TimeInterval } from "../../../lib/chef-workspace/contracts";
@@ -127,6 +129,9 @@ function interval(time: TimeInterval, zone: string) {
   });
   return `${format.format(new Date(time.start))} – ${format.format(new Date(time.end))}`;
 }
+
+const phoneQuery =
+  "(max-width: 640px), (pointer: coarse) and (max-width: 960px) and (max-height: 500px)";
 
 const suggestions = [
   {
@@ -459,7 +464,9 @@ export function ChefChat({
   userId,
   client,
   scheduleTransport,
+  children,
 }: {
+  children?: React.ReactNode;
   userId: string;
   client: Pick<Client, "fetch">;
   scheduleTransport?: ScheduleTransport;
@@ -476,7 +483,7 @@ export function ChefChat({
   useLayoutEffect(() => {
     if (scheduleTransport) scheduleEdits.bind(userId, scheduleTransport);
   }, [userId, scheduleTransport]);
-  const [open, setOpen] = useState(false);
+  const [floatingOpen, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showEarlier, setShowEarlier] = useState(false);
   const [draft, setDraft] = useState("");
@@ -497,19 +504,48 @@ export function ChefChat({
   if (session.owner !== userId) focus.current = undefined;
   const controller = useRef<AbortController>();
   const sending = useRef(false);
-  const [panel, setPanel] = useState<HTMLDivElement | null>(null);
+  const [panel, setPanel] = useState<HTMLElement | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const tail = useRef<HTMLDivElement>(null);
   const latestTurn = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const page = pageHintFromMatches(useMatches());
-  const navigation = useRef(location.key);
-  navigation.current = location.key;
+  const navigate = useNavigate();
+  const isPage = location.pathname.replace(/\/$/, "") === "/sous-chef";
+  const open = isPage || floatingOpen;
+  const matchedPage = pageHintFromMatches(useMatches());
+  // Entering the chat page is a presentation transition, not a new event target.
+  const origin = useRef<{ key: string; page: typeof matchedPage }>();
+  const navigationKey =
+    isPage && origin.current ? origin.current.key : location.key;
+  const page = isPage && origin.current ? origin.current.page : matchedPage;
+  const navigation = useRef(navigationKey);
+  navigation.current = navigationKey;
+  const openPage = () => {
+    origin.current = { key: location.key, page: matchedPage };
+    setOpen(false);
+    navigate("/sous-chef");
+  };
+  const close = () => {
+    focus.current = undefined;
+    scheduleEdits.close();
+    setOpen(false);
+    if (isPage) {
+      if (origin.current) navigate(-1);
+      else navigate("/", { replace: true });
+    }
+  };
   const turns = session.owner === userId ? session.turns : [];
   useEffect(() => {
     if (session.owner !== userId) setSession({ owner: userId, turns: [] });
   }, [session.owner, userId, setSession]);
+  const previousLocation = useRef(location.key);
   useLayoutEffect(() => {
+    const enteringPage =
+      isPage && origin.current?.key === previousLocation.current;
+    previousLocation.current = location.key;
+    if (enteringPage) return;
+    if (!isPage) origin.current = undefined;
     setOpen(false);
     setChoice(undefined);
     focus.current = undefined;
@@ -549,34 +585,23 @@ export function ChefChat({
     );
   }, [turns, loading, open]);
 
-  // Mobile keyboards can resize only the visual viewport, leaving 100dvh
-  // unchanged. Scope this subscription and its CSS variables to the open chat.
+  // Route transitions keep the same chat instance, including in-flight requests.
   useEffect(() => {
-    const viewport = window.visualViewport;
-    const element = panel;
-    if (!open || !viewport || !element) return;
+    const phone = window.matchMedia(phoneQuery);
     const update = () => {
-      // Leave pinch zoom to the browser rather than resizing the panel under it.
-      if (viewport.scale !== 1) return;
-      element.style.setProperty(
-        "--chef-chat-visible-height",
-        `${viewport.height}px`,
-      );
-      element.style.setProperty(
-        "--chef-chat-visible-top",
-        `${viewport.offsetTop}px`,
-      );
+      if (phone.matches && floatingOpen && !isPage) openPage();
     };
     update();
-    viewport.addEventListener("resize", update);
-    viewport.addEventListener("scroll", update);
-    return () => {
-      viewport.removeEventListener("resize", update);
-      viewport.removeEventListener("scroll", update);
-      element.style.removeProperty("--chef-chat-visible-height");
-      element.style.removeProperty("--chef-chat-visible-top");
-    };
-  }, [open, panel]);
+    phone.addEventListener("change", update);
+    return () => phone.removeEventListener("change", update);
+  }, [floatingOpen, isPage, location.key]);
+
+  useEffect(() => {
+    if (isPage && panel) return syncChatPageViewport(panel, input.current);
+  }, [isPage, panel]);
+  useEffect(() => {
+    if (isPage) closeButton.current?.focus({ preventScroll: true });
+  }, [isPage]);
 
   async function send(
     message = draft,
@@ -594,11 +619,12 @@ export function ChefChat({
     const context = selection?.context ?? ticket.context ?? fresh?.context;
     const cards = choice?.cards ?? fresh?.cards ?? [];
     setChoice(undefined);
-    input.current?.focus({ preventScroll: true });
+    if (!window.matchMedia("(any-pointer: coarse)").matches)
+      input.current?.focus({ preventScroll: true });
     const pending: Turn = { question };
     const next = [...turns.slice(-11), pending];
     const epoch = generation.current;
-    const navigationKey = location.key;
+    const requestNavigation = navigation.current;
     const readStarted = historyRevision.current;
     setSession({ owner: userId, turns: next });
     setDraft("");
@@ -639,7 +665,7 @@ export function ChefChat({
       if (
         signal.aborted ||
         epoch !== generation.current ||
-        navigationKey !== navigation.current
+        requestNavigation !== navigation.current
       )
         return;
       if (!ticket.current()) {
@@ -718,7 +744,7 @@ export function ChefChat({
       if (
         controller.current.signal.aborted ||
         epoch !== generation.current ||
-        navigationKey !== navigation.current
+        requestNavigation !== navigation.current
       )
         return;
       const status = (error as { status?: number }).status;
@@ -846,409 +872,429 @@ export function ChefChat({
     return live;
   }
 
-  return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(value) => {
-        setOpen(value);
-        if (!value) {
-          focus.current = undefined;
-          scheduleEdits.close();
-        }
-      }}
-      modal={false}
-    >
-      <TooltipProvider>
-        <Tooltip content="Ask Sous Chef" side="left">
-          <Dialog.Trigger asChild>
+  const Title = isPage ? "h1" : Dialog.Title;
+  const Description = isPage ? "p" : Dialog.Description;
+  const content = (
+    <>
+      <div className="chef-chat-header border-ui-border-base flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            className="bg-ui-bg-subtle text-ui-fg-subtle shadow-borders-base flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+            aria-hidden="true"
+          >
+            <SousChefIcon />
+          </span>
+          <div>
+            <Title className="text-sm font-medium">Sous Chef</Title>
+            <Description className="text-ui-fg-muted mt-0.5 text-xs">
+              Schedule assistant · confirm changes yourself
+            </Description>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {!isPage && (
             <IconButton
-              variant="primary"
-              className="chef-chat-launcher fixed z-40 shadow-elevation-flyout"
-              aria-label="Ask Sous Chef"
-              aria-describedby={
-                Object.values(editState.attempts).some((a) => !a.result)
-                  ? "chef-chat-review-hint"
-                  : undefined
-              }
+              type="button"
+              variant="transparent"
+              size="small"
+              title={expanded ? "Collapse Sous Chef" : "Expand Sous Chef"}
+              className="chef-chat-expand"
+              aria-label={expanded ? "Collapse Sous Chef" : "Expand Sous Chef"}
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
             >
-              <SousChefIcon />
-              {Object.values(editState.attempts).some((a) => !a.result) && (
-                <span
-                  className="bg-ui-tag-orange-icon absolute right-0 top-0 h-2 w-2 rounded-full"
-                  aria-hidden="true"
-                />
-              )}
+              {expanded ? <CaretMinimizeDiagonal /> : <CaretMaximizeDiagonal />}
             </IconButton>
-          </Dialog.Trigger>
-        </Tooltip>
-      </TooltipProvider>
-      <span id="chef-chat-review-hint" className="sr-only">
-        Previous change to check
-      </span>
-      <Dialog.Portal>
-        <Dialog.Content
-          ref={setPanel}
-          onEscapeKeyDown={(event) => {
-            const selected = scheduleEdits.snapshot().selection;
-            if (
-              !selected &&
-              !scheduleEdits.snapshot().task &&
-              !choice?.current()
-            )
-              return;
-            event.preventDefault();
-            scheduleEdits.close();
-            if (!selected) input.current?.focus({ preventScroll: true });
-            [
-              ...document.querySelectorAll<HTMLButtonElement>(
-                "[data-schedule-event]",
-              ),
-            ]
-              .find((el) => el.dataset.scheduleEvent === selected?.eventId)
-              ?.focus();
-          }}
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            input.current?.focus({ preventScroll: true });
-          }}
-          className={`chef-chat-panel ${expanded ? "chef-chat-expanded" : ""} bg-ui-bg-base border-ui-border-base text-ui-fg-base shadow-elevation-modal fixed z-50 flex flex-col overflow-hidden rounded-xl border`}
-        >
-          <div className="border-ui-border-base flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
-            <div className="flex items-center gap-3">
-              <span
-                className="bg-ui-bg-subtle text-ui-fg-subtle shadow-borders-base flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                aria-hidden="true"
-              >
-                <SousChefIcon />
-              </span>
-              <div>
-                <Dialog.Title className="text-sm font-medium">
-                  Sous Chef
-                </Dialog.Title>
-                <Dialog.Description className="text-ui-fg-muted mt-0.5 text-xs">
-                  Schedule assistant · confirm changes yourself
-                </Dialog.Description>
-              </div>
+          )}
+
+          <IconButton
+            size="small"
+            variant="transparent"
+            aria-label={isPage ? "Back from Sous Chef" : "Close Sous Chef"}
+            onClick={close}
+            ref={closeButton}
+          >
+            {isPage ? <ArrowLeft /> : <XMark />}
+          </IconButton>
+        </div>
+      </div>
+      <div
+        role="log"
+        aria-label="Schedule conversation"
+        aria-live="polite"
+        aria-relevant="additions text"
+        className="chef-chat-log min-h-0 flex-1 flex flex-col gap-3 overflow-y-auto overscroll-contain break-words px-4 py-3 text-sm"
+      >
+        {!turns.length && (
+          <div className="chef-chat-welcome">
+            <div className="space-y-2">
+              <h2 className="text-ui-fg-base text-lg font-medium">
+                What can I help you with?
+              </h2>
+              <p className="text-ui-fg-subtle text-sm leading-relaxed">
+                Check your schedule or adjust a pending event. You review every
+                change before it’s saved.
+              </p>
             </div>
-            <div className="flex items-center gap-1">
-              <IconButton
-                type="button"
-                variant="transparent"
-                size="small"
-                title={expanded ? "Collapse Sous Chef" : "Expand Sous Chef"}
-                className="chef-chat-expand"
-                aria-label={
-                  expanded ? "Collapse Sous Chef" : "Expand Sous Chef"
-                }
-                aria-expanded={expanded}
-                onClick={() => setExpanded((value) => !value)}
-              >
-                {expanded ? (
-                  <CaretMinimizeDiagonal />
-                ) : (
-                  <CaretMaximizeDiagonal />
-                )}
-              </IconButton>
-              <Dialog.Close asChild>
-                <IconButton
-                  size="small"
-                  variant="transparent"
-                  aria-label="Close Sous Chef"
+            <div
+              className="chef-chat-suggestions"
+              aria-label="Suggested schedule questions"
+            >
+              {suggestions.map(({ label, hint, question }) => (
+                <button
+                  key={label}
+                  type="button"
+                  aria-label={question}
+                  disabled={loading}
+                  onClick={() => void send(question)}
+                  className="border-ui-border-base bg-ui-bg-subtle hover:bg-ui-bg-subtle-hover focus-visible:shadow-borders-focus flex items-start gap-2.5 rounded-lg border p-3 text-left outline-none disabled:opacity-50"
                 >
-                  <XMark />
-                </IconButton>
-              </Dialog.Close>
+                  <Calendar
+                    className="text-ui-fg-muted mt-0.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <span className="text-ui-fg-base block text-sm font-medium">
+                      {label}
+                    </span>
+                    <span className="chef-chat-suggestion-hint text-ui-fg-subtle mt-1 block text-xs leading-relaxed">
+                      {hint}
+                    </span>
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
-          <div
-            role="log"
-            aria-label="Schedule conversation"
-            aria-live="polite"
-            aria-relevant="additions text"
-            className="chef-chat-log min-h-0 flex-1 flex flex-col gap-3 overflow-y-auto overscroll-contain break-words px-4 py-3 text-sm"
+        )}
+        {turns.length > 3 && (
+          <button
+            type="button"
+            className="text-ui-fg-subtle text-xs underline"
+            onClick={() => setShowEarlier((value) => !value)}
           >
-            {!turns.length && (
-              <div className="space-y-5 py-2">
-                <div className="space-y-2">
-                  <h2 className="text-ui-fg-base text-lg font-medium">
-                    What can I help you with?
-                  </h2>
-                  <p className="text-ui-fg-subtle text-sm leading-relaxed">
-                    Check your schedule or adjust a pending event. You review
-                    every change before it’s saved.
+            {showEarlier
+              ? "Hide earlier messages"
+              : `Show ${turns.length - 3} earlier messages`}
+          </button>
+        )}
+        {turns.map((turn, i) => (
+          <div
+            hidden={!showEarlier && i < turns.length - 3}
+            key={i}
+            ref={i === turns.length - 1 ? latestTurn : undefined}
+            className="space-y-3"
+          >
+            <p className="chef-chat-message chef-chat-message-user bg-ui-bg-interactive text-ui-fg-on-color whitespace-pre-wrap">
+              <span className="sr-only">You: </span>
+              {turn.question}
+            </p>
+            {(turn.answer || turn.error) && (
+              <div className="chef-chat-message chef-chat-message-assistant bg-ui-bg-subtle border-ui-border-base border">
+                <span className="sr-only">Sous Chef: </span>
+                {turn.answer && (
+                  <Answer
+                    answer={turn.answer}
+                    chooseSummary={(id, title) =>
+                      void send(`Tell me about ${title}`, undefined, id)
+                    }
+                    historicalIds={turn.historicalIds}
+                    currentContext={
+                      i === turns.length - 1 && !turn.historicalIds?.length
+                        ? focus.current?.context
+                        : undefined
+                    }
+                    close={() => {
+                      scheduleEdits.close();
+                      setOpen(false);
+                    }}
+                  />
+                )}
+                {turn.error && (
+                  <p role="alert" className="text-ui-fg-error">
+                    {turn.error}
                   </p>
-                </div>
-                <div
-                  className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2"
-                  aria-label="Suggested schedule questions"
-                >
-                  {suggestions.map(({ label, hint, question }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      aria-label={question}
-                      disabled={loading}
-                      onClick={() => void send(question)}
-                      className="border-ui-border-base bg-ui-bg-subtle hover:bg-ui-bg-subtle-hover focus-visible:shadow-borders-focus flex items-start gap-2.5 rounded-lg border p-3 text-left outline-none disabled:opacity-50"
-                    >
-                      <Calendar
-                        className="text-ui-fg-muted mt-0.5 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span>
-                        <span className="text-ui-fg-base block text-sm font-medium">
-                          {label}
-                        </span>
-                        <span className="text-ui-fg-subtle mt-1 block text-xs leading-relaxed">
-                          {hint}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {turns.length > 3 && (
-              <button
-                type="button"
-                className="text-ui-fg-subtle text-xs underline"
-                onClick={() => setShowEarlier((value) => !value)}
-              >
-                {showEarlier
-                  ? "Hide earlier messages"
-                  : `Show ${turns.length - 3} earlier messages`}
-              </button>
-            )}
-            {turns.map((turn, i) => (
-              <div
-                hidden={!showEarlier && i < turns.length - 3}
-                key={i}
-                ref={i === turns.length - 1 ? latestTurn : undefined}
-                className="space-y-3"
-              >
-                <p className="chef-chat-message chef-chat-message-user bg-ui-bg-interactive text-ui-fg-on-color whitespace-pre-wrap">
-                  <span className="sr-only">You: </span>
-                  {turn.question}
-                </p>
-                {(turn.answer || turn.error) && (
-                  <div className="chef-chat-message chef-chat-message-assistant bg-ui-bg-subtle border-ui-border-base border">
-                    <span className="sr-only">Sous Chef: </span>
-                    {turn.answer && (
-                      <Answer
-                        answer={turn.answer}
-                        chooseSummary={(id, title) =>
-                          void send(`Tell me about ${title}`, undefined, id)
-                        }
-                        historicalIds={turn.historicalIds}
-                        currentContext={
-                          i === turns.length - 1 && !turn.historicalIds?.length
-                            ? focus.current?.context
-                            : undefined
-                        }
-                        close={() => {
-                          scheduleEdits.close();
-                          setOpen(false);
-                        }}
-                      />
-                    )}
-                    {turn.error && (
-                      <p role="alert" className="text-ui-fg-error">
-                        {turn.error}
-                      </p>
-                    )}
-                  </div>
                 )}
               </div>
-            ))}
-            {loading && (
-              <p
-                role="status"
-                aria-label="Sous Chef is typing"
-                className="chef-chat-message chef-chat-message-assistant bg-ui-bg-subtle border-ui-border-base text-ui-fg-subtle border"
-              >
-                <span className="sr-only">Sous Chef is typing</span>
-                <span className="chef-chat-typing" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </p>
             )}
-            <div className="mt-auto space-y-2">
+          </div>
+        ))}
+        {loading && (
+          <p
+            role="status"
+            aria-label="Sous Chef is typing"
+            className="chef-chat-message chef-chat-message-assistant bg-ui-bg-subtle border-ui-border-base text-ui-fg-subtle border"
+          >
+            <span className="sr-only">Sous Chef is typing</span>
+            <span className="chef-chat-typing" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </p>
+        )}
+        <div className="mt-auto space-y-2">
+          {(editState.task || choice?.current()) && (
+            <section
+              aria-label="Active schedule task"
+              className="border-ui-border-base bg-ui-bg-subtle rounded-lg border p-3 space-y-2"
+            >
               {(editState.task || choice?.current()) && (
-                <section
-                  aria-label="Active schedule task"
-                  className="border-ui-border-base bg-ui-bg-subtle rounded-lg border p-3 space-y-2"
+                <div
+                  className="flex items-center justify-between gap-2 text-xs"
+                  aria-label="Unfinished schedule change"
                 >
-                  {(editState.task || choice?.current()) && (
-                    <div
-                      className="flex items-center justify-between gap-2 text-xs"
-                      aria-label="Unfinished schedule change"
-                    >
-                      <span>
-                        {formatProposedEdit(
-                          choice?.current()
-                            ? choice.intent
-                            : editState.task!.intent,
-                        )}
-                        {" · "}
-                        {choice?.current()
-                          ? "Choose an event"
-                          : "Awaiting details"}
-                      </span>
-                      <Button
-                        type="button"
-                        size="small"
-                        variant="transparent"
-                        onClick={() => {
-                          scheduleEdits.close();
-                          input.current?.focus({ preventScroll: true });
-                        }}
+                  <span>
+                    {formatProposedEdit(
+                      choice?.current()
+                        ? choice.intent
+                        : editState.task!.intent,
+                    )}
+                    {" · "}
+                    {choice?.current() ? "Choose an event" : "Awaiting details"}
+                  </span>
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="transparent"
+                    onClick={() => {
+                      scheduleEdits.close();
+                      input.current?.focus({ preventScroll: true });
+                    }}
+                  >
+                    Cancel change
+                  </Button>
+                </div>
+              )}
+              {choice && choice.current() && (
+                <section
+                  aria-label="Choose event for proposed change"
+                  className="space-y-2"
+                >
+                  {choice.context.candidates.map((candidate) => {
+                    const shortId = choice.context.candidates.some(
+                      (other) =>
+                        other.id !== candidate.id &&
+                        other.id.slice(-8) === candidate.id.slice(-8),
+                    )
+                      ? candidate.id
+                      : candidate.id.slice(-8);
+                    const verified = choice.targets?.find(
+                      (target) => target.id === candidate.id,
+                    );
+                    const card = choice.cards.find(
+                      (card) => card.source.id === candidate.id,
+                    );
+                    return (
+                      <div
+                        key={candidate.id}
+                        className="border-ui-border-base rounded-lg border p-2 space-y-1"
                       >
-                        Cancel change
-                      </Button>
-                    </div>
-                  )}
-                  {choice && choice.current() && (
-                    <section
-                      aria-label="Choose event for proposed change"
-                      className="space-y-2"
-                    >
-                      {choice.context.candidates.map((candidate) => {
-                        const shortId = choice.context.candidates.some(
-                          (other) =>
-                            other.id !== candidate.id &&
-                            other.id.slice(-8) === candidate.id.slice(-8),
-                        )
-                          ? candidate.id
-                          : candidate.id.slice(-8);
-                        const verified = choice.targets?.find(
-                          (target) => target.id === candidate.id,
-                        );
-                        const card = choice.cards.find(
-                          (card) => card.source.id === candidate.id,
-                        );
-                        return (
-                          <div
-                            key={candidate.id}
-                            className="border-ui-border-base rounded-lg border p-2 space-y-1"
-                          >
-                            <p>
-                              {verified?.title ?? card?.title ?? "Event"} ·{" "}
-                              {verified?.status ??
-                                card?.status ??
-                                "Review required"}
-                            </p>
-                            {verified && (
-                              <p className="text-xs">
-                                {new Intl.DateTimeFormat(undefined, {
-                                  timeZone: verified.timezone,
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                }).format(new Date(verified.instant))}
-                              </p>
-                            )}
-                            <p className="text-ui-fg-muted text-xs break-all">
-                              Event ID:{" "}
-                              <span title={candidate.id}>
-                                {verified ? shortId : candidate.id}
-                              </span>
-                            </p>
-                            <Button
-                              type="button"
-                              size="small"
-                              variant="secondary"
-                              disabled={loading}
-                              data-proposal-candidate={candidate.id}
-                              aria-label={
-                                verified
-                                  ? `Choose ${verified.title} (${candidate.id})`
-                                  : undefined
-                              }
-                              onClick={() => {
-                                if (choice.current())
-                                  void send(
-                                    "Proposed change for selected event",
-                                    {
-                                      intent: choice.intent,
-                                      context: {
-                                        ...choice.context,
-                                        selectedId: candidate.id,
-                                      },
-                                    },
-                                  );
-                              }}
-                            >
-                              Choose this event
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </section>
-                  )}
+                        <p>
+                          {verified?.title ?? card?.title ?? "Event"} ·{" "}
+                          {verified?.status ??
+                            card?.status ??
+                            "Review required"}
+                        </p>
+                        {verified && (
+                          <p className="text-xs">
+                            {new Intl.DateTimeFormat(undefined, {
+                              timeZone: verified.timezone,
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            }).format(new Date(verified.instant))}
+                          </p>
+                        )}
+                        <p className="text-ui-fg-muted text-xs break-all">
+                          Event ID:{" "}
+                          <span title={candidate.id}>
+                            {verified ? shortId : candidate.id}
+                          </span>
+                        </p>
+                        <Button
+                          type="button"
+                          size="small"
+                          variant="secondary"
+                          disabled={loading}
+                          data-proposal-candidate={candidate.id}
+                          aria-label={
+                            verified
+                              ? `Choose ${verified.title} (${candidate.id})`
+                              : undefined
+                          }
+                          onClick={() => {
+                            if (choice.current())
+                              void send("Proposed change for selected event", {
+                                intent: choice.intent,
+                                context: {
+                                  ...choice.context,
+                                  selectedId: candidate.id,
+                                },
+                              });
+                          }}
+                        >
+                          Choose this event
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </section>
               )}
-              <ScheduleEditPanel
-                onReceipt={onReceipt}
-                closeChat={() => {
-                  scheduleEdits.close();
-                  setOpen(false);
-                }}
-              />
-            </div>
-            <div ref={tail} />
-          </div>
-          <form
-            className="border-ui-border-base shrink-0 border-t p-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void send();
+            </section>
+          )}
+          <ScheduleEditPanel
+            onReceipt={onReceipt}
+            closeChat={() => {
+              scheduleEdits.close();
+              setOpen(false);
             }}
-          >
-            <label htmlFor="chef-schedule-question" className="sr-only">
-              Schedule question
-            </label>
-            <div className="flex items-end gap-2">
-              <Textarea
-                id="chef-schedule-question"
-                ref={input}
-                className="max-h-28 min-h-0 flex-1 resize-none"
-                rows={1}
-                maxLength={1000}
-                value={draft}
-                onChange={(event) => {
-                  setDraft(event.target.value);
-                  event.target.style.height = "auto";
-                  event.target.style.height = `${Math.min(event.target.scrollHeight, 112)}px`;
-                }}
-                placeholder="Ask about events or propose a change…"
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing
-                  ) {
-                    event.preventDefault();
-                    void send();
-                  }
-                }}
-              />
+          />
+        </div>
+        <div ref={tail} />
+      </div>
+      <form
+        className="chef-chat-composer border-ui-border-base shrink-0 border-t p-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send();
+        }}
+      >
+        <label htmlFor="chef-schedule-question" className="sr-only">
+          Schedule question
+        </label>
+        <div className="flex items-end gap-2">
+          <Textarea
+            id="chef-schedule-question"
+            ref={input}
+            className="max-h-28 min-h-0 flex-1 resize-none"
+            rows={1}
+            maxLength={1000}
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              event.target.style.height = "auto";
+              event.target.style.height = `${Math.min(event.target.scrollHeight, 112)}px`;
+            }}
+            placeholder="Ask about events or propose a change…"
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                void send();
+              }
+            }}
+          />
 
-              <Button
-                type="submit"
-                size="small"
-                disabled={!draft.trim() || loading}
-                aria-label="Send"
+          <Button
+            type="submit"
+            size="small"
+            disabled={!draft.trim() || loading}
+            aria-label="Send"
+          >
+            Send
+          </Button>
+        </div>
+      </form>
+    </>
+  );
+  if (isPage)
+    return (
+      <main
+        ref={setPanel}
+        aria-label="Sous Chef"
+        className="chef-chat-page bg-ui-bg-base text-ui-fg-base"
+      >
+        {content}
+      </main>
+    );
+
+  return (
+    <>
+      {children}
+      <Dialog.Root
+        open={open}
+        onOpenChange={(value) => {
+          if (value && window.matchMedia(phoneQuery).matches) {
+            openPage();
+            return;
+          }
+          setOpen(value);
+          if (!value) {
+            focus.current = undefined;
+            scheduleEdits.close();
+          }
+        }}
+        modal={false}
+      >
+        <TooltipProvider>
+          <Tooltip content="Ask Sous Chef" side="left">
+            <Dialog.Trigger asChild>
+              <IconButton
+                variant="primary"
+                className="chef-chat-launcher fixed z-40 shadow-elevation-flyout"
+                aria-label="Ask Sous Chef"
+                aria-describedby={
+                  Object.values(editState.attempts).some((a) => !a.result)
+                    ? "chef-chat-review-hint"
+                    : undefined
+                }
               >
-                Send
-              </Button>
-            </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+                <SousChefIcon />
+                {Object.values(editState.attempts).some((a) => !a.result) && (
+                  <span
+                    className="bg-ui-tag-orange-icon absolute right-0 top-0 h-2 w-2 rounded-full"
+                    aria-hidden="true"
+                  />
+                )}
+              </IconButton>
+            </Dialog.Trigger>
+          </Tooltip>
+        </TooltipProvider>
+        <span id="chef-chat-review-hint" className="sr-only">
+          Previous change to check
+        </span>
+        <Dialog.Portal>
+          <Dialog.Content
+            ref={setPanel}
+            onEscapeKeyDown={(event) => {
+              const selected = scheduleEdits.snapshot().selection;
+              if (
+                !selected &&
+                !scheduleEdits.snapshot().task &&
+                !choice?.current()
+              )
+                return;
+              event.preventDefault();
+              scheduleEdits.close();
+              if (!selected) input.current?.focus({ preventScroll: true });
+              [
+                ...document.querySelectorAll<HTMLButtonElement>(
+                  "[data-schedule-event]",
+                ),
+              ]
+                .find((el) => el.dataset.scheduleEvent === selected?.eventId)
+                ?.focus();
+            }}
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              // Touch opening is for reading first. Focusing a non-input keeps
+              // the dialog accessible without asking Safari to open/pan a keyboard.
+              const target = window.matchMedia("(any-pointer: coarse)").matches
+                ? closeButton.current
+                : input.current;
+              target?.focus({ preventScroll: true });
+            }}
+            className={`chef-chat-panel ${expanded ? "chef-chat-expanded" : ""} bg-ui-bg-base border-ui-border-base text-ui-fg-base shadow-elevation-modal fixed z-50 flex flex-col overflow-hidden rounded-xl border`}
+          >
+            {content}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 }

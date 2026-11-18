@@ -350,3 +350,37 @@ it('read-summary choices send only the explicitly chosen stable ID and never pre
     expect(preview).not.toHaveBeenCalled();expect(attempt).not.toHaveBeenCalled();
   });
 });
+
+it("keeps the origin event and an in-flight answer when the floating chat becomes a phone page", async () => {
+  const original = window.matchMedia;
+  let phone = false;
+  const listeners = new Set<() => void>();
+  window.matchMedia = jest.fn().mockImplementation((query) => ({
+    get matches() { return query.includes("max-width") && phone; },
+    media: query,
+    addEventListener: (_: string, cb: () => void) => listeners.add(cb),
+    removeEventListener: (_: string, cb: () => void) => listeners.delete(cb),
+    addListener: jest.fn(), removeListener: jest.fn(),
+  }));
+  try {
+    await fixture(async ({ fetch, router, attempt }) => {
+      let resolve!: (value: unknown) => void;
+      fetch.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+      await ask("Read this event");
+      await act(async () => { phone = true; for (const listener of [...listeners]) listener(); });
+      expect(router.state.location.pathname).toBe("/custom-admin/sous-chef");
+      expect(document.querySelector("main.chef-chat-page")).not.toBeNull();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      await act(async () => resolve({ entries: [], message: "Answer survived navigation" }));
+      expect(document.querySelector('[role="log"]')!.textContent).toContain("Answer survived navigation");
+      fetch.mockResolvedValueOnce({ entries: [], message: "Event B context" });
+      await ask("Which event?");
+      expect(fetch.mock.calls.at(-1)[1].body.page.resource.id).toBe("B");
+      expect(attempt).not.toHaveBeenCalled();
+      await act(async () => router.navigate(-1));
+      expect(router.state.location.pathname).toBe("/custom-admin/chef-events/B");
+      expect(document.querySelector("main.chef-chat-page")).toBeNull();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+  } finally { window.matchMedia = original; }
+});
