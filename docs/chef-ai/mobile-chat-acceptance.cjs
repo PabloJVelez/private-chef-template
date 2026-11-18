@@ -89,6 +89,20 @@ const server = http.createServer((req, res) => {
     for (const key of ['height', 'offsetTop', 'scale']) Object.defineProperty(viewport, key, {get: () => simulated?.[key] ?? native[key]});
     for (const type of ['resize', 'scroll']) native.addEventListener(type, () => viewport.dispatchEvent(new Event(type)));
     Object.defineProperty(window, 'visualViewport', { value: viewport });
+    // Model Safari panning independently of layout scroll. A requested outer
+    // scroll clears modeled pan; this tests our reaction, not Safari itself.
+    const nativeScrollTo = window.scrollTo.bind(window);
+    window.scrollTo = (...args) => {
+      nativeScrollTo(...args);
+      if (simulated && (typeof args[0] === 'object' ? args[0].top : args[1]) === 0) {
+        simulated.offsetTop = 0;
+        viewport.dispatchEvent(new Event('scroll'));
+      }
+    };
+    window.simulatePan = offsetTop => {
+      simulated = {height: viewport.height, scale: 1, offsetTop};
+      viewport.dispatchEvent(new Event('scroll'));
+    };
     window.simulateKeyboard = (height, offsetTop = 0) => {
       simulated = height === null ? undefined : {height, offsetTop, scale: 1};
       viewport.dispatchEvent(new Event('resize'));
@@ -121,6 +135,16 @@ const server = http.createServer((req, res) => {
         await surface.getByText('Family supper',{exact:true}).first().waitFor();
         await input.fill('A draft\nthat survives rotation');
         if (phone) {
+          await input.focus();
+          await page.evaluate(() => window.simulateKeyboard(300, 240));
+          await page.waitForTimeout(60);
+          const focusPan = await input.evaluate(el => ({bottom:el.getBoundingClientRect().bottom, height:visualViewport.height, top:visualViewport.offsetTop}));
+          assert(Math.abs(focusPan.height + focusPan.top - focusPan.bottom) <= 12, 'Focus pan leaves composer immediately above modeled keyboard');
+          // A later pan event without another resize must settle as well.
+          await page.evaluate(() => window.simulatePan(100));
+          await page.waitForTimeout(60);
+          assert.equal(await page.evaluate(() => visualViewport.offsetTop), 0, 'Late focus pan reconciled');
+
           for (const visible of [300,220,180,120,60,45]) {
             await page.evaluate(h=>window.simulateKeyboard(h), visible);
             await page.waitForTimeout(30);

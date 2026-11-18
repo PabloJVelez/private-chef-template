@@ -35,7 +35,7 @@ scrolling, compact welcome cards, readable messages and reduced-motion support.
 
 The page uses dynamic viewport height, with a page-only visualViewport resize
 subscription for keyboards that leave CSS viewport units unchanged. Pinch zoom
-and transient zero-height values are ignored. There is no position/offset or body
+and transient zero-height values are ignored. There is no position/offset styling or body
 mutation. At exceptionally small heights the page keeps a 180px readable layout
 and allows normal document scrolling instead of clipping controls or hiding chat.
 This is not a claim that all controls fit simultaneously into 45px.
@@ -69,3 +69,25 @@ open, focus/type, dismiss/reopen keyboard, Back/reopen, portrait/landscape rotat
 and scroll long answers/confirmations. Chromium viewport simulation does not prove
 Safari keyboard animation, panning, accessory bars or safe-area behavior. Keep the
 PR open until owner acceptance; production is unchanged.
+
+## Focus-panning correction
+
+The owner's next iPhone recording showed a focus jump: the composer rose near the
+browser toolbar, leaving a large blank gap above the keyboard until a manual
+scroll corrected it. The page-height handler alone did not reconcile outer
+scrolling/panning around the keyboard transition. The recording establishes the
+visible failure, not Safari's exact viewport values or event order.
+
+`syncChatPageViewport` retains page-only height sizing and reconciles outer focus
+scroll on the next animation frame after focus/viewport resize/scroll. It acts
+only with the composer focused, unzoomed viewport, and a page that fits vertically.
+It yields after touchmove/wheel until the next composer focus, leaves conversation
+scrolling alone, and does not lock the body or translate the page. Short pages
+that require document scrolling are excluded. Listeners and queued frames are
+removed on route exit.
+
+The browser regression models focus pan separately from layout scroll and defines
+a scroll request as clearing that modeled pan. It fails against b07a032. This
+proves the correction is requested under the modeled conditions, **not** that native
+Safari honors it with the same timing. Repeat the owner's focus/dismiss/refocus
+sequence on the updated preview before considering this device-accepted.

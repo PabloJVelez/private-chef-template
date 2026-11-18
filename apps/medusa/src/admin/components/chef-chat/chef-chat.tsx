@@ -1,5 +1,6 @@
 import "./chef-chat.css";
 import { scrollChatTarget } from "./chat-scroll";
+import { syncChatPageViewport } from "./chat-page-viewport";
 import { formatProposedEdit } from "../../../lib/chef-ai/edit-intent-presentation";
 import {
   Badge,
@@ -595,24 +596,8 @@ export function ChefChat({
     return () => phone.removeEventListener("change", update);
   }, [floatingOpen, isPage, location.key]);
 
-  // A page has no body lock or visual-viewport offset translation. Only size
-  // its scrollable conversation when browsers resize the keyboard viewport.
   useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!isPage || !viewport || !panel) return;
-    const update = () => {
-      if (viewport.scale === 1 && viewport.height > 0)
-        panel.style.setProperty(
-          "--chef-chat-page-height",
-          `${viewport.height}px`,
-        );
-    };
-    update();
-    viewport.addEventListener("resize", update);
-    return () => {
-      viewport.removeEventListener("resize", update);
-      panel.style.removeProperty("--chef-chat-page-height");
-    };
+    if (isPage && panel) return syncChatPageViewport(panel, input.current);
   }, [isPage, panel]);
   useEffect(() => {
     if (isPage) closeButton.current?.focus({ preventScroll: true });
