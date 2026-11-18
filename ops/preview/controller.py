@@ -151,6 +151,55 @@ class GitHub:
         else:
             self.api(path, {'body': body}, 'POST')
 
+    def preview_deployments(self, number, surface):
+        if self.login is None:
+            self.login = self.api('user')['login']
+        environment = f'pr-{int(number)}-{surface}'
+        records = self.pages(f'repos/{self.repo}/deployments?environment={environment}')
+        return [d for d in records if d.get('creator', {}).get('login') == self.login
+                and d.get('task') == 'deploy:chef-preview'
+                and d.get('payload') == {'controller': MARKER, 'pr': int(number), 'surface': surface}]
+
+    def deployment_status(self, deployment, state, url=None):
+        path = f'repos/{self.repo}/deployments/{deployment["id"]}/statuses'
+        latest = self.api(path + '?per_page=1')
+        if latest and latest[0]['state'] == state and (url is None or latest[0].get('environment_url') == url):
+            return
+        payload = {'state': state, 'auto_inactive': False,
+                   'description': 'Synthetic PR preview: ' + state}
+        if url is not None:
+            payload['environment_url'] = url
+        self.api(path, payload, 'POST')
+
+    def deployment(self, number, sha, state, urls=None):
+        # GitHub is the durable receipt: recover after a lost POST response without
+        # creating duplicates. Never merge the default branch or gate on unrelated CI.
+        self.guard(number, sha)
+        for surface in ('storefront', 'admin'):
+            records = self.preview_deployments(number, surface)
+            matching = [d for d in records if d['sha'] == sha]
+            if matching:
+                deployment = max(matching, key=lambda d: d['id'])
+            else:
+                deployment = self.api(f'repos/{self.repo}/deployments', {
+                    'ref': sha, 'task': 'deploy:chef-preview', 'auto_merge': False,
+                    'required_contexts': [], 'environment': f'pr-{int(number)}-{surface}',
+                    'transient_environment': True, 'production_environment': False,
+                    'description': f'PR #{int(number)} {surface} preview',
+                    'payload': {'controller': MARKER, 'pr': int(number), 'surface': surface}
+                }, 'POST')
+            self.guard(number, sha)
+            self.deployment_status(deployment, state, (urls or {}).get(surface))
+            # Old commit links must not claim to serve the new commit's environment.
+            for old in records:
+                if old['id'] != deployment['id']:
+                    self.deployment_status(old, 'inactive')
+
+    def deactivate_previews(self, number):
+        for surface in ('storefront', 'admin'):
+            for deployment in self.preview_deployments(number, surface):
+                self.deployment_status(deployment, 'inactive')
+
 
 class Cloudflare:
     def __init__(self, config):
@@ -271,7 +320,7 @@ def acceptance(env, public=False, write_request=False):
         if headers.get('access-control-allow-origin') != env['STOREFRONT_URL']:
             raise RuntimeError('CORS acceptance failed')
         return json.loads(data)
-    token = call('/auth/user/emailpass', {'email': 'chef@example.invalid', 'password': env['PREVIEW_ADMIN_PASSWORD']})['token']
+    token = call('/auth/user/emailpass', {'email': 'chef@admin.com', 'password': 'test'})['token']
     experiences = call('/store/experience-types')['experience_types']
     if not experiences or not call('/store/menus')['menus']:
         raise RuntimeError('Preview seed acceptance failed')
@@ -362,6 +411,57 @@ class Controller:
         self.save()
         save_env(self.envpath(number), values)
 
+    def configure_admin(self, number, running=False):
+        # Trusted operator script, not PR code; no host mounts or DB-table writes.
+        mode = ['exec', '-T'] if running else ['run', '--rm', '--no-deps', '-T']
+        script = (ROOT / 'preview-admin.cjs').read_text()
+        args = ['docker', 'compose', '--env-file', str(self.envpath(number)),
+                '-f', str(ROOT / 'managed-compose.yaml'), '--profile', 'app',
+                *mode, 'medusa', 'sh', '-c',
+                'cat > ./preview-admin.cjs && /app/apps/medusa/node_modules/.bin/medusa exec ./preview-admin.cjs']
+        result = subprocess.run(args, input=script, capture_output=True, text=True, timeout=120)
+        atomic(self.folder(number) / 'admin-bootstrap.log', result.stdout + result.stderr)
+        if result.returncode or 'Standard preview Admin configured' not in result.stdout:
+            raise RuntimeError('Preview Admin bootstrap failed; private log retained')
+        self.entries[number]['admin_login_version'] = 1
+        self.save()
+
+    def sync_ai(self, number, recreate=False):
+        path = self.config.get('ai_env_file')
+        if not path:
+            return
+        source = Path(path).expanduser().resolve()
+        if not source.is_file() or source.stat().st_mode & 0o077:
+            raise RuntimeError('Preview AI configuration must be a private operator file')
+        values = load_env(source)
+        required = {'CHEF_AI_SCOPE', 'CHEF_AI_PROVIDER', 'CHEF_AI_MODEL',
+                    'CHEF_AI_OPENAI_API_KEY', 'CHEF_AI_SCHEDULE_WRITE_ENABLED'}
+        if set(values) != required or any(not v for v in values.values()):
+            raise RuntimeError('Preview AI configuration is incomplete or contains unapproved keys')
+        if values['CHEF_AI_SCOPE'] != 'single_site' or values['CHEF_AI_PROVIDER'] != 'openai':
+            raise RuntimeError('Unsupported preview AI scope/provider')
+        if values['CHEF_AI_SCHEDULE_WRITE_ENABLED'] not in ('true', 'false'):
+            raise RuntimeError('Invalid preview AI write setting')
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        env = load_env(self.envpath(number))
+        env['PREVIEW_AI_ENV_FILE'] = str(source)
+        save_env(self.envpath(number), env)
+        if recreate and self.entries[number].get('ai_config_digest') != digest:
+            # Apply routing and env-only changes without migrations or data reset.
+            self.compose(number, 'up', '-d', '--no-deps', '--force-recreate', 'medusa')
+            self.compose(number, 'up', '-d', '--no-deps', '--force-recreate', 'proxy')
+            for _ in range(60):
+                try:
+                    http('http://127.0.0.1:' + env['API_PORT'] + '/health')
+                    break
+                except (OSError, urllib.error.URLError):
+                    time.sleep(2)
+            else:
+                raise RuntimeError('Preview API startup after AI configuration timed out')
+            acceptance(env)
+            self.entries[number]['ai_config_digest'] = digest
+            self.save()
+
     def disk_guard(self):
         free = shutil.disk_usage(self.state).free
         usage = json.loads(command(['docker', 'system', 'df', '-v', '--format', '{{json .}}']))
@@ -447,6 +547,7 @@ class Controller:
             atomic(self.folder(number) / f'{name}.log', log)
             if result.returncode or re.search(r'\b(error|failed|failure)\b', log, re.I):
                 raise RuntimeError(f'{name} failed; private log retained')
+        self.configure_admin(number)
         self.compose(number, 'create', 'medusa')
         receipt = self.folder(number) / 'bootstrap.json'
         self.compose(number, 'cp', 'medusa:/app/apps/medusa/.medusa/server/preview-emails/bootstrap.json', str(receipt))
@@ -521,6 +622,7 @@ class Controller:
 
     def publish(self, number, sha, env):
         self.current(number, sha)
+        self.github.deployment(number, sha, 'success', {'storefront': env['STOREFRONT_URL'], 'admin': env['API_URL'] + '/app'})
         self.github.comment(number, f'**Preview ready** · `{sha[:12]}`\n\n[Storefront]({env["STOREFRONT_URL"]}) · [Admin]({env["API_URL"]}/app)\n\nSynthetic data only. Admin credentials are delivered privately, never in this comment.')
 
 
@@ -535,6 +637,7 @@ class Controller:
             self.cf.route(number, env)
             raise RuntimeError('PR reopened during retirement; data preserved')
         self.compose(number, 'down', '--volumes', '--remove-orphans')
+        self.github.deactivate_previews(number)
         self.github.comment(number, '**Preview retired** · PR closed or merged. Its synthetic preview environment and routes have been removed.')
         # Remove only images recorded for this environment and not shared by another.
         shared = {image for key, entry in self.entries.items() if key != number for field in ('images', 'rollback_images', 'pending_images') for image in entry.get(field, [])}
@@ -554,6 +657,7 @@ class Controller:
         atomic(self.folder(number) / 'controller-error.txt', str(error))
         self.cf.route(number, load_env(self.envpath(number)), remove=True)
         self.compose(number, 'stop', 'proxy', 'medusa', 'storefront')
+        self.github.deactivate_previews(number)
         self.github.comment(number, f'**Preview failed** · `{sha[:12]}`. Public routing is withdrawn; data is preserved. Operator diagnostics are private.')
 
     def reconcile(self, apply=False):
@@ -577,11 +681,13 @@ class Controller:
                 self.compose(number, 'stop', 'proxy', 'medusa', 'storefront')
                 self.entries[number].update(status='failed', failed_sha=self.entries[number].get('attempt_sha'), error_type='InterruptedDeployment')
                 self.save()
+                self.github.deactivate_previews(number)
                 self.github.comment(number, '**Preview interrupted** · Routing is withdrawn and data preserved. Operator recovery is required before retrying this head.')
             elif not trusted(pr, self.config['repo']):
                 env = load_env(self.envpath(number))
                 self.cf.route(number, env, remove=True)
                 self.compose(number, 'stop')
+                self.github.deactivate_previews(number)
                 self.entries[number]['status'] = 'suspended'
                 self.save()
         if self.entries:
@@ -607,13 +713,18 @@ class Controller:
             self.current(number, sha)
             entry = self.entries.get(number, {})
             if entry.get('status') == 'ready' and entry.get('sha') == sha:
+                if entry.get('admin_login_version') != 1:
+                    self.configure_admin(number, running=True)
                 env = load_env(self.envpath(number))
+                self.sync_ai(number, recreate=True)
                 self.publish(number, sha, env)
                 continue
             if entry.get('status') == 'awaiting_public' and entry.get('candidate_sha') == sha:
                 try:
                     self.finalize(number)
                 except Exception as error:
+                    if self.entries[number].get('status') == 'ready':
+                        raise
                     self.fail(number, sha, error)
                 continue
             if entry.get('failed_sha') == sha:
@@ -625,7 +736,9 @@ class Controller:
             if not entry:
                 self.allocate(number)
             try:
+                self.sync_ai(number)
                 self.capacity_guard()
+                self.github.deployment(number, sha, 'in_progress')
                 self.entries[number]['previous_status'] = self.entries[number]['status']
                 self.entries[number]['attempt_sha'] = sha
                 self.entries[number]['status'] = 'deploying'
@@ -633,6 +746,8 @@ class Controller:
                 self.github.comment(number, f'**Preview deploying** · `{sha[:12]}`. Links appear after acceptance passes.')
                 self.deploy(number, sha, run)
             except Exception as e:
+                if self.entries[number].get('status') == 'ready':
+                    raise
                 self.fail(number, sha, e)
         return {'selected': selected, 'queued': queued, 'statuses': {k: e['status'] for k, e in self.entries.items()}}
 
