@@ -191,3 +191,26 @@ It is suitable for proving an installed release without recreating active apps.
 Normal scheduled reconciliation performs collection before disk admission checks.
 The target is bounded per-preview residual storage, not an identical whole-host byte
 count: active data can grow, shared layers remain, and unrelated services use disk.
+
+## Multiple repositories on one host
+
+Use one pinned release and one shared `lock_file` for **every** participating
+configuration. Each repository has a separate private `state_dir`, and every
+config lists all other `peer_state_dirs`. Initialize their `environments.json`
+files before enabling. Missing/corrupt peer state fails admission closed.
+Reservations, including failed/retiring stacks, count toward a **shared cap of
+two**. Existing occupants stay reserved until confirmed retirement.
+
+Keep the template's namespace empty to preserve existing identities. ChefV uses
+`namespace: chefv`, `api_port_base: 19200`, `storefront_port_base: 13200`, and
+`booking_mode: request`. Namespaced image tags must match its build workflow.
+The default remains template availability acceptance. Request mode tests the
+existing date/time intake API and does not claim availability/AI features.
+Use distinct port ranges and namespaces; inspect host listeners first. Each
+collector owns only its namespaced tags. Foreign tags/container refs still block
+image deletion. Disk accounting remains global across preview resources.
+
+Run controllers sequentially through the existing deterministic scheduler;
+never run independent locks against a shared tunnel configuration. Install both
+configs/release wrappers while scheduling is paused, preserving rollback copies.
+Reconcile both repositories and repeat a scheduled no-op before completion.

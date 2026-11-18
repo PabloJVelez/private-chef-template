@@ -67,6 +67,19 @@ def save_env(path, env):
     atomic(path, ''.join(f'{k}={v}\n' for k, v in env.items()))
 
 
+def namespace(config):
+    value = config.get('namespace', '')
+    if value and not re.fullmatch(r'[a-z][a-z0-9]{0,7}', value):
+        raise ValueError('Invalid preview namespace')
+    return value + '-' if value else ''
+
+
+def preview_hosts(config, number):
+    prefix = namespace(config)
+    return [f'{prefix}pr-{int(number)}-preview.{config["domain"]}',
+            f'api-{prefix}pr-{int(number)}-preview.{config["domain"]}']
+
+
 def trusted(pr, repo):
     return (pr['state'] == 'open' and not pr.get('draft', False)
             and pr['head']['repo'] is not None
@@ -226,7 +239,7 @@ class Cloudflare:
         return f'/accounts/{self.config["account_id"]}/cfd_tunnel/{self.config["tunnel_id"]}/configurations'
 
     def hosts(self, number):
-        return [f'pr-{int(number)}-preview.{self.config["domain"]}', f'api-pr-{int(number)}-preview.{self.config["domain"]}']
+        return preview_hosts(self.config, number)
 
     def route(self, number, env, remove=False, delete_dns=False):
         hosts = self.hosts(number)
@@ -325,15 +338,21 @@ def acceptance(env, public=False, write_request=False):
     if not experiences or not call('/store/menus')['menus']:
         raise RuntimeError('Preview seed acceptance failed')
     day = (dt.date.today() + dt.timedelta(days=7)).isoformat()
-    slots = call('/store/availability?date=' + day + '&experience_id=' + experiences[0]['id'])
-    if not isinstance(slots.get('slots'), list):
-        raise RuntimeError('Availability acceptance failed')
+    mode = env.get('PREVIEW_BOOKING_MODE', 'availability')
+    if mode not in ('availability', 'request'):
+        raise ValueError('Unsupported booking acceptance mode')
+    timing = {'requestedDate': day, 'requestedTime': '18:00'}
+    if mode == 'availability':
+        slots = call('/store/availability?date=' + day + '&experience_id=' + experiences[0]['id'])
+        if not isinstance(slots.get('slots'), list):
+            raise RuntimeError('Availability acceptance failed')
+        if write_request:
+            if not slots['slots']:
+                raise RuntimeError('No synthetic request slot available')
+            slot = slots['slots'][0]
+            timing.update(slotStart=slot['start'], requestedTime=slot['time'])
     if write_request:
-        if not slots['slots']:
-            raise RuntimeError('No synthetic request slot available')
-        slot = slots['slots'][0]
-        call('/store/chef-events', {'slotStart': slot['start'], 'requestedDate': day,
-            'requestedTime': slot['time'], 'partySize': 4, 'eventType': experiences[0]['name'],
+        call('/store/chef-events', {**timing, 'partySize': 4, 'eventType': experiences[0]['name'],
             'experience_type_id': experiences[0]['id'], 'templateProductId': 'menu_preview',
             'locationType': 'customer_location', 'locationAddress': '123 Synthetic Preview Lane',
             'firstName': 'Preview', 'lastName': 'Check', 'email': 'guest@example.invalid',
@@ -352,7 +371,7 @@ def acceptance(env, public=False, write_request=False):
         url = json.loads(uploaded)['files'][0]['url']
         if not url.startswith(base + '/static/') or http(url)[0] != image:
             raise RuntimeError('Public upload acceptance failed')
-    return {'admin_auth': True, 'cors': True, 'seed': True, 'availability': True, 'rendered_pages': True, 'public_upload': public, 'synthetic_request': write_request}
+    return {'admin_auth': True, 'cors': True, 'seed': True, 'availability': mode == 'availability', 'booking_mode': mode, 'rendered_pages': True, 'public_upload': public, 'synthetic_request': write_request}
 
 
 def docker_bytes(value):
@@ -371,6 +390,8 @@ class Controller:
         self.gc_path = state / 'garbage-collection.json'
         self.gc = json.loads(self.gc_path.read_text()) if self.gc_path.exists() else {'images': {}, 'imports': {}}
         self.cf = None
+        self.prefix = namespace(config)
+        self.image_pattern = re.compile(r'chef-preview-' + re.escape(self.prefix) + r'(medusa|storefront):[0-9a-f]{40}')
         if config['max_environments'] not in (1, 2):
             raise ValueError('Only one or two environments supported')
         if not re.fullmatch(r'[a-z0-9.-]+', config['domain']):
@@ -380,6 +401,18 @@ class Controller:
                 raise ValueError('Invalid state identity')
         if len({e['slot'] for e in self.entries.values()}) != len(self.entries):
             raise ValueError('Duplicate slot allocation')
+
+    def peers(self):
+        # Operator-configured paths, read under the SAME host lock. Missing/corrupt
+        # peer state fails closed rather than admitting an unaccounted third stack.
+        for directory in self.config.get('peer_state_dirs', []):
+            root = Path(directory).resolve()
+            entries = json.loads((root / 'environments.json').read_text())
+            yield root, entries
+
+    def capacity(self):
+        occupied = sum(len(entries) for _, entries in self.peers())
+        return max(len(self.entries), min(self.config['max_environments'], 2 - occupied))
 
     def save(self):
         write_json(self.entries_path, self.entries)
@@ -399,10 +432,14 @@ class Controller:
     def allocate(self, number):
         used = {e['slot'] for e in self.entries.values()}
         slot = next(s for s in range(self.config['max_environments']) if s not in used)
-        values = {'PREVIEW_ID': f'pr-{int(number)}', 'PREVIEW_BRIDGE': f'cp-{int(number)}',
-            'API_PORT': str(19100 + slot), 'STOREFRONT_PORT': str(13100 + slot),
-            'API_URL': f'https://api-pr-{int(number)}-preview.{self.config["domain"]}',
-            'STOREFRONT_URL': f'https://pr-{int(number)}-preview.{self.config["domain"]}',
+        if len(self.entries) >= self.capacity():
+            raise RuntimeError('Shared two-environment pool is full')
+        hosts = preview_hosts(self.config, number)
+        values = {'PREVIEW_ID': f'{self.prefix}pr-{int(number)}', 'PREVIEW_BRIDGE': f'{self.prefix}cp-{int(number)}',
+            'API_PORT': str(self.config.get('api_port_base', 19100) + slot), 'STOREFRONT_PORT': str(self.config.get('storefront_port_base', 13100) + slot),
+            'API_URL': 'https://' + hosts[1],
+            'STOREFRONT_URL': 'https://' + hosts[0],
+            'PREVIEW_BOOKING_MODE': self.config.get('booking_mode', 'availability'),
             'MEDUSA_IMAGE': 'uninitialized', 'STOREFRONT_IMAGE': 'uninitialized'}
         for key in ('PREVIEW_ADMIN_PASSWORD', 'POSTGRES_PASSWORD', 'JWT_SECRET', 'COOKIE_SECRET'):
             values[key] = secrets.token_hex(32)
@@ -485,6 +522,13 @@ class Controller:
         # Account for the old pilot or other unmanaged preview stacks before launch.
         containers = [json.loads(line) for line in command(['docker', 'container', 'ls', '--all', '--format', 'json']).splitlines()]
         allowed = {load_env(self.envpath(n))['PREVIEW_ID'] for n in self.entries if self.envpath(n).exists()}
+        for root, entries in self.peers():
+            for number in entries:
+                if not str(number).isdigit():
+                    raise ValueError('Invalid peer PR identity')
+                allowed.add(load_env(root / f'pr-{number}' / 'preview.env')['PREVIEW_ID'])
+        if len(allowed) > 2:
+            raise RuntimeError('Shared two-environment pool exceeded')
         for c in containers:
             name = c['Names']
             if name.startswith('chef-preview-') and not any(name.startswith('chef-preview-' + x + '-') for x in allowed):
@@ -507,11 +551,11 @@ class Controller:
                     raise RuntimeError('Artifact checksum mismatch')
                 self.capacity_guard()
                 # Journal intent BEFORE load, so a killed process can rediscover it.
-                tag = f'chef-preview-{app}:{sha}'
+                tag = f'chef-preview-{self.prefix}{app}:{sha}'
                 self.gc['imports'][tag] = {'pr': number, 'sha': sha}
                 write_json(self.gc_path, self.gc)
                 command(['docker', 'load', '-i', str(archive)])
-                info = json.loads(command(['docker', 'image', 'inspect', f'chef-preview-{app}:{sha}']))[0]
+                info = json.loads(command(['docker', 'image', 'inspect', f'chef-preview-{self.prefix}{app}:{sha}']))[0]
                 self.track_images([info['Id']])
                 self.entries[number].setdefault('pending_images', []).append(info['Id'])
                 self.save()
@@ -662,7 +706,7 @@ class Controller:
             try:
                 # Never force removal, including when a stopped foreign container uses it.
                 tags = inventory[image].get('RepoTags') or []
-                if any(not re.fullmatch(r'chef-preview-(medusa|storefront):[0-9a-f]{40}', tag) for tag in tags):
+                if any(not self.image_pattern.fullmatch(tag) for tag in tags):
                     raise RuntimeError('Image has an unowned tag; operator review required')
                 users = command(['docker', 'ps', '-aq', '--filter', f'ancestor={image}']).strip()
                 if users:
@@ -706,7 +750,7 @@ class Controller:
         failures = self.prune_images()
         inventory = self.image_inventory()
         untracked = [image for image, info in inventory.items() if image not in self.gc['images']
-                     and any(re.fullmatch(r'chef-preview-(medusa|storefront):[0-9a-f]{40}', tag)
+                     and any(self.image_pattern.fullmatch(tag)
                              for tag in (info.get('RepoTags') or []))]
         # Single overwritten report, not an ever-growing event log.
         report = {'checked_at': time.time(), 'tracked_images': len(self.gc['images']),
@@ -769,7 +813,7 @@ class Controller:
         prs = self.github.pages(f'repos/{self.config["repo"]}/pulls?state=open')
         if self.config.get('only_prs'):
             prs = [p for p in prs if p['number'] in self.config['only_prs']]
-        selected, queued = choose(prs, self.entries, self.config['max_environments'], self.config['repo'])
+        selected, queued = choose(prs, self.entries, self.capacity(), self.config['repo'])
         if not apply:
             return {'selected': selected, 'queued': queued, 'tracked': self.entries}
         if not self.config.get('enabled'):
@@ -812,7 +856,7 @@ class Controller:
                 deployable.append(pr)
             else:
                 self.github.comment(number, '**Preview awaiting build** · No successful current-head preview build is available yet.')
-        selected, queued = choose(deployable, self.entries, self.config['max_environments'], self.config['repo'])
+        selected, queued = choose(deployable, self.entries, self.capacity(), self.config['repo'])
         by_number = {str(p['number']): p for p in prs}
         for number in queued:
             self.github.comment(number, '**Preview queued** · The two-environment pool is full. A slot becomes available when an active PR closes.')
@@ -870,7 +914,10 @@ def main():
     config = json.loads(args.config.read_text())
     state = Path(config['state_dir']).expanduser().resolve()
     state.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with (state / 'controller.lock').open('a') as lock:
+    lock_path = Path(config.get('lock_file', str(state / 'controller.lock')))
+    if config.get('peer_state_dirs') and not config.get('lock_file'):
+        raise ValueError('Multi-repository controllers require a shared host lock')
+    with lock_path.open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         controller = Controller(config, state)
         if args.gc_only:
