@@ -47,6 +47,8 @@ services:
     mem_limit: 2560m
     memswap_limit: 2560m
     cpus: 1.0
+    env_file:
+      - ${PREVIEW_AI_ENV_FILE:-/dev/null}
     # A single explicit migration job must succeed before starting this service.
     command: [/app/apps/medusa/node_modules/.bin/medusa, start]
     environment:
@@ -108,7 +110,10 @@ services:
       - /tmp:size=16m,mode=1777
       - /var/cache/nginx:size=32m,uid=101,gid=101,mode=0700
     volumes: ['./nginx.conf:/etc/nginx/nginx.conf:ro']
-    networks: [preview, ingress]
+    networks:
+      preview:
+        aliases: [api.openai.com]
+      ingress: {}
     ports:
       - '127.0.0.1:${API_PORT:?required}:9000'
       - '127.0.0.1:${STOREFRONT_PORT:?required}:3000'
