@@ -103,6 +103,7 @@ class Reconciliation(unittest.TestCase):
         self.cfg = {'repo': REPO, 'domain': 'example.com', 'max_environments': 2, 'enabled': True}
         self.ctl = c.Controller(self.cfg, self.root)
         self.ctl.disk_guard = Mock()
+        self.ctl.collect_garbage = Mock(return_value={})
         self.ctl.github = Mock()
         self.ctl.github.pages.return_value = [pr(1)]
         self.ctl.github.pr.return_value = pr(1)
@@ -145,7 +146,7 @@ class Reconciliation(unittest.TestCase):
         self.ctl.deploy.assert_called_once()
 
     def test_lost_ready_comment_is_retried_without_redeploying(self):
-        self.ctl.allocate('1'); self.ctl.entries['1'].update(status='ready', sha=SHA)
+        self.ctl.allocate('1'); self.ctl.entries['1'].update(status='ready', sha=SHA, admin_login_version=1)
         self.ctl.deploy = Mock()
         with patch.object(c, 'Cloudflare', return_value=Mock()): self.ctl.reconcile(True)
         self.ctl.deploy.assert_not_called()
@@ -170,13 +171,16 @@ class ResourceAndCleanup(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2}, Path(temp))
             ctl.allocate('1'); ctl.allocate('2')
-            ctl.entries['1']['images'] = ['shared', 'unique']
-            ctl.entries['2']['images'] = ['shared']
+            shared, unique = 'sha256:' + 'a'*64, 'sha256:' + 'b'*64
+            ctl.entries['1']['images'] = [shared, unique]
+            ctl.entries['2']['images'] = [shared]
             ctl.cf = Mock(); ctl.github = Mock(); ctl.github.pr.return_value = pr(1, state='closed')
             ctl.compose = Mock()
-            with patch.object(c.subprocess, 'run') as run:
+            ctl.image_inventory = Mock(side_effect=[{shared: {}, unique: {}}, {unique: {}}, {}])
+            with patch.object(c, 'command', return_value='') as run:
                 ctl.retire('1')
-            self.assertEqual(run.call_args.args[0], ['docker', 'image', 'rm', 'unique'])
+            self.assertIn(unittest.mock.call(['docker', 'image', 'rm', unique]), run.call_args_list)
+            self.assertIn(shared, ctl.gc['images'])
             self.assertNotIn('1', ctl.entries)
             self.assertIn('2', ctl.entries)
             self.assertTrue(ctl.envpath('2').exists())
@@ -289,7 +293,138 @@ class ImageOwnership(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2}, Path(temp))
             own_id = 'sha256:' + 'a'*64
-            with patch.object(c.subprocess, 'run') as run:
+            ctl.image_inventory = Mock(side_effect=[{own_id: {}}, {own_id: {}}, {}])
+            with patch.object(c, 'command', return_value='') as run:
                 ctl.prune_images(['uninitialized', 'unrelated:latest', own_id])
-            self.assertEqual(run.call_count, 1)
-            self.assertEqual(run.call_args.args[0], ['docker', 'image', 'rm', own_id])
+            self.assertEqual(ctl.gc['images'], {})
+            self.assertIn(unittest.mock.call(['docker', 'image', 'rm', own_id]), run.call_args_list)
+
+class NativeDeployments(unittest.TestCase):
+    def make(self):
+        gh = c.GitHub(REPO)
+        gh.login = 'operator'
+        gh.guard = Mock()
+        records, statuses, writes = [], {}, []
+        gh.pages = lambda path: [d for d in records if d['environment'] in path]
+        def api(path, payload=None, method=None):
+            if path.endswith('/deployments'):
+                d = dict(payload, id=len(records)+1, sha=payload['ref'], creator={'login': 'operator'})
+                records.append(d); writes.append((path, payload)); return d
+            deployment_id = int(path.split('/deployments/')[1].split('/')[0])
+            if payload is None:
+                return statuses.get(deployment_id, [])
+            statuses[deployment_id] = [dict(payload)]
+            writes.append((path, payload)); return payload
+        gh.api = Mock(side_effect=api)
+        return gh, records, statuses, writes
+
+    def test_two_surfaces_exact_sha_transient_no_auto_merge_or_ci_gate(self):
+        gh, records, statuses, writes = self.make()
+        urls = {'storefront': 'https://preview.example', 'admin': 'https://api.example/app'}
+        gh.deployment('1', SHA, 'success', urls)
+        self.assertEqual(len(records), 2)
+        for d in records:
+            self.assertEqual(d['ref'], SHA)
+            self.assertFalse(d['auto_merge']); self.assertFalse(d['production_environment'])
+            self.assertTrue(d['transient_environment']); self.assertEqual(d['required_contexts'], [])
+            self.assertEqual(statuses[d['id']][0]['environment_url'], urls[d['payload']['surface']])
+
+    def test_noop_repeat_and_lost_status_response_recover_without_duplicates(self):
+        gh, records, statuses, writes = self.make()
+        urls = {'storefront': 'https://preview.example', 'admin': 'https://api.example/app'}
+        gh.deployment('1', SHA, 'success', urls)
+        count = len(writes)
+        gh.deployment('1', SHA, 'success', urls)
+        self.assertEqual(len(writes), count)
+        statuses.pop(1)
+        gh.deployment('1', SHA, 'success', urls)
+        self.assertEqual(len(records), 2)
+        self.assertEqual(len(writes), count+1)
+
+    def test_new_head_inactivates_previous_head_without_touching_other_pr(self):
+        gh, records, statuses, writes = self.make()
+        gh.deployment('1', SHA, 'success')
+        gh.deployment('2', SHA, 'success')
+        gh.deployment('1', 'b'*40, 'in_progress')
+        self.assertEqual([statuses[i][0]['state'] for i in range(1, 7)],
+                         ['inactive', 'inactive', 'success', 'success', 'in_progress', 'in_progress'])
+
+    def test_retirement_inactivates_both_and_repeat_is_noop(self):
+        gh, records, statuses, writes = self.make()
+        gh.deployment('1', SHA, 'success')
+        gh.deactivate_previews('1')
+        self.assertTrue(all(v[0]['state'] == 'inactive' for v in statuses.values()))
+        count = len(writes)
+        gh.deactivate_previews('1')
+        self.assertEqual(len(writes), count)
+
+    def test_foreign_deployments_are_not_modified(self):
+        gh, records, statuses, writes = self.make()
+        gh.deployment('1', SHA, 'success')
+        records[0]['creator']['login'] = 'other'
+        records[1]['task'] = 'unrelated'
+        count = len(writes)
+        gh.deactivate_previews('1')
+        self.assertEqual(len(writes), count)
+
+    def test_stale_guard_prevents_success_publication(self):
+        gh, records, statuses, writes = self.make()
+        gh.guard.side_effect = [None, RuntimeError('superseded')]
+        with self.assertRaises(RuntimeError): gh.deployment('1', SHA, 'success')
+        self.assertEqual(statuses, {})
+
+    def test_ready_publication_failure_does_not_stop_apps(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2, 'enabled': True}, Path(temp))
+            ctl.allocate('1'); ctl.entries['1'].update(status='ready', sha=SHA, admin_login_version=1)
+            ctl.github = Mock(); ctl.github.pages.return_value = [pr(1)]; ctl.github.pr.return_value = pr(1)
+            ctl.github.deployment.side_effect = RuntimeError('GitHub unavailable')
+            ctl.disk_guard = Mock(); ctl.fail = Mock(); ctl.deploy = Mock()
+            ctl.collect_garbage = Mock(return_value={})
+            with patch.object(c, 'Cloudflare', return_value=Mock()):
+                with self.assertRaisesRegex(RuntimeError, 'GitHub unavailable'): ctl.reconcile(True)
+            ctl.github.deployment.assert_called_once()
+            ctl.fail.assert_not_called(); ctl.deploy.assert_not_called()
+            self.assertEqual(ctl.entries['1']['status'], 'ready')
+
+class PreviewAI(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.ctl = c.Controller({'repo': REPO, 'domain': 'example.com', 'max_environments': 2}, self.root)
+        self.ctl.allocate('1'); self.ctl.compose = Mock()
+        self.path = self.root / 'preview-ai.env'
+        c.save_env(self.path, {'CHEF_AI_SCOPE': 'single_site', 'CHEF_AI_PROVIDER': 'openai',
+            'CHEF_AI_MODEL': 'gpt-5.4-mini', 'CHEF_AI_OPENAI_API_KEY': 'unit-only',
+            'CHEF_AI_SCHEDULE_WRITE_ENABLED': 'true'})
+        self.ctl.config['ai_env_file'] = str(self.path)
+
+    def test_only_private_allowlisted_configuration_is_accepted(self):
+        self.path.chmod(0o644)
+        with self.assertRaises(RuntimeError): self.ctl.sync_ai('1')
+        self.path.chmod(0o600)
+        with self.path.open('a') as f: f.write('DATABASE_URL=wrong\n')
+        with self.assertRaises(RuntimeError): self.ctl.sync_ai('1')
+        self.ctl.compose.assert_not_called()
+
+    def test_new_preview_references_operator_file_without_copying_key(self):
+        self.ctl.sync_ai('1')
+        self.assertEqual(c.load_env(self.ctl.envpath('1'))['PREVIEW_AI_ENV_FILE'], str(self.path))
+        self.assertNotIn('unit-only', self.ctl.envpath('1').read_text())
+        self.ctl.compose.assert_not_called()
+
+    def test_existing_preview_refreshes_once_and_rotation_refreshes_again(self):
+        with patch.object(c, 'http', return_value=(b'ok', {})), patch.object(c, 'acceptance'):
+            self.ctl.sync_ai('1', recreate=True)
+            self.assertEqual(self.ctl.compose.call_count, 2)
+            self.assertEqual(self.ctl.compose.call_args.args[-1], 'proxy')
+            self.ctl.sync_ai('1', recreate=True)
+            self.assertEqual(self.ctl.compose.call_count, 2)
+            values=c.load_env(self.path); values['CHEF_AI_OPENAI_API_KEY']='rotated-unit-only'; c.save_env(self.path, values)
+            self.ctl.sync_ai('1', recreate=True)
+            self.assertEqual(self.ctl.compose.call_count, 4)
+
+    def test_failed_acceptance_does_not_record_successful_configuration(self):
+        with patch.object(c, 'http', return_value=(b'ok', {})), patch.object(c, 'acceptance', side_effect=RuntimeError('not ready')):
+            with self.assertRaises(RuntimeError): self.ctl.sync_ai('1', recreate=True)
+        self.assertNotIn('ai_config_digest', self.ctl.entries['1'])

@@ -30,8 +30,8 @@ const env = Object.fromEntries(fs.readFileSync(envPath, 'utf8').trim().split('\n
       if (!response || response.status() !== 200 || new URL(page.url()).hostname !== new URL(url).hostname)
         throw new Error('Public browser routing/status failed');
       if (url.endsWith('/app')) {
-        await page.locator('input[name=email]').fill('chef@example.invalid');
-        await page.locator('input[name=password]').fill(env.PREVIEW_ADMIN_PASSWORD);
+        await page.locator('input[name=email]').fill('chef@admin.com');
+        await page.locator('input[name=password]').fill('test');
         await page.getByRole('button', { name: 'Continue with Email' }).click();
         await page.waitForURL(u => !u.pathname.includes('/login'), { timeout: 20000 });
       }

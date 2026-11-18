@@ -24,6 +24,14 @@ the NUC. Image builds run on GitHub-hosted workers without deployment secrets.
 - Require normal public DNS/TLS, API auth/CORS/seed/availability/rendered pages,
   fresh public upload/download and real browser/Admin login before links appear.
   Checks resolve through live Cloudflare public DNS-over-HTTPS, with normal hostname TLS verification; no hardcoded edge IPs. Browser mappings come from those live DNS answers. Home/ISP DNS caches may still differ. One operator-authored PR comment is updated.
+- Native GitHub deployments expose separate `pr-N-storefront` and `pr-N-admin`
+  environments in the PR Conversation deployment timeline and repository
+  Environments page. Each is transient/non-production and pins the exact head;
+  creation disables auto-merge and unrelated required-context gating. Success
+  URLs appear only after acceptance. Repeated runs recover existing operator-owned
+  receipts without duplicate deployments/statuses. Updates inactivate old heads;
+  retirement, suspension, interruption and failure inactivate owned receipts.
+  GitHub publication failures after acceptance retry without stopping the apps.
 - Closed/merged PRs are individually rechecked, exact tunnel/DNS routes removed,
   Compose stopped with that PR's synthetic volumes removed, and its comment
   retired. Never sweep global Docker volumes/images or arbitrary DNS records.
@@ -98,3 +106,88 @@ snapshot and compatible previous image together if rollback is needed; do not
 start the old app against an unknown partially migrated schema. Credentials
 can be read privately by the operator from `pr-N/preview.env`, never PR comments.
 On reopened PRs after cleanup, initialization creates a fresh synthetic dataset.
+
+## DNS migration troubleshooting
+
+If a preview redirects to `chefeventhub-com.l.ink`, that response is Porkbun
+parking, not the preview application. Compare the device/system resolver against
+`1.1.1.1`, `8.8.8.8`, Cloudflare authoritative nameservers and the `.com` registry
+referral. During the nameserver migration, the home AT&T resolver retained the
+old Porkbun delegation even while public resolvers and the registry were correct.
+A local cache flush alone did not fix that upstream answer. Use a current resolver
+on the affected device (including IPv6 DNS, if configured), then reopen the original
+preview URL, not the redirected parking URL. Do not disable TLS or hardcode edge
+addresses. Report public-DNS acceptance separately from affected-device access;
+a passing resolver-overridden browser check does not prove the user's DNS works.
+
+## Standard preview Admin login
+
+All managed previews use `chef@admin.com` / `test`, explicitly requested by the
+owner. `preview-admin.cjs` is an operator-owned bootstrap using Medusa's public
+user/auth services, guarded by PREVIEW_MODE=true. Include it in each installed
+controller release. It runs after data seeding and once for existing ready previews;
+older PR images are supported without a rebuild. Legacy seeded accounts are not
+deleted. Database passwords, JWT and cookie secrets remain random and private.
+This login policy never applies to production. Browser/API acceptance uses the
+standard account. Rerunning the bootstrap restores the requested password.
+
+## Preview Sous Chef configuration
+
+Set operator config `ai_env_file` to an absolute mode0600 env file outside Git.
+Only these keys are accepted: CHEF_AI_SCOPE=single_site, CHEF_AI_PROVIDER=openai,
+CHEF_AI_MODEL (preview default: gpt-5.4-mini), CHEF_AI_OPENAI_API_KEY and
+CHEF_AI_SCHEDULE_WRITE_ENABLED=true/false. Use a dedicated preview project key.
+Compose injects this file only into Medusa, never the storefront/build workflow.
+Do not print rendered Compose configuration: it includes the key.
+
+The operator proxy aliases api.openai.com on the isolated app network. Nginx
+passes TLS only for that SNI to the fixed api.openai.com:443 upstream, resolved
+through public DNS. The SDK retains normal hostname/certificate checks and its
+hardcoded OpenAI URL. No arbitrary forward proxy, general app egress, new host
+port or LAN access is introduced. Install the updated nginx.conf and Compose
+file with the controller release. Other providers require a deliberate change.
+
+New deployments inherit the file before startup. Existing ready previews apply
+changes using a content digest and recreate Medusa then the proxy, preserving
+DB/uploads and skipping migrations. Successful API acceptance records the digest;
+a failed check leaves the change retryable. There is a brief API interruption
+when rotating configuration. The controller will not spend API credits every
+five minutes: validate an actual provider-backed chat when installing/rotating a
+key. A health200 or a greeting-only response is not proof of provider access.
+
+## Verified storage collection
+
+Reconciliation now maintains `garbage-collection.json` under the existing lock.
+It records exact import tags **before** Docker load, then immutable IDs immediately
+after each import. Interrupted loads can therefore be recovered on the next run.
+Current, pending, candidate and one rollback generation remain protected. Successful
+updates release older generations; failed migrations keep their recovery data.
+For failed attempts, collection releases pending images that never reached the
+current or previous env file, while preserving all current/candidate/rollback
+references. This also repairs accumulated partial-import state after restart,
+before disk admission checks; repeated failed heads cannot pin unused imports.
+
+Deletion failures remain journaled across process restarts and retry each cycle.
+No force deletion or global prune is used. Foreign tags and any container reference
+(including stopped containers) block removal. Exact controller-owned tags are removed
+before checking whether their image ID is gone. Shared Docker layers remain shared.
+Retirement verifies zero project-labelled containers, volumes and networks, removes
+private PR files, and only then forgets the environment. Image cleanup can remain
+pending independently without consuming a preview slot. A PR reopened midway through
+retirement requires operator recovery rather than silently overwriting data.
+
+Under the lock, abandoned `import-*` directories are removed. Active snapshot and
+log names are overwritten, Docker logs retain their existing caps, and the GC report
+is a single overwritten `gc-status.json`, not an unbounded audit history. Historic
+manually-created audit/rollback files, installed releases, unrelated build caches,
+and unrecorded legacy images are **not** automatically deleted. Legacy preview-tagged
+images are reported for ownership review and explicit adoption into the journal.
+The report's `needs_attention` state and reconciliation JSON expose pending cleanup;
+there is still no external alert delivery configured.
+
+Inspect with `--gc-only`; collect with `--gc-only --apply` using the same private
+config and lock. This mode makes no GitHub/Cloudflare calls and never retires a PR.
+It is suitable for proving an installed release without recreating active apps.
+Normal scheduled reconciliation performs collection before disk admission checks.
+The target is bounded per-preview residual storage, not an identical whole-host byte
+count: active data can grow, shared layers remain, and unrelated services use disk.
