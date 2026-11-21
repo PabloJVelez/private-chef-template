@@ -209,6 +209,7 @@ it("strictly bounds untrusted context and model vocabulary; no IDs, patches, URL
   }
   expect(editIntentTool().function.strict).toBe(true);
   expect(Object.keys(editIntentTool().function.parameters.properties)).toEqual([
+    "customerName",
     "target",
     "targetDate",
     "date",
