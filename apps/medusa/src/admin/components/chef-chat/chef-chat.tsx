@@ -513,7 +513,15 @@ export function ChefChat({
   const navigate = useNavigate();
   const isPage = location.pathname.replace(/\/$/, "") === "/sous-chef";
   const open = isPage || floatingOpen;
-  const matchedPage = pageHintFromMatches(useMatches());
+  const routePage = pageHintFromMatches(useMatches());
+  const calendarDate = new URLSearchParams(location.search).get("date");
+  const matchedPage =
+    routePage.surface === "generic" &&
+    location.pathname.replace(/\/$/, "") === "/chef-events" &&
+    calendarDate &&
+    /^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(calendarDate)
+      ? { ...routePage, calendarMonth: calendarDate.slice(0, 7) }
+      : routePage;
   // Entering the chat page is a presentation transition, not a new event target.
   const origin = useRef<{ key: string; page: typeof matchedPage }>();
   const navigationKey =
@@ -640,10 +648,17 @@ export function ChefChat({
         body: summaryEventId
           ? { summarySelection: { eventId: summaryEventId } }
           : selection
-            ? { selection, ...(page.surface !== "generic" ? { page } : {}) }
+            ? {
+                selection,
+                ...(page.surface !== "generic" || page.calendarMonth
+                  ? { page }
+                  : {}),
+              }
             : {
                 message: question,
-                ...(page.surface !== "generic" ? { page } : {}),
+                ...(page.surface !== "generic" || page.calendarMonth
+                  ? { page }
+                  : {}),
                 ...(context ? { context } : {}),
                 ...(ticket.task ? { task: ticket.task } : {}),
               },
@@ -1084,6 +1099,8 @@ export function ChefChat({
                     const card = choice.cards.find(
                       (card) => card.source.id === candidate.id,
                     );
+                    const instant =
+                      verified?.instant ?? card?.requestedTime?.start;
                     return (
                       <div
                         key={candidate.id}
@@ -1095,16 +1112,16 @@ export function ChefChat({
                             card?.status ??
                             "Review required"}
                         </p>
-                        {verified && (
+                        {instant && (
                           <p className="text-xs">
                             {new Intl.DateTimeFormat(undefined, {
-                              timeZone: verified.timezone,
+                              timeZone: verified?.timezone ?? card?.timeZone,
                               month: "short",
                               day: "numeric",
                               year: "numeric",
                               hour: "numeric",
                               minute: "2-digit",
-                            }).format(new Date(verified.instant))}
+                            }).format(new Date(instant))}
                           </p>
                         )}
                         <p className="text-ui-fg-muted text-xs break-all">

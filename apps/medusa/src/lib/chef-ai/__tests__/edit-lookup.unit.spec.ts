@@ -336,3 +336,107 @@ it.each(["date", "time"] as const)(
     });
   },
 );
+
+it("resolves a named pending event, or keeps its name and destination while clarifying its original day", async () => {
+  const customerName = "Camila Alvarez";
+  const named: EditIntent = {
+    ...base,
+    customerName,
+    target: "clarify",
+    clarification: "target",
+    date: { kind: "day_of_month", day: 23 },
+    time: null,
+  };
+  const camila = (id: string, day: number) => ({
+    ...entry(id),
+    title: customerName,
+    requestedTime: {
+      start: `2026-11-${day}T17:00:00.000Z`,
+      end: `2026-11-${day}T19:00:00.000Z`,
+    },
+  });
+  rows = [
+    camila("first", 21),
+    { ...camila("unrelated", 21), title: "Another Customer" },
+  ];
+  snapshot.mockImplementation(async (id) => {
+    const row = rows.find((e) => e.source.id === id)!;
+    return {
+      id,
+      title: row.title,
+      revision,
+      requestedDate: row.requestedTime!.start,
+      requestedTime: "11:00",
+      timeZone: zone,
+      status: row.status,
+    };
+  });
+  const ask = () =>
+    answerSchedule(
+      { message: "move camila alvarez's event to the 23rd please" },
+      zone,
+      call(named),
+      jest.fn(),
+      now,
+      resolve,
+    );
+  expect((await ask()).editProposal).toMatchObject({
+    eventId: "first",
+    date: "2026-11-23",
+  });
+  rows.push(camila("second", 26));
+  const choices = await ask();
+  expect(choices.editClarification?.cards?.map((e) => e.source.id)).toEqual([
+    "first",
+    "second",
+  ]);
+  const second = await answerSchedule(
+    { message: "the 21st", task: choices.editTask },
+    zone,
+    jest.fn(),
+    jest.fn(),
+    now,
+    resolve,
+  );
+  expect(second.editProposal).toEqual({
+    eventId: "first",
+    expectedRevision: revision,
+    date: "2026-11-23",
+  });
+  rows = rows.filter((e) => e.title !== customerName);
+  const missing = await ask();
+  expect(missing.message).toContain("No pending event for Camila Alvarez");
+  expect(
+    (
+      await answerSchedule(
+        { message: "the 21st", task: missing.editTask },
+        zone,
+        jest.fn(),
+        jest.fn(),
+        now,
+        resolve,
+      )
+    ).editProposal,
+  ).toBeUndefined();
+});
+
+it("uses the calendar month being viewed rather than the server month", async () => {
+  rows = [];
+  const answer = await resolveEditProposal(
+    scope,
+    { ...base, customerName: "Camila Alvarez" },
+    undefined,
+    zone,
+    now,
+    false,
+    lookup,
+    {
+      version: 1,
+      surface: "generic",
+      view: "unknown",
+      calendarMonth: "2026-12",
+    },
+  );
+  expect(answer.message).toContain("December 2026");
+  expect(lookup.mock.calls[0][0].start).toBe("2026-12-01T06:00:00.000Z");
+});

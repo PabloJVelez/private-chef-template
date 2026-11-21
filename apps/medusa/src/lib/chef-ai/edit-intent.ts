@@ -57,6 +57,7 @@ export const dateExpression = z.discriminatedUnion("kind", [
 ]);
 export const editIntentSchema = z
   .object({
+    customerName: z.string().trim().min(1).max(160).nullable().optional(),
     target: z.enum(["context", "clarify", "date"]),
     // Optional only for v1 clients. The provider strict schema requires both fields.
     targetDate: dateExpression.nullable().optional(),
@@ -80,6 +81,7 @@ export const editIntentSchema = z
 export const editTaskSchema = z
   .object({
     version: z.literal(1),
+    awaiting: z.literal("event_date").optional(),
     intent: editIntentSchema,
     context: editContextSchema.optional(),
     expiresAt: z.number().int().positive(),
@@ -146,9 +148,14 @@ export function editIntentTool() {
     function: {
       name: "propose_pending_event_date_time_edit",
       description:
-        "Propose only a pending event date and/or local arrival time. Never executes an edit. No IDs or selection by names. Use context for anaphoric/selected event, date plus targetDate for event ON a date, clarify for other descriptions. targetDate identifies the event; date is the proposed NEW date (TO). Preserve date expression semantics; never decide availability or suggest an alternate date.",
+        "Propose only a pending event date and/or local arrival time. Never executes an edit. Never select IDs. Copy a supplied customer name for application lookup. Use context for anaphoric/selected event, date plus targetDate for event ON a date, clarify for other descriptions. targetDate identifies the event; date is the proposed NEW date (TO). Preserve date expression semantics; never decide availability or suggest an alternate date.",
       strict: true,
       parameters: object({
+        customerName: {
+          type: ["string", "null"],
+          description:
+            "Exact customer name quoted from this message for server-side lookup; otherwise null. Never invent a name.",
+        },
         target: {
           type: "string",
           enum: ["context", "clarify", "date"],

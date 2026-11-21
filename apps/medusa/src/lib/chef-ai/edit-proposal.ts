@@ -88,11 +88,15 @@ export async function resolveEditProposal(
   const ambiguous = clarifyEditMeaning(intent);
   if (ambiguous) return ambiguous;
   let context = rawContext ? editContextSchema.parse(rawContext) : undefined;
-  const unfinished = (text: string): ScheduleAnswer => ({
+  const unfinished = (
+    text: string,
+    awaiting?: "event_date",
+  ): ScheduleAnswer => ({
     ...message(text),
     presentation: "clarification",
     editTask: {
       version: 1,
+      awaiting,
       intent,
       ...(context ? { context } : {}),
       expiresAt: now.getTime() + 300_000,
@@ -102,6 +106,7 @@ export async function resolveEditProposal(
   // targets; missing/deleted/inaccessible page data must never fall back to A.
   if (
     !explicitSelection &&
+    !intent.customerName &&
     intent.target === "context" &&
     page?.surface === "chef-events"
   ) {
@@ -176,12 +181,24 @@ export async function resolveEditProposal(
     return unfinished("What arrival time? Include AM/PM.");
   if (intent.clarification === "date")
     return unfinished("What new date would you like? Include the month.");
-  if (intent.target === "date" && !explicitSelection) {
-    if (!intent.targetDate)
-      return unfinished("Which event date? Include the month and year.");
+  const name = intent.customerName?.toLowerCase();
+  if ((intent.target === "date" || name) && !explicitSelection) {
+    if (!intent.targetDate && !name)
+      return unfinished(
+        "Which event date? Include the month and year.",
+        "event_date",
+      );
     const today = DateTime.fromJSDate(now, { zone });
-    let anchor = today;
-    if (intent.targetDate.kind === "day_of_month" && context) {
+    const visibleMonth = page?.surface === "generic" && page.calendarMonth;
+    let anchor = visibleMonth
+      ? DateTime.fromISO(visibleMonth + "-01", { zone })
+      : today;
+    if (
+      intent.targetDate?.kind === "day_of_month" &&
+      context &&
+      !name &&
+      !visibleMonth
+    ) {
       if (
         now.getTime() - context.observedAt > 300_000 ||
         context.observedAt > now.getTime() + 5000
@@ -217,7 +234,9 @@ export async function resolveEditProposal(
         return unfinished("Which month and year is the event in?");
       anchor = DateTime.fromISO([...months][0] + "-01", { zone });
     }
-    const target = resolveDate(intent.targetDate, anchor, today);
+    const target = intent.targetDate
+      ? resolveDate(intent.targetDate, anchor, today)
+      : anchor.startOf("month");
     if (
       !target.isValid ||
       Math.abs(target.diff(today.startOf("day"), "days").days) > 366
@@ -228,33 +247,51 @@ export async function resolveEditProposal(
     const day = target.startOf("day");
     const range = {
       start: day.toUTC().toISO()!,
-      end: day.plus({ days: 1 }).toUTC().toISO()!,
+      end: day
+        .plus(intent.targetDate ? { days: 1 } : { months: 1 })
+        .toUTC()
+        .toISO()!,
     };
     const result = await lookup(range);
     if (
       !result.complete ||
       result.range.start !== range.start ||
       result.range.end !== range.end ||
-      result.entries.length > MAX_EDIT_CANDIDATES ||
+      result.entries.length > (name ? 100 : MAX_EDIT_CANDIDATES) ||
       result.entries.some((e) => e.protectedTime.length > 20)
     )
       return message(
-        "Too many or incomplete records for that day. Open the calendar and select the event.",
+        "Too many or incomplete records for that period. Open the calendar and select the event.",
       );
     // 'Event on a date' means its recorded requested arrival day, never an estimated display interval.
     const entries = result.entries.filter(
       (e) =>
         e.requestedTime &&
-        DateTime.fromISO(e.requestedTime.start, { zone }).toISODate() ===
-          day.toISODate(),
+        (!name ||
+          (e.title.trim().toLowerCase() === name && e.status === "pending")) &&
+        DateTime.fromISO(e.requestedTime.start).toMillis() >= day.toMillis() &&
+        DateTime.fromISO(e.requestedTime.start).toMillis() <
+          DateTime.fromISO(range.end).toMillis(),
     );
-    intent = {
-      ...intent,
-      targetDate: { kind: "iso", value: day.toISODate()! },
-    };
+    if (intent.targetDate)
+      intent = {
+        ...intent,
+        targetDate: { kind: "iso", value: day.toISODate()! },
+      };
+    if (entries.length > MAX_EDIT_CANDIDATES)
+      return unfinished(
+        "Too many matches. What date is the event currently on?",
+        "event_date",
+      );
+    if (name && !entries.length)
+      return unfinished(
+        `No pending event for ${intent.customerName} in ${day.toFormat(intent.targetDate ? "MMM d, yyyy" : "MMMM yyyy")}. What date is it currently on?`,
+        "event_date",
+      );
     if (!entries.length)
       return unfinished(
         `No event on ${day.toFormat("MMM d, yyyy")}. Which date did you mean?`,
+        "event_date",
       );
     if (new Set(entries.map((e) => e.source.id)).size !== entries.length)
       return message("Refresh the calendar to choose the event.");
@@ -270,7 +307,12 @@ export async function resolveEditProposal(
     context = { ...checked.editContext, observedAt: now.getTime() };
     if (entries.length > 1)
       return {
-        ...unfinished(`Which event on ${day.toFormat("MMM d, yyyy")}?`),
+        ...unfinished(
+          name
+            ? `Which event for ${intent.customerName}? Choose below or give its current date.`
+            : `Which event on ${day.toFormat("MMM d, yyyy")}?`,
+          "event_date",
+        ),
         editClarification: { intent, context, cards: entries },
       };
     // Exactly one across ALL statuses. Eligibility is checked on the fresh snapshot below.
@@ -293,10 +335,12 @@ export async function resolveEditProposal(
       time
         ? `Which event should I move to ${time}?`
         : "Which event? Give its date.",
+      "event_date",
     );
   }
   // Count ALL entries before eligibility; one pending plus one confirmed is ambiguous.
   const id =
+    name ||
     intent.target === "date" ||
     (intent.target === "context" && intent.clarification !== "target") ||
     explicitSelection
@@ -331,6 +375,8 @@ export async function resolveEditProposal(
     return message(
       "This event changed. Refresh and review its current date/time.",
     );
+  if (name && current.title?.trim().toLowerCase() !== name)
+    return message("The customer name changed. Review the event first.");
   if (current.status !== "pending")
     return message("Only pending requests can be changed here.");
   let saved;

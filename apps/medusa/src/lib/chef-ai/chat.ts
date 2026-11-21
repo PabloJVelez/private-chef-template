@@ -45,6 +45,41 @@ export async function answerSchedule(
   assistant?: (kind: AssistantRead) => Promise<ScheduleAnswer>,
 ): Promise<ScheduleAnswer> {
   const parsed = chatInput.parse(input);
+  const task = parsed.task;
+  const ordinal = /^(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?[.!]?$/i.exec(
+    parsed.message,
+  );
+  if (
+    task?.awaiting === "event_date" &&
+    ordinal &&
+    propose &&
+    task.expiresAt > now.getTime() &&
+    task.expiresAt <= now.getTime() + 300_000
+  ) {
+    if (!validTimeZone(timeZone)) throw new MissingBusinessTimezone();
+    const day = Number(ordinal[1]);
+    if (day < 1 || day > 31)
+      return {
+        message: "What date is the event currently on?",
+        entries: [],
+        editTask: task,
+      };
+    const answer = await propose(
+      {
+        ...task.intent,
+        target: "date",
+        targetDate: { kind: "day_of_month", day },
+        clarification: "none",
+      },
+      task.context,
+    );
+    if (answer.editTask)
+      answer.editTask.expiresAt = Math.min(
+        task.expiresAt,
+        answer.editTask.expiresAt,
+      );
+    return answer;
+  }
   const { calls } = await select({ message: parsed.message }, timeZone, now);
   if (!calls.length) return { message: clarification, entries: [] };
   // Reject the entire batch before any read, including duplicate/replayed calls.
@@ -67,6 +102,11 @@ export async function answerSchedule(
   if (!validTimeZone(timeZone)) throw new MissingBusinessTimezone();
   if (calls[0].name === "propose_pending_event_date_time_edit") {
     let intent = editIntentSchema.parse(JSON.parse(calls[0].arguments));
+    if (
+      intent.customerName &&
+      !parsed.message.toLowerCase().includes(intent.customerName.toLowerCase())
+    )
+      return { message: "What customer name should I look for?", entries: [] };
     const ambiguous = clarifyEditMeaning(intent);
     if (ambiguous) return ambiguous;
     let context = parsed.context;
@@ -86,6 +126,7 @@ export async function answerSchedule(
       intent = editIntentSchema.parse({
         ...task.intent,
         ...intent,
+        customerName: intent.customerName ?? task.intent.customerName,
         target: intent.targetDate ? "date" : task.intent.target,
         targetDate: intent.targetDate ?? task.intent.targetDate,
         date:

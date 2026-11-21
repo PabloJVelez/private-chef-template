@@ -11,6 +11,10 @@ export const pageHintSchema = z.discriminatedUnion("surface", [
       version: z.literal(1),
       surface: z.literal("generic"),
       view: z.literal("unknown"),
+      calendarMonth: z
+        .string()
+        .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+        .optional(),
     })
     .strict(),
   z
