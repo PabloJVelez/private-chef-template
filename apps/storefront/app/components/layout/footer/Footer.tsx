@@ -1,3 +1,4 @@
+import { getChefConfig } from '@libs/config/chef/chef-config';
 import { LogoStoreName } from '@app/components/LogoStoreName/LogoStoreName';
 import { Container } from '@app/components/common/container/Container';
 // import { Select } from '@app/components/common/forms/inputs/Select';
@@ -48,8 +49,7 @@ export const Footer = () => {
             <div className="flex flex-col gap-5 text-center sm:text-left">
               <h4 className="font-bold">Culinary Experiences</h4>
               <p className="text-sm">
-                Premium private chef experiences including cooking classes, plated dinners, and buffet-style events.
-                Restaurant-quality cuisine crafted in your home with professional service and unforgettable flavors.
+                {getChefConfig().bio.short}
               </p>
             </div>
             <LogoStoreName />

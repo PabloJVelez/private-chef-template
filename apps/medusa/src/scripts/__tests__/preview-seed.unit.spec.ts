@@ -20,7 +20,7 @@ test('retries preserve menu edits, schedule and changed Admin password without d
   const originalMode = process.env.PREVIEW_MODE, originalPassword = process.env.PREVIEW_ADMIN_PASSWORD;
   process.env.PREVIEW_MODE = 'true'; process.env.PREVIEW_ADMIN_PASSWORD = 'synthetic-test-only';
   const store: any = { id: 'store', metadata: {} };
-  const rows: any = { channels: [], keys: [], regions: [], menus: [], prices: [], settings: [], users: [] };
+  const rows: any = { channels: [], keys: [], regions: [], menus: [], courses: [], dishes: [], prices: [], settings: [], users: [] };
   let identity: any;
   const services: any = {
     [Modules.STORE]: { listStores: async () => [store], updateStores: async (_: any, data: any) => Object.assign(store, data) },
@@ -36,8 +36,12 @@ test('retries preserve menu edits, schedule and changed Admin password without d
     },
     experienceTypeModuleService: { listExperienceTypes: async () => [{ id: 'experience' }] },
     menuModuleService: {
-      listMenus: async () => rows.menus, createMenus: jest.fn(async (data) => rows.menus.push(data)),
-      listMenuExperiencePrices: async () => rows.prices, createMenuExperiencePrices: jest.fn(async (data) => rows.prices.push(data)),
+      listMenus: async ({ id }: any) => rows.menus.filter((row: any) => row.id === id), createMenus: jest.fn(async (data) => rows.menus.push(data)),
+      listCourses: async ({ id }: any) => rows.courses.filter((row: any) => row.id === id),
+      createCourses: async (data: any) => rows.courses.push(data),
+      listDishes: async ({ id }: any) => rows.dishes.filter((row: any) => row.id === id),
+      createDishes: async (data: any) => rows.dishes.push(data),
+      listMenuExperiencePrices: async ({ menu_id }: any) => rows.prices.filter((row: any) => row.menu_id === menu_id), createMenuExperiencePrices: jest.fn(async (data) => rows.prices.push(data)),
     },
     availability: { listAvailabilitySettings: async () => rows.settings },
   };
@@ -56,7 +60,7 @@ test('retries preserve menu edits, schedule and changed Admin password without d
     // Retry must look up the existing identity, not authenticate/reset its password.
     process.env.PREVIEW_ADMIN_PASSWORD = 'different-bootstrap-value';
     await seed(args);
-    expect(Object.values(rows).map((value: any) => value.length)).toEqual([1, 1, 1, 1, 1, 1, 1]);
+    expect(Object.values(rows).map((value: any) => value.length)).toEqual([1, 1, 1, 4, 11, 11, 4, 1, 1]);
     expect(rows.menus[0].name).toBe('Reviewer edited');
     expect(rows.prices[0].price_per_person).toBe(150);
     expect(rows.settings[0].timezone).toBe('America/New_York');

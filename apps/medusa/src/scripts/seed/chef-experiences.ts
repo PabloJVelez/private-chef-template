@@ -9,82 +9,12 @@ import type {
 } from '@medusajs/framework/types';
 import { ProductStatus } from '@medusajs/framework/utils';
 import {
+  menuProductData,
   menuDefinitions,
   seedMenuEntities,
 } from '../old-scripts/seed/menus';
 
 export { menuDefinitions, seedMenuEntities };
-
-interface MenuTicketProductDataUsd {
-  title: string;
-  description: string;
-  handle: string;
-  price: { usd: number };
-  estimatedDuration: number;
-  maxGuests: number;
-  eventType: 'cooking_class' | 'plated_dinner' | 'buffet_style';
-  images: string[];
-  availableTickets: number;
-}
-
-const menuProductDataUsd: MenuTicketProductDataUsd[] = [
-  {
-    title: 'The Winter Table',
-    description:
-      'A refined winter tasting: cocktails, canapés, herb-crusted lamb or salmon, roasted roots, and chocolate peppermint mousse. Ideal for intimate holiday gatherings.',
-    handle: 'the-winter-table',
-    price: { usd: 125 },
-    estimatedDuration: 180,
-    maxGuests: 12,
-    eventType: 'plated_dinner',
-    images: [
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
-    ],
-    availableTickets: 15,
-  },
-  {
-    title: 'Salt & Sun',
-    description:
-      'Coastal-inspired dining: tropical cocktails, ceviche, mahi-mahi or herb chicken, coconut rice, and coconut lime tart. Perfect for a relaxed, elegant gathering.',
-    handle: 'salt-and-sun',
-    price: { usd: 110 },
-    estimatedDuration: 165,
-    maxGuests: 14,
-    eventType: 'buffet_style',
-    images: [
-      'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&q=80',
-    ],
-    availableTickets: 18,
-  },
-  {
-    title: 'The Harvest Table',
-    description:
-      'Farm-to-table experience: bourbon cocktails, squash soup, roast or pesto-stuffed chicken, seasonal vegetables, wild rice, and apple crisp. A warm, convivial evening.',
-    handle: 'the-harvest-table',
-    price: { usd: 95 },
-    estimatedDuration: 150,
-    maxGuests: 16,
-    eventType: 'cooking_class',
-    images: [
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80',
-    ],
-    availableTickets: 12,
-  },
-  {
-    title: 'Noir & Blanc',
-    description:
-      'Upscale soirée: French 75 and blackberry fizz, caprese and salmon blinis, surf & turf or herb chicken, truffle mash, and tiramisu. For milestone celebrations.',
-    handle: 'noir-and-blanc',
-    price: { usd: 150 },
-    estimatedDuration: 210,
-    maxGuests: 10,
-    eventType: 'plated_dinner',
-    images: [
-      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
-    ],
-    availableTickets: 10,
-  },
-];
 
 function buildMenuProductDataUsd({
   sales_channels,
@@ -149,7 +79,7 @@ export function seedMenuProductsUsd({
     ['Chef Experience', 'Limited Availability'].includes(t.value),
   );
 
-  return menuProductDataUsd.map((mp) => {
+  return menuProductData.map((mp) => {
     const sku = mp.handle.toUpperCase().replace(/-/g, '_');
     return {
       title: mp.title,

@@ -1,3 +1,4 @@
+import { getChefConfig } from '@libs/config/chef/chef-config';
 import { Breadcrumbs } from '@app/components/common/breadcrumbs';
 import { Container } from '@app/components/common/container';
 import { MenuCarousel } from '@app/components/menu/MenuCarousel';
@@ -37,7 +38,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const count = data?.count || 0;
 
-  const title = `Menus (${count}) | Private Chef`;
+  const title = `Menus | ${getChefConfig().displayName}`;
 
   const description = `Browse ${count} expertly crafted menus. From intimate dinners to group celebrations, find the perfect menu for your culinary experience.`;
 
@@ -86,8 +87,7 @@ export default function MenusIndexRoute() {
       <div className="mb-12 text-center">
         <h1 className="text-4xl md:text-5xl font-italiana text-gray-900 mb-4">Menus</h1>
         <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Explore our carefully crafted menus, each designed to create memorable culinary experiences. Every menu can be
-          customized to your preferences and dietary requirements.
+          Pick a menu to see the dishes. When you request a date, tell me about any allergies or preferences.
         </p>
       </div>
 

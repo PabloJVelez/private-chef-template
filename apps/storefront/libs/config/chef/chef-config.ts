@@ -6,6 +6,8 @@
  */
 
 export interface ChefConfig {
+  demo?: boolean;
+  portrait: string;
   // Basic Information
   name: string;
   displayName: string; // e.g., "Chef [Name]"
@@ -55,68 +57,39 @@ export interface ChefConfig {
  * or customized for specific chefs.
  */
 export const chefConfig: ChefConfig = {
-  // Basic Information
-  name: 'Your Chef',
-  displayName: 'Your Culinary Storefront',
-  tagline: 'A DEMO FOR PRIVATE CHEFS',
-
-  // Biography
+  demo: true,
+  name: 'Elena Marín',
+  displayName: 'Chef Elena Marín',
+  tagline: 'Private chef in Austin',
+  portrait: '/assets/images/elena-portrait.webp',
   bio: {
-    short:
-      'A private chef specializing in premium at-home culinary experiences: cooking classes, plated dinners, buffet-style events, and more.',
+    short: 'I cook French food with Texas produce, in kitchens across Austin and the Hill Country.',
+    subtitle: 'At home in Austin',
     long: [
-      'With years of culinary experience, our chef has honed their craft under renowned culinary experts. As a dedicated private chef, they create exquisite dining experiences for discerning clients who value exceptional cuisine.',
-      'Their dedication to the culinary arts is evident in their mastery of various cooking techniques and deep understanding of culinary concepts. They bring a passion for food that transcends the ordinary, always seeking to educate and inspire those around them.',
-      'Ready to showcase culinary expertise: not just cooking, but creating memorable experiences. Plan your next culinary journey and indulge in flavors that will delight your palate.',
+      'I’m Elena Marín, a private chef in Austin. I cook in homes across the city and the Hill Country, using French techniques and whatever looks best at the Texas markets that week.',
+      'The first thing I plan is usually the vegetable. A crate of green beans might call for a sharp shallot vinaigrette; the last pears of the season belong in a tarte Tatin.',
+      'I also teach hands-on cooking classes. My favorite part is standing at the stove with someone, tasting a vinaigrette together, and letting them decide whether it needs another splash of vinegar.',
     ],
-    subtitle: 'Culinary Excellence',
   },
-
-  // Experience & Credentials
   credentials: {
-    yearsExperience: '15+ years',
-    specialization: 'Contemporary cuisine with seasonal ingredients',
-    highlights: ['Professional Training', 'Seasonal Sourcing', 'Custom Menus'],
+    yearsExperience: '',
+    specialization: 'French cooking with Texas produce',
+    highlights: [],
   },
-
-  // Hero Section (demo copy: speaks to the chef evaluating the platform)
   hero: {
-    tagline: 'A DEMO FOR PRIVATE CHEFS',
-    description:
-      'This is what your clients see. Showcase your menus, take event requests, and present whatever experiences you offer, from cooking classes and plated dinners to buffet events and beyond, all in one place.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=2070&q=80',
-    imageAlt: 'Professional culinary preparation in a kitchen',
+    tagline: 'Private chef in Austin',
+    description: 'Seasonal French dinners and hands-on classes, in your own kitchen.',
+    imageUrl: '/assets/images/elena-duck.webp',
+    imageAlt: 'Seared duck breast with caramelized shallots and thyme',
   },
-
-  // Meta & SEO
   seo: {
-    title: 'Private Chef Storefront Demo',
-    description:
-      'Demo storefront for private chefs. See how your menus, events, and whatever experience types you offer can be presented to clients.',
-    keywords: [
-      'private chef',
-      'cooking classes',
-      'plated dinner',
-      'culinary experiences',
-      'chef services',
-      'private dining',
-      'buffet style events',
-      'at-home dining',
-    ],
+    title: 'Chef Elena Marín | Private dining in Austin',
+    description: 'Explore seasonal menus for private dinners and cooking classes with Elena Marín in Austin.',
+    keywords: ['Austin private chef', 'French cooking classes', 'Hill Country private dining'],
   },
-
-  contact: {
-    email: 'hello@yourdomain.com',
-    phone: '(555) 555-5555',
-    responseTime: '24 hours',
-  },
+  contact: { email: '', phone: '', responseTime: '24 hours' },
 };
 
-/**
- * Helper function to get chef configuration
- * This allows for future extensibility (e.g., environment-based configs)
- */
 export function getChefConfig(): ChefConfig {
   return chefConfig;
 }

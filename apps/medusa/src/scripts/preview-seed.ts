@@ -6,6 +6,7 @@ import { writeFile } from 'node:fs/promises';
 import type MenuService from '../modules/menu/service';
 import type ExperienceService from '../modules/experience-type/service';
 import type AvailabilityService from '../modules/availability/service';
+import { menuDefinitions, menuProductData } from './old-scripts/seed/menus';
 import { seedExperienceTypes } from './seed/experience-types';
 import { saveAvailabilityWorkflow } from '../workflows/save-availability';
 
@@ -38,11 +39,34 @@ export default async function seed({ container }: ExecArgs) {
   const experiences = container.resolve<ExperienceService>('experienceTypeModuleService');
   await seedExperienceTypes(experiences);
   const menu = container.resolve<MenuService>('menuModuleService');
-  if (!(await menu.listMenus({ id: 'menu_preview' })).length)
-    await menu.createMenus({ id: 'menu_preview', name: 'Preview Seasonal Dinner', status: 'active' });
-  for (const experience of await experiences.listExperienceTypes({})) {
-    if (!(await menu.listMenuExperiencePrices({ menu_id: 'menu_preview', experience_type_id: experience.id })).length)
-      await menu.createMenuExperiencePrices({ menu_id: 'menu_preview', experience_type_id: experience.id, price_per_person: 12500 });
+  const experienceTypes = await experiences.listExperienceTypes({});
+  for (const [index, product] of menuProductData.entries()) {
+    const definition = menuDefinitions[index];
+    const menuId = index === 0 ? 'menu_preview' : `menu_preview_${product.handle}`;
+    const [existing] = await menu.listMenus({ id: menuId });
+    const details = { name: definition.name, thumbnail: definition.thumbnail };
+    if (!existing) {
+      await menu.createMenus({ id: menuId, ...details, status: 'active' });
+    } else if (menuId === 'menu_preview' && existing.name === 'Preview Seasonal Dinner') {
+      await menu.updateMenus({ id: menuId, ...details });
+    }
+    for (const [courseIndex, course] of definition.courses.entries()) {
+      const courseId = `${menuId}_course_${courseIndex}`;
+      if (!(await menu.listCourses({ id: courseId })).length) {
+        await menu.createCourses({ id: courseId, menu_id: menuId, name: course.name });
+      }
+      for (const [dishIndex, dish] of course.dishes.entries()) {
+        const dishId = `${courseId}_dish_${dishIndex}`;
+        if (!(await menu.listDishes({ id: dishId })).length) {
+          await menu.createDishes({ id: dishId, course_id: courseId, name: dish.name, description: dish.description });
+        }
+      }
+    }
+    for (const experience of experienceTypes) {
+      if (!(await menu.listMenuExperiencePrices({ menu_id: menuId, experience_type_id: experience.id })).length) {
+        await menu.createMenuExperiencePrices({ menu_id: menuId, experience_type_id: experience.id, price_per_person: product.price.usd * 100 });
+      }
+    }
   }
   const availability = container.resolve<AvailabilityService>('availability');
   if (!(await availability.listAvailabilitySettings({ id: 'chef-default' })).length)

@@ -155,7 +155,7 @@ export default function RequestSuccessPage() {
             </p>
           </div>
 
-          <div className="bg-green-50 rounded-lg p-6">
+          {(supportEmail || supportPhone) && <div className="bg-green-50 rounded-lg p-6">
             <div className="flex items-center space-x-3 mb-4">
               <EnvelopeIcon className="w-6 h-6 text-green-600" />
               <h3 className="text-lg font-semibold text-green-900">Questions?</h3>
@@ -164,10 +164,10 @@ export default function RequestSuccessPage() {
               <strong>We're here to help!</strong>
             </p>
             <div className="text-green-700 text-sm space-y-1">
-              <p>Email: {supportEmail}</p>
-              <p>Phone: {supportPhone}</p>
+              {supportEmail && <p>Email: {supportEmail}</p>}
+              {supportPhone && <p>Phone: {supportPhone}</p>}
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Action Buttons */}

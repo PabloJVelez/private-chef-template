@@ -40,8 +40,8 @@ export const meta: MetaFunction<MenuPageLoaderData> = ({ data, location }) => {
   const courseCount = menu.courses?.length || 0;
   const dishCount = menu.courses?.reduce((acc, course) => acc + (course.dishes?.length || 0), 0) || 0;
 
-  const title = `${menu.name} - Menu Template | Private Chef`;
-  const description = `${menu.name} featuring ${courseCount} courses and ${dishCount} dishes. Perfect for cooking classes, plated dinners, or buffet-style events. Request this menu for your culinary experience.`;
+  const title = `${menu.name} | Menu`;
+  const description = `${menu.name} featuring ${courseCount} courses and ${dishCount} dishes. Request this menu for your culinary experience.`;
 
   return [
     { title },
@@ -62,12 +62,12 @@ export const meta: MetaFunction<MenuPageLoaderData> = ({ data, location }) => {
         '@context': 'https://schema.org',
         '@type': 'Recipe',
         name: menu.name,
-        description: `Professional chef menu template with ${courseCount} courses`,
+        description: `Menu with ${courseCount} courses`,
         author: {
           '@type': 'Person',
           name: 'Private Chef',
         },
-        recipeCategory: 'Chef Menu Template',
+        recipeCategory: 'Private dining',
         recipeCuisine: 'Contemporary',
         offers: {
           '@type': 'Offer',
@@ -96,7 +96,7 @@ export default function MenuDetailRoute() {
       url: `/`,
     },
     {
-      label: 'Menu Templates',
+      label: 'Menus',
       url: '/menus',
     },
     {

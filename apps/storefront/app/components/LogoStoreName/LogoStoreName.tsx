@@ -1,3 +1,4 @@
+import { getChefConfig } from '@libs/config/chef/chef-config';
 import { Image } from '@app/components/common/images/Image';
 import { useSiteDetails } from '@app/hooks/useSiteDetails';
 import clsx from 'clsx';
@@ -23,7 +24,7 @@ export const LogoStoreName: FC<{ primary?: boolean; className?: string }> = ({ p
       className={clsx('logo-header flex flex-nowrap items-center justify-center gap-x-2 gap-y-2 sm:gap-x-4', className)}
     >
       <LogoHeader primary={primary} className="xs:text-2xl whitespace-nowrap text-lg font-bold font-aboreto">
-        {store?.name}
+        {getChefConfig().demo ? getChefConfig().displayName : store.name}
       </LogoHeader>
     </Link>
   );

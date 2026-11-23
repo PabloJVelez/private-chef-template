@@ -39,6 +39,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       (item) => item.value === url.searchParams.get("category"),
     )?.value || "all";
   const response = await fetchSocialGalleryPosts(page, category);
+  // Live gallery posts take precedence. Only the untouched demo gets sample photographs.
+  if (chefConfig.demo && page === 1 && category === "all" && !response.unavailable && response.count === 0) {
+    const photographs = [
+      ["Duck with caramelized shallots", "duck"],
+      ["French roast chicken for the table", "chicken"],
+      ["Pear tarte Tatin", "tatin"],
+      ["Steak au poivre", "steak"],
+    ];
+    const posts: StoreSocialGalleryPostDTO[] = photographs.map(([title, image], index) => ({
+      id: `demo-${image}`, title, alt_text: title, media_type: "image",
+      media_url: `/assets/images/elena-${image}.webp`, category: "dishes",
+      display_style: "normal", is_active: true, is_featured: index === 0, sort_order: index,
+    }));
+    return data({ posts, count: posts.length, categories: [] as StoreSocialGalleryCategory[], page, category, unavailable: false });
+  }
   return data(
     {
       posts: response.social_gallery_posts,
