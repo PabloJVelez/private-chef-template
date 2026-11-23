@@ -119,13 +119,13 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    { title: 'Request Your Culinary Experience - Private Chef' },
+    { title: 'Request an Event - Private Chef' },
     {
       name: 'description',
       content:
         'Book a personalized culinary experience. Choose from cooking classes, plated dinners, or buffet-style events.',
     },
-    { property: 'og:title', content: 'Request Your Culinary Experience - Private Chef' },
+    { property: 'og:title', content: 'Request an Event - Private Chef' },
     {
       property: 'og:description',
       content:
@@ -149,9 +149,9 @@ export default function RequestPage() {
   return (
     <Container className="py-12 lg:py-16 max-w-4xl">
       <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-italiana text-primary-900 mb-4">Request Your Culinary Experience</h1>
+        <h1 className="text-4xl md:text-5xl font-italiana text-primary-900 mb-4">Request an Event</h1>
         <p className="text-lg text-primary-600 max-w-2xl mx-auto">
-          Tell us about your event and we'll create a personalized proposal for your culinary experience.
+          Tell me about your gathering so I can put together a proposal.
         </p>
       </div>
 

@@ -1,3 +1,4 @@
+import { getChefConfig } from '@libs/config/chef/chef-config';
 import { LogoStoreName } from '@app/components/LogoStoreName/LogoStoreName';
 import { IconButton } from '@app/components/common/buttons';
 import { Container } from '@app/components/common/container/Container';
@@ -26,6 +27,11 @@ export const Header: FC<HeaderProps> = () => {
 
   return (
     <header className="sticky top-0 z-40 mkt-header text-white bg-[#3F432C] opacity-75 backdrop-blur">
+      {getChefConfig().demo && (
+        <aside className="bg-stone-100 px-4 py-2 text-center text-xs text-stone-800">
+          Example chef website by Behind the Sauté · <a className="underline" href="https://behindthesaute.com">Get a site like this</a>
+        </aside>
+      )}
       <nav aria-label="Top">
         <div className="bg-transparent">
           <div className="">

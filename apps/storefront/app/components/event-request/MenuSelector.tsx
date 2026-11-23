@@ -86,7 +86,7 @@ const MenuCard: FC<MenuCardProps> = ({ menu, isSelected, onSelect, onPreview }) 
             <h4 className="text-xl font-semibold text-primary-900 leading-tight line-clamp-2">{menu.name}</h4>
             <p className="text-sm text-primary-600 mt-1">
               {isCustom
-                ? 'Chef-designed menu • no fixed template'
+                ? 'Designed around your gathering'
                 : `${courseCount} courses • ${estimatedTime}`}
             </p>
           </div>
@@ -171,7 +171,7 @@ export const MenuSelector: FC<MenuSelectorProps> = ({ menus }) => {
       <div className="text-center">
         <h3 className="text-lg font-semibold text-primary-900 mb-2">Choose your menu</h3>
         <p className="text-primary-600">
-          Pick a template or <span className="font-medium text-primary-800">Custom</span> if you want the chef to design
+          Pick a menu or <span className="font-medium text-primary-800">Custom</span> if you want the chef to design
           the menu after you submit.
         </p>
       </div>

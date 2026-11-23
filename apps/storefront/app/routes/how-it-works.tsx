@@ -49,7 +49,7 @@ const processSteps: ProcessStep[] = [
     title: 'Chef Review & Approval',
     description:
       "Your request will be reviewed and availability confirmed. You'll receive a detailed proposal with menu customizations.",
-    timeline: '24-48 hours',
+    timeline: '24 hours',
     icon: '👨‍🍳',
   },
   {

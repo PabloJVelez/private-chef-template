@@ -44,7 +44,7 @@ const STEPS = [
   {
     id: 1,
     title: 'Experience & Menu',
-    subtitle: 'Choose your culinary experience, select a menu template, and tell us how many guests',
+    subtitle: 'Choose your culinary experience, select a menu, and tell us how many guests',
   },
   {
     id: 2,

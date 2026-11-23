@@ -25,8 +25,7 @@ export default function AboutChefRoute() {
                 {chefConfig.displayName}
               </h1>
               <p className="mx-auto text-md md:text-2xl !leading-normal">
-                {chefConfig.bio.short} With years of professional experience, crafting unforgettable menus using fresh,
-                seasonal ingredients and providing a seamless, restaurant-quality experience in your home.
+                {chefConfig.bio.short}
               </p>
             </div>
           }
@@ -43,15 +42,13 @@ export default function AboutChefRoute() {
           <div className="space-y-4 text-lg text-gray-700">
             <h2 className="font-italiana text-3xl text-gray-900">Philosophy</h2>
             <p>
-              Every event is a chance to create connection through food. From intimate dinners to interactive classes,
-              designing experiences that are warm, professional, and tailored to your tastes.
+              {chefConfig.bio.long[0]}
             </p>
           </div>
           <div className="space-y-4 text-lg text-gray-700">
             <h2 className="font-italiana text-3xl text-gray-900">Experiences</h2>
             <p>
-              Choose from cooking classes, plated dinners, or buffet-style events. All ingredients and equipment are
-              provided, so you can relax and enjoy.
+              {chefConfig.bio.long[1]}
             </p>
           </div>
         </div>

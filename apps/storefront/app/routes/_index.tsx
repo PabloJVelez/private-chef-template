@@ -74,35 +74,7 @@ export const loader = async (_args: LoaderFunctionArgs) => {
       cause: error?.cause,
     });
 
-    // Provide sample menu data as fallback for deployment
-    menus = [
-      {
-        id: 'sample-menu-1',
-        name: 'Classic French Experience',
-        thumbnail: '/assets/images/chef_beef_menu.jpg',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        courses: [
-          {
-            id: 'course-1',
-            name: 'Appetizer',
-            dishes: [
-              { id: 'dish-1', name: 'French Onion Soup', description: 'Rich and savory' },
-              { id: 'dish-2', name: 'Escargot', description: 'Traditional preparation' },
-            ],
-          },
-          {
-            id: 'course-2',
-            name: 'Main Course',
-            dishes: [
-              { id: 'dish-3', name: 'Coq au Vin', description: 'Classic French dish' },
-              { id: 'dish-4', name: 'Beef Bourguignon', description: 'Slow-cooked perfection' },
-            ],
-          },
-        ],
-        images: [],
-      },
-    ];
+
   }
 
   return data(
@@ -156,21 +128,18 @@ export default function IndexRoute() {
       <Container className="py-12 lg:py-24">
         {/* Mobile: show section title above the image with subtle underline */}
         <div className="lg:hidden text-center mb-6 pt-4">
-          <h2 className="text-5xl font-italiana text-primary-900">Meet Your Chef</h2>
+          <h2 className="text-5xl font-italiana text-primary-900">Meet {chefConfig.name}</h2>
           <div className="w-16 mx-auto mt-3 border-t-2 border-blue-500" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="relative order-1 lg:order-1">
             <Image
-              src="https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?auto=format&fit=crop&w=1200&q=80"
+              src={chefConfig.portrait}
               loading="lazy"
-              alt="Professional chef preparing a culinary experience"
+              alt={chefConfig.displayName}
               className="rounded-2xl shadow-lg w-full h-[500px] object-cover"
               height={500}
               width={600}
-              fallbackSrc={[
-                'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80',
-              ]}
             />
             <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-accent-500 rounded-full opacity-20"></div>
           </div>
@@ -178,7 +147,7 @@ export default function IndexRoute() {
           <div className="order-2 lg:order-2 text-center lg:text-left space-y-6">
             <div className="space-y-4">
               <h2 className="hidden lg:block text-5xl md:text-6xl lg:text-7xl font-italiana text-primary-900">
-                Meet Your Chef
+                Meet {chefConfig.name}
               </h2>
               <p className="text-2xl md:text-3xl lg:text-4xl font-italiana text-accent-600">
                 {chefConfig.bio.subtitle}
@@ -205,51 +174,12 @@ export default function IndexRoute() {
         </div>
       </Container>
 
-      <Container className="p-6 pt-0 sm:p-10">
-        <div className="text-center mb-12">
-          <h3 className="text-4xl font-italiana text-gray-900 mb-4">What Our Guests Say</h3>
-          <div className="w-20 mx-auto border-t-2 border-blue-500"></div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-            <div className="text-4xl mb-4">⭐⭐⭐⭐⭐</div>
-            <p className="text-gray-700 italic mb-4">
-              "The chef created the most incredible anniversary dinner for us. Every course was a masterpiece, and the
-              cooking class was so much fun!"
-            </p>
-            <div className="font-semibold text-gray-900">Sarah &amp; Michael K.</div>
-            <div className="text-sm text-gray-600">Plated Dinner Experience</div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-            <div className="text-4xl mb-4">⭐⭐⭐⭐⭐</div>
-            <p className="text-gray-700 italic mb-4">
-              "The cooking class was amazing! We learned so much and had a blast. Can't wait to book another
-              experience."
-            </p>
-            <div className="font-semibold text-gray-900">Jennifer L.</div>
-            <div className="text-sm text-gray-600">Cooking Class Experience</div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-            <div className="text-4xl mb-4">⭐⭐⭐⭐⭐</div>
-            <p className="text-gray-700 italic mb-4">
-              "Perfect for our family gathering! The buffet style worked perfectly for our group and everything was
-              absolutely delicious."
-            </p>
-            <div className="font-semibold text-gray-900">The Rodriguez Family</div>
-            <div className="text-sm text-gray-600">Buffet Style Experience</div>
-          </div>
-        </div>
-      </Container>
-
       <Container className="p-6 md:pt-28 lg:pt-24 lg:px-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           <div className="relative order-1 lg:order-1">
             <Image
-              src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80"
-              alt="Guests enjoying a culinary experience"
+              src={chefConfig.closingImage}
+              alt="Dessert ready to serve"
               className="rounded-2xl shadow-lg w-full h-[500px] object-cover lg:rounded-3xl lg:w-auto lg:h-auto"
               width={600}
               height={400}
@@ -258,11 +188,10 @@ export default function IndexRoute() {
           </div>
 
           <div className="order-2 lg:order-2 space-y-8 flex flex-col justify-center items-center lg:items-start text-center lg:text-left">
-            <h4 className="text-xl font-italiana tracking-wider">READY TO CREATE MEMORIES?</h4>
-            <h3 className="text-6xl lg:text-7xl font-aboreto">Book Your Experience</h3>
+            <h4 className="text-xl font-italiana tracking-wider">AT YOUR TABLE</h4>
+            <h3 className="text-6xl lg:text-7xl font-aboreto">Plan your gathering</h3>
             <p className="text-xl leading-relaxed">
-              Transform your next special occasion into an unforgettable culinary journey. From intimate dinners to
-              group celebrations, every experience is crafted with care.
+              Tell me about your guests, your kitchen, and the occasion. We’ll start there.
             </p>
             <ActionList
               actions={[

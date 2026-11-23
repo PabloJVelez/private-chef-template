@@ -1,3 +1,4 @@
+import { getChefConfig } from '@libs/config/chef/chef-config';
 import { Container } from '@app/components/common/container/Container';
 import { Grid } from '@app/components/common/grid/Grid';
 import { GridColumn } from '@app/components/common/grid/GridColumn';
@@ -463,20 +464,11 @@ export const EventProductDetails = ({ product, chefEvent, menu }: EventProductDe
                     <h3 className="text-2xl font-bold text-gray-900">About Your Chef</h3>
                   </div>
                   <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg">
-                      <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                    </div>
+                    <img src={getChefConfig().portrait} alt="" className="w-20 h-20 rounded-full object-cover" />
                     <div className="flex-1">
-                      <h4 className="text-xl font-bold text-gray-900 mb-2">Your Private Chef</h4>
-                      <p className="text-gray-600 font-medium mb-1">Professional culinary experience</p>
-                      <p className="text-sm text-gray-500">Specializing in custom culinary experiences</p>
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">{getChefConfig().displayName}</h4>
+                      <p className="text-gray-600 font-medium mb-1">{getChefConfig().tagline}</p>
+                      <p className="text-sm text-gray-500">{getChefConfig().bio.short}</p>
                     </div>
                   </div>
                 </div>
