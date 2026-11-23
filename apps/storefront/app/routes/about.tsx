@@ -1,58 +1,45 @@
-import { Container } from '@app/components/common/container';
-import Hero from '@app/components/sections/Hero';
-import { getMergedPageMeta } from '@libs/util/page';
+import { Link, type MetaFunction } from 'react-router';
 import { getChefConfig } from '@libs/config/chef/chef-config';
-import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 
-const chefConfig = getChefConfig();
+const chef = getChefConfig();
 
-export const loader = async (_args: LoaderFunctionArgs) => {
-  return {};
-};
-
-export const meta: MetaFunction<typeof loader> = getMergedPageMeta;
+export const meta: MetaFunction = () => [
+  { title: `About ${chef.displayName}` },
+  { name: 'description', content: chef.bio.short },
+];
 
 export default function AboutChefRoute() {
   return (
-    <>
-      <Container className="!px-0 py-0 sm:!p-16">
-        <Hero
-          className="min-h-[400px] !max-w-full bg-accent-50 sm:rounded-3xl p-6 sm:p-10 md:p-[88px] md:px-[88px]"
-          content={
-            <div className="text-center w-full space-y-9">
-              <h4 className="text-lg md:text-2xl font-italiana tracking-wider">ABOUT THE CHEF</h4>
-              <h1 className="text-4xl md:text-8xl font-italiana tracking-wider [text-shadow:_1px_1px_2px_rgb(0_0_0_/_40%)]">
-                {chefConfig.displayName}
-              </h1>
-              <p className="mx-auto text-md md:text-2xl !leading-normal">
-                {chefConfig.bio.short}
-              </p>
-            </div>
-          }
-          actionsClassName="!flex-row w-full justify-center !font-base"
-          actions={[
-            { label: 'View Menus', url: '/menus' },
-            { label: 'Request an Event', url: '/request' },
-          ]}
+    <article className="mx-auto max-w-7xl px-5 py-8 sm:px-10 lg:py-14">
+      <header className="grid overflow-hidden rounded-2xl bg-[#373e30] text-[#fff9eb] md:grid-cols-2">
+        <img
+          src={chef.portrait}
+          alt={chef.displayName + ' in the kitchen'}
+          className="aspect-[4/3] h-full w-full object-cover object-center md:aspect-auto md:min-h-[30rem]"
         />
-      </Container>
-
-      <Container className="pt-8 flex flex-col gap-12 sm:!px-16 pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          <div className="space-y-4 text-lg text-gray-700">
-            <h2 className="font-italiana text-3xl text-gray-900">Philosophy</h2>
-            <p>
-              {chefConfig.bio.long[0]}
-            </p>
-          </div>
-          <div className="space-y-4 text-lg text-gray-700">
-            <h2 className="font-italiana text-3xl text-gray-900">Experiences</h2>
-            <p>
-              {chefConfig.bio.long[1]}
-            </p>
+        <div className="flex flex-col justify-center px-7 py-10 sm:p-12 lg:p-16">
+          <p className="mb-5 text-sm uppercase tracking-[0.18em]">{chef.tagline}</p>
+          <h1 className="font-italiana text-6xl leading-none lg:text-8xl">{chef.name}</h1>
+          <p className="mt-6 max-w-md text-xl leading-relaxed">{chef.bio.short}</p>
+          <div className="mt-8 flex flex-wrap items-center gap-6">
+            <Link to="/menus" className="rounded-full bg-[#fff9eb] px-6 py-3 text-[#373e30] hover:bg-white">View menus</Link>
+            <Link to="/request" className="underline underline-offset-4">Request an event</Link>
           </div>
         </div>
-      </Container>
-    </>
+      </header>
+
+      <section className="grid items-center gap-9 py-14 md:grid-cols-2 md:gap-16 lg:py-20">
+        <div className="max-w-prose">
+          <h2 className="mb-6 font-italiana text-5xl">In my kitchen</h2>
+          <div className="space-y-5 text-lg leading-relaxed">
+            {chef.bio.long.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          </div>
+        </div>
+        <figure>
+          <img src={chef.hero.imageUrl} alt={chef.hero.imageAlt} loading="lazy" className="aspect-[4/3] w-full rounded-t-full object-cover" />
+          <figcaption className="mt-4 border-t border-current pt-3 text-sm">{chef.hero.imageAlt}</figcaption>
+        </figure>
+      </section>
+    </article>
   );
 }
