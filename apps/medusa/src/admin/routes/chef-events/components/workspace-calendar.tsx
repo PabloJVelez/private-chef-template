@@ -69,15 +69,15 @@ export function WorkspaceCalendar({ date, view, entries, loading, failed, onNavi
   return (
     <section className="chef-workspace-calendar" aria-label="Event calendar" aria-busy={loading}>
       <div className="workspace-calendar-toolbar">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1">
+        <div className="workspace-calendar-navigation">
+          <div className="workspace-calendar-arrows">
             <Button size="small" variant="secondary" aria-label="Previous" onClick={() => navigate('prev')}><ChevronLeft /></Button>
             <Button size="small" variant="secondary" aria-label="Next" onClick={() => navigate('next')}><ChevronRight /></Button>
           </div>
-          <Button size="small" variant="secondary" onClick={() => navigate('today')}>Today</Button>
-          <h2 className="text-sm font-medium text-ui-fg-base" aria-live="polite">{title}</h2>
+          <Button className="workspace-calendar-today" size="small" variant="secondary" onClick={() => navigate('today')}>Today</Button>
+          <h2 className="workspace-calendar-title text-sm font-medium text-ui-fg-base" aria-live="polite">{title}</h2>
         </div>
-        <div className="flex gap-1" role="group" aria-label="Calendar view">
+        <div className="workspace-calendar-views" role="group" aria-label="Calendar view">
           {(Object.keys(labels) as CalendarView[]).map((next) => (
             <Button key={next} size="small" variant={view === next ? 'secondary' : 'transparent'} aria-pressed={view === next} onClick={() => onNavigate(date, next)}>{labels[next]}</Button>
           ))}

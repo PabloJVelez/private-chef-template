@@ -11,6 +11,8 @@
   color: var(--fg-base);
 }
 .workspace-calendar-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+.workspace-calendar-navigation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.workspace-calendar-arrows, .workspace-calendar-views { display: flex; gap: 4px; }
 .workspace-calendar-state { min-height: 24px; font-size: 12px; color: var(--fg-subtle); }
 .chef-workspace-calendar .fc { font-size: 12px; }
 .chef-workspace-calendar .fc-col-header-cell { font-weight: 500; color: var(--fg-subtle); padding: 5px 0; }
@@ -50,12 +52,27 @@
 .chef-workspace-calendar .fc-timegrid-event .workspace-event-content { overflow: hidden; height: 100%; }
 @media (max-width: 767px) {
   .chef-workspace-calendar { padding: 12px 8px; }
-  .workspace-calendar-toolbar { align-items: flex-start; }
+  .workspace-calendar-toolbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .workspace-calendar-navigation { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .workspace-calendar-title { grid-column: 1; grid-row: 1; font-size: 16px; line-height: 24px; }
+  .workspace-calendar-arrows { grid-column: 2; grid-row: 1 / 3; align-self: end; }
+  .workspace-calendar-today { grid-column: 1; grid-row: 2; justify-self: start; }
+  .workspace-calendar-toolbar button { min-height: 44px; }
+  .workspace-calendar-arrows button { min-width: 44px; }
+  .workspace-calendar-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 8px; background: var(--bg-subtle); }
   .chef-workspace-calendar .fc { font-size: 11px; }
-  .chef-workspace-calendar .fc-daygrid-day-frame { min-height: 90px; }
+  .chef-workspace-calendar .fc-daygrid-day-frame { min-height: 72px; }
+  .chef-workspace-calendar .fc-daygrid-day-top { justify-content: center; padding: 0; }
+  .workspace-date-button { min-width: 36px; min-height: 36px; }
+  .chef-workspace-calendar .fc-daygrid-event { margin: 2px 1px; border-left-width: 2px; }
   .chef-workspace-calendar .fc-daygrid-event .workspace-event-meta { display: none; }
-  .chef-workspace-calendar .fc-daygrid-event .workspace-event-content { padding: 2px; }
-  .chef-workspace-calendar .fc-daygrid-event .workspace-event-heading { font-size: 10px; max-height: 4.1em; overflow: hidden; }
+  .chef-workspace-calendar .fc-daygrid-event .workspace-event-content { padding: 3px 2px; }
+  .chef-workspace-calendar .fc-daygrid-event .workspace-event-heading { font-size: 11px; line-height: 1.4; }
+  .chef-workspace-calendar .fc-daygrid-event .workspace-event-heading strong,
+  .chef-workspace-calendar .fc-daygrid-event .workspace-event-heading > span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Popovers have room for full titles, unlike seven-column month cells. */
+  .chef-workspace-calendar .fc-popover .workspace-event-heading > span { white-space: normal; overflow-wrap: anywhere; }
+  .chef-workspace-calendar .fc-popover .workspace-event-meta { display: block; }
   .chef-workspace-calendar .fc-list-event-time { white-space: normal; }
 }
 
