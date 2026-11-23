@@ -9,7 +9,6 @@ import { Image } from '@app/components/common/images/Image';
 import { ChefHero } from '@app/components/chef/ChefHero';
 import { FeaturedMenus } from '@app/components/chef/FeaturedMenus';
 import { ExperienceTypes } from '@app/components/chef/ExperienceTypes';
-import { ActionList } from '@app/components/common/actions-list/ActionList';
 import { fetchMenus, type StoreMenuDTO } from '@libs/util/server/data/menus.server';
 import { fetchExperienceTypes } from '@libs/util/server/data/experience-types.server';
 import { getMergedPageMeta } from '@libs/util/page';
@@ -149,9 +148,6 @@ export default function IndexRoute() {
               <h2 className="hidden lg:block text-5xl md:text-6xl lg:text-7xl font-italiana text-primary-900">
                 Meet {chefConfig.name}
               </h2>
-              <p className="text-2xl md:text-3xl lg:text-4xl font-italiana text-accent-600">
-                {chefConfig.bio.subtitle}
-              </p>
             </div>
 
             {/* Biography paragraphs */}
@@ -174,35 +170,6 @@ export default function IndexRoute() {
         </div>
       </Container>
 
-      <Container className="p-6 md:pt-28 lg:pt-24 lg:px-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          <div className="relative order-1 lg:order-1">
-            <Image
-              src={chefConfig.closingImage}
-              alt="Dessert ready to serve"
-              className="rounded-2xl shadow-lg w-full h-[500px] object-cover lg:rounded-3xl lg:w-auto lg:h-auto"
-              width={600}
-              height={400}
-            />
-            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-accent-500 rounded-full opacity-20 lg:hidden"></div>
-          </div>
-
-          <div className="order-2 lg:order-2 space-y-8 flex flex-col justify-center items-center lg:items-start text-center lg:text-left">
-            <h4 className="text-xl font-italiana tracking-wider">AT YOUR TABLE</h4>
-            <h3 className="text-6xl lg:text-7xl font-aboreto">Plan your gathering</h3>
-            <p className="text-xl leading-relaxed">
-              Tell me about your guests, your kitchen, and the occasion. We’ll start there.
-            </p>
-            <ActionList
-              actions={[
-                { label: 'Browse Our Menus', url: '/menus' },
-                { label: 'Request Your Event', url: '/request' },
-              ]}
-              className="flex-col gap-4 lg:flex-row"
-            />
-          </div>
-        </div>
-      </Container>
     </>
   );
 }

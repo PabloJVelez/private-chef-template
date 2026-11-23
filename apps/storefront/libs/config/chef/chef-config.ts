@@ -8,7 +8,6 @@
 export interface ChefConfig {
   demo?: boolean;
   portrait: string;
-  closingImage: string;
   // Basic Information
   name: string;
   displayName: string; // e.g., "Chef [Name]"
@@ -63,13 +62,13 @@ export const chefConfig: ChefConfig = {
   displayName: 'Chef Elena Marín',
   tagline: 'Private chef in Austin',
   portrait: '/assets/images/elena-portrait.webp',
-  closingImage: '/assets/images/elena-tatin.webp',
   bio: {
     short: 'I cook French food with Texas produce, in kitchens across Austin and the Hill Country.',
     subtitle: 'At home in Austin',
     long: [
+      'I’m Elena Marín, a private chef in Austin. I cook in homes across the city and the Hill Country, using French techniques and whatever looks best at the Texas markets that week.',
       'The first thing I plan is usually the vegetable. A crate of green beans might call for a sharp shallot vinaigrette; the last pears of the season belong in a tarte Tatin.',
-      'For a dinner, tell me who’s coming and what they love to eat. For a class, pull up a stool and bring your questions. There’s room at my stove.',
+      'I also teach hands-on cooking classes. My favorite part is standing at the stove with someone, tasting a vinaigrette together, and letting them decide whether it needs another splash of vinegar.',
     ],
   },
   credentials: {
